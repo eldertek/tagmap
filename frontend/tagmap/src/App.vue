@@ -479,8 +479,9 @@ watchEffect(() => {
     </header>
     <!-- Main content -->
     <main :class="[ 
-      $route.path === '/' ? 'overflow-hidden' : 'overflow-auto', 
-      'flex-1 flex flex-col h-[calc(100vh-64px)]'
+      $route.path === '/' && !isMobile ? 'overflow-hidden' : 'overflow-auto', 
+      'flex-1 flex flex-col',
+      'md:h-[calc(100vh-64px)]'
     ]">
       <router-view></router-view>
     </main>
@@ -490,11 +491,23 @@ watchEffect(() => {
   </div>
 </template>
 <style>
+/* Styles de base */
 body {
-  @apply bg-gray-50 h-screen overflow-hidden;
+  @apply bg-gray-50;
 }
-#app {
-  @apply h-screen overflow-hidden;
+
+/* Sur desktop, on garde le overflow hidden */
+@media (min-width: 768px) {
+  body, #app {
+    @apply h-screen overflow-hidden;
+  }
+}
+
+/* Sur mobile, on permet le scroll */
+@media (max-width: 767px) {
+  body, #app {
+    @apply min-h-screen overflow-auto;
+  }
 }
 
 /* Animation de la cloche de notification */
