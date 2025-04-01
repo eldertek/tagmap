@@ -16,7 +16,6 @@ const { isQueryParamEnabled } = usePerformanceMonitor()
 const showProfileMenu = ref(false)
 const showMobileMenu = ref(false)
 const showNotificationsMenu = ref(false)
-const isSmallScreen = ref(false)
 const bellAnimating = ref(false)
 const activeNotification = ref<{id: number, message: string, type: string} | null>(null)
 const isExpanded = ref(false)
@@ -26,21 +25,13 @@ const bellButtonRef = ref<HTMLElement | null>(null)
 const islandPositionTop = ref('13px')
 const islandPositionRight = ref('65px')
 
-// Fonction pour détecter la taille de l'écran
-function checkScreenSize() {
-  isSmallScreen.value = window.innerWidth < 768
-}
-
 // Écouter les changements de taille d'écran
 onMounted(() => {
-  checkScreenSize()
-  window.addEventListener('resize', checkScreenSize)
   window.addEventListener('resize', updateIslandPosition)
 })
 
 // Nettoyer les écouteurs d'événement
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkScreenSize)
   window.removeEventListener('resize', updateIslandPosition)
 })
 
@@ -532,7 +523,7 @@ watchEffect(() => {
       'flex-1 flex flex-col h-[calc(100vh-64px)]'
     ]">
       <div
-        v-if="isSmallScreen && $route.path === '/'"
+        v-if="$route.path === '/'"
         class="fixed inset-0 bg-white z-[2001] flex flex-col items-center justify-center p-6 text-center"
       >
         <svg
@@ -561,7 +552,7 @@ watchEffect(() => {
           Voir mes plans
         </router-link>
       </div>
-      <router-view v-else></router-view>
+      <router-view></router-view>
     </main>
     
     <!-- Panneau de performance (visible si le paramètre URL perf=true est présent) -->
