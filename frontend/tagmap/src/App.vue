@@ -522,36 +522,6 @@ watchEffect(() => {
       $route.path === '/' ? 'overflow-hidden' : 'overflow-auto', 
       'flex-1 flex flex-col h-[calc(100vh-64px)]'
     ]">
-      <div
-        v-if="$route.path === '/'"
-        class="fixed inset-0 bg-white z-[2001] flex flex-col items-center justify-center p-6 text-center"
-      >
-        <svg
-          class="w-24 h-24 text-primary-500 mb-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-          />
-        </svg>
-        <h2 class="text-2xl font-bold text-gray-900 mb-4">
-          Version bureau recommandée
-        </h2>
-        <p class="text-gray-600 mb-8 max-w-md">
-          Pour une meilleure expérience de conception d'irrigation, nous vous recommandons d'utiliser un écran plus large ou un ordinateur.
-        </p>
-        <router-link
-          to="/plans"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-        >
-          Voir mes plans
-        </router-link>
-      </div>
       <router-view></router-view>
     </main>
     
