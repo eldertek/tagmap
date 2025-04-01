@@ -4,7 +4,7 @@ SHELL := /bin/bash
 .PHONY: install migrate run test shell clean frontend serve dev list-files cypress-tests cypress-admin cypress-usine cypress-concessionnaire cypress-agriculteur cypress-admin-ui cypress-usine-ui cypress-concessionnaire-ui cypress-agriculteur-ui cypress-open cypress-admin-debug cypress-usine-debug cypress-concessionnaire-debug cypress-agriculteur-debug cypress-extract-errors
 
 # Variables
-PYTHON = python
+PYTHON = python3
 MANAGE = $(PYTHON) manage.py
 PIP = pip
 VENV = venv
@@ -25,7 +25,7 @@ files:
 	@echo "\n=== Frontend Vue.js ===" >> out.txt
 	
 	@echo "\n--- Composants et Vues Vue ---" >> out.txt
-	@for f in $$(find frontend/irrigationdesign/src -type f -name "*.vue" ! -path "*/node_modules/*" ! -name "index.html" ! -name "README.md" ! -name "*.config.js" ! -name "*.json"); do \
+	@for f in $$(find frontend/tagmap/src -type f -name "*.vue" ! -path "*/node_modules/*" ! -name "index.html" ! -name "README.md" ! -name "*.config.js" ! -name "*.json"); do \
 		if [ -s "$$f" ]; then \
 			echo "\n$$f:" >> out.txt; \
 			echo "\`\`\`vue" >> out.txt; \
@@ -35,7 +35,7 @@ files:
 	done
 	
 	@echo "\n--- Fichiers TypeScript ---" >> out.txt
-	@for f in $$(find frontend/irrigationdesign/src -type f -name "*.ts" ! -path "*/node_modules/*" ! -name "index.html" ! -name "README.md" ! -name "*.config.js" ! -name "*.json"); do \
+	@for f in $$(find frontend/tagmap/src -type f -name "*.ts" ! -path "*/node_modules/*" ! -name "index.html" ! -name "README.md" ! -name "*.config.js" ! -name "*.json"); do \
 		if [ -s "$$f" ]; then \
 			echo "\n$$f:" >> out.txt; \
 			echo "\`\`\`typescript" >> out.txt; \
@@ -47,7 +47,7 @@ files:
 	# Backend Django
 	@echo "\n=== Backend Django ===" >> out.txt
 
-	@for dir in api authentication plans irrigation_design; do \
+	@for dir in api authentication plans tagmap; do \
 		echo "\n--- Dossier $$dir ---" >> out.txt; \
 		for f in $$(find $$dir -type f -name "*.py" ! -name "settings.py" ! -name "urls.py" ! -name "wsgi.py" ! -name "asgi.py" ! -name "__init__.py" ! -path "*/__pycache__/*"); do \
 			if [ -s "$$f" ]; then \
@@ -68,7 +68,7 @@ migrate:
 
 # Compilation du frontend
 frontend:
-	cd frontend/irrigationdesign && $(NPM) run build-only -- --mode production
+	cd frontend/tagmap && $(NPM) run build-only -- --mode production
 
 # Collecte des fichiers statiques
 collectstatic:
@@ -86,7 +86,7 @@ run:
 
 # Lancement du serveur de développement frontend
 dev-frontend:
-	cd frontend/irrigationdesign && $(NPM) run dev -- --mode development
+	cd frontend/tagmap && $(NPM) run dev -- --mode development
 
 # Lancement des deux serveurs en développement (nécessite tmux)
 dev: clean-static frontend
@@ -121,7 +121,7 @@ clean: clean-static
 	find . -type d -name ".pytest_cache" -exec rm -r {} +
 	find . -type d -name ".coverage" -delete
 	find . -type d -name "htmlcov" -exec rm -r {} +
-	rm -rf frontend/irrigationdesign/dist
+	rm -rf frontend/tagmap/dist
 
 # Création d'un superutilisateur
 createsuperuser:

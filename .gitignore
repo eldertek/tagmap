@@ -55,10 +55,10 @@ yarn-error.log
 
 # Cypress
 logs/
-frontend/irrigationdesign/cypress/screenshots/
-frontend/irrigationdesign/cypress/videos/
-frontend/irrigationdesign/cypress/downloads/
-frontend/irrigationdesign/cypress/fixtures/example.json
+frontend/tagmap/cypress/screenshots/
+frontend/tagmap/cypress/videos/
+frontend/tagmap/cypress/downloads/
+frontend/tagmap/cypress/fixtures/example.json
 *.mp4
 *.png
 cypress.env.json
