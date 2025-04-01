@@ -247,15 +247,47 @@ watchEffect(() => {
     <header v-if="isAuthenticated" class="bg-white shadow-sm z-[2000] flex-shrink-0">
       <nav class="mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
-          <div class="flex items-center space-x-8">
+          <!-- Logo et navigation -->
+          <div class="flex items-center">
+            <!-- Bouton menu mobile -->
+            <button
+              @click="showMobileMenu = !showMobileMenu"
+              class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 md:hidden"
+            >
+              <span class="sr-only">Ouvrir le menu</span>
+              <svg
+                class="h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  v-if="!showMobileMenu"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+                <path
+                  v-else
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            
             <router-link 
               to="/" 
-              class="text-xl font-semibold text-primary-600 truncate"
+              class="text-xl font-semibold text-primary-600 truncate ml-2 md:ml-0"
             >
               <span class="md:inline hidden">TagMap</span>
               <span class="md:hidden inline">TM</span>
             </router-link>
-            <div class="hidden md:flex space-x-6">
+            
+            <div class="hidden md:flex md:ml-6 space-x-8">
               <router-link
                 v-for="item in navigationItems"
                 :key="item.name"
@@ -271,11 +303,14 @@ watchEffect(() => {
               </router-link>
             </div>
           </div>
+          
           <!-- Barre de recherche uniquement sur la carte -->
           <div v-if="$route.path === '/'" class="hidden md:block flex-1 mx-8">
             <SearchBar @select-location="handleLocationSelect" />
           </div>
           <div v-else class="flex-1"></div>
+          
+          <!-- Menu de droite (notifications et profil) -->
           <div class="flex items-center space-x-2 md:space-x-4">
             <!-- Bouton performances (visible uniquement si perf=true) -->
             <button 
@@ -490,9 +525,10 @@ watchEffect(() => {
             </div>
           </div>
         </div>
+        <!-- Menu mobile -->
         <div
           v-if="showMobileMenu"
-          class="md:hidden"
+          class="md:hidden bg-white border-t border-gray-200"
         >
           <div class="space-y-1 px-2 pb-3 pt-2">
             <router-link
@@ -511,7 +547,7 @@ watchEffect(() => {
             </router-link>
           </div>
           <!-- Barre de recherche mobile uniquement sur la carte -->
-          <div v-if="$route.path === '/'" class="px-4 py-3">
+          <div v-if="$route.path === '/'" class="px-4 py-3 border-t border-gray-200">
             <SearchBar @select-location="handleLocationSelect" />
           </div>
         </div>
