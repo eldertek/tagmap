@@ -4,7 +4,7 @@
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
       <!-- Logo avec animation au survol -->
       <img 
-        src="@/assets/logo.png" 
+        src="@/assets/logo.svg" 
         alt="TagMap Logo"
         class="mx-auto h-40 w-auto transition-transform duration-300 hover:scale-110"
       />

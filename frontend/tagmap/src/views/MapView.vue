@@ -44,7 +44,7 @@
         <div class="text-center max-w-lg mx-auto p-8">
           <div
             class="relative w-48 h-48 mx-auto mb-12 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 p-8 shadow-lg ring-4 ring-white">
-            <img src="@/assets/logo.png" alt="TagMap Logo"
+            <img src="@/assets/logo.svg" alt="TagMap Logo"
               class="w-full h-full object-contain filter drop-shadow-md" />
             <div
               class="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/10 pointer-events-none">
@@ -415,7 +415,7 @@ import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 import NewPlanModal from '@/components/NewPlanModal.vue';
 import jsPDF from 'jspdf';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.svg';
 import { debounce } from 'lodash';
 import { Circle } from '@/utils/Circle';
 import { ElevationLine } from '@/utils/ElevationLine';

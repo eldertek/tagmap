@@ -43,7 +43,6 @@ api_routes = [
 # Routes d'administration et documentation
 admin_routes = [
     path('admin/', admin.site.urls),
-    path('docs/', include_docs_urls(title='API Documentation')),
 ]
 
 urlpatterns = public_routes + api_routes + admin_routes
