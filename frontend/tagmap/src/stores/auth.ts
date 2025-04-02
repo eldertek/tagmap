@@ -1,5 +1,14 @@
 import { defineStore } from 'pinia';
 import api, { userService } from '@/services/api';
+import type { AxiosRequestConfig } from 'axios';
+
+// Étendre AxiosRequestConfig pour inclure _retry
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    _retry?: boolean;
+  }
+}
+
 // Configuration d'Axios pour les requêtes API
 api.defaults.baseURL = '/api';
 api.defaults.headers.common['Content-Type'] = 'application/json';
@@ -140,7 +149,7 @@ export function getInitials(firstName: string = '', lastName: string = ''): stri
 export const roleLabels: Record<string, string> = {
   'ADMIN': 'Administrateur',
   'ENTREPRISE': 'Entreprise',
-  'SALARIE': 'Salarié',
+  'SALARIE': 'Salarie',
   'VISITEUR': 'Visiteur'
 };
 // Fonction pour obtenir le label d'un rôle
@@ -158,20 +167,20 @@ export function getStatusBadgeClass(isActive: boolean): string {
     : 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800';
 }
 // Fonction utilitaire pour récupérer les utilisateurs selon la hiérarchie
-export async function fetchUsersByHierarchy({ role, usineId, concessionnaireId, includeDetails = false }: {
+export async function fetchUsersByHierarchy({ role, entrepriseId, salarieId, includeDetails = false }: {
   role: string;
-  usineId?: number;
-  concessionnaireId?: number;
+  entrepriseId?: number;
+  salarieId?: number;
   includeDetails?: boolean;
 }) {
   const params: any = { role };
   
-  if (usineId) {
-    params.usine = usineId;
+  if (entrepriseId) {
+    params.entreprise = entrepriseId;
   }
   
-  if (concessionnaireId) {
-    params.concessionnaire = concessionnaireId;
+  if (salarieId) {
+    params.salarie = salarieId;
   }
   
   if (includeDetails) {
@@ -195,9 +204,9 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAdmin: (state) => state.user?.user_type === 'admin',
-    isEnterprise: (state) => state.user?.user_type === 'entreprise',
-    isEmployee: (state) => state.user?.user_type === 'salarie',
-    isVisitor: (state) => state.user?.user_type === 'visiteur',
+    isEntreprise: (state) => state.user?.user_type === 'entreprise',
+    isSalarie: (state) => state.user?.user_type === 'salarie',
+    isVisiteur: (state) => state.user?.user_type === 'visiteur',
     currentUser: (state) => state.user,
     hasEnterprise: (state) => Boolean(state.user?.enterprise_id),
     hasEmployee: (state) => Boolean(state.user?.employee_id)
@@ -323,13 +332,23 @@ export const useAuthStore = defineStore('auth', {
     },
     async refreshToken() {
       try {
+        // Vérifier si un refresh token existe dans les cookies
+        const refreshToken = getCookie('refresh_token');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
         const response = await api.post('/token/refresh/', {}, {
-          withCredentials: true
+          withCredentials: true,
+          // Éviter que cette requête ne passe par l'intercepteur de refresh
+          _retry: true
         });
+        
         const { access } = response.data;
         if (!access) {
           throw new Error('No access token received');
         }
+        
         setSecureCookie('access_token', access, 1);
         this.isAuthenticated = true;
         return access;
@@ -338,9 +357,12 @@ export const useAuthStore = defineStore('auth', {
           status: error.response?.status,
           data: error.response?.data
         });
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          await this.logout();
-        }
+        
+        // En cas d'erreur, nettoyer les tokens et l'état
+        this.isAuthenticated = false;
+        document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        
         throw error;
       }
     },
@@ -361,7 +383,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchEnterprises() {
       this.loading = true;
       try {
-        const response = await userService.getEnterprises();
+        const response = await userService.getUsers({ role: 'ENTREPRISE' });
         this.enterprises = response.data;
         return this.enterprises;
       } catch (error) {
@@ -371,15 +393,18 @@ export const useAuthStore = defineStore('auth', {
         this.loading = false;
       }
     },
-    // Récupérer tous les salariés d'une entreprise
+    // Récupérer tous les salaries d'une entreprise
     async fetchEnterpriseEmployees(enterpriseId: number) {
       this.loading = true;
       try {
-        const response = await userService.getEnterpriseEmployees(enterpriseId);
+        const response = await userService.getUsers({
+          role: 'SALARIE',
+          entreprise: enterpriseId
+        });
         this.employees = response.data;
         return this.employees;
       } catch (error) {
-        this.error = 'Erreur lors de la récupération des salariés';
+        this.error = 'Erreur lors de la récupération des salaries';
         throw error;
       } finally {
         this.loading = false;
@@ -389,7 +414,10 @@ export const useAuthStore = defineStore('auth', {
     async fetchEnterpriseVisitors(enterpriseId: number) {
       this.loading = true;
       try {
-        const response = await userService.getEnterpriseVisitors(enterpriseId);
+        const response = await userService.getUsers({
+          role: 'VISITEUR',
+          entreprise: enterpriseId
+        });
         this.visitors = response.data;
         return this.visitors;
       } catch (error) {
@@ -522,12 +550,40 @@ export const useAuthStore = defineStore('auth', {
       return requiredRole.includes(this.user.user_type);
     },
     // Fonction unifiée pour récupérer les utilisateurs par hiérarchie
-    async fetchUsersByRole(params: { role: string; usineId?: number; concessionnaireId?: number; includeDetails?: boolean }) {
+    async fetchUsersByRole(params: { role: string; entrepriseId?: number; salarieId?: number; includeDetails?: boolean }) {
       this.loading = true;
       try {
         return await fetchUsersByHierarchy(params);
       } catch (error) {
         console.error(`Error fetching ${params.role}:`, error);
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+    // Récupérer les salaries d'une entreprise
+    async fetchEntrepriseSalaries(enterpriseId: number) {
+      this.loading = true;
+      try {
+        const response = await userService.getUsers({
+          role: 'SALARIE',
+          entreprise: enterpriseId
+        });
+        return response.data;
+      } catch (error) {
+        this.error = 'Erreur lors de la récupération des salaries';
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async fetchSalarieVisiteurs(salarieId: number) {
+      this.loading = true;
+      try {
+        const response = await userService.getUsers({ role: 'VISITEUR', salarie: salarieId });
+        return response.data;
+      } catch (error) {
+        this.error = 'Erreur lors de la récupération des visiteurs';
         throw error;
       } finally {
         this.loading = false;

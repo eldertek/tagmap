@@ -21,7 +21,7 @@ export interface UserDetails {
   role: string;
   company_name?: string;
   phone?: string | null;
-  concessionnaire?: number | null;
+  salarie?: number | null;
 }
 
 export interface Plan {
@@ -31,12 +31,12 @@ export interface Plan {
   date_creation: string;
   date_modification: string;
   createur: UserDetails;
-  usine: UserDetails | null;
-  usine_id?: number | null;
-  concessionnaire: UserDetails | null;
-  concessionnaire_id?: number | null;
-  agriculteur: UserDetails | null;
-  agriculteur_id?: number | null;
+  entreprise: UserDetails | null;
+  entreprise_id?: number | null;
+  salarie: UserDetails | null;
+  salarie_id?: number | null;
+  visiteur: UserDetails | null;
+  visiteur_id?: number | null;
   preferences?: any;
   elements?: any[];
   historique?: PlanHistory[];
@@ -46,12 +46,12 @@ export interface Plan {
 export interface NewPlan {
   nom: string;
   description: string;
-  usine?: number | null;
-  usine_id?: number | null;
-  agriculteur?: number | null;
-  agriculteur_id?: number | null;
-  concessionnaire?: number | null;
-  concessionnaire_id?: number | null;
+  entreprise?: number | null;
+  entreprise_id?: number | null;
+  visiteur?: number | null;
+  visiteur_id?: number | null;
+  salarie?: number | null;
+  salarie_id?: number | null;
 }
 
 export const useIrrigationStore = defineStore('irrigation', {
@@ -84,10 +84,10 @@ export const useIrrigationStore = defineStore('irrigation', {
         let url = '/plans/';
         const params: Record<string, any> = {};
         
-        if (authStore.isConcessionnaire) {
-          params.concessionnaire = authStore.user?.id;
-        } else if (authStore.isAgriculteur) {
-          params.agriculteur = authStore.user?.id;
+        if (authStore.isSalarie) {
+          params.salarie = authStore.user?.id;
+        } else if (authStore.isVisiteur) {
+          params.visiteur = authStore.user?.id;
         }
         
         const response = await this.performanceMonitor.measureAsync(
@@ -116,10 +116,10 @@ export const useIrrigationStore = defineStore('irrigation', {
           include_details: true
         };
         
-        if (authStore.isConcessionnaire) {
-          params.concessionnaire = authStore.user?.id;
-        } else if (authStore.isAgriculteur) {
-          params.agriculteur = authStore.user?.id;
+        if (authStore.isSalarie) {
+          params.salarie = authStore.user?.id;
+        } else if (authStore.isVisiteur) {
+          params.visiteur = authStore.user?.id;
         }
         
         const response = await this.performanceMonitor.measureAsync(
@@ -132,9 +132,9 @@ export const useIrrigationStore = defineStore('irrigation', {
           'fetchPlansWithDetails_processResponse',
           () => response.data.map((plan: any) => ({
             ...plan,
-            usine: typeof plan.usine === 'object' ? plan.usine : null,
-            concessionnaire: typeof plan.concessionnaire === 'object' ? plan.concessionnaire : null,
-            agriculteur: typeof plan.agriculteur === 'object' ? plan.agriculteur : null
+            entreprise: typeof plan.entreprise === 'object' ? plan.entreprise : null,
+            salarie: typeof plan.salarie === 'object' ? plan.salarie : null,
+            visiteur: typeof plan.visiteur === 'object' ? plan.visiteur : null
           })),
           'IrrigationStore'
         );
@@ -155,7 +155,7 @@ export const useIrrigationStore = defineStore('irrigation', {
     async fetchClientPlans(clientId: number) {
       this.loading = true;
       try {
-        const response = await irrigationService.getAgriculteurPlans(clientId);
+        const response = await irrigationService.getVisiteurPlans(clientId);
         return response.data;
       } catch (error) {
         this.error = 'Erreur lors du chargement des plans du client';
@@ -174,12 +174,12 @@ export const useIrrigationStore = defineStore('irrigation', {
       try {
         const authStore = useAuthStore();
         
-        if (authStore.user?.user_type === 'agriculteur') {
+        if (authStore.user?.user_type === 'visiteur') {
           planData = {
             ...planData,
-            agriculteur: authStore.user.id,
-            concessionnaire: authStore.user.concessionnaire,
-            usine: authStore.user.usine
+            visiteur: authStore.user.id,
+            salarie: authStore.user.salarie,
+            entreprise: authStore.user.entreprise
           };
         }
 
@@ -187,9 +187,9 @@ export const useIrrigationStore = defineStore('irrigation', {
           'createPlan_formatData',
           () => ({
             ...planData,
-            usine: planData.usine ? (typeof planData.usine === 'object' && planData.usine && 'id' in planData.usine ? (planData.usine as { id: number }).id : Number(planData.usine)) : null,
-            concessionnaire: planData.concessionnaire ? (typeof planData.concessionnaire === 'object' && planData.concessionnaire && 'id' in planData.concessionnaire ? (planData.concessionnaire as { id: number }).id : Number(planData.concessionnaire)) : null,
-            agriculteur: planData.agriculteur ? (typeof planData.agriculteur === 'object' && planData.agriculteur && 'id' in planData.agriculteur ? (planData.agriculteur as { id: number }).id : Number(planData.agriculteur)) : null
+            entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && planData.entreprise && 'id' in planData.entreprise ? (planData.entreprise as { id: number }).id : Number(planData.entreprise)) : null,
+            salarie: planData.salarie ? (typeof planData.salarie === 'object' && planData.salarie && 'id' in planData.salarie ? (planData.salarie as { id: number }).id : Number(planData.salarie)) : null,
+            visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && planData.visiteur && 'id' in planData.visiteur ? (planData.visiteur as { id: number }).id : Number(planData.visiteur)) : null
           }),
           'IrrigationStore'
         );
@@ -220,8 +220,8 @@ export const useIrrigationStore = defineStore('irrigation', {
       this.clearCurrentPlan();
       this.loading = true;
       try {
-        const data = { ...planData, agriculteur: clientId };
-        const response = await irrigationService.createPlanForAgriculteur(data);
+        const data = { ...planData, visiteur: clientId };
+        const response = await irrigationService.createPlanForVisiteur(data);
         this.plans.push(response.data);
         return response.data;
       } catch (error: unknown) {
@@ -307,12 +307,12 @@ export const useIrrigationStore = defineStore('irrigation', {
         const response = await this.performanceMonitor.measureAsync(
           'updatePlanDetails_apiCall',
           () => {
-            const { agriculteur_id, concessionnaire_id, usine_id, ...otherData } = planData;
+            const { visiteur_id, salarie_id, entreprise_id, ...otherData } = planData;
             const data: Record<string, any> = { ...otherData };
             
-            if (agriculteur_id !== undefined) data.agriculteur_id = agriculteur_id;
-            if (concessionnaire_id !== undefined) data.concessionnaire_id = concessionnaire_id;
-            if (usine_id !== undefined) data.usine_id = usine_id;
+            if (visiteur_id !== undefined) data.visiteur_id = visiteur_id;
+            if (salarie_id !== undefined) data.salarie_id = salarie_id;
+            if (entreprise_id !== undefined) data.entreprise_id = entreprise_id;
             
             return api.patch(`/plans/${planId}/`, data);
           },

@@ -42,29 +42,29 @@
                     required
                   >
                     <option value="ADMIN">Administrateur</option>
-                    <option value="USINE">Usine</option>
-                    <option value="CONCESSIONNAIRE">Concessionnaire</option>
-                    <option value="AGRICULTEUR">Agriculteur</option>
+                    <option value="ENTREPRISE">Entreprise</option>
+                    <option value="SALARIE">Salarie</option>
+                    <option value="VISITEUR">Visiteur</option>
                   </select>
                 </div>
                 
-                <!-- Sélection d'usine (uniquement pour les concessionnaires créés par un admin) -->
-                <div v-if="isAdmin && form.role === 'CONCESSIONNAIRE'">
-                  <label for="usine" class="block text-sm font-medium text-gray-700">Usine</label>
+                <!-- Sélection d'entreprise (uniquement pour les salaries créés par un admin) -->
+                <div v-if="isAdmin && form.role === 'SALARIE'">
+                  <label for="entreprise" class="block text-sm font-medium text-gray-700">Entreprise</label>
                   <select
-                    id="usine"
-                    v-model="form.usine"
+                    id="entreprise"
+                    v-model="form.entreprise"
                     class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   >
-                    <option :value="null">-- Sélectionner une usine --</option>
-                    <option v-for="usine in usines" :key="usine.id" :value="usine.id">
-                      {{ usine.first_name }} {{ usine.last_name }} ({{ usine.company_name || 'Usine' }})
+                    <option :value="null">-- Sélectionner une entreprise --</option>
+                    <option v-for="entreprise in entreprises" :key="entreprise.id" :value="entreprise.id">
+                      {{ entreprise.first_name }} {{ entreprise.last_name }} ({{ entreprise.company_name || 'Entreprise' }})
                     </option>
                   </select>
                 </div>
 
-                <!-- Champ de type d'utilisateur (pour les usines) -->
-                <div v-if="isUsine && !form.id">
+                <!-- Champ de type d'utilisateur (pour les entreprises) -->
+                <div v-if="isEntreprise && !form.id">
                   <label for="role" class="block text-sm font-medium text-gray-700">Type d'utilisateur</label>
                   <select
                     id="role"
@@ -72,23 +72,23 @@
                     class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     required
                   >
-                    <option value="CONCESSIONNAIRE">Concessionnaire</option>
-                    <option value="AGRICULTEUR">Agriculteur</option>
+                    <option value="SALARIE">Salarie</option>
+                    <option value="VISITEUR">Visiteur</option>
                   </select>
                 </div>
                 
-                <!-- Sélection de concessionnaire pour les agriculteurs (sauf si le créateur est un concessionnaire) -->
-                <div v-if="(isAdmin || isUsine) && form.role === 'AGRICULTEUR' && !currentConcessionnaire">
-                  <label for="concessionnaire" class="block text-sm font-medium text-gray-700">Concessionnaire</label>
+                <!-- Sélection de salarie pour les visiteurs (sauf si le créateur est un salarie) -->
+                <div v-if="(isAdmin || isEntreprise) && form.role === 'VISITEUR' && !currentSalarie">
+                  <label for="salarie" class="block text-sm font-medium text-gray-700">Salarie</label>
                   <select
-                    id="concessionnaire"
-                    v-model="form.concessionnaire"
+                    id="salarie"
+                    v-model="form.salarie"
                     class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     required
                   >
-                    <option :value="null">-- Sélectionner un concessionnaire --</option>
-                    <option v-for="concessionnaire in concessionnaires" :key="concessionnaire.id" :value="concessionnaire.id">
-                      {{ concessionnaire.first_name }} {{ concessionnaire.last_name }} ({{ concessionnaire.company_name || 'Concessionnaire' }})
+                    <option :value="null">-- Sélectionner un salarie --</option>
+                    <option v-for="salarie in salaries" :key="salarie.id" :value="salarie.id">
+                      {{ salarie.first_name }} {{ salarie.last_name }} ({{ salarie.company_name || 'Salarie' }})
                     </option>
                   </select>
                 </div>
@@ -218,10 +218,10 @@ interface User {
   password?: string
   company_name?: string
   role?: string
-  concessionnaire?: number | UserReference | null
-  concessionnaire_id?: number | null
-  usine?: number | UserReference | null
-  usine_id?: number | null
+  salarie?: number | UserReference | null
+  salarie_id?: number | null
+  entreprise?: number | UserReference | null
+  entreprise_id?: number | null
   is_active?: boolean
 }
 
@@ -240,11 +240,11 @@ const props = defineProps({
     type: Object as PropType<Partial<User> | null>,
     default: () => ({})
   },
-  concessionnaires: {
+  salaries: {
     type: Array as PropType<UserReference[]>,
     default: () => []
   },
-  usines: {
+  entreprises: {
     type: Array as PropType<UserReference[]>,
     default: () => []
   },
@@ -252,15 +252,15 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  isUsine: {
+  isEntreprise: {
     type: Boolean,
     default: false
   },
-  currentConcessionnaire: {
+  currentSalarie: {
     type: String,
     default: undefined
   },
-  currentUsine: {
+  currentEntreprise: {
     type: String, 
     default: undefined
   },
@@ -296,9 +296,9 @@ const form = reactive({
   email: '',
   password: '',
   company_name: '',
-  role: props.isUsine ? 'CONCESSIONNAIRE' : (props.isAdmin ? 'ADMIN' : 'AGRICULTEUR'),
-  concessionnaire: null as number | null,
-  usine: null as number | null,
+  role: props.isEntreprise ? 'SALARIE' : (props.isAdmin ? 'ADMIN' : 'VISITEUR'),
+  salarie: null as number | null,
+  entreprise: null as number | null,
   is_active: true
 })
 
@@ -311,62 +311,62 @@ onMounted(() => {
     form.username = props.user.username || ''
     form.email = props.user.email || ''
     form.company_name = props.user.company_name || ''
-    form.role = props.user.role || 'AGRICULTEUR'
+    form.role = props.user.role || 'VISITEUR'
     form.is_active = props.user.is_active ?? true
     
     // Gérer les relations
-    if (props.user.concessionnaire) {
-      if (typeof props.user.concessionnaire === 'object') {
-    form.concessionnaire = props.user.concessionnaire.id
+    if (props.user.salarie) {
+      if (typeof props.user.salarie === 'object') {
+    form.salarie = props.user.salarie.id
       } else {
-        form.concessionnaire = props.user.concessionnaire
+        form.salarie = props.user.salarie
       }
-    } else if (props.user.concessionnaire_id) {
-      form.concessionnaire = props.user.concessionnaire_id
-    } else if (props.currentConcessionnaire) {
-      form.concessionnaire = parseInt(props.currentConcessionnaire)
+    } else if (props.user.salarie_id) {
+      form.salarie = props.user.salarie_id
+    } else if (props.currentSalarie) {
+      form.salarie = parseInt(props.currentSalarie)
     }
     
-    if (props.user.usine) {
-      if (typeof props.user.usine === 'object') {
-    form.usine = props.user.usine.id
+    if (props.user.entreprise) {
+      if (typeof props.user.entreprise === 'object') {
+    form.entreprise = props.user.entreprise.id
       } else {
-        form.usine = props.user.usine
+        form.entreprise = props.user.entreprise
       }
-    } else if (props.user.usine_id) {
-      form.usine = props.user.usine_id
-    } else if (props.currentUsine) {
-      form.usine = parseInt(props.currentUsine)
+    } else if (props.user.entreprise_id) {
+      form.entreprise = props.user.entreprise_id
+    } else if (props.currentEntreprise) {
+      form.entreprise = parseInt(props.currentEntreprise)
     }
   } else {
     // Pour un nouvel utilisateur, définir des valeurs par défaut
-    if (props.currentConcessionnaire) {
-      form.concessionnaire = parseInt(props.currentConcessionnaire)
+    if (props.currentSalarie) {
+      form.salarie = parseInt(props.currentSalarie)
     }
-    if (props.currentUsine) {
-      form.usine = parseInt(props.currentUsine)
+    if (props.currentEntreprise) {
+      form.entreprise = parseInt(props.currentEntreprise)
     }
-    // Si l'utilisateur est une usine, le rôle par défaut est concessionnaire
-    if (props.isUsine) {
-      form.role = 'CONCESSIONNAIRE'
+    // Si l'utilisateur est une entreprise, le rôle par défaut est salarie
+    if (props.isEntreprise) {
+      form.role = 'SALARIE'
     }
-    // Si l'utilisateur est un concessionnaire, le rôle par défaut est agriculteur
+    // Si l'utilisateur est un salarie, le rôle par défaut est visiteur
     else if (!props.isAdmin) {
-      form.role = 'AGRICULTEUR'
+      form.role = 'VISITEUR'
     }
   }
 })
 
 // Surveiller les changements de rôle pour réinitialiser les relations
 watchEffect(() => {
-  if (form.role === 'ADMIN' || form.role === 'USINE') {
-    form.concessionnaire = null
-    form.usine = null
-  } else if (form.role === 'CONCESSIONNAIRE') {
-    form.concessionnaire = null
-    // Si l'utilisateur est une usine, définir automatiquement l'usine
-    if (props.isUsine && props.currentUsine) {
-      form.usine = parseInt(props.currentUsine)
+  if (form.role === 'ADMIN' || form.role === 'ENTREPRISE') {
+    form.salarie = null
+    form.entreprise = null
+  } else if (form.role === 'SALARIE') {
+    form.salarie = null
+    // Si l'utilisateur est une entreprise, définir automatiquement l'entreprise
+    if (props.isEntreprise && props.currentEntreprise) {
+      form.entreprise = parseInt(props.currentEntreprise)
     }
   }
 })
@@ -437,18 +437,18 @@ async function saveUser() {
     }
     
     // Si le rôle est défini par le contexte, s'assurer qu'il est correct
-    if (props.isUsine && ['CONCESSIONNAIRE', 'AGRICULTEUR'].includes(form.role)) {
-      userData.usine_id = props.currentUsine ? parseInt(props.currentUsine) : undefined
+    if (props.isEntreprise && ['SALARIE', 'VISITEUR'].includes(form.role)) {
+      userData.entreprise_id = props.currentEntreprise ? parseInt(props.currentEntreprise) : undefined
     }
     
-    // Transformer concessionnaire en concessionnaire_id
-    if (userData.concessionnaire) {
-      userData.concessionnaire_id = userData.concessionnaire
-      delete userData.concessionnaire
+    // Transformer salarie en salarie_id
+    if (userData.salarie) {
+      userData.salarie_id = userData.salarie
+      delete userData.salarie
     }
     
-    if (props.currentConcessionnaire && form.role === 'AGRICULTEUR') {
-      userData.concessionnaire_id = parseInt(props.currentConcessionnaire)
+    if (props.currentSalarie && form.role === 'VISITEUR') {
+      userData.salarie_id = parseInt(props.currentSalarie)
     }
     
     await emit('save', userData)

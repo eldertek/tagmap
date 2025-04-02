@@ -1,7 +1,7 @@
 # Force l'utilisation de bash
 SHELL := /bin/bash
 
-.PHONY: help install migrate run test shell clean frontend serve dev list-files cypress-tests cypress-admin cypress-usine cypress-concessionnaire cypress-agriculteur cypress-admin-ui cypress-usine-ui cypress-concessionnaire-ui cypress-agriculteur-ui cypress-open cypress-admin-debug cypress-usine-debug cypress-concessionnaire-debug cypress-agriculteur-debug cypress-extract-errors
+.PHONY: help install migrate run test shell clean frontend serve dev list-files
 
 # Règle par défaut
 .DEFAULT_GOAL := help

@@ -5,45 +5,63 @@ import { performanceMonitor, usePerformanceMonitor } from '@/utils/usePerformanc
 
 export function useMapState() {
   const { isEnabled, startMeasure } = usePerformanceMonitor();
-  
+
   const map = ref<LeafletMap | null>(null);
   const searchQuery = ref('');
-  const currentBaseMap = ref('Ville');
+  const currentBaseMap = ref('Hybride');
   const activeLayer = ref<any>(null);
-  
+
   // Mesurer les performances de la création des baseMaps
   const endBaseMapsCreation = startMeasure('createBaseMaps', 'useMapState');
   const baseMaps = {
-    'Ville': L.tileLayer('/osm_tiles/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      noWrap: true,
-      keepBuffer: 4,
-      maxNativeZoom: 18,
-      tileSize: 256,
-      zoomOffset: 0,
-      bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-      crossOrigin: true,
-      detectRetina: true
-    }),
-    'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© Esri',
-      maxZoom: 19,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      noWrap: true,
-      keepBuffer: 4,
-      maxNativeZoom: 18,
-      tileSize: 256,
-      zoomOffset: 0,
-      bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-      crossOrigin: true,
-      detectRetina: true
-    }),
+    'Hybride': L.layerGroup([
+      L.tileLayer('/osm_tiles/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        noWrap: true,
+        keepBuffer: 4,
+        maxNativeZoom: 19,
+        tileSize: 256,
+        zoomOffset: 0,
+        bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
+        crossOrigin: true,
+        detectRetina: true,
+        opacity: 0.6
+      }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri',
+        maxZoom: 19,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        noWrap: true,
+        keepBuffer: 4,
+        maxNativeZoom: 20,
+        tileSize: 256,
+        zoomOffset: 0,
+        bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
+        crossOrigin: true,
+        detectRetina: true,
+        opacity: 0.6
+      })
+    ]),
     'Cadastre': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
       attribution: 'Cadastre - Carte © IGN/Geoportail',
+      maxZoom: 19,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      noWrap: true,
+      keepBuffer: 4,
+      maxNativeZoom: 18,
+      tileSize: 256,
+      zoomOffset: 0,
+      bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
+      crossOrigin: true,
+      detectRetina: true
+    }),
+    'IGN': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+      attribution: 'Carte IGN © IGN/Geoportail',
       maxZoom: 19,
       updateWhenZooming: false,
       updateWhenIdle: true,
@@ -75,7 +93,7 @@ export function useMapState() {
         mapInstance.options.maxZoom = 19;
         mapInstance.options.scrollWheelZoom = true;
         mapInstance.options.doubleClickZoom = true;
-        
+
         const maxBounds: L.LatLngBounds = L.latLngBounds(
           L.latLng(-90, -180),  // Sud-Ouest
           L.latLng(90, 180)     // Nord-Est
@@ -84,7 +102,7 @@ export function useMapState() {
         mapInstance.options.maxBoundsViscosity = 1.0;
         // Optimisations supplémentaires
         mapInstance.options.trackResize = true;
-        
+
         // Gestionnaire d'événements pour les zooms rapides
         let zoomTimeout: NodeJS.Timeout | null = null;
         let isZooming = false;
@@ -95,11 +113,11 @@ export function useMapState() {
           if (zoomTimeout) {
             clearTimeout(zoomTimeout);
           }
-          
+
           // Désactiver temporairement les animations pendant le zoom
           mapInstance.options.zoomAnimation = false;
           mapInstance.options.markerZoomAnimation = false;
-          
+
           // Sauvegarder le niveau de zoom actuel
           lastZoomLevel = mapInstance.getZoom();
         });
@@ -118,7 +136,7 @@ export function useMapState() {
           if (zoomTimeout) {
             clearTimeout(zoomTimeout);
           }
-          
+
           zoomTimeout = setTimeout(() => {
             isZooming = false;
             // Réactiver les animations progressivement
@@ -140,7 +158,7 @@ export function useMapState() {
         // Intercepter les erreurs d'animation
         const originalZoomAnimation = (mapInstance as any)._zoomAnimation;
         if (originalZoomAnimation) {
-          (mapInstance as any)._zoomAnimation = function(e: any) {
+          (mapInstance as any)._zoomAnimation = function (e: any) {
             try {
               if (!this._animatingZoom) {
                 originalZoomAnimation.call(this, e);
@@ -152,11 +170,18 @@ export function useMapState() {
           };
         }
       }, 'useMapState');
-      
+
       // Ajouter la couche initiale
       performanceMonitor.measure('initMap:addInitialLayer', () => {
-        activeLayer.value = baseMaps[currentBaseMap.value as keyof typeof baseMaps];
-        activeLayer.value.addTo(mapInstance);
+        if (!mapInstance) return;
+
+        // S'assurer que la carte est prête
+        mapInstance.whenReady(() => {
+          if (baseMaps[currentBaseMap.value as keyof typeof baseMaps]) {
+            activeLayer.value = baseMaps[currentBaseMap.value as keyof typeof baseMaps];
+            activeLayer.value.addTo(mapInstance);
+          }
+        });
       }, 'useMapState');
 
       // Gérer les changements de couche de base via l'événement natif
@@ -192,15 +217,15 @@ export function useMapState() {
           endTileLoad();
         });
       }
-    }, 
-    'initMap', 
+    },
+    'initMap',
     'useMapState'
   );
 
   const changeBaseMap = performanceMonitor.createAsyncPerformanceTracker(
     async (baseMapName: keyof typeof baseMaps) => {
       if (!map.value || !baseMaps[baseMapName]) return;
-      
+
       try {
         // Vérifier si la couche demandée est déjà active
         if (currentBaseMap.value === baseMapName) return;
@@ -217,19 +242,23 @@ export function useMapState() {
         mapInstance.options.zoomAnimation = false;
         mapInstance.options.fadeAnimation = false;
         mapInstance.options.markerZoomAnimation = false;
-        
+
         // Mémoriser l'état actuel de la carte
         const currentCenter = mapInstance.getCenter();
         const currentZoom = mapInstance.getZoom();
 
         // Créer une couche temporaire intermédiaire pour éviter les conflits d'animation
         const newLayer = baseMaps[baseMapName];
-        
+
         // Masquer la nouvelle couche pendant la transition
-        if (typeof newLayer.setOpacity === 'function') {
+        if (newLayer instanceof L.LayerGroup) {
+          newLayer.eachLayer((layer: any) => {
+            if (layer.setOpacity) layer.setOpacity(0);
+          });
+        } else if (newLayer.setOpacity) {
           newLayer.setOpacity(0);
         }
-        
+
         // Gestion sécurisée de l'ajout de la couche
         if (mapInstance && typeof mapInstance.addLayer === 'function') {
           try {
@@ -245,28 +274,53 @@ export function useMapState() {
 
         // Attendre que la nouvelle couche soit chargée
         await new Promise<void>((resolve) => {
-          if (typeof newLayer.isLoading === 'function' && newLayer.isLoading()) {
+          if (newLayer instanceof L.LayerGroup) {
+            const layers = (newLayer as any).getLayers();
+            Promise.all(layers.map((layer: any) =>
+              new Promise<void>((layerResolve) => {
+                if (layer.isLoading && layer.isLoading()) {
+                  layer.once('load', () => layerResolve());
+                } else {
+                  layerResolve();
+                }
+              })
+            )).then(() => resolve());
+          } else if (newLayer.isLoading && newLayer.isLoading()) {
             newLayer.once('load', () => resolve());
           } else {
-            // Si pas de méthode isLoading, attendre un court délai
             setTimeout(resolve, 100);
           }
         });
 
-        // Transition en fondu
+        // Transition en fondu avec opacité par défaut pour chaque couche
         await new Promise<void>((resolve) => {
-          let opacity = 1;
+          let fadeProgress = 0; // progress goes from 0 to 1
           const transition = setInterval(() => {
-            opacity -= 0.1;
-            
-            if (activeLayer.value && typeof activeLayer.value.setOpacity === 'function') {
-              activeLayer.value.setOpacity(Math.max(0, opacity));
-            }
-            if (typeof newLayer.setOpacity === 'function') {
-              newLayer.setOpacity(Math.max(0, 1 - opacity));
+            fadeProgress += 0.1;
+
+            // Fade out the current active layer
+            if (activeLayer.value instanceof L.LayerGroup) {
+              activeLayer.value.eachLayer((layer: any) => {
+                const initialOpacity = (layer.options && typeof layer.options.opacity === 'number') ? layer.options.opacity : 1;
+                layer.setOpacity(Math.max(0, initialOpacity * (1 - fadeProgress)));
+              });
+            } else if (activeLayer.value?.setOpacity) {
+              const initialOpacity = (activeLayer.value.options && typeof activeLayer.value.options.opacity === 'number') ? activeLayer.value.options.opacity : 1;
+              activeLayer.value.setOpacity(Math.max(0, initialOpacity * (1 - fadeProgress)));
             }
 
-            if (opacity <= 0) {
+            // Fade in the new layer, using its target opacity
+            if (newLayer instanceof L.LayerGroup) {
+              newLayer.eachLayer((layer: any) => {
+                const targetOpacity = (layer.options && typeof layer.options.opacity === 'number') ? layer.options.opacity : 1;
+                layer.setOpacity(Math.min(targetOpacity, targetOpacity * fadeProgress));
+              });
+            } else if (newLayer.setOpacity) {
+              const targetOpacity = (newLayer.options && typeof newLayer.options.opacity === 'number') ? newLayer.options.opacity : 1;
+              newLayer.setOpacity(Math.min(targetOpacity, targetOpacity * fadeProgress));
+            }
+
+            if (fadeProgress >= 1) {
               clearInterval(transition);
               if (activeLayer.value && mapInstance && typeof mapInstance.removeLayer === 'function') {
                 try {
@@ -284,7 +338,7 @@ export function useMapState() {
 
         // Réinitialiser la vue sans animation
         try {
-          mapInstance.setView(currentCenter, currentZoom, { 
+          mapInstance.setView(currentCenter, currentZoom, {
             animate: false,
             duration: 0,
             noMoveStart: true
@@ -299,17 +353,17 @@ export function useMapState() {
         } catch (e) {
           console.warn('Erreur lors de l\'invalidation de la taille:', e);
         }
-        
+
         // Attendre un délai pour stabiliser la carte
         await new Promise(resolve => setTimeout(resolve, 300));
-        
+
         // Restaurer les animations progressivement
         if (baseMapName !== 'Cadastre') {
           setTimeout(() => {
             try {
               // Restaurer uniquement fadeAnimation d'abord
               mapInstance.options.fadeAnimation = originalAnimationState.fadeAnimation;
-              
+
               // Puis après un délai supplémentaire, restaurer les autres animations
               setTimeout(() => {
                 try {
@@ -324,7 +378,7 @@ export function useMapState() {
             }
           }, 500);
         }
-        
+
       } catch (error) {
         console.error('Erreur lors du changement de carte de base:', error);
         // En cas d'erreur, essayer de restaurer un état stable
@@ -340,8 +394,8 @@ export function useMapState() {
           }
         }
       }
-    }, 
-    'changeBaseMap', 
+    },
+    'changeBaseMap',
     'useMapState'
   );
 
@@ -354,11 +408,11 @@ export function useMapState() {
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`
           );
         }, 'useMapState');
-        
+
         const data = await performanceMonitor.measureAsync('searchLocation:parseResponse', async () => {
           return await response.json();
         }, 'useMapState');
-        
+
         if (data && data.length > 0) {
           performanceMonitor.measure('searchLocation:updateView', () => {
             const { lat, lon } = data[0];
@@ -368,8 +422,8 @@ export function useMapState() {
       } catch (error) {
         console.error('Erreur lors de la recherche de localisation:', error);
       }
-    }, 
-    'searchLocation', 
+    },
+    'searchLocation',
     'useMapState'
   );
 

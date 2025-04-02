@@ -1,10 +1,10 @@
 interface User {
   id: number;
   username: string;
-  user_type: 'admin' | 'concessionnaire' | 'client';
+  user_type: 'admin' | 'salarie' | 'client';
   must_change_password?: boolean;
-  concessionnaire?: number;
-  concessionnaire_name?: string;
+  salarie?: number;
+  salarie_name?: string;
 }
 interface InitialState {
   path: string;

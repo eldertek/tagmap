@@ -1,0 +1,67 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Cahier des Charges : TagMap
+
+## 1. Présentation Générale
+TagMap est une interface accessible depuis un ordinateur ou un smartphone permettant la gestion et l'annotation de cartes interactives. L'outil doit offrir des fonctionnalités de collaboration et de visualisation avancées.
+
+## 2. Interface
+- Connexion
+- Cas concret
+- Télécharger la plaquette
+
+## 3. Gestion des accès
+### Types d'accès
+1. **Accès Administrateur** : Accès complet à tout
+2. **Accès entreprise** : Accès complet à salaries et visiteurs
+3. **Accès salarie** : Accès complet (visualisation des taches définis par l'entreprise)
+4. **Accès visiteur** : Consultation des données partagées et communication via la boite de dialogue (visualisation des taches définis par l'entreprise ou le salarie)
+
+## 4. Fonctionnalités Principales
+
+### Carte
+- Hybride (satellite + ville)
+- Cadastrale
+- IGN
+
+### Création de Notes Géolocalisées
+- Possibilité d'ajouter des annotations sur des emplacements que l'on créé
+- Interface avec un volet latéral sous forme de boîte de dialogue (inspiration application: Smart Totem)
+- Gestion des permissions pour choisir qui peut voir chaque note (entreprise -> salaries -> visiteurs)
+
+### Création de Formes, Lignes, profil altimétrique
+- Possibilité de dessiner des polygones avec calcul de surface, des lignes et profil altimétrique sur la carte
+- (enlever section dans les cercles, demi cercle, outil texte)
+
+### Gestion des Médias
+- Possibilité de prendre des photos directement depuis l'application
+- Basse résolution et quotas 50mo/accès
+
+### Planification d'Itinéraires
+- Calcul d'itinéraires à partir d'un point enregistré (ouvrir google map par exemple)
+
+### Intégration d'APIs
+- Possibilité d'intégrer des APIs externes pour enrichir les fonctionnalités
+  - Traceur GPS avec carte SIM intégré récupérer les données via le serveur Ionos
+  - Station météo API https://api.ecowitt.net/
+  - Camera via carte SIM idem traceur
+  - Autres
+
+### Système de Filtrage
+- L'entreprise doit pouvoir définir quel salaries, visiteurs aura accès à quoi
+- Visualisation sélective : cocher/décocher les éléments que l'on veut voir sur la carte :
+  - Forages
+  - Clients
+  - Entrepôts
+  - Lieux de livraison
+  - Cultures
+  - Noms des parcelles
+  - Autres...
+
+### Génération de PDF de synthèse
+- Pour les notes par point géolocalisé, polygone, profil alti
+- Sélectionner les points à synthétiser

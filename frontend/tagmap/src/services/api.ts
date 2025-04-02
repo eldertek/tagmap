@@ -5,11 +5,11 @@ import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 // Types nécessaires
 export interface UserFilter {
   role?: string;
-  usine?: number;
-  concessionnaire?: number;
+  entreprise?: number;
+  salarie?: number;
   include_plans?: boolean;
   search?: string;
-  concessionnaire_id?: number;
+  salarie_id?: number;
   include_details?: boolean;
 }
 
@@ -73,25 +73,35 @@ api.interceptors.response.use(
     const endMeasure = performanceMonitor.startMeasure('api_response_interceptor', 'ApiService');
     const originalRequest = error.config;
     try {
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      // Ne pas tenter de refresh si c'est déjà une requête de refresh ou si on a déjà essayé
+      if (error.response?.status === 401 && 
+          !originalRequest._retry && 
+          !originalRequest.url?.includes('/token/refresh/')) {
         originalRequest._retry = true;
         const authStore = useAuthStore();
-        await performanceMonitor.measureAsync(
-          'token_refresh',
-          () => authStore.refreshToken(),
-          'ApiService'
-        );
-        const newToken = getCookie('access_token');
-        if (newToken) {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return api(originalRequest);
+        
+        try {
+          await performanceMonitor.measureAsync(
+            'token_refresh',
+            () => authStore.refreshToken(),
+            'ApiService'
+          );
+          
+          const newToken = getCookie('access_token');
+          if (newToken) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          // Si le refresh échoue, déconnecter et rediriger vers login
+          await authStore.logout();
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
         }
       }
       return Promise.reject(error);
-    } catch (refreshError) {
-      console.error('Token refresh failed:', refreshError);
-      window.location.href = '/login';
-      return Promise.reject(refreshError);
     } finally {
       endMeasure();
     }
@@ -184,8 +194,8 @@ export const authService = {
 // Fonction utilitaire centrale pour récupérer les utilisateurs selon leur rôle et hiérarchie
 export async function fetchUsersByHierarchy(params: {
   role: string;
-  usineId?: number;
-  concessionnaireId?: number;
+  entrepriseId?: number;
+  salarieId?: number;
   includeDetails?: boolean;
   search?: string;
 }) {
@@ -195,12 +205,12 @@ export async function fetchUsersByHierarchy(params: {
     role: params.role 
   };
 
-  if (params.usineId) {
-    filters.usine = params.usineId;
+  if (params.entrepriseId) {
+    filters.entreprise = params.entrepriseId;
   }
 
-  if (params.concessionnaireId) {
-    filters.concessionnaire = params.concessionnaireId;
+  if (params.salarieId) {
+    filters.salarie = params.salarieId;
   }
 
   if (params.includeDetails) {
@@ -259,36 +269,36 @@ export const userService = {
     return await api.delete(`/users/${userId}/`);
   },
   
-  // Récupérer toutes les usines
-  async getUsines() {
-    return await api.get('/users/', { params: { role: 'USINE' } });
+  // Récupérer toutes les entreprises
+  async getEntreprises() {
+    return await api.get('/users/', { params: { role: 'ENTREPRISE' } });
   },
   
-  // Récupérer tous les concessionnaires (optionnellement filtrés par usine)
-  async getConcessionnaires(usineId?: number) {
-    const params: UserFilter = { role: 'CONCESSIONNAIRE' };
-    if (usineId) {
-      params.usine = usineId;
+  // Récupérer tous les salaries (optionnellement filtrés par entreprise)
+  async getSalaries(entrepriseId?: number) {
+    const params: UserFilter = { role: 'SALARIE' };
+    if (entrepriseId) {
+      params.entreprise = entrepriseId;
     }
     return await api.get('/users/', { params });
   },
   
-  // Récupérer tous les agriculteurs d'un concessionnaire
-  async getConcessionnaireAgriculteurs(concessionnaireId: number) {
+  // Récupérer tous les visiteurs d'un salarie
+  async getSalarieVisiteurs(salarieId: number) {
     return await api.get('/users/', { 
       params: { 
-        role: 'AGRICULTEUR',
-        concessionnaire: concessionnaireId 
+        role: 'VISITEUR',
+        salarie: salarieId 
       } 
     });
   },
   
-  // Récupérer tous les agriculteurs d'une usine
-  async getUsineAgriculteurs(usineId: number) {
+  // Récupérer tous les visiteurs d'une entreprise
+  async getEntrepriseVisiteurs(entrepriseId: number) {
     return await api.get('/users/', { 
       params: { 
-        role: 'AGRICULTEUR',
-        usine: usineId 
+        role: 'VISITEUR',
+        entreprise: entrepriseId 
       } 
     });
   },
@@ -296,8 +306,8 @@ export const userService = {
   // Fonction unifiée pour récupérer les utilisateurs selon la hiérarchie
   async getUsersByHierarchy(params: {
     role: string;
-    usineId?: number;
-    concessionnaireId?: number;
+    entrepriseId?: number;
+    salarieId?: number;
     includeDetails?: boolean;
     search?: string;
   }) {
@@ -307,8 +317,8 @@ export const userService = {
         'prepare_hierarchy_filters',
         () => {
           const result: UserFilter = { role: params.role };
-          if (params.usineId) result.usine = params.usineId;
-          if (params.concessionnaireId) result.concessionnaire = params.concessionnaireId;
+          if (params.entrepriseId) result.entreprise = params.entrepriseId;
+          if (params.salarieId) result.salarie = params.salarieId;
           if (params.includeDetails) result.include_plans = true;
           if (params.search) result.search = params.search;
           return result;
@@ -326,42 +336,42 @@ export const userService = {
     }
   },
   
-  // Récupérer les concessionnaires d'une usine spécifique
-  async getUsineConcessionnaires(usineId: number) {
+  // Récupérer les salaries d'une entreprise spécifique
+  async getEntrepriseSalaries(entrepriseId: number) {
     return await api.get('/users/', { 
       params: { 
-        role: 'CONCESSIONNAIRE',
-        usine: usineId 
+        role: 'SALARIE',
+        entreprise: entrepriseId 
       } 
     });
   },
   
-  // Récupérer tous les agriculteurs liés à un concessionnaire
-  async getAgriculteurs(concessionnaireId?: number, usineId?: number) {
-    const params: UserFilter = { role: 'AGRICULTEUR' };
+  // Récupérer tous les visiteurs liés à un salarie
+  async getVisiteurs(salarieId?: number, entrepriseId?: number) {
+    const params: UserFilter = { role: 'VISITEUR' };
     
-    if (concessionnaireId) {
-      params.concessionnaire = concessionnaireId;
+    if (salarieId) {
+      params.salarie = salarieId;
     }
     
-    if (usineId) {
-      params.usine = usineId;
+    if (entrepriseId) {
+      params.entreprise = entrepriseId;
     }
     
     return await api.get('/users/', { params });
   },
   
-  // Assigner une usine à un concessionnaire
-  async assignUsineToConcessionnaire(concessionnaireId: number, usineId: number) {
-    return await api.patch(`/users/${concessionnaireId}/`, {
-      usine: usineId
+  // Assigner une entreprise à un salarie
+  async assignEntrepriseToSalarie(salarieId: number, entrepriseId: number) {
+    return await api.patch(`/users/${salarieId}/`, {
+      entreprise: entrepriseId
     });
   },
   
-  // Assigner un concessionnaire à un agriculteur
-  async assignConcessionnaireToAgriculteur(agriculteurId: number, concessionnaireId: number) {
-    return await api.patch(`/users/${agriculteurId}/`, {
-      concessionnaire: concessionnaireId
+  // Assigner un salarie à un visiteur
+  async assignSalarieToVisiteur(visiteurId: number, salarieId: number) {
+    return await api.patch(`/users/${visiteurId}/`, {
+      salarie: salarieId
     });
   },
   
@@ -430,9 +440,9 @@ export const irrigationService = {
         'format_plan_data',
         () => ({
           ...planData,
-          usine: planData.usine ? (typeof planData.usine === 'object' && 'id' in planData.usine ? planData.usine.id : Number(planData.usine)) : null,
-          concessionnaire: planData.concessionnaire ? (typeof planData.concessionnaire === 'object' && 'id' in planData.concessionnaire ? planData.concessionnaire.id : Number(planData.concessionnaire)) : null,
-          agriculteur: planData.agriculteur ? (typeof planData.agriculteur === 'object' && 'id' in planData.agriculteur ? planData.agriculteur.id : Number(planData.agriculteur)) : null
+          entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && 'id' in planData.entreprise ? planData.entreprise.id : Number(planData.entreprise)) : null,
+          salarie: planData.salarie ? (typeof planData.salarie === 'object' && 'id' in planData.salarie ? planData.salarie.id : Number(planData.salarie)) : null,
+          visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && 'id' in planData.visiteur ? planData.visiteur.id : Number(planData.visiteur)) : null
         }),
         'IrrigationService'
       );
@@ -473,33 +483,33 @@ export const irrigationService = {
     }
   },
   
-  async getAgriculteurPlans(agriculteurId: number) {
-    return await api.get('/plans/', { params: { agriculteur: agriculteurId } });
+  async getVisiteurPlans(visiteurId: number) {
+    return await api.get('/plans/', { params: { visiteur: visiteurId } });
   },
   
-  async createPlanForAgriculteur(planData: any) {
+  async createPlanForVisiteur(planData: any) {
     return await api.post('/plans/', planData);
   },
   
-  // Récupérer les plans d'une usine (inclut tous les plans des concessionnaires associés)
-  async getUsinePlans(usineId: number) {
-    return await api.get('/plans/', { params: { usine: usineId } });
+  // Récupérer les plans d'une entreprise (inclut tous les plans des salaries associés)
+  async getEntreprisePlans(entrepriseId: number) {
+    return await api.get('/plans/', { params: { entreprise: entrepriseId } });
   },
   
-  // Récupérer les plans d'un concessionnaire
-  async getConcessionnairePlans(concessionnaireId: number) {
-    return await api.get('/plans/', { params: { concessionnaire: concessionnaireId } });
+  // Récupérer les plans d'un salarie
+  async getSalariePlans(salarieId: number) {
+    return await api.get('/plans/', { params: { salarie: salarieId } });
   },
   
-  // Créer un plan pour un concessionnaire
-  async createPlanForConcessionnaire(planData: any, concessionnaireId: number) {
-    const data = { ...planData, concessionnaire: concessionnaireId };
+  // Créer un plan pour un salarie
+  async createPlanForSalarie(planData: any, salarieId: number) {
+    const data = { ...planData, salarie: salarieId };
     return await api.post('/plans/', data);
   },
   
-  // Créer un plan pour une usine
-  async createPlanForUsine(planData: any, usineId: number) {
-    const data = { ...planData, usine: usineId };
+  // Créer un plan pour une entreprise
+  async createPlanForEntreprise(planData: any, entrepriseId: number) {
+    const data = { ...planData, entreprise: entrepriseId };
     return await api.post('/plans/', data);
   }
 };

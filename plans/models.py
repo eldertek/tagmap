@@ -18,32 +18,32 @@ class Plan(models.Model):
         related_name='plans',
         verbose_name='Créateur'
     )
-    usine = models.ForeignKey(
+    entreprise = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='plans_usine',
-        verbose_name='Usine assignée',
-        limit_choices_to={'role': Utilisateur.Role.USINE}
+        related_name='plans_entreprise',
+        verbose_name='Entreprise assignée',
+        limit_choices_to={'role': Utilisateur.Role.ENTREPRISE}
     )
-    concessionnaire = models.ForeignKey(
+    salarie = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='plans_concessionnaire',
-        verbose_name='Concessionnaire assigné',
-        limit_choices_to={'role': Utilisateur.Role.CONCESSIONNAIRE}
+        related_name='plans_salarie',
+        verbose_name='Salarie assigné',
+        limit_choices_to={'role': Utilisateur.Role.SALARIE}
     )
-    agriculteur = models.ForeignKey(
+    visiteur = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='plans_agriculteur',
-        verbose_name='Agriculteur assigné',
-        limit_choices_to={'role': Utilisateur.Role.AGRICULTEUR}
+        related_name='plans_visiteur',
+        verbose_name='Visiteur assigné',
+        limit_choices_to={'role': Utilisateur.Role.VISITEUR}
     )
     preferences = models.JSONField(
         default=dict,
@@ -78,37 +78,37 @@ class Plan(models.Model):
         self.save(update_fields=['date_modification'])
 
     def clean(self):
-        """Valide les relations entre usine, concessionnaire et agriculteur."""
+        """Valide les relations entre entreprise, salarie et visiteur."""
         super().clean()
         
-        # Si un agriculteur est assigné, il doit avoir un concessionnaire
-        if self.agriculteur and not self.concessionnaire:
+        # Si un visiteur est assigné, il doit avoir un salarie
+        if self.visiteur and not self.salarie:
             raise ValidationError({
-                'concessionnaire': 'Un concessionnaire doit être assigné si un agriculteur est spécifié.'
+                'salarie': 'Un salarie doit être assigné si un visiteur est spécifié.'
             })
         
-        # Si un concessionnaire est assigné, il doit avoir une usine
-        if self.concessionnaire and not self.usine:
+        # Si un salarie est assigné, il doit avoir une entreprise
+        if self.salarie and not self.entreprise:
             raise ValidationError({
-                'usine': 'Une usine doit être assignée si un concessionnaire est spécifié.'
+                'entreprise': 'Une entreprise doit être assignée si un salarie est spécifié.'
             })
         
-        # Vérifier que le concessionnaire appartient à l'usine
-        if self.concessionnaire and self.usine and self.concessionnaire.usine != self.usine:
+        # Vérifier que le salarie appartient à l'entreprise
+        if self.salarie and self.entreprise and self.salarie.entreprise != self.entreprise:
             raise ValidationError({
-                'concessionnaire': 'Le concessionnaire doit appartenir à l\'usine spécifiée.'
+                'salarie': 'Le salarie doit appartenir à l\'entreprise spécifiée.'
             })
         
-        # Vérifier que l'agriculteur appartient au concessionnaire
-        if self.agriculteur and self.concessionnaire and self.agriculteur.concessionnaire != self.concessionnaire:
+        # Vérifier que l'visiteur appartient au salarie
+        if self.visiteur and self.salarie and self.visiteur.salarie != self.salarie:
             raise ValidationError({
-                'agriculteur': 'L\'agriculteur doit appartenir au concessionnaire spécifié.'
+                'visiteur': 'L\'visiteur doit appartenir au salarie spécifié.'
             })
         
-        # Vérifier que l'agriculteur appartient indirectement à l'usine
-        if self.agriculteur and self.usine and (not self.agriculteur.concessionnaire or self.agriculteur.concessionnaire.usine != self.usine):
+        # Vérifier que l'visiteur appartient indirectement à l'entreprise
+        if self.visiteur and self.entreprise and (not self.visiteur.salarie or self.visiteur.salarie.entreprise != self.entreprise):
             raise ValidationError({
-                'agriculteur': 'L\'agriculteur doit appartenir à un concessionnaire rattaché à l\'usine spécifiée.'
+                'visiteur': 'L\'visiteur doit appartenir à un salarie rattaché à l\'entreprise spécifiée.'
             })
 
 class FormeGeometrique(models.Model):

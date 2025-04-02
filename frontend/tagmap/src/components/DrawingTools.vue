@@ -761,13 +761,13 @@ const visibilityOptions = computed(() => {
       return [
         { value: 'private', label: 'Privé' },
         { value: 'enterprise', label: 'Entreprise' },
-        { value: 'employee', label: 'Salariés' },
+        { value: 'employee', label: 'Salaries' },
         { value: 'visitor', label: 'Visiteurs' }
       ]
     case 'salarie':
       return [
         { value: 'private', label: 'Privé' },
-        { value: 'employee', label: 'Salariés' },
+        { value: 'employee', label: 'Salaries' },
         { value: 'visitor', label: 'Visiteurs' }
       ]
     default:

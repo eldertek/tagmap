@@ -10,58 +10,58 @@
         </button>
       </div>
       <div class="overflow-y-auto max-h-[calc(100vh-12rem)]">
-        <!-- Sélection de l'usine (admin uniquement) -->
+        <!-- Sélection de l'entreprise (admin uniquement) -->
         <div v-if="authStore.isAdmin" class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Usine</label>
-          <div v-if="isLoadingUsines" class="animate-pulse">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Entreprise</label>
+          <div v-if="isLoadingEntreprises" class="animate-pulse">
             <div class="h-10 bg-gray-200 rounded"></div>
           </div>
           <select
             v-else
-            v-model="planData.usine"
+            v-model="planData.entreprise"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option :value="null">Sélectionnez une usine</option>
-            <option v-for="usine in usines" :key="usine.id" :value="usine.id">
-              {{ formatUserName(usine) }}
+            <option :value="null">Sélectionnez une entreprise</option>
+            <option v-for="entreprise in entreprises" :key="entreprise.id" :value="entreprise.id">
+              {{ formatUserName(entreprise) }}
             </option>
           </select>
         </div>
-        <!-- Sélection du concessionnaire -->
-        <div v-if="authStore.user?.user_type === 'admin' || authStore.user?.user_type === 'usine'" class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Concessionnaire</label>
-          <div v-if="isLoadingConcessionnaires" class="animate-pulse">
+        <!-- Sélection du salarie -->
+        <div v-if="authStore.user?.user_type === 'admin' || authStore.user?.user_type === 'entreprise'" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Salarie</label>
+          <div v-if="isLoadingSalaries" class="animate-pulse">
             <div class="h-10 bg-gray-200 rounded"></div>
           </div>
           <select
-            id="edit-concessionnaire"
+            id="edit-salarie"
             v-else
-            v-model="planData.concessionnaire"
+            v-model="planData.salarie"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            :disabled="!concessionnaires.length || (authStore.isAdmin && !planData.usine)"
+            :disabled="authStore.isAdmin && !planData.entreprise"
           >
-            <option :value="null">{{ concessionnaires.length ? 'Sélectionnez un concessionnaire' : 'Aucun concessionnaire disponible' }}</option>
-            <option v-for="concessionnaire in concessionnaires" :key="concessionnaire.id" :value="concessionnaire.id">
-              {{ formatUserName(concessionnaire) }}
+            <option :value="null">{{ salaries.length ? 'Sélectionnez un salarie' : 'Aucun salarie disponible' }}</option>
+            <option v-for="salarie in salaries" :key="salarie.id" :value="salarie.id">
+              {{ formatUserName(salarie) }}
             </option>
           </select>
         </div>
-        <!-- Sélection du client -->
-        <div v-if="authStore.user?.user_type !== 'agriculteur'" class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Agriculteur</label>
-          <div v-if="isLoadingClients" class="animate-pulse">
+        <!-- Sélection du visiteur -->
+        <div v-if="authStore.user?.user_type !== 'visiteur'" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Visiteur</label>
+          <div v-if="isLoadingVisiteurs" class="animate-pulse">
             <div class="h-10 bg-gray-200 rounded"></div>
           </div>
           <select
-            id="edit-agriculteur"
+            id="edit-visiteur"
             v-else
-            v-model="planData.client"
+            v-model="planData.visiteur"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            :disabled="!concessionnaireClients.length || (authStore.user?.user_type !== 'concessionnaire' && !planData.concessionnaire)"
+            :disabled="!visiteurs.length || (authStore.user?.user_type !== 'salarie' && !planData.salarie)"
           >
-            <option :value="null">{{ concessionnaireClients.length ? 'Sélectionnez un agriculteur' : 'Aucun agriculteur disponible' }}</option>
-            <option v-for="client in concessionnaireClients" :key="client.id" :value="client.id">
-              {{ formatUserName(client) }}
+            <option :value="null">{{ visiteurs.length ? 'Sélectionnez un visiteur' : 'Aucun visiteur disponible' }}</option>
+            <option v-for="visiteur in visiteurs" :key="visiteur.id" :value="visiteur.id">
+              {{ formatUserName(visiteur) }}
             </option>
           </select>
         </div>
@@ -118,15 +118,37 @@ import { useDrawingStore } from '@/stores/drawing';
 
 interface User {
   id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  salarie: any | null;
+  company_name: string;
   user_type: string;
-  usine: IdType;
-  concessionnaire: IdType;
+  entreprise?: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string;
+    company_name: string;
+    role: string;
+    display_name: string;
+    logo: string | null;
+  };
+  logo: string | null;
+  permissions: {
+    can_manage_users: boolean;
+    can_manage_plans: boolean;
+    can_view_all_plans: boolean;
+    can_manage_salaries: boolean;
+  };
 }
 
 interface PlanData {
-  usine: IdType;
-  concessionnaire: IdType;
-  client: number | null;
+  entreprise: IdType;
+  salarie: IdType;
+  visiteur: number | null;
   nom: string;
   description: string;
 }
@@ -152,8 +174,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
   (e: 'created', planId: number): void;
-  (e: 'concessionnaireSelected', concessionnaire: UserDetails): void;
-  (e: 'clientSelected', client: UserDetails): void;
+  (e: 'salarieSelected', salarie: UserDetails): void;
+  (e: 'visiteurSelected', visiteur: UserDetails): void;
 }>();
 
 const authStore = useAuthStore();
@@ -161,62 +183,63 @@ const irrigationStore = useIrrigationStore();
 const drawingStore = useDrawingStore();
 const isCreating = ref(false);
 const error = ref<string | null>(null);
-const concessionnaires = ref<any[]>([]);
-const concessionnaireClients = ref<any[]>([]);
-const usines = ref<any[]>([]);
-const selectedConcessionnaire = ref<any | null>(null);
-const selectedClient = ref<any | null>(null);
-const isLoadingConcessionnaires = ref(false);
-const isLoadingClients = ref(false);
-const isLoadingUsines = ref(false);
+const salaries = ref<any[]>([]);
+const visiteurs = ref<any[]>([]);
+const entreprises = ref<any[]>([]);
+const selectedSalarie = ref<any | null>(null);
+const selectedVisiteur = ref<any | null>(null);
+const isLoadingSalaries = ref(false);
+const isLoadingVisiteurs = ref(false);
+const isLoadingEntreprises = ref(false);
 
 const planData = ref<PlanData>({
   nom: '',
   description: '',
-  usine: null,
-  concessionnaire: null,
-  client: null
+  entreprise: null,
+  salarie: null,
+  visiteur: null
 });
 
 // Computed pour vérifier si le formulaire est valide
 const isFormValid = computed(() => {
   if (authStore.user?.user_type === 'admin') {
-    return planData.value.nom.trim() && planData.value.usine && planData.value.concessionnaire && planData.value.client;
-  } else if (authStore.user?.user_type === 'usine') {
-    return planData.value.nom.trim() && planData.value.concessionnaire && planData.value.client;
-  } else if (authStore.user?.user_type === 'concessionnaire') {
-    return planData.value.nom.trim() && planData.value.client;
+    return planData.value.nom.trim() && planData.value.entreprise && planData.value.salarie && planData.value.visiteur;
+  } else if (authStore.user?.user_type === 'entreprise') {
+    return planData.value.nom.trim() && planData.value.salarie && planData.value.visiteur;
+  } else if (authStore.user?.user_type === 'salarie') {
+    return planData.value.nom.trim() && planData.value.visiteur;
   }
   return planData.value.nom.trim();
 });
 
-// Watcher pour charger les concessionnaires quand une usine est sélectionnée
-watch(() => planData.value.usine, async (newUsineId) => {
+// Watcher pour charger les salaries quand une entreprise est sélectionnée
+watch(() => planData.value.entreprise, async (newEntrepriseId) => {
   if (!props.modelValue) return;
   
-  planData.value.concessionnaire = null;
-  planData.value.client = null;
-  concessionnaireClients.value = [];
+  planData.value.salarie = null;
+  planData.value.visiteur = null;
+  visiteurs.value = [];
   
-  const usineId = extractId(newUsineId);
-  if (usineId) {
-    await loadConcessionnaires(usineId);
+  const entrepriseId = extractId(newEntrepriseId);
+  console.log('[NewPlanModal] Entreprise sélectionnée:', entrepriseId);
+  if (entrepriseId) {
+    await loadSalaries(entrepriseId);
   } else {
-    concessionnaires.value = [];
+    salaries.value = [];
   }
 });
 
-// Watcher pour charger les clients quand un concessionnaire est sélectionné
-watch(() => planData.value.concessionnaire, async (newConcessionnaireId) => {
+// Watcher pour charger les visiteurs quand un salarie est sélectionné
+watch(() => planData.value.salarie, async (newSalarieId) => {
   if (!props.modelValue) return;
   
-  planData.value.client = null;
+  planData.value.visiteur = null;
   
-  const concessionnaireId = extractId(newConcessionnaireId);
-  if (concessionnaireId) {
-    await loadConcessionnaireClients(concessionnaireId);
+  const salarieId = extractId(newSalarieId);
+  if (salarieId) {
+    await loadVisiteurs(salarieId);
   } else {
-    concessionnaireClients.value = [];
+    visiteurs.value = [];
   }
 });
 
@@ -225,83 +248,85 @@ watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     // Si le modal s'ouvre, charger les données nécessaires
     if (authStore.user?.user_type === 'admin') {
-      loadUsines();
-    } else if (authStore.user?.user_type === 'usine') {
-      loadConcessionnaires(authStore.user.id);
-    } else if (authStore.user?.user_type === 'concessionnaire') {
-      loadConcessionnaireClients(authStore.user.id);
+      loadEntreprises();
+    } else if (authStore.user?.user_type === 'entreprise') {
+      loadSalaries(authStore.user.id);
+    } else if (authStore.user?.user_type === 'salarie') {
+      loadVisiteurs(authStore.user.id);
     }
   } else {
     // Si le modal se ferme, nettoyer toutes les données
     planData.value = {
       nom: '',
       description: '',
-      usine: null,
-      concessionnaire: null,
-      client: null
+      entreprise: null,
+      salarie: null,
+      visiteur: null
     };
-    selectedConcessionnaire.value = null;
-    selectedClient.value = null;
-    concessionnaireClients.value = [];
-    concessionnaires.value = [];
-    usines.value = [];
+    selectedSalarie.value = null;
+    selectedVisiteur.value = null;
+    visiteurs.value = [];
+    salaries.value = [];
+    entreprises.value = [];
     error.value = null;
   }
 });
 
-// Fonction pour charger les concessionnaires
-async function loadConcessionnaires(usineId?: number) {
-  isLoadingConcessionnaires.value = true;
+// Fonction pour charger les salaries
+async function loadSalaries(entrepriseId?: number) {
+  isLoadingSalaries.value = true;
   try {
-    if (usineId) {
-      // Cast le résultat pour s'assurer de la compatibilité des types
-      concessionnaires.value = await authStore.fetchUsineConcessionnaires(usineId) as any[];
-    } else {
-      // Pour admin sans usine sélectionnée, utilisez userService directement
-      const response = await userService.getConcessionnaires();
-      concessionnaires.value = response.data;
-    }
+    console.log('[NewPlanModal] Chargement des salaries pour entreprise:', entrepriseId);
+    const response = await userService.getUsers({
+      role: 'SALARIE',
+      entreprise: entrepriseId
+    });
+    console.log('[NewPlanModal] Réponse salaries:', response.data);
+    salaries.value = response.data;
   } catch (error) {
-    console.error('[NewPlanModal] Error loading concessionnaires:', error);
-    concessionnaires.value = [];
+    console.error('[NewPlanModal] Error loading salaries:', error);
+    salaries.value = [];
   } finally {
-    isLoadingConcessionnaires.value = false;
+    isLoadingSalaries.value = false;
   }
 }
 
-// Fonction pour charger les clients d'un concessionnaire
-async function loadConcessionnaireClients(concessionnaireId: number) {
-  isLoadingClients.value = true;
+// Fonction pour charger les visiteurs d'un salarie
+async function loadVisiteurs(salarieId: number) {
+  isLoadingVisiteurs.value = true;
   try {
-    // Cast le résultat pour s'assurer de la compatibilité des types
-    concessionnaireClients.value = await authStore.fetchConcessionnaireAgriculteurs(concessionnaireId) as any[];
+    const response = await userService.getUsers({
+      role: 'VISITEUR',
+      salarie: salarieId
+    });
+    visiteurs.value = response.data;
   } catch (error) {
-    console.error('[NewPlanModal] Error loading clients:', error);
-    concessionnaireClients.value = [];
+    console.error('[NewPlanModal] Error loading visiteurs:', error);
+    visiteurs.value = [];
   } finally {
-    isLoadingClients.value = false;
+    isLoadingVisiteurs.value = false;
   }
 }
 
-// Fonction pour sélectionner un concessionnaire
-async function selectConcessionnaire(concessionnaire: UserDetails) {
+// Fonction pour sélectionner un salarie
+async function selectSalarie(salarie: UserDetails) {
   // N'exécuter que si le modal est visible
   if (!props.modelValue) return;
   
-  selectedConcessionnaire.value = concessionnaire;
-  planData.value.concessionnaire = concessionnaire.id;
-  await loadConcessionnaireClients(concessionnaire.id);
-  emit('concessionnaireSelected', concessionnaire);
+  selectedSalarie.value = salarie;
+  planData.value.salarie = salarie.id;
+  await loadVisiteurs(salarie.id);
+  emit('salarieSelected', salarie);
 }
 
-// Fonction pour sélectionner un client
-function selectClient(client: UserDetails) {
+// Fonction pour sélectionner un visiteur
+function selectVisiteur(visiteur: UserDetails) {
   // N'exécuter que si le modal est visible
   if (!props.modelValue) return;
   
-  selectedClient.value = client;
-  planData.value.client = client.id;
-  emit('clientSelected', client);
+  selectedVisiteur.value = visiteur;
+  planData.value.visiteur = visiteur.id;
+  emit('visiteurSelected', visiteur);
 }
 
 // Fonction pour fermer le modal
@@ -312,27 +337,27 @@ function closeModal() {
   planData.value = {
     nom: '',
     description: '',
-    usine: null,
-    concessionnaire: null,
-    client: null
+    entreprise: null,
+    salarie: null,
+    visiteur: null
   };
-  selectedConcessionnaire.value = null;
-  selectedClient.value = null;
-  concessionnaireClients.value = [];
+  selectedSalarie.value = null;
+  selectedVisiteur.value = null;
+  visiteurs.value = [];
   error.value = null;
 }
 
-// Fonction pour charger les usines
-async function loadUsines() {
-  isLoadingUsines.value = true;
+// Fonction pour charger les entreprises
+async function loadEntreprises() {
+  isLoadingEntreprises.value = true;
   try {
-    // Cast le résultat pour s'assurer de la compatibilité des types
-    usines.value = await authStore.fetchUsines() as any[];
+    const response = await authStore.fetchEnterprises();
+    entreprises.value = response;
   } catch (error) {
-    console.error('[NewPlanModal] Error loading usines:', error);
-    usines.value = [];
+    console.error('[NewPlanModal] Error loading entreprises:', error);
+    entreprises.value = [];
   } finally {
-    isLoadingUsines.value = false;
+    isLoadingEntreprises.value = false;
   }
 }
 
@@ -352,33 +377,33 @@ async function createPlan() {
 
     // Gestion des IDs selon le type d'utilisateur
     if (user.user_type === 'admin') {
-      if (!planData.value.usine || !planData.value.concessionnaire || !planData.value.client) {
+      if (!planData.value.entreprise || !planData.value.salarie || !planData.value.visiteur) {
         throw new Error('Missing required fields');
       }
-      data.usine = validateId(extractId(planData.value.usine));
-      data.concessionnaire = validateId(extractId(planData.value.concessionnaire));
-      data.agriculteur = planData.value.client;
-    } else if (user.user_type === 'usine') {
-      if (!planData.value.concessionnaire || !planData.value.client) {
+      data.entreprise = validateId(extractId(planData.value.entreprise));
+      data.salarie = validateId(extractId(planData.value.salarie));
+      data.visiteur = planData.value.visiteur;
+    } else if (user.user_type === 'entreprise') {
+      if (!planData.value.salarie || !planData.value.visiteur) {
         throw new Error('Missing required fields');
       }
-      data.usine = user.id;
-      data.concessionnaire = validateId(extractId(planData.value.concessionnaire));
-      data.agriculteur = planData.value.client;
-    } else if (user.user_type === 'concessionnaire') {
-      if (!user.usine || !planData.value.client) {
+      data.entreprise = user.id;
+      data.salarie = validateId(extractId(planData.value.salarie));
+      data.visiteur = planData.value.visiteur;
+    } else if (user.user_type === 'salarie') {
+      if (!user.entreprise || !planData.value.visiteur) {
         throw new Error('Missing required fields');
       }
-      data.usine = validateId(extractId(user.usine));
-      data.concessionnaire = user.id;
-      data.agriculteur = planData.value.client;
-    } else if (user.user_type === 'agriculteur') {
-      if (!user.usine || !user.concessionnaire) {
+      data.entreprise = user.entreprise.id;
+      data.salarie = user.id;
+      data.visiteur = planData.value.visiteur;
+    } else if (user.user_type === 'visiteur') {
+      if (!user.entreprise || !user.salarie) {
         throw new Error('Missing required fields');
       }
-      data.usine = validateId(extractId(user.usine));
-      data.concessionnaire = validateId(extractId(user.concessionnaire));
-      data.agriculteur = user.id;
+      data.entreprise = user.entreprise.id;
+      data.salarie = user.salarie.id;
+      data.visiteur = user.id;
     }
 
     console.log('Données du plan à créer:', data);
@@ -419,13 +444,13 @@ async function createPlan() {
 
 // Exposer les méthodes et données nécessaires
 defineExpose({
-  concessionnaires,
-  concessionnaireClients,
-  selectedConcessionnaire,
-  selectedClient,
-  loadConcessionnaires,
-  loadConcessionnaireClients,
-  selectConcessionnaire,
-  selectClient
+  salaries,
+  visiteurs,
+  selectedSalarie,
+  selectedVisiteur,
+  loadSalaries,
+  loadVisiteurs,
+  selectSalarie,
+  selectVisiteur
 });
 </script> 

@@ -122,8 +122,8 @@
       <!-- Modal Nouveau Plan -->
       <Teleport to="body">
         <NewPlanModal ref="newPlanModalRef" v-model="showNewPlanModal" @created="onPlanCreated"
-          @concessionnaireSelected="concessionnaire => selectedConcessionnaire = concessionnaire"
-          @clientSelected="client => selectedClient = client" />
+          @salarieSelected="salarie => selectedSalarie = salarie"
+          @visiteurSelected="visiteur => selectedVisiteur = visiteur" />
       </Teleport>
       <!-- Modal Charger un Plan -->
       <Teleport to="body">
@@ -141,11 +141,11 @@
             <div class="overflow-y-auto max-h-[calc(100vh-12rem)]">
               <!-- Interface administrateur -->
               <div v-if="authStore.isAdmin" class="space-y-4">
-                <!-- Étape 1: Sélection de l'usine -->
-                <div v-if="!selectedUsine" class="space-y-2">
-                  <h3 class="font-medium text-gray-700">Sélectionnez une usine</h3>
+                <!-- Étape 1: Sélection de l'entreprise -->
+                <div v-if="!selectedEntreprise" class="space-y-2">
+                  <h3 class="font-medium text-gray-700">Sélectionnez une entreprise</h3>
                   <div class="grid grid-cols-1 gap-2">
-                    <template v-if="isLoadingUsines">
+                    <template v-if="isLoadingEntreprises">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
                         <div class="p-3 bg-white rounded-lg border border-gray-200">
                           <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -154,10 +154,10 @@
                       </div>
                     </template>
                     <template v-else>
-                      <button v-for="usine in usines" :key="usine.id" @click="selectUsine(usine)"
+                      <button v-for="entreprise in entreprises" :key="entreprise.id" @click="selectEntreprise(entreprise)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(usine) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserDisplay(entreprise) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -167,23 +167,23 @@
                   </div>
                 </div>
 
-                <!-- Étape 2: Sélection du concessionnaire -->
-                <div v-else-if="!selectedConcessionnaire" class="space-y-2">
+                <!-- Étape 2: Sélection du salarie -->
+                <div v-else-if="!selectedSalarie" class="space-y-2">
                   <div class="flex items-center mb-4">
-                    <button @click="backToUsineList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <button @click="backToEntrepriseList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
                       <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                       </svg>
-                      Retour à la liste des usines
+                      Retour à la liste des entreprises
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedUsine) }}
+                      {{ formatUserDisplay(selectedEntreprise) }}
                     </span>
                   </div>
-                  <h3 class="font-medium text-gray-700">Sélectionnez un concessionnaire</h3>
+                  <h3 class="font-medium text-gray-700">Sélectionnez un salarie</h3>
                   <div class="grid grid-cols-1 gap-2">
-                    <template v-if="isLoadingConcessionnaires">
+                    <template v-if="isLoadingSalaries">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
                         <div class="p-3 bg-white rounded-lg border border-gray-200">
                           <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -192,11 +192,11 @@
                       </div>
                     </template>
                     <template v-else>
-                      <button v-for="concessionnaire in filteredConcessionnaires" :key="concessionnaire.id"
-                        @click="selectConcessionnaire(concessionnaire)"
+                      <button v-for="salarie in filteredSalaries" :key="salarie.id"
+                        @click="selectSalarie(salarie)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(concessionnaire) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserDisplay(salarie) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -209,19 +209,19 @@
                 <!-- Étape 3: Sélection du client -->
                 <div v-else-if="!selectedClient" class="space-y-2">
                   <div class="flex items-center mb-4">
-                    <button @click="backToConcessionnaireList"
+                    <button @click="backToSalarieList"
                       class="flex items-center text-sm text-gray-600 hover:text-gray-900">
                       <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                       </svg>
-                      Retour à la liste des concessionnaires
+                      Retour à la liste des salaries
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedConcessionnaire) }}
+                      {{ formatUserDisplay(selectedSalarie) }}
                     </span>
                   </div>
-                  <h3 class="font-medium text-gray-700">Sélectionnez un agriculteur</h3>
+                  <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
                   <div class="grid grid-cols-1 gap-2">
                     <template v-if="isLoadingClients">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
@@ -233,9 +233,9 @@
                     </template>
                     <template v-else>
                       <div v-if="filteredClients.length === 0" class="text-center py-8">
-                        <div class="text-gray-500 mb-2">Aucun agriculteur trouvé pour ce concessionnaire</div>
+                        <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarie</div>
                         <div class="text-sm text-gray-400">
-                          Veuillez vérifier que des agriculteurs ont été assignés à ce concessionnaire
+                          Veuillez vérifier que des visiteurs ont été assignés à ce salarie
                         </div>
                       </div>
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
@@ -290,11 +290,11 @@
                 </div>
               </div>
 
-              <!-- Interface concessionnaire -->
-              <div v-else-if="authStore.isConcessionnaire" class="space-y-4">
+              <!-- Interface salarie -->
+              <div v-else-if="authStore.isSalarie" class="space-y-4">
                 <!-- Liste des clients -->
                 <div v-if="!selectedClient" class="space-y-2">
-                  <h3 class="font-medium text-gray-700">Sélectionnez un agriculteur</h3>
+                  <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
                   <div class="grid grid-cols-1 gap-2">
                     <template v-if="isLoadingClients">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
@@ -306,9 +306,9 @@
                     </template>
                     <template v-else>
                       <div v-if="filteredClients.length === 0" class="text-center py-8">
-                        <div class="text-gray-500 mb-2">Aucun agriculteur trouvé pour ce concessionnaire</div>
+                        <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarie</div>
                         <div class="text-sm text-gray-400">
-                          Veuillez vérifier que des agriculteurs ont été assignés à ce concessionnaire
+                          Veuillez vérifier que des visiteurs ont été assignés à ce salarie
                         </div>
                       </div>
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
@@ -362,10 +362,10 @@
                 </div>
               </div>
 
-              <!-- Interface usine -->
-              <div v-else-if="authStore.isUsine" class="space-y-4">
-                <!-- Contenu existant de l'interface usine -->
-                {{ authStore.isUsine ? '...' : '' }}
+              <!-- Interface entreprise -->
+              <div v-else-if="authStore.isEntreprise" class="space-y-4">
+                <!-- Contenu existant de l'interface entreprise -->
+                {{ authStore.isEntreprise ? '...' : '' }}
               </div>
 
               <!-- Interface client -->
@@ -429,24 +429,24 @@ interface UserDetails {
   last_name: string;
   company_name?: string;
   role?: string;
-  concessionnaire?: number;
-  concessionnaire_name?: string;
+  salarie?: number;
+  salarie_name?: string;
   is_active?: boolean;
   display_name?: string;
   logo?: string;
 }
 
 interface ExtendedUserDetails extends UserDetails {
-  usine?: number;
-  usine_details?: ExtendedUserDetails;
-  concessionnaire_details?: ExtendedUserDetails;
+  entreprise?: number;
+  entreprise_details?: ExtendedUserDetails;
+  salarie_details?: ExtendedUserDetails;
   client_details?: ExtendedUserDetails;
 }
 
 interface ExtendedPlan extends Plan {
-  concessionnaire_details?: ExtendedUserDetails;
+  salarie_details?: ExtendedUserDetails;
   client_details?: ExtendedUserDetails;
-  usine_details?: ExtendedUserDetails;
+  entreprise_details?: ExtendedUserDetails;
 }
 
 const mapContainer = ref<HTMLElement | null>(null);
@@ -479,33 +479,34 @@ const saving = ref(false);
 const saveStatus = ref<'saving' | 'success' | null>(null);
 // Ajout des imports et des refs nécessaires
 const authStore = useAuthStore();
-const concessionnaires = ref<ExtendedUserDetails[]>([]);
-const concessionnaireAgriculteurs = ref<ExtendedUserDetails[]>([]);
+const salaries = ref<ExtendedUserDetails[]>([]);
+const salarieVisiteurs = ref<ExtendedUserDetails[]>([]);
 const clientPlans = ref<Plan[]>([]);
-const selectedConcessionnaire = ref<ExtendedUserDetails | null>(null);
+const selectedSalarie = ref<any | null>(null);
+const selectedVisiteur = ref<any | null>(null);
 const selectedClient = ref<ExtendedUserDetails | null>(null);
-const isLoadingConcessionnaires = ref(false);
+const isLoadingSalaries = ref(false);
 const isLoadingClients = ref(false);
 const isLoadingPlans = ref(false);
 // Référence vers le composant NewPlanModal
 const newPlanModalRef = ref<InstanceType<typeof NewPlanModal> | null>(null);
-// Computed pour les clients filtrés selon le concessionnaire
+// Computed pour les clients filtrés selon le salarie
 const filteredClients = computed(() => {
   console.log('[MapView][filteredClients] Computing with:', {
     userType: authStore.user?.user_type,
-    selectedConcessionnaire: selectedConcessionnaire.value,
-    concessionnaireAgriculteurs: concessionnaireAgriculteurs.value,
-    agriculteurCount: concessionnaireAgriculteurs.value?.length || 0
+    selectedSalarie: selectedSalarie.value,
+    salarieVisiteurs: salarieVisiteurs.value,
+    visiteurCount: salarieVisiteurs.value?.length || 0
   });
 
-  // Si l'utilisateur est un concessionnaire, retourner directement ses agriculteurs
-  if (authStore.isConcessionnaire) {
-    return concessionnaireAgriculteurs.value;
+  // Si l'utilisateur est un salarie, retourner directement ses visiteurs
+  if (authStore.isSalarie) {
+    return salarieVisiteurs.value;
   }
 
-  // Pour les autres rôles (admin, usine), vérifier si un concessionnaire est sélectionné
-  if (selectedConcessionnaire.value) {
-    return concessionnaireAgriculteurs.value;
+  // Pour les autres rôles (admin, entreprise), vérifier si un salarie est sélectionné
+  if (selectedSalarie.value) {
+    return salarieVisiteurs.value;
   }
 
   return [];
@@ -664,36 +665,36 @@ onMounted(async () => {
     // Charger les plans
     await irrigationStore.fetchPlans();
 
-    // Si admin ou usine, charger les usines
-    if (authStore.isAdmin || authStore.isUsine) {
-      await loadUsines();
+    // Si admin ou entreprise, charger les entreprises
+    if (authStore.isAdmin || authStore.isEntreprise) {
+      await loadEntreprises();
     }
 
-    // Si usine, charger directement ses concessionnaires
-    if (authStore.isUsine) {
-      isLoadingConcessionnaires.value = true;
+    // Si entreprise, charger directement ses salaries
+    if (authStore.isEntreprise) {
+      isLoadingSalaries.value = true;
       try {
         const response = await api.get('/users/', {
           params: {
-            role: 'CONCESSIONNAIRE',
-            usine: authStore.user?.id
+            role: 'SALARIE',
+            entreprise: authStore.user?.id
           }
         });
-        concessionnaires.value = response.data;
+        salaries.value = response.data;
       } catch (error) {
-        console.error('Error loading concessionnaires:', error);
-        concessionnaires.value = [];
+        console.error('Error loading salaries:', error);
+        salaries.value = [];
       } finally {
-        isLoadingConcessionnaires.value = false;
+        isLoadingSalaries.value = false;
       }
     }
 
-    // Si concessionnaire, charger ses clients
-    if (authStore.isConcessionnaire) {
+    // Si salarie, charger ses clients
+    if (authStore.isSalarie) {
       isLoadingClients.value = true;
       try {
-        const result = await authStore.fetchConcessionnaireAgriculteurs(authStore.user?.id || 0);
-        concessionnaireAgriculteurs.value = (Array.isArray(result) ? result : [result]) as ExtendedUserDetails[];
+        const result = await authStore.fetchSalarieVisiteurs(authStore.user?.id || 0);
+        salarieVisiteurs.value = (Array.isArray(result) ? result : [result]) as ExtendedUserDetails[];
       } catch (error) {
         console.error('Error loading clients:', error);
       } finally {
@@ -1501,16 +1502,16 @@ async function onPlanCreated(planId: number) {
     console.error(`Plan ${planId} introuvable après création! Vérifiez les permissions.`);
   }
 }
-// Ajouter un watcher pour charger les clients quand un concessionnaire est sélectionné
-watch(selectedConcessionnaire, async (newConcessionnaire) => {
-  if (newConcessionnaire && authStore.user?.user_type === 'admin') {
+// Ajouter un watcher pour charger les clients quand un salarie est sélectionné
+watch(selectedSalarie, async (newSalarie) => {
+  if (newSalarie && authStore.user?.user_type === 'admin') {
     isLoadingClients.value = true;
     try {
-      const result = await authStore.fetchConcessionnaireAgriculteurs(newConcessionnaire.id);
-      concessionnaireAgriculteurs.value = (Array.isArray(result) ? result : [result]) as ExtendedUserDetails[];
+      const result = await authStore.fetchSalarieVisiteurs(newSalarie.id);
+      salarieVisiteurs.value = (Array.isArray(result) ? result : [result]) as ExtendedUserDetails[];
     } catch (error) {
-      console.error('[MapView][watch selectedConcessionnaire] Error:', error);
-      concessionnaireAgriculteurs.value = [];
+      console.error('[MapView][watch selectedSalarie] Error:', error);
+      salarieVisiteurs.value = [];
     } finally {
       isLoadingClients.value = false;
     }
@@ -1576,7 +1577,7 @@ async function generateSynthesis() {
 
     // Vérifier si les détails sont présents, sinon tenter de les récupérer explicitement
     let planToUse = plan;
-    if (!plan.concessionnaire_details && !plan.usine_details && !plan.client_details) {
+    if (!plan.salarie_details && !plan.entreprise_details && !plan.client_details) {
       console.log('[generateSynthesis] Détails manquants, tentative de récupération...');
       try {
         const response = await api.get(`/plans/${plan.id}/`);
@@ -1604,24 +1605,24 @@ async function generateSynthesis() {
     isGeneratingSynthesis.value = true;
 
     // Utiliser les détails du plan mis à jour
-    const concessionnaireDetails = planToUse.concessionnaire_details as ExtendedUserDetails | undefined;
+    const salarieDetails = planToUse.salarie_details as ExtendedUserDetails | undefined;
     const clientDetails = planToUse.client_details as ExtendedUserDetails | undefined;
-    const usineDetails = (concessionnaireDetails?.usine_details || planToUse.usine_details) as ExtendedUserDetails | undefined;
+    const entrepriseDetails = (salarieDetails?.entreprise_details || planToUse.entreprise_details) as ExtendedUserDetails | undefined;
 
     console.log('[generateSynthesis] Détails du plan utilisé:', planToUse);
 
     console.log('[generateSynthesis] Détails des utilisateurs:', {
-      concessionnaire: concessionnaireDetails ? {
-        id: concessionnaireDetails.id,
-        nom: `${concessionnaireDetails.first_name} ${concessionnaireDetails.last_name}`,
-        company: concessionnaireDetails.company_name,
-        logo: concessionnaireDetails.logo
+      salarie: salarieDetails ? {
+        id: salarieDetails.id,
+        nom: `${salarieDetails.first_name} ${salarieDetails.last_name}`,
+        company: salarieDetails.company_name,
+        logo: salarieDetails.logo
       } : null,
-      usine: usineDetails ? {
-        id: usineDetails.id,
-        nom: `${usineDetails.first_name} ${usineDetails.last_name}`,
-        company: usineDetails.company_name,
-        logo: usineDetails.logo
+      entreprise: entrepriseDetails ? {
+        id: entrepriseDetails.id,
+        nom: `${entrepriseDetails.first_name} ${entrepriseDetails.last_name}`,
+        company: entrepriseDetails.company_name,
+        logo: entrepriseDetails.logo
       } : null,
       client: clientDetails ? {
         id: clientDetails.id,
@@ -1655,20 +1656,20 @@ async function generateSynthesis() {
       };
     });
 
-    // Charger le logo de l'usine si disponible
-    console.log('[generateSynthesis] Tentative de chargement du logo usine:', usineDetails?.logo);
-    let usineLogoImg: HTMLImageElement | null = null;
-    if (usineDetails?.logo) {
-      usineLogoImg = new Image();
-      usineLogoImg.src = usineDetails.logo;
+    // Charger le logo de l'entreprise si disponible
+    console.log('[generateSynthesis] Tentative de chargement du logo entreprise:', entrepriseDetails?.logo);
+    let entrepriseLogoImg: HTMLImageElement | null = null;
+    if (entrepriseDetails?.logo) {
+      entrepriseLogoImg = new Image();
+      entrepriseLogoImg.src = entrepriseDetails.logo;
       await new Promise<void>((resolve) => {
-        if (usineLogoImg) {
-          usineLogoImg.onload = () => {
-            console.log('[generateSynthesis] Logo usine chargé avec succès');
+        if (entrepriseLogoImg) {
+          entrepriseLogoImg.onload = () => {
+            console.log('[generateSynthesis] Logo entreprise chargé avec succès');
             resolve();
           };
-          usineLogoImg.onerror = (error) => {
-            console.error('[generateSynthesis] Erreur chargement logo usine:', error);
+          entrepriseLogoImg.onerror = (error) => {
+            console.error('[generateSynthesis] Erreur chargement logo entreprise:', error);
             resolve();
           };
         } else {
@@ -1677,20 +1678,20 @@ async function generateSynthesis() {
       });
     }
 
-    // Charger le logo du concessionnaire si disponible
-    console.log('[generateSynthesis] Tentative de chargement du logo concessionnaire:', concessionnaireDetails?.logo);
-    let concessionnaireLogoImg: HTMLImageElement | null = null;
-    if (concessionnaireDetails?.logo) {
-      concessionnaireLogoImg = new Image();
-      concessionnaireLogoImg.src = concessionnaireDetails.logo;
+    // Charger le logo du salarie si disponible
+    console.log('[generateSynthesis] Tentative de chargement du logo salarie:', salarieDetails?.logo);
+    let salarieLogoImg: HTMLImageElement | null = null;
+    if (salarieDetails?.logo) {
+      salarieLogoImg = new Image();
+      salarieLogoImg.src = salarieDetails.logo;
       await new Promise<void>((resolve) => {
-        if (concessionnaireLogoImg) {
-          concessionnaireLogoImg.onload = () => {
-            console.log('[generateSynthesis] Logo concessionnaire chargé avec succès');
+        if (salarieLogoImg) {
+          salarieLogoImg.onload = () => {
+            console.log('[generateSynthesis] Logo salarie chargé avec succès');
             resolve();
           };
-          concessionnaireLogoImg.onerror = (error) => {
-            console.error('[generateSynthesis] Erreur chargement logo concessionnaire:', error);
+          salarieLogoImg.onerror = (error) => {
+            console.error('[generateSynthesis] Erreur chargement logo salarie:', error);
             resolve();
           };
         } else {
@@ -1701,23 +1702,23 @@ async function generateSynthesis() {
 
     console.log('[generateSynthesis] Ajout des logos au PDF:', {
       logoApplication: true,
-      logoUsine: usineLogoImg !== null,
-      logoConcessionnaire: concessionnaireLogoImg !== null
+      logoEntreprise: entrepriseLogoImg !== null,
+      logoSalarie: salarieLogoImg !== null
     });
 
     // Positions précises des logos avec espacement uniforme
-    // Nouvelle disposition des logos (usine - application - concessionnaire)
-    // Logo de l'usine à gauche
-    if (usineLogoImg !== null) {
-      pdf.addImage(usineLogoImg, 'JPEG', centerX - logoSize - logoSpacing, 20, logoSize, logoSize);
+    // Nouvelle disposition des logos (entreprise - application - salarie)
+    // Logo de l'entreprise à gauche
+    if (entrepriseLogoImg !== null) {
+      pdf.addImage(entrepriseLogoImg, 'JPEG', centerX - logoSize - logoSpacing, 20, logoSize, logoSize);
     }
 
     // Logo central (application)
     pdf.addImage(logoImg, 'JPEG', centerX - (logoSize / 2), 20, logoSize, logoSize);
 
-    // Logo du concessionnaire à droite
-    if (concessionnaireLogoImg !== null) {
-      pdf.addImage(concessionnaireLogoImg, 'JPEG', centerX + logoSpacing, 20, logoSize, logoSize);
+    // Logo du salarie à droite
+    if (salarieLogoImg !== null) {
+      pdf.addImage(salarieLogoImg, 'JPEG', centerX + logoSpacing, 20, logoSize, logoSize);
     }
 
     // Titre du plan
@@ -1728,23 +1729,23 @@ async function generateSynthesis() {
     // Informations du plan
     let yPos = 120;
 
-    // Informations de l'usine si disponible
-    if (usineDetails) {
+    // Informations de l'entreprise si disponible
+    if (entrepriseDetails) {
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Usine:', 20, yPos);
+      pdf.text('Entreprise:', 20, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`${usineDetails.first_name} ${usineDetails.last_name}${usineDetails.company_name ? ` (${usineDetails.company_name})` : ''}`, 20, yPos + 6);
+      pdf.text(`${entrepriseDetails.first_name} ${entrepriseDetails.last_name}${entrepriseDetails.company_name ? ` (${entrepriseDetails.company_name})` : ''}`, 20, yPos + 6);
       yPos += 15; // Reduced from 25
     }
 
-    // Informations du concessionnaire
-    if (concessionnaireDetails) {
+    // Informations du salarie
+    if (salarieDetails) {
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Concessionnaire:', 20, yPos);
+      pdf.text('Salarie:', 20, yPos);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`${concessionnaireDetails.first_name} ${concessionnaireDetails.last_name}${concessionnaireDetails.company_name ? ` (${concessionnaireDetails.company_name})` : ''}`, 20, yPos + 6);
+      pdf.text(`${salarieDetails.first_name} ${salarieDetails.last_name}${salarieDetails.company_name ? ` (${salarieDetails.company_name})` : ''}`, 20, yPos + 6);
       yPos += 15; // Reduced from 25
     }
 
@@ -1814,15 +1815,15 @@ async function generateSynthesis() {
       // Logos miniatures avec espacement constant
       const rightMargin = 20;
       const miniLogosStartX = pageWidth - rightMargin - (
-        miniLogoSize * (1 + (usineLogoImg !== null ? 1 : 0) + (concessionnaireLogoImg !== null ? 1 : 0)) +
-        miniLogoSpacing * (1 + (usineLogoImg !== null ? 1 : 0))
+        miniLogoSize * (1 + (entrepriseLogoImg !== null ? 1 : 0) + (salarieLogoImg !== null ? 1 : 0)) +
+        miniLogoSpacing * (1 + (entrepriseLogoImg !== null ? 1 : 0))
       );
 
       let currentX = miniLogosStartX;
 
-      // Logo de l'usine
-      if (usineLogoImg !== null) {
-        pdf.addImage(usineLogoImg, 'JPEG', currentX, 5, miniLogoSize, miniLogoSize);
+      // Logo de l'entreprise
+      if (entrepriseLogoImg !== null) {
+        pdf.addImage(entrepriseLogoImg, 'JPEG', currentX, 5, miniLogoSize, miniLogoSize);
         currentX += miniLogoSize + miniLogoSpacing;
       }
 
@@ -1830,9 +1831,9 @@ async function generateSynthesis() {
       pdf.addImage(logoImg, 'JPEG', currentX, 5, miniLogoSize, miniLogoSize);
       currentX += miniLogoSize + miniLogoSpacing;
 
-      // Logo du concessionnaire
-      if (concessionnaireLogoImg !== null) {
-        pdf.addImage(concessionnaireLogoImg, 'JPEG', currentX, 5, miniLogoSize, miniLogoSize);
+      // Logo du salarie
+      if (salarieLogoImg !== null) {
+        pdf.addImage(salarieLogoImg, 'JPEG', currentX, 5, miniLogoSize, miniLogoSize);
       }
 
       // Bordure fine en bas de l'en-tête
@@ -2490,50 +2491,50 @@ watch(currentPlan, (newPlan, oldPlan) => {
 
 // Types
 interface ExtendedUserDetails extends UserDetails {
-  usine?: number;
-  usine_details?: ExtendedUserDetails;
-  concessionnaire_details?: ExtendedUserDetails;
+  entreprise?: number;
+  entreprise_details?: ExtendedUserDetails;
+  salarie_details?: ExtendedUserDetails;
   client_details?: ExtendedUserDetails;
   logo?: string;
 }
 
 interface ExtendedPlan extends Plan {
-  concessionnaire_details?: ExtendedUserDetails;
+  salarie_details?: ExtendedUserDetails;
   client_details?: ExtendedUserDetails;
-  usine_details?: ExtendedUserDetails;
+  entreprise_details?: ExtendedUserDetails;
 }
 
 // Ajout des refs nécessaires
-const selectedUsine = ref<ExtendedUserDetails | null>(null);
-const isLoadingUsines = ref(false);
-const usines = ref<ExtendedUserDetails[]>([]);
+const selectedEntreprise = ref<ExtendedUserDetails | null>(null);
+const isLoadingEntreprises = ref(false);
+const entreprises = ref<ExtendedUserDetails[]>([]);
 
-// Computed pour les concessionnaires filtrés selon l'usine sélectionnée
-const filteredConcessionnaires = computed(() => {
-  console.log('[MapView][filteredConcessionnaires] Computing with:', {
-    selectedUsine: selectedUsine.value,
-    concessionnaires: concessionnaires.value,
-    concessionnairesLength: concessionnaires.value.length
+// Computed pour les salaries filtrés selon l'entreprise sélectionnée
+const filteredSalaries = computed(() => {
+  console.log('[MapView][filteredSalaries] Computing with:', {
+    selectedEntreprise: selectedEntreprise.value,
+    salaries: salaries.value,
+    salariesLength: salaries.value.length
   });
-  if (!selectedUsine.value) return [];
-  const filtered = concessionnaires.value.filter(concessionnaire => {
-    const concessionnaireUsine = (concessionnaire as ExtendedUserDetails).usine;
-    // Vérifier si concessionnaireUsine est un objet et extraire l'ID si c'est le cas
-    const concessionnaireUsineId = typeof concessionnaireUsine === 'object' && concessionnaireUsine !== null
-      ? (concessionnaireUsine as any).id
-      : concessionnaireUsine;
+  if (!selectedEntreprise.value) return [];
+  const filtered = salaries.value.filter(salarie => {
+    const salarieEntreprise = (salarie as ExtendedUserDetails).entreprise;
+    // Vérifier si salarieEntreprise est un objet et extraire l'ID si c'est le cas
+    const salarieEntrepriseId = typeof salarieEntreprise === 'object' && salarieEntreprise !== null
+      ? (salarieEntreprise as any).id
+      : salarieEntreprise;
 
-    console.log('[MapView][filteredConcessionnaires] Checking concessionnaire:', {
-      concessionnaire,
-      concessionnaireUsine,
-      concessionnaireUsineId,
-      selectedUsineId: selectedUsine.value?.id,
-      matches: concessionnaireUsineId === selectedUsine.value?.id
+    console.log('[MapView][filteredSalaries] Checking salarie:', {
+      salarie,
+      salarieEntreprise,
+      salarieEntrepriseId,
+      selectedEntrepriseId: selectedEntreprise.value?.id,
+      matches: salarieEntrepriseId === selectedEntreprise.value?.id
     });
 
-    return concessionnaireUsineId === selectedUsine.value?.id;
+    return salarieEntrepriseId === selectedEntreprise.value?.id;
   });
-  console.log('[MapView][filteredConcessionnaires] Filtered result:', filtered);
+  console.log('[MapView][filteredSalaries] Filtered result:', filtered);
   return filtered;
 });
 
@@ -2546,70 +2547,70 @@ function formatUserDisplay(user: ExtendedUserDetails | null): string {
   return `${firstName} ${lastName} (${company})`;
 }
 
-// Fonction pour charger les usines
-async function loadUsines() {
-  isLoadingUsines.value = true;
+// Fonction pour charger les entreprises
+async function loadEntreprises() {
+  isLoadingEntreprises.value = true;
   try {
     const response = await api.get('/users/', {
-      params: { role: 'USINE' }
+      params: { role: 'ENTREPRISE' }
     });
-    usines.value = response.data;
+    entreprises.value = response.data;
   } catch (error) {
-    console.error('[MapView] Error loading usines:', error);
-    usines.value = [];
+    console.error('[MapView] Error loading entreprises:', error);
+    entreprises.value = [];
   } finally {
-    isLoadingUsines.value = false;
+    isLoadingEntreprises.value = false;
   }
 }
 
-// Fonction pour sélectionner une usine
-async function selectUsine(usine: ExtendedUserDetails) {
-  console.log('[MapView][selectUsine] Sélection de l\'usine:', usine);
-  selectedUsine.value = usine;
-  isLoadingConcessionnaires.value = true;
+// Fonction pour sélectionner une entreprise
+async function selectEntreprise(entreprise: ExtendedUserDetails) {
+  console.log('[MapView][selectEntreprise] Sélection de l\'entreprise:', entreprise);
+  selectedEntreprise.value = entreprise;
+  isLoadingSalaries.value = true;
   try {
-    console.log('[MapView][selectUsine] Envoi de la requête avec params:', {
-      role: 'CONCESSIONNAIRE',
-      usine: usine.id
+    console.log('[MapView][selectEntreprise] Envoi de la requête avec params:', {
+      role: 'SALARIE',
+      entreprise: entreprise.id
     });
     const response = await api.get('/users/', {
       params: {
-        role: 'CONCESSIONNAIRE',
-        usine: usine.id
+        role: 'SALARIE',
+        entreprise: entreprise.id
       }
     });
-    console.log('[MapView][selectUsine] Réponse reçue:', response.data);
-    concessionnaires.value = response.data;
-    console.log('[MapView][selectUsine] Concessionnaires mis à jour:', concessionnaires.value);
+    console.log('[MapView][selectEntreprise] Réponse reçue:', response.data);
+    salaries.value = response.data;
+    console.log('[MapView][selectEntreprise] Salaries mis à jour:', salaries.value);
   } catch (error) {
-    console.error('[MapView] Error loading concessionnaires for usine:', error);
-    concessionnaires.value = [];
+    console.error('[MapView] Error loading salaries for entreprise:', error);
+    salaries.value = [];
   } finally {
-    isLoadingConcessionnaires.value = false;
+    isLoadingSalaries.value = false;
   }
 }
 
-// Fonction pour revenir à la liste des usines
-function backToUsineList() {
+// Fonction pour revenir à la liste des entreprises
+function backToEntrepriseList() {
   // Réinitialiser la sélection
-  selectedUsine.value = null;
-  selectedConcessionnaire.value = null;
+  selectedEntreprise.value = null;
+  selectedSalarie.value = null;
   selectedClient.value = null;
 
   // Réinitialiser les listes
-  concessionnaires.value = [];
-  concessionnaireAgriculteurs.value = [];
+  salaries.value = [];
+  salarieVisiteurs.value = [];
   clientPlans.value = [];
 }
 
-// Fonction pour revenir à la liste des concessionnaires
-function backToConcessionnaireList() {
-  // Réinitialiser la sélection tout en gardant l'usine
-  selectedConcessionnaire.value = null;
+// Fonction pour revenir à la liste des salaries
+function backToSalarieList() {
+  // Réinitialiser la sélection tout en gardant l'entreprise
+  selectedSalarie.value = null;
   selectedClient.value = null;
 
   // Réinitialiser les listes enfants
-  concessionnaireAgriculteurs.value = [];
+  salarieVisiteurs.value = [];
   clientPlans.value = [];
 }
 
@@ -2620,37 +2621,37 @@ function backToClientList() {
   clientPlans.value = [];
 }
 
-// Fonction pour sélectionner un concessionnaire
-async function selectConcessionnaire(concessionnaire: ExtendedUserDetails) {
-  console.log('\n[MapView][selectConcessionnaire] ====== DÉBUT SÉLECTION CONCESSIONNAIRE ======');
-  console.log('Informations du concessionnaire:', {
-    id: concessionnaire.id,
-    username: concessionnaire.username,
-    company: concessionnaire.company_name,
-    role: concessionnaire.role
+// Fonction pour sélectionner un salarie
+async function selectSalarie(salarie: ExtendedUserDetails) {
+  console.log('\n[MapView][selectSalarie] ====== DÉBUT SÉLECTION SALARIE ======');
+  console.log('Informations du salarie:', {
+    id: salarie.id,
+    username: salarie.username,
+    company: salarie.company_name,
+    role: salarie.role
   });
   console.log('Contexte utilisateur:', {
     userType: authStore.user?.user_type,
     userId: authStore.user?.id,
     userRole: authStore.user?.role,
-    selectedUsineId: selectedUsine.value?.id
+    selectedEntrepriseId: selectedEntreprise.value?.id
   });
 
-  selectedConcessionnaire.value = concessionnaire;
+  selectedSalarie.value = salarie;
   isLoadingClients.value = true;
   try {
     const params: Record<string, any> = {
-      role: 'AGRICULTEUR',
-      concessionnaire: concessionnaire.id
+      role: 'VISITEUR',
+      salarie: salarie.id
     };
 
-    // Ajouter l'ID de l'usine selon le contexte
-    if (authStore.isUsine) {
-      console.log('Ajout de l\'ID de l\'usine connectée:', authStore.user?.id);
-      params.usine = authStore.user?.id;
-    } else if (selectedUsine.value) {
-      console.log('Ajout de l\'ID de l\'usine sélectionnée:', selectedUsine.value.id);
-      params.usine = selectedUsine.value.id;
+    // Ajouter l'ID de l'entreprise selon le contexte
+    if (authStore.isEntreprise) {
+      console.log('Ajout de l\'ID de l\'entreprise connectée:', authStore.user?.id);
+      params.entreprise = authStore.user?.id;
+    } else if (selectedEntreprise.value) {
+      console.log('Ajout de l\'ID de l\'entreprise sélectionnée:', selectedEntreprise.value.id);
+      params.entreprise = selectedEntreprise.value.id;
     }
 
     console.log('Paramètres de la requête:', params);
@@ -2663,30 +2664,30 @@ async function selectConcessionnaire(concessionnaire: ExtendedUserDetails) {
     });
 
     if (Array.isArray(response.data)) {
-      concessionnaireAgriculteurs.value = response.data;
-      console.log(`${response.data.length} agriculteurs chargés`);
+      salarieVisiteurs.value = response.data;
+      console.log(`${response.data.length} visiteurs chargés`);
 
-      // Log détaillé des agriculteurs
-      response.data.forEach((agriculteur, index) => {
-        console.log(`Agriculteur ${index + 1}:`, {
-          id: agriculteur.id,
-          username: agriculteur.username,
-          company: agriculteur.company_name,
-          concessionnaire: agriculteur.concessionnaire
+      // Log détaillé des visiteurs
+      response.data.forEach((visiteur, index) => {
+        console.log(`Visiteur ${index + 1}:`, {
+          id: visiteur.id,
+          username: visiteur.username,
+          company: visiteur.company_name,
+          salarie: visiteur.salarie
         });
       });
     } else {
       console.warn('Format de réponse inattendu:', response.data);
-      concessionnaireAgriculteurs.value = [];
+      salarieVisiteurs.value = [];
     }
 
     // Vérifier si la liste est vide
-    if (concessionnaireAgriculteurs.value.length === 0) {
-      console.warn('Aucun agriculteur trouvé pour ce concessionnaire');
+    if (salarieVisiteurs.value.length === 0) {
+      console.warn('Aucun visiteur trouvé pour ce salarie');
     }
 
   } catch (error: unknown) {
-    console.error('ERREUR lors du chargement des agriculteurs:', error);
+    console.error('ERREUR lors du chargement des visiteurs:', error);
     if (error && typeof error === 'object' && 'response' in error) {
       const apiError = error as { response: { status: number; data: any } };
       console.error('Détails de l\'erreur:', {
@@ -2694,10 +2695,10 @@ async function selectConcessionnaire(concessionnaire: ExtendedUserDetails) {
         data: apiError.response.data
       });
     }
-    concessionnaireAgriculteurs.value = [];
+    salarieVisiteurs.value = [];
   } finally {
     isLoadingClients.value = false;
-    console.log('[MapView][selectConcessionnaire] ====== FIN SÉLECTION CONCESSIONNAIRE ======\n');
+    console.log('[MapView][selectSalarie] ====== FIN SÉLECTION SALARIE ======\n');
   }
 }
 
@@ -2708,18 +2709,18 @@ async function selectClient(client: ExtendedUserDetails) {
   isLoadingPlans.value = true;
   try {
     const params: any = {
-      agriculteur: client.id
+      visiteur: client.id
     };
 
     // Ajouter les paramètres selon le rôle
-    if (authStore.isUsine) {
-      params.usine = authStore.user?.id;
-    } else if (selectedUsine.value) {
-      params.usine = selectedUsine.value.id;
+    if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id;
+    } else if (selectedEntreprise.value) {
+      params.entreprise = selectedEntreprise.value.id;
     }
 
-    if (selectedConcessionnaire.value) {
-      params.concessionnaire = selectedConcessionnaire.value.id;
+    if (selectedSalarie.value) {
+      params.salarie = selectedSalarie.value.id;
     }
 
     const response = await api.get('/plans/', { params });

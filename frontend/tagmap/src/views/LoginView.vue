@@ -186,13 +186,28 @@ const form = reactive({
   password: '',
   rememberMe: false
 })
-onMounted(() => {
+onMounted(async () => {
   console.log('LoginView mounted')
   console.log('INITIAL_STATE:', window.INITIAL_STATE)
-  // Vérifier si l'utilisateur est déjà authentifié
-  if (window.INITIAL_STATE?.isAuthenticated) {
-    console.log('User is authenticated, redirecting to home')
-    router.push('/')
+  
+  try {
+    // Vérifier si l'utilisateur est déjà authentifié
+    if (window.INITIAL_STATE?.isAuthenticated) {
+      console.log('User is authenticated, redirecting to home')
+      router.push('/')
+      return
+    }
+
+    // Si pas d'état initial, tenter une restauration de session
+    const isAuthenticated = await authStore.restoreSession()
+    if (isAuthenticated) {
+      console.log('Session restored, redirecting to home')
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error)
+    // En cas d'erreur, on reste sur la page de login
+    error.value = null
   }
 })
 async function handleSubmit() {

@@ -8,35 +8,35 @@ class Utilisateur(AbstractUser):
     """
     class Role(models.TextChoices):
         ADMIN = 'ADMIN', 'Administrateur'
-        USINE = 'USINE', 'Usine'
-        CONCESSIONNAIRE = 'CONCESSIONNAIRE', 'Concessionnaire'
-        AGRICULTEUR = 'AGRICULTEUR', 'Agriculteur'
+        ENTREPRISE = 'ENTREPRISE', 'Entreprise'
+        SALARIE = 'SALARIE', 'Salarie'
+        VISITEUR = 'VISITEUR', 'Visiteur'
 
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
-        default=Role.AGRICULTEUR,
+        default=Role.VISITEUR,
         verbose_name='Rôle'
     )
 
-    usine = models.ForeignKey(
+    entreprise = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        limit_choices_to={'role': Role.USINE},
-        related_name='concessionnaires',
-        verbose_name='Usine associée'
+        limit_choices_to={'role': Role.ENTREPRISE},
+        related_name='salaries',
+        verbose_name='Entreprise associée'
     )
 
-    concessionnaire = models.ForeignKey(
+    salarie = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        limit_choices_to={'role': Role.CONCESSIONNAIRE},
-        related_name='agriculteurs',
-        verbose_name='Concessionnaire associé'
+        limit_choices_to={'role': Role.SALARIE},
+        related_name='visiteurs',
+        verbose_name='Salarie associé'
     )
 
     company_name = models.CharField(
@@ -90,16 +90,16 @@ class Utilisateur(AbstractUser):
         return self.role == self.Role.ADMIN
 
     @property
-    def is_usine(self):
-        return self.role == self.Role.USINE
+    def is_entreprise(self):
+        return self.role == self.Role.ENTREPRISE
 
     @property
-    def is_concessionnaire(self):
-        return self.role == self.Role.CONCESSIONNAIRE
+    def is_salarie(self):
+        return self.role == self.Role.SALARIE
 
     @property
-    def is_agriculteur(self):
-        return self.role == self.Role.AGRICULTEUR
+    def is_visiteur(self):
+        return self.role == self.Role.VISITEUR
 
     def get_display_name(self):
         """Retourne le nom d'affichage standardisé de l'utilisateur."""

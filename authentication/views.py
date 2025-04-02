@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .serializers import UserSerializer, ConcessionnaireListSerializer
+from .serializers import UserSerializer, SalarieListSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,24 +16,24 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 User = get_user_model()
 
-class IsAdminOrConcessionnaireOrUsine(permissions.BasePermission):
-    """Permission personnalisée pour les administrateurs, les concessionnaires et les usines."""
+class IsAdminOrSalarieOrEntreprise(permissions.BasePermission):
+    """Permission personnalisée pour les administrateurs, les salaries et les entreprises."""
     
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        return request.user.role in ['ADMIN', 'CONCESSIONNAIRE', 'USINE']
+        return request.user.role in ['ADMIN', 'SALARIE', 'ENTREPRISE']
 
     def has_object_permission(self, request, view, obj):
         if request.user.role == 'ADMIN':
             return True
-        if request.user.role == 'USINE':
-            # L'usine peut gérer ses concessionnaires et leurs agriculteurs
-            return (obj.role == 'CONCESSIONNAIRE' and obj.usine == request.user) or \
-                   (obj.role == 'AGRICULTEUR' and obj.concessionnaire and obj.concessionnaire.usine == request.user)
-        if request.user.role == 'CONCESSIONNAIRE':
-            # Le concessionnaire ne peut voir/modifier que ses utilisateurs
-            return obj.concessionnaire == request.user
+        if request.user.role == 'ENTREPRISE':
+            # L'entreprise peut gérer ses salaries et leurs visiteurs
+            return (obj.role == 'SALARIE' and obj.entreprise == request.user) or \
+                   (obj.role == 'VISITEUR' and obj.salarie and obj.salarie.entreprise == request.user)
+        if request.user.role == 'SALARIE':
+            # Le salarie ne peut voir/modifier que ses utilisateurs
+            return obj.salarie == request.user
         return False
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -49,10 +49,10 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filtre les utilisateurs selon:
-        - Admin : tous les utilisateurs ou filtrés par rôle/usine/concessionnaire
-        - Usine : ses concessionnaires et leurs agriculteurs
-        - Concessionnaire : ses agriculteurs
-        - Agriculteur : lui-même
+        - Admin : tous les utilisateurs ou filtrés par rôle/entreprise/salarie
+        - Entreprise : ses salaries et leurs visiteurs
+        - Salarie : ses visiteurs
+        - Visiteur : lui-même
         """
         print(f"\n[UserViewSet][get_queryset] ====== DÉBUT REQUÊTE ======")
         print(f"URL de la requête: {self.request.path}")
@@ -66,47 +66,47 @@ class UserViewSet(viewsets.ModelViewSet):
         
         # Récupérer les paramètres de filtrage
         role = self.request.query_params.get('role')
-        usine_id = self.request.query_params.get('usine')
-        concessionnaire_id = self.request.query_params.get('concessionnaire')
+        entreprise_id = self.request.query_params.get('entreprise')
+        salarie_id = self.request.query_params.get('salarie')
         
         print(f"Paramètres de filtrage:")
         print(f"- role: {role}")
-        print(f"- usine_id: {usine_id}")
-        print(f"- concessionnaire_id: {concessionnaire_id}")
+        print(f"- entreprise_id: {entreprise_id}")
+        print(f"- salarie_id: {salarie_id}")
 
         # Appliquer les filtres selon le rôle de l'utilisateur
         if user.role == 'ADMIN':
             print("Traitement pour ADMIN - Accès à tous les utilisateurs")
             if role:
                 base_queryset = base_queryset.filter(role=role)
-            if usine_id:
-                base_queryset = base_queryset.filter(usine_id=usine_id)
-            if concessionnaire_id:
-                base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
+            if entreprise_id:
+                base_queryset = base_queryset.filter(entreprise_id=entreprise_id)
+            if salarie_id:
+                base_queryset = base_queryset.filter(salarie_id=salarie_id)
         
-        elif user.role == 'USINE':
-            print("Traitement pour USINE")
+        elif user.role == 'ENTREPRISE':
+            print("Traitement pour ENTREPRISE")
             base_queryset = base_queryset.filter(
                 Q(id=user.id) |  # Lui-même
-                Q(usine=user) |  # Ses concessionnaires
-                Q(concessionnaire__usine=user)  # Les agriculteurs de ses concessionnaires
+                Q(entreprise=user) |  # Ses salaries
+                Q(salarie__entreprise=user)  # Les visiteurs de ses salaries
             )
             if role:
                 base_queryset = base_queryset.filter(role=role)
-            if concessionnaire_id:
-                base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
+            if salarie_id:
+                base_queryset = base_queryset.filter(salarie_id=salarie_id)
         
-        elif user.role == 'CONCESSIONNAIRE':
-            print("Traitement pour CONCESSIONNAIRE")
+        elif user.role == 'SALARIE':
+            print("Traitement pour SALARIE")
             base_queryset = base_queryset.filter(
                 Q(id=user.id) |  # Lui-même
-                Q(concessionnaire=user)  # Ses agriculteurs
+                Q(salarie=user)  # Ses visiteurs
             )
             if role:
                 base_queryset = base_queryset.filter(role=role)
         
-        else:  # AGRICULTEUR
-            print("Traitement pour AGRICULTEUR - Accès uniquement à son propre profil")
+        else:  # VISITEUR
+            print("Traitement pour VISITEUR - Accès uniquement à son propre profil")
             base_queryset = base_queryset.filter(id=user.id)
 
         print(f"Requête SQL finale: {base_queryset.query}")
@@ -123,7 +123,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Définit les permissions selon l'action."""
         if self.action in ['create', 'destroy', 'list']:
-            permission_classes = [IsAdminOrConcessionnaireOrUsine]
+            permission_classes = [IsAdminOrSalarieOrEntreprise]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -135,46 +135,46 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
-    def concessionnaires(self, request):
-        """Retourne la liste des concessionnaires."""
-        concessionnaires = User.objects.filter(role='CONCESSIONNAIRE')
-        serializer = ConcessionnaireListSerializer(concessionnaires, many=True)
+    def salaries(self, request):
+        """Retourne la liste des salaries."""
+        salaries = User.objects.filter(role='SALARIE')
+        serializer = SalarieListSerializer(salaries, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
-    def set_concessionnaire(self, request, pk=None):
-        """Associe un concessionnaire à un utilisateur."""
+    def set_salarie(self, request, pk=None):
+        """Associe un salarie à un utilisateur."""
         user = self.get_object()
-        concessionnaire_id = request.data.get('concessionnaire_id')
+        salarie_id = request.data.get('salarie_id')
         
-        if not concessionnaire_id:
+        if not salarie_id:
             return Response(
-                {'error': 'concessionnaire_id est requis'},
+                {'error': 'salarie_id est requis'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        concessionnaire = get_object_or_404(User, id=concessionnaire_id, role='CONCESSIONNAIRE')
+        salarie = get_object_or_404(User, id=salarie_id, role='SALARIE')
         
         # Vérifie les permissions
-        if request.user.role not in ['ADMIN', 'CONCESSIONNAIRE', 'USINE']:
+        if request.user.role not in ['ADMIN', 'SALARIE', 'ENTREPRISE']:
             return Response(
                 {'error': 'Permission refusée'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if request.user.role == 'CONCESSIONNAIRE' and request.user != concessionnaire:
+        if request.user.role == 'SALARIE' and request.user != salarie:
             return Response(
-                {'error': 'Un concessionnaire ne peut assigner que lui-même'},
+                {'error': 'Un salarie ne peut assigner que lui-même'},
                 status=status.HTTP_403_FORBIDDEN
             )
             
-        if request.user.role == 'USINE' and (concessionnaire.usine != request.user):
+        if request.user.role == 'ENTREPRISE' and (salarie.entreprise != request.user):
             return Response(
-                {'error': 'Une usine ne peut assigner que ses propres concessionnaires'},
+                {'error': 'Une entreprise ne peut assigner que ses propres salaries'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        user.concessionnaire = concessionnaire
+        user.salarie = salarie
         user.save()
         
         serializer = self.get_serializer(user)
@@ -318,21 +318,21 @@ class UserViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Ne pas modifier le concessionnaire pour un concessionnaire
-            if instance.role == 'CONCESSIONNAIRE':
-                if 'concessionnaire' in request.data:
-                    del request.data['concessionnaire']
+            # Ne pas modifier le salarie pour un salarie
+            if instance.role == 'SALARIE':
+                if 'salarie' in request.data:
+                    del request.data['salarie']
 
-            # Vérifier le concessionnaire uniquement pour les clients
-            elif request.data.get('concessionnaire'):
+            # Vérifier le salarie uniquement pour les clients
+            elif request.data.get('salarie'):
                 try:
-                    concessionnaire = User.objects.get(
-                        id=request.data['concessionnaire'],
-                        role='CONCESSIONNAIRE'
+                    salarie = User.objects.get(
+                        id=request.data['salarie'],
+                        role='SALARIE'
                     )
                 except User.DoesNotExist:
                     return Response(
-                        {'concessionnaire': ['Ce concessionnaire n\'existe pas']},
+                        {'salarie': ['Ce salarie n\'existe pas']},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
@@ -410,11 +410,18 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """Vue personnalisée pour l'obtention du token avec stockage sécurisé."""
     
     def post(self, request, *args, **kwargs):
+        print(f"\n[CustomTokenObtainPairView] ====== DÉBUT AUTHENTIFICATION ======")
+        print(f"Données reçues: username={request.data.get('username')}")
+        print(f"Headers: {request.headers}")
+        
         try:
+            print("[CustomTokenObtainPairView] Tentative d'authentification...")
             response = super().post(request, *args, **kwargs)
+            print(f"[CustomTokenObtainPairView] Statut de la réponse: {response.status_code}")
             
             if response.status_code == status.HTTP_200_OK:
                 user = User.objects.get(username=request.data['username'])
+                print(f"[CustomTokenObtainPairView] Utilisateur trouvé: {user.username} (role: {user.role})")
                 response.data['user'] = UserSerializer(user).data
                 
                 # Stocker le refresh token dans un cookie httpOnly
@@ -429,15 +436,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 
                 # Supprimer le refresh token de la réponse JSON
                 del response.data['refresh']
+                print("[CustomTokenObtainPairView] Authentification réussie")
                 
             return response
             
         except (InvalidToken, TokenError) as e:
+            print(f"[CustomTokenObtainPairView] ERREUR - Token invalide: {str(e)}")
             return Response(
                 {'detail': 'Identifiants incorrects'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
         except Exception as e:
+            print(f"[CustomTokenObtainPairView] ERREUR - Exception inattendue: {str(e)}")
+            print(f"[CustomTokenObtainPairView] Type d'erreur: {type(e)}")
+            import traceback
+            print(f"[CustomTokenObtainPairView] Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -466,7 +479,7 @@ class SecureIndexView(UserPassesTestMixin, TemplateView):
         return (
             self.request.user.is_authenticated and 
             hasattr(self.request.user, 'role') and 
-            self.request.user.role in ['ADMIN', 'CONCESSIONNAIRE', 'UTILISATEUR']
+            self.request.user.role in ['ADMIN', 'SALARIE', 'UTILISATEUR']
         )
 
     def handle_no_permission(self):

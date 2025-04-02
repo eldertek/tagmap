@@ -68,40 +68,40 @@ class UserNestedSerializer(UserDetailsSerializer):
         fields = UserDetailsSerializer.Meta.fields
 
 class UserSerializer(serializers.ModelSerializer):
-    """Sérialiseur pour l'utilisateur avec gestion des rôles et du concessionnaire."""
+    """Sérialiseur pour l'utilisateur avec gestion des rôles et du salarie."""
     password = serializers.CharField(write_only=True, required=False)
     old_password = serializers.CharField(write_only=True, required=False)
-    concessionnaire_name = serializers.SerializerMethodField()
+    salarie_name = serializers.SerializerMethodField()
     full_name = serializers.SerializerMethodField()
     is_active = serializers.BooleanField(read_only=True)
     permissions = serializers.SerializerMethodField()
     user_type = serializers.SerializerMethodField()
-    concessionnaire_id = serializers.PrimaryKeyRelatedField(
-        source='concessionnaire',
-        queryset=User.objects.filter(role='CONCESSIONNAIRE'),
+    salarie_id = serializers.PrimaryKeyRelatedField(
+        source='salarie',
+        queryset=User.objects.filter(role='SALARIE'),
         required=False,
         allow_null=True,
         write_only=True
     )
     plans_count = serializers.SerializerMethodField()
-    usine = UserNestedSerializer(read_only=True)
-    usine_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role='USINE'),
-        source='usine',
+    entreprise = UserNestedSerializer(read_only=True)
+    entreprise_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role='ENTREPRISE'),
+        source='entreprise',
         required=False,
         allow_null=True,
         write_only=True
     )
-    concessionnaire = UserNestedSerializer(read_only=True)
+    salarie = UserNestedSerializer(read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'password', 'old_password', 'role', 'concessionnaire', 'concessionnaire_id',
-            'concessionnaire_name', 'company_name', 'must_change_password', 'phone',
+            'password', 'old_password', 'role', 'salarie', 'salarie_id',
+            'salarie_name', 'company_name', 'must_change_password', 'phone',
             'full_name', 'is_active', 'permissions', 'user_type', 'plans_count',
-            'usine', 'usine_id', 'logo'
+            'entreprise', 'entreprise_id', 'logo'
         ]
         read_only_fields = ['id']
         extra_kwargs = {
@@ -111,40 +111,40 @@ class UserSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Valide les données de l'utilisateur."""
         role = data.get('role', self.instance.role if self.instance else None)
-        concessionnaire = data.get('concessionnaire')
-        usine = data.get('usine')
+        salarie = data.get('salarie')
+        entreprise = data.get('entreprise')
 
-        print(f"Validation des données: role={role}, concessionnaire={concessionnaire}, usine={usine}")
+        print(f"Validation des données: role={role}, salarie={salarie}, entreprise={entreprise}")
 
-        # Validation pour les concessionnaires
-        if role == 'CONCESSIONNAIRE':
-            if not usine and (not self.instance or not self.instance.usine):
+        # Validation pour les salaries
+        if role == 'SALARIE':
+            if not entreprise and (not self.instance or not self.instance.entreprise):
                 raise serializers.ValidationError({
-                    'usine': 'Une usine doit être spécifiée pour un concessionnaire'
+                    'entreprise': 'Une entreprise doit être spécifiée pour un salarie'
                 })
 
-        # Validation pour les agriculteurs
-        elif role == 'AGRICULTEUR':
-            if not concessionnaire and (not self.instance or not self.instance.concessionnaire):
+        # Validation pour les visiteurs
+        elif role == 'VISITEUR':
+            if not salarie and (not self.instance or not self.instance.salarie):
                 raise serializers.ValidationError({
-                    'concessionnaire': 'Un concessionnaire doit être spécifié pour un agriculteur'
+                    'salarie': 'Un salarie doit être spécifié pour un visiteur'
                 })
             
-            # Vérifier que le concessionnaire existe et a une usine
-            if concessionnaire:
+            # Vérifier que le salarie existe et a une entreprise
+            if salarie:
                 try:
-                    concessionnaire = User.objects.get(id=concessionnaire.id if isinstance(concessionnaire, User) else concessionnaire)
-                    if concessionnaire.role != 'CONCESSIONNAIRE':
+                    salarie = User.objects.get(id=salarie.id if isinstance(salarie, User) else salarie)
+                    if salarie.role != 'SALARIE':
                         raise serializers.ValidationError({
-                            'concessionnaire': 'L\'utilisateur sélectionné n\'est pas un concessionnaire'
+                            'salarie': 'L\'utilisateur sélectionné n\'est pas un salarie'
                         })
-                    if not concessionnaire.usine:
+                    if not salarie.entreprise:
                         raise serializers.ValidationError({
-                            'concessionnaire': 'Le concessionnaire doit être rattaché à une usine'
+                            'salarie': 'Le salarie doit être rattaché à une entreprise'
                         })
                 except User.DoesNotExist:
                     raise serializers.ValidationError({
-                        'concessionnaire': 'Ce concessionnaire n\'existe pas'
+                        'salarie': 'Ce salarie n\'existe pas'
                     })
 
         return data
@@ -159,27 +159,27 @@ class UserSerializer(serializers.ModelSerializer):
         print(f"Données sérialisées: {data}")
         print("[UserSerializer][to_representation] ====== FIN SÉRIALISATION ======\n")
         
-        # Pour un concessionnaire, inclure son usine
-        if instance.role == 'CONCESSIONNAIRE':
-            data['usine'] = UserNestedSerializer(instance.usine).data if instance.usine else None
+        # Pour un salarie, inclure son entreprise
+        if instance.role == 'SALARIE':
+            data['entreprise'] = UserNestedSerializer(instance.entreprise).data if instance.entreprise else None
         
-        # Pour un agriculteur, inclure son concessionnaire et l'usine associée
-        elif instance.role == 'AGRICULTEUR':
-            if instance.concessionnaire:
-                concessionnaire_data = UserNestedSerializer(instance.concessionnaire).data
-                # Si le concessionnaire a une usine, l'inclure dans ses données
-                if instance.concessionnaire.usine:
-                    concessionnaire_data['usine'] = UserNestedSerializer(instance.concessionnaire.usine).data
-                data['concessionnaire'] = concessionnaire_data
-                # Inclure aussi l'usine directement au niveau racine pour faciliter l'accès
-                data['usine'] = UserNestedSerializer(instance.concessionnaire.usine).data if instance.concessionnaire.usine else None
+        # Pour un visiteur, inclure son salarie et l'entreprise associée
+        elif instance.role == 'VISITEUR':
+            if instance.salarie:
+                salarie_data = UserNestedSerializer(instance.salarie).data
+                # Si le salarie a une entreprise, l'inclure dans ses données
+                if instance.salarie.entreprise:
+                    salarie_data['entreprise'] = UserNestedSerializer(instance.salarie.entreprise).data
+                data['salarie'] = salarie_data
+                # Inclure aussi l'entreprise directement au niveau racine pour faciliter l'accès
+                data['entreprise'] = UserNestedSerializer(instance.salarie.entreprise).data if instance.salarie.entreprise else None
 
         return data
 
-    def get_concessionnaire_name(self, obj):
-        """Retourne le nom du concessionnaire si l'utilisateur en a un."""
-        if obj.concessionnaire:
-            return obj.concessionnaire.get_display_name()
+    def get_salarie_name(self, obj):
+        """Retourne le nom du salarie si l'utilisateur en a un."""
+        if obj.salarie:
+            return obj.salarie.get_display_name()
         return None
 
     def get_full_name(self, obj):
@@ -189,10 +189,10 @@ class UserSerializer(serializers.ModelSerializer):
     def get_permissions(self, obj):
         """Retourne les permissions de l'utilisateur basées sur son rôle."""
         permissions = {
-            'can_manage_users': obj.role in ['ADMIN', 'CONCESSIONNAIRE'],
+            'can_manage_users': obj.role in ['ADMIN', 'SALARIE'],
             'can_manage_plans': True,  # Tous les utilisateurs peuvent gérer leurs plans
-            'can_view_all_plans': obj.role in ['ADMIN', 'CONCESSIONNAIRE'],
-            'can_manage_concessionnaires': obj.role == 'ADMIN'
+            'can_view_all_plans': obj.role in ['ADMIN', 'SALARIE'],
+            'can_manage_salaries': obj.role == 'ADMIN'
         }
         return permissions
 
@@ -200,11 +200,11 @@ class UserSerializer(serializers.ModelSerializer):
         """Maps the role field to the frontend's expected user_type values."""
         role_mapping = {
             'ADMIN': 'admin',
-            'USINE': 'usine',
-            'CONCESSIONNAIRE': 'concessionnaire',
-            'AGRICULTEUR': 'agriculteur'
+            'ENTREPRISE': 'entreprise',
+            'SALARIE': 'salarie',
+            'VISITEUR': 'visiteur'
         }
-        return role_mapping.get(obj.role, 'agriculteur')
+        return role_mapping.get(obj.role, 'visiteur')
 
     def get_plans_count(self, obj):
         """Retourne le nombre de plans de l'utilisateur."""
@@ -244,48 +244,48 @@ class UserSerializer(serializers.ModelSerializer):
         # Gérer les relations selon le rôle
         role = validated_data.get('role', instance.role)
         
-        # Pour un concessionnaire
-        if role == 'CONCESSIONNAIRE':
-            usine = validated_data.get('usine')
-            if usine:
-                instance.usine = usine
-                instance.concessionnaire = None  # Un concessionnaire ne peut pas avoir de concessionnaire
-            elif not instance.usine:
+        # Pour un salarie
+        if role == 'SALARIE':
+            entreprise = validated_data.get('entreprise')
+            if entreprise:
+                instance.entreprise = entreprise
+                instance.salarie = None  # Un salarie ne peut pas avoir de salarie
+            elif not instance.entreprise:
                 raise serializers.ValidationError({
-                    'usine': 'Une usine doit être spécifiée pour un concessionnaire'
+                    'entreprise': 'Une entreprise doit être spécifiée pour un salarie'
                 })
         
-        # Pour un agriculteur
-        elif role == 'AGRICULTEUR':
-            concessionnaire = validated_data.get('concessionnaire')
-            if concessionnaire:
-                instance.concessionnaire = concessionnaire
-                instance.usine = None  # Un agriculteur ne peut pas avoir d'usine directement
-            elif not instance.concessionnaire:
+        # Pour un visiteur
+        elif role == 'VISITEUR':
+            salarie = validated_data.get('salarie')
+            if salarie:
+                instance.salarie = salarie
+                instance.entreprise = None  # Un visiteur ne peut pas avoir d'entreprise directement
+            elif not instance.salarie:
                 raise serializers.ValidationError({
-                    'concessionnaire': 'Un concessionnaire doit être spécifié pour un agriculteur'
+                    'salarie': 'Un salarie doit être spécifié pour un visiteur'
                 })
         
-        # Pour une usine
-        elif role == 'USINE':
-            instance.usine = None
-            instance.concessionnaire = None
+        # Pour une entreprise
+        elif role == 'ENTREPRISE':
+            instance.entreprise = None
+            instance.salarie = None
         
         # Pour un admin
         elif role == 'ADMIN':
-            instance.usine = None
-            instance.concessionnaire = None
+            instance.entreprise = None
+            instance.salarie = None
 
         # Mettre à jour les autres champs
         for attr, value in validated_data.items():
-            if attr not in ['usine', 'concessionnaire']:
+            if attr not in ['entreprise', 'salarie']:
                 setattr(instance, attr, value)
         
         instance.save()
         return instance
 
-class ConcessionnaireListSerializer(serializers.ModelSerializer):
-    """Sérialiseur pour la liste des concessionnaires."""
+class SalarieListSerializer(serializers.ModelSerializer):
+    """Sérialiseur pour la liste des salaries."""
     name = serializers.SerializerMethodField()
 
     class Meta:
@@ -293,5 +293,5 @@ class ConcessionnaireListSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'company_name', 'name']
 
     def get_name(self, obj):
-        """Retourne le nom d'affichage standardisé du concessionnaire."""
+        """Retourne le nom d'affichage standardisé du salarie."""
         return obj.get_display_name() 

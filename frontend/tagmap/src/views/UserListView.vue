@@ -4,8 +4,8 @@
       <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-extrabold text-gray-900">
           <span v-if="isAdmin">Gestion des utilisateurs</span>
-          <span v-else-if="isUsine">Gestion des concessionnaires et agriculteurs</span>
-          <span v-else-if="isConcessionnaire">Gestion des agriculteurs</span>
+          <span v-else-if="isEntreprise">Gestion des salaries et visiteurs</span>
+          <span v-else-if="isSalarie">Gestion des visiteurs</span>
         </h1>
         <button
           @click="openCreateUserModal"
@@ -15,17 +15,17 @@
             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
           </svg>
           <span v-if="isAdmin">Nouvel utilisateur</span>
-          <span v-else-if="isUsine">Nouveau concessionnaire/agriculteur</span>
-          <span v-else-if="isConcessionnaire">Nouvel agriculteur</span>
+          <span v-else-if="isEntreprise">Nouveau salarie/visiteur</span>
+          <span v-else-if="isSalarie">Nouvel visiteur</span>
         </button>
       </div>
       <!-- Filtres -->
       <div class="bg-white shadow rounded-lg mb-6 p-4">
         <div class="space-y-4">
-          <!-- Première ligne : Rôle, Usine, Concessionnaire -->
+          <!-- Première ligne : Rôle, Entreprise, Salarie -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Filtre de rôle uniquement pour les admins et usines -->
-            <div v-if="isAdmin || isUsine">
+            <!-- Filtre de rôle uniquement pour les admins et entreprises -->
+            <div v-if="isAdmin || isEntreprise">
               <label for="role-filter" class="block text-sm font-medium text-gray-700">Rôle</label>
               <select
                 id="role-filter"
@@ -34,36 +34,36 @@
               >
                 <option value="">Tous les rôles</option>
                 <option value="ADMIN" v-if="isAdmin">Administrateur</option>
-                <option value="USINE" v-if="isAdmin">Usine</option>
-                <option value="CONCESSIONNAIRE">Concessionnaire</option>
-                <option value="AGRICULTEUR">Agriculteur</option>
+                <option value="ENTREPRISE" v-if="isAdmin">Entreprise</option>
+                <option value="SALARIE">Salarie</option>
+                <option value="VISITEUR">Visiteur</option>
               </select>
             </div>
-            <!-- Filtre d'usine uniquement pour les admins -->
+            <!-- Filtre d'entreprise uniquement pour les admins -->
             <div v-if="isAdmin">
-              <label for="usine-filter" class="block text-sm font-medium text-gray-700">Usine</label>
+              <label for="entreprise-filter" class="block text-sm font-medium text-gray-700">Entreprise</label>
               <select
-                id="usine-filter"
-                v-model="filters.usine"
+                id="entreprise-filter"
+                v-model="filters.entreprise"
                 class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
               >
-                <option value="">Toutes les usines</option>
-                <option v-for="usine in usines" :key="usine.id" :value="usine.id">
-                  {{ formatUserName(usine) }}
+                <option value="">Toutes les entreprises</option>
+                <option v-for="entreprise in entreprises" :key="entreprise.id" :value="entreprise.id">
+                  {{ formatUserName(entreprise) }}
                 </option>
               </select>
             </div>
-            <!-- Filtre de concessionnaire uniquement pour les admins et usines -->
-            <div v-if="isAdmin || isUsine">
-              <label for="concessionnaire-filter" class="block text-sm font-medium text-gray-700">Concessionnaire</label>
+            <!-- Filtre de salarie uniquement pour les admins et entreprises -->
+            <div v-if="isAdmin || isEntreprise">
+              <label for="salarie-filter" class="block text-sm font-medium text-gray-700">Salarie</label>
               <select
-                id="concessionnaire-filter"
-                v-model="filters.concessionnaire"
+                id="salarie-filter"
+                v-model="filters.salarie"
                 class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
               >
-                <option value="">Tous les concessionnaires</option>
-                <option v-for="concessionnaire in availableConcessionnaires" :key="concessionnaire.id" :value="concessionnaire.id">
-                  {{ formatUserName(concessionnaire) }}
+                <option value="">Tous les salaries</option>
+                <option v-for="salarie in availableSalaries" :key="salarie.id" :value="salarie.id">
+                  {{ formatUserName(salarie) }}
                 </option>
               </select>
             </div>
@@ -96,11 +96,11 @@
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Email
                 </th>
-                <th v-if="isAdmin || isUsine" scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Usine
+                <th v-if="isAdmin || isEntreprise" scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Entreprise
                 </th>
-                <th v-if="isAdmin || isUsine" scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Concessionnaire
+                <th v-if="isAdmin || isEntreprise" scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Salarie
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Statut
@@ -147,29 +147,29 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {{ user.email }}
                 </td>
-                <td v-if="isAdmin || isUsine" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <template v-if="user.role === 'USINE'">
+                <td v-if="isAdmin || isEntreprise" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <template v-if="user.role === 'ENTREPRISE'">
                     -
                   </template>
-                  <template v-else-if="user.role === 'CONCESSIONNAIRE'">
-                    {{ user.usine ? formatUserName(user.usine) : 'Non assigné' }}
+                  <template v-else-if="user.role === 'SALARIE'">
+                    {{ user.entreprise ? formatUserName(user.entreprise) : 'Non assigné' }}
                   </template>
-                  <template v-else-if="user.role === 'AGRICULTEUR'">
-                    {{ user.concessionnaire?.usine ? formatUserName(user.concessionnaire.usine) : 'Non assigné' }}
+                  <template v-else-if="user.role === 'VISITEUR'">
+                    {{ user.salarie?.entreprise ? formatUserName(user.salarie.entreprise) : 'Non assigné' }}
                   </template>
                   <template v-else>
                     -
                   </template>
                 </td>
-                <td v-if="isAdmin || isUsine" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <template v-if="user.role === 'USINE' || user.role === 'ADMIN'">
+                <td v-if="isAdmin || isEntreprise" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <template v-if="user.role === 'ENTREPRISE' || user.role === 'ADMIN'">
                     -
                   </template>
-                  <template v-else-if="user.role === 'CONCESSIONNAIRE'">
+                  <template v-else-if="user.role === 'SALARIE'">
                     -
                   </template>
                   <template v-else>
-                    {{ user.concessionnaire ? formatUserName(user.concessionnaire) : 'Non assigné' }}
+                    {{ user.salarie ? formatUserName(user.salarie) : 'Non assigné' }}
                   </template>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -202,12 +202,12 @@
     <UserFormModal
       v-if="showUserModal"
       :user="selectedUser"
-      :concessionnaires="concessionnaires"
-      :usines="usines"
+      :salaries="salaries"
+      :entreprises="entreprises"
       :is-admin="isAdmin"
-      :is-usine="isUsine"
-      :current-concessionnaire="isConcessionnaire ? authStore.user?.id?.toString() : undefined"
-      :current-usine="isUsine ? authStore.user?.id?.toString() : undefined"
+      :is-entreprise="isEntreprise"
+      :current-salarie="isSalarie ? authStore.user?.id?.toString() : undefined"
+      :current-entreprise="isEntreprise ? authStore.user?.id?.toString() : undefined"
       :api-errors="apiErrors"
       @close="closeUserModal"
       @save="saveUser"
@@ -240,10 +240,10 @@ interface User {
   first_name: string;
   last_name: string;
   role: string;
-  concessionnaire_id?: number;
+  salarie_id?: number;
   company_name?: string;
   is_active: boolean;
-  usine?: {
+  entreprise?: {
     id: number;
     username: string;
     first_name: string;
@@ -252,7 +252,7 @@ interface User {
     role: string;
     display_name: string;
   };
-  concessionnaire?: {
+  salarie?: {
     id: number;
     username: string;
     first_name: string;
@@ -260,7 +260,7 @@ interface User {
     company_name?: string;
     role: string;
     display_name: string;
-    usine?: {
+    entreprise?: {
       id: number;
       username: string;
       first_name: string;
@@ -283,8 +283,8 @@ interface UserReference {
 }
 
 const users = ref<User[]>([])
-const concessionnaires = ref<UserReference[]>([])
-const usines = ref<UserReference[]>([])
+const salaries = ref<UserReference[]>([])
+const entreprises = ref<UserReference[]>([])
 const showUserModal = ref(false)
 const showDeleteModal = ref(false)
 const selectedUser = ref<User | null>(null)
@@ -295,22 +295,22 @@ const apiErrors = ref<{field: string, message: string}[]>([])
 const filters = reactive({
   role: '',
   search: '',
-  concessionnaire: '',
-  usine: ''
+  salarie: '',
+  entreprise: ''
 })
 
 const isAdmin = computed(() => authStore.isAdmin)
-const isUsine = computed(() => authStore.isUsine)
-const isConcessionnaire = computed(() => authStore.isConcessionnaire)
+const isEntreprise = computed(() => authStore.isEntreprise)
+const isSalarie = computed(() => authStore.isSalarie)
 
-const availableConcessionnaires = computed(() => {
+const availableSalaries = computed(() => {
   if (isAdmin.value) {
-    return users.value.filter(user => user.role === 'CONCESSIONNAIRE')
-  } else if (isUsine.value) {
-    // Pour une usine, uniquement ses propres concessionnaires
+    return users.value.filter(user => user.role === 'SALARIE')
+  } else if (isEntreprise.value) {
+    // Pour une entreprise, uniquement ses propres salaries
     return users.value.filter(user => 
-      user.role === 'CONCESSIONNAIRE' && 
-      user.usine?.id === authStore.user?.id
+      user.role === 'SALARIE' && 
+      user.entreprise?.id === authStore.user?.id
     )
   }
   return []
@@ -320,46 +320,46 @@ const availableConcessionnaires = computed(() => {
 const filteredUsers = computed(() => {
   let filtered = users.value
   
-  // Si c'est une usine, ne montrer que ses concessionnaires et les agriculteurs associés
-  if (isUsine.value) {
+  // Si c'est une entreprise, ne montrer que ses salaries et les visiteurs associés
+  if (isEntreprise.value) {
     filtered = filtered.filter(user => {
-      if (user.role === 'CONCESSIONNAIRE') {
-        return user.usine?.id === authStore.user?.id
-      } else if (user.role === 'AGRICULTEUR') {
-        return user.concessionnaire?.usine?.id === authStore.user?.id
+      if (user.role === 'SALARIE') {
+        return user.entreprise?.id === authStore.user?.id
+      } else if (user.role === 'VISITEUR') {
+        return user.salarie?.entreprise?.id === authStore.user?.id
       }
       return false
     })
   }
   
-  // Si c'est un concessionnaire, ne montrer que ses agriculteurs
-  if (isConcessionnaire.value) {
+  // Si c'est un salarie, ne montrer que ses visiteurs
+  if (isSalarie.value) {
     filtered = filtered.filter(user => 
-      user.role === 'AGRICULTEUR' && 
-      (user.concessionnaire_id === authStore.user?.id || 
-       (user.concessionnaire && user.concessionnaire.id === authStore.user?.id))
+      user.role === 'VISITEUR' && 
+      (user.salarie_id === authStore.user?.id || 
+       (user.salarie && user.salarie.id === authStore.user?.id))
     )
   }
   
-  // Pour les admins et usines, appliquer les filtres
-  if (isAdmin.value || isUsine.value) {
+  // Pour les admins et entreprises, appliquer les filtres
+  if (isAdmin.value || isEntreprise.value) {
     if (filters.role) {
       filtered = filtered.filter(user => user.role === filters.role)
     }
     
-    if (filters.concessionnaire) {
+    if (filters.salarie) {
       filtered = filtered.filter(user => {
-        const concessionnaireId = user.concessionnaire?.id || user.concessionnaire_id;
-        return concessionnaireId?.toString() === filters.concessionnaire.toString()
+        const salarieId = user.salarie?.id || user.salarie_id;
+        return salarieId?.toString() === filters.salarie.toString()
       })
     }
     
-    if (filters.usine && isAdmin.value) {
+    if (filters.entreprise && isAdmin.value) {
       filtered = filtered.filter(user => {
-        if (user.role === 'CONCESSIONNAIRE') {
-          return user.usine?.id?.toString() === filters.usine.toString()
-        } else if (user.role === 'AGRICULTEUR') {
-          return user.concessionnaire?.usine?.id?.toString() === filters.usine.toString()
+        if (user.role === 'SALARIE') {
+          return user.entreprise?.id?.toString() === filters.entreprise.toString()
+        } else if (user.role === 'VISITEUR') {
+          return user.salarie?.entreprise?.id?.toString() === filters.entreprise.toString()
         }
         return false
       })
@@ -393,27 +393,27 @@ async function fetchUsers() {
   try {
     if (isAdmin.value) {
       users.value = await authStore.fetchUsers()
-    } else if (isUsine.value) {
-      // Pour une usine, récupérer ses concessionnaires et tous les agriculteurs liés
-      const [concessionnairesResult, agriculteursResult] = await Promise.all([
+    } else if (isEntreprise.value) {
+      // Pour une entreprise, récupérer ses salaries et tous les visiteurs liés
+      const [salariesResult, visiteursResult] = await Promise.all([
         fetchUsersByHierarchy({
-          role: 'CONCESSIONNAIRE',
-          usineId: authStore.user?.id
+          role: 'SALARIE',
+          entrepriseId: authStore.user?.id
         }),
         fetchUsersByHierarchy({
-          role: 'AGRICULTEUR',
-          usineId: authStore.user?.id
+          role: 'VISITEUR',
+          entrepriseId: authStore.user?.id
         })
       ])
-      users.value = [...concessionnairesResult, ...agriculteursResult]
-    } else if (isConcessionnaire.value) {
-      // Pour un concessionnaire, récupérer seulement ses agriculteurs
+      users.value = [...salariesResult, ...visiteursResult]
+    } else if (isSalarie.value) {
+      // Pour un salarie, récupérer seulement ses visiteurs
       users.value = await fetchUsersByHierarchy({
-        role: 'AGRICULTEUR',
-        concessionnaireId: authStore.user?.id,
+        role: 'VISITEUR',
+        salarieId: authStore.user?.id,
         includeDetails: true
       })
-      console.log('Agriculteurs récupérés:', users.value)
+      console.log('Visiteurs récupérés:', users.value)
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs:', error)
@@ -428,47 +428,47 @@ async function fetchDependencies() {
   try {
     if (isAdmin.value) {
       await Promise.all([
-        fetchAllConcessionnaires(),
-        fetchAllUsines()
+        fetchAllSalaries(),
+        fetchAllEntreprises()
       ])
-    } else if (isUsine.value) {
-      await fetchUsineConcessionnaires()
+    } else if (isEntreprise.value) {
+      await fetchEntrepriseSalaries()
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des dépendances:', error)
   }
 }
 
-// Récupération des concessionnaires selon le rôle
-async function fetchAllConcessionnaires() {
+// Récupération des salaries selon le rôle
+async function fetchAllSalaries() {
   try {
     if (isAdmin.value) {
-      concessionnaires.value = await authStore.fetchUsersByRole({ role: 'CONCESSIONNAIRE' })
-    } else if (isUsine.value) {
-      concessionnaires.value = await authStore.fetchUsineConcessionnaires(authStore.user?.id!)
+      salaries.value = await authStore.fetchUsersByRole({ role: 'SALARIE' })
+    } else if (isEntreprise.value) {
+      salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id!)
     }
   } catch (error) {
-    console.error('Erreur lors de la récupération des concessionnaires:', error)
+    console.error('Erreur lors de la récupération des salaries:', error)
   }
 }
 
-// Récupération spécifique des concessionnaires d'une usine
-async function fetchUsineConcessionnaires() {
-  if (!isUsine.value || !authStore.user?.id) return
+// Récupération spécifique des salaries d'une entreprise
+async function fetchEntrepriseSalaries() {
+  if (!isEntreprise.value || !authStore.user?.id) return
   
   try {
-    concessionnaires.value = await authStore.fetchUsineConcessionnaires(authStore.user?.id)
+    salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id)
   } catch (error) {
-    console.error('Erreur lors de la récupération des concessionnaires de l\'usine:', error)
+    console.error('Erreur lors de la récupération des salaries de l\'entreprise:', error)
   }
 }
 
-// Récupération des usines
-async function fetchAllUsines() {
+// Récupération des entreprises
+async function fetchAllEntreprises() {
   try {
-    usines.value = await authStore.fetchUsines()
+    entreprises.value = await authStore.fetchEnterprises()
   } catch (error) {
-    console.error('Erreur lors de la récupération des usines:', error)
+    console.error('Erreur lors de la récupération des entreprises:', error)
   }
 }
 
@@ -502,55 +502,55 @@ async function saveUser(userData: any) {
     // Logique différente selon le rôle actuel
     if (isAdmin.value) {
       // Admin peut créer tous types d'utilisateurs
-      if (payload.usine && typeof payload.usine === 'object') {
-        payload.usine_id = payload.usine.id
-      } else if (typeof payload.usine === 'number') {
-        payload.usine_id = payload.usine
+      if (payload.entreprise && typeof payload.entreprise === 'object') {
+        payload.entreprise_id = payload.entreprise.id
+      } else if (typeof payload.entreprise === 'number') {
+        payload.entreprise_id = payload.entreprise
       }
 
-      if (payload.concessionnaire && typeof payload.concessionnaire === 'object') {
-        payload.concessionnaire_id = payload.concessionnaire.id
-      } else if (typeof payload.concessionnaire === 'number') {
-        payload.concessionnaire_id = payload.concessionnaire
+      if (payload.salarie && typeof payload.salarie === 'object') {
+        payload.salarie_id = payload.salarie.id
+      } else if (typeof payload.salarie === 'number') {
+        payload.salarie_id = payload.salarie
       }
-    } else if (isUsine.value) {
-      // Usine peut créer des concessionnaires ou agriculteurs
-      payload.usine_id = authStore.user?.id
-      if (payload.role === 'AGRICULTEUR') {
-        if (payload.concessionnaire && typeof payload.concessionnaire === 'object') {
-          payload.concessionnaire_id = payload.concessionnaire.id
-        } else if (typeof payload.concessionnaire === 'number') {
-          payload.concessionnaire_id = payload.concessionnaire
+    } else if (isEntreprise.value) {
+      // Entreprise peut créer des salaries ou visiteurs
+      payload.entreprise_id = authStore.user?.id
+      if (payload.role === 'VISITEUR') {
+        if (payload.salarie && typeof payload.salarie === 'object') {
+          payload.salarie_id = payload.salarie.id
+        } else if (typeof payload.salarie === 'number') {
+          payload.salarie_id = payload.salarie
         }
       }
-    } else if (isConcessionnaire.value) {
-      // Si un concessionnaire crée un utilisateur, c'est forcément un agriculteur
-      payload.role = 'AGRICULTEUR'
-      payload.concessionnaire_id = authStore.user?.id
+    } else if (isSalarie.value) {
+      // Si un salarie crée un utilisateur, c'est forcément un visiteur
+      payload.role = 'VISITEUR'
+      payload.salarie_id = authStore.user?.id
     }
 
     // Gérer les relations
-    if (payload.role === 'CONCESSIONNAIRE') {
-      // S'assurer que l'usine est correctement définie
-      if (payload.usine?.id) {
-        payload.usine_id = payload.usine.id
-        delete payload.usine
-      } else if (typeof payload.usine === 'number') {
-        payload.usine_id = payload.usine
-        delete payload.usine
+    if (payload.role === 'SALARIE') {
+      // S'assurer que l'entreprise est correctement définie
+      if (payload.entreprise?.id) {
+        payload.entreprise_id = payload.entreprise.id
+        delete payload.entreprise
+      } else if (typeof payload.entreprise === 'number') {
+        payload.entreprise_id = payload.entreprise
+        delete payload.entreprise
       }
-      delete payload.concessionnaire
-    } else if (payload.role === 'AGRICULTEUR') {
-      // S'assurer que le concessionnaire est correctement défini
-      if (payload.concessionnaire?.id) {
-        payload.concessionnaire_id = payload.concessionnaire.id
-        delete payload.concessionnaire
-      } else if (typeof payload.concessionnaire === 'number') {
-        payload.concessionnaire_id = payload.concessionnaire
-        delete payload.concessionnaire
+      delete payload.salarie
+    } else if (payload.role === 'VISITEUR') {
+      // S'assurer que le salarie est correctement défini
+      if (payload.salarie?.id) {
+        payload.salarie_id = payload.salarie.id
+        delete payload.salarie
+      } else if (typeof payload.salarie === 'number') {
+        payload.salarie_id = payload.salarie
+        delete payload.salarie
       }
-      delete payload.usine
-      delete payload.usine_id
+      delete payload.entreprise
+      delete payload.entreprise_id
     }
 
     if (isUpdate) {
@@ -630,22 +630,22 @@ function canDeleteUser(user: User): boolean {
   // Un admin peut tout supprimer
   if (isAdmin.value) return true;
 
-  // Une usine peut supprimer ses concessionnaires et leurs agriculteurs
-  if (isUsine.value) {
-    if (user.role === 'CONCESSIONNAIRE') {
-      return user.usine?.id === authStore.user?.id;
+  // Une entreprise peut supprimer ses salaries et leurs visiteurs
+  if (isEntreprise.value) {
+    if (user.role === 'SALARIE') {
+      return user.entreprise?.id === authStore.user?.id;
     }
-    if (user.role === 'AGRICULTEUR') {
-      return user.concessionnaire?.usine?.id === authStore.user?.id;
+    if (user.role === 'VISITEUR') {
+      return user.salarie?.entreprise?.id === authStore.user?.id;
     }
     return false;
   }
 
-  // Un concessionnaire peut supprimer ses agriculteurs
-  if (isConcessionnaire.value) {
-    return user.role === 'AGRICULTEUR' && 
-           (user.concessionnaire_id === authStore.user?.id || 
-            user.concessionnaire?.id === authStore.user?.id);
+  // Un salarie peut supprimer ses visiteurs
+  if (isSalarie.value) {
+    return user.role === 'VISITEUR' && 
+           (user.salarie_id === authStore.user?.id || 
+            user.salarie?.id === authStore.user?.id);
   }
 
   return false;

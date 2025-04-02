@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Count
 from .serializers import (
     UserSerializer,
-    ConcessionnaireSerializer,
+    SalarieSerializer,
     ClientSerializer,
     PlanSerializer,
     FormeGeometriqueSerializer,
@@ -13,7 +13,7 @@ from .serializers import (
     TexteAnnotationSerializer,
     PlanDetailSerializer
 )
-from .permissions import IsAdmin, IsConcessionnaire, IsUsine
+from .permissions import IsAdmin, IsSalarie, IsEntreprise
 from django.contrib.auth import get_user_model
 from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation
 import requests
@@ -26,9 +26,9 @@ User = get_user_model()  # Ceci pointera vers authentication.Utilisateur
 
 # Mise à jour des valeurs de rôle pour correspondre au modèle Utilisateur
 ROLE_ADMIN = 'ADMIN'
-ROLE_USINE = 'USINE'
-ROLE_DEALER = 'CONCESSIONNAIRE'
-ROLE_AGRICULTEUR = 'AGRICULTEUR'
+ROLE_USINE = 'ENTREPRISE'
+ROLE_DEALER = 'SALARIE'
+ROLE_AGRICULTEUR = 'VISITEUR'
 
 # Create your views here.
 
@@ -40,25 +40,25 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filtre les utilisateurs selon:
-        - Admin : tous les utilisateurs ou filtrés par rôle/usine/concessionnaire
-        - Usine : ses concessionnaires et leurs agriculteurs
-        - Concessionnaire : ses agriculteurs
-        - Agriculteur : lui-même
+        - Admin : tous les utilisateurs ou filtrés par rôle/entreprise/salarie
+        - Entreprise : ses salaries et leurs visiteurs
+        - Salarie : ses visiteurs
+        - Visiteur : lui-même
         """
         user = self.request.user
         base_queryset = User.objects.annotate(plans_count=Count('plans'))
         
         # Récupérer les paramètres de filtrage
         role = self.request.query_params.get('role')
-        usine_id = self.request.query_params.get('usine')
-        concessionnaire_id = self.request.query_params.get('concessionnaire')
+        entreprise_id = self.request.query_params.get('entreprise')
+        salarie_id = self.request.query_params.get('salarie')
         
         print(f"\n[UserViewSet][get_queryset] ====== DÉBUT REQUÊTE ======")
         print(f"Utilisateur connecté: {user.username} (role: {user.role}, id: {user.id})")
         print(f"Paramètres reçus:")
         print(f"- role demandé: {role}")
-        print(f"- usine_id: {usine_id}")
-        print(f"- concessionnaire_id: {concessionnaire_id}")
+        print(f"- entreprise_id: {entreprise_id}")
+        print(f"- salarie_id: {salarie_id}")
         
         # Appliquer les filtres de base selon le rôle demandé
         if role:
@@ -69,45 +69,45 @@ class UserViewSet(viewsets.ModelViewSet):
         # Filtrer selon le rôle de l'utilisateur connecté
         if user.role == ROLE_ADMIN:
             print("\nTraitement pour ADMIN")
-            if usine_id:
+            if entreprise_id:
                 if role == ROLE_DEALER:
-                    print(f"Filtrage des concessionnaires pour l'usine {usine_id}")
-                    base_queryset = base_queryset.filter(usine_id=usine_id)
+                    print(f"Filtrage des salaries pour l'entreprise {entreprise_id}")
+                    base_queryset = base_queryset.filter(entreprise_id=entreprise_id)
                 elif role == ROLE_AGRICULTEUR:
-                    print(f"Filtrage des agriculteurs pour l'usine {usine_id}")
-                    base_queryset = base_queryset.filter(concessionnaire__usine_id=usine_id)
-            if concessionnaire_id:
-                print(f"Filtrage par concessionnaire: {concessionnaire_id}")
-                base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
+                    print(f"Filtrage des visiteurs pour l'entreprise {entreprise_id}")
+                    base_queryset = base_queryset.filter(salarie__entreprise_id=entreprise_id)
+            if salarie_id:
+                print(f"Filtrage par salarie: {salarie_id}")
+                base_queryset = base_queryset.filter(salarie_id=salarie_id)
         
         elif user.role == ROLE_USINE:
-            print("\nTraitement pour USINE")
+            print("\nTraitement pour ENTREPRISE")
             if role == ROLE_DEALER:
-                print("Filtrage des concessionnaires de l'usine")
-                base_queryset = base_queryset.filter(usine=user)
+                print("Filtrage des salaries de l'entreprise")
+                base_queryset = base_queryset.filter(entreprise=user)
             elif role == ROLE_AGRICULTEUR:
-                print("Filtrage des agriculteurs de l'usine")
-                base_queryset = base_queryset.filter(concessionnaire__usine=user)
-                if concessionnaire_id:
-                    print(f"Filtrage supplémentaire par concessionnaire: {concessionnaire_id}")
-                    base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
+                print("Filtrage des visiteurs de l'entreprise")
+                base_queryset = base_queryset.filter(salarie__entreprise=user)
+                if salarie_id:
+                    print(f"Filtrage supplémentaire par salarie: {salarie_id}")
+                    base_queryset = base_queryset.filter(salarie_id=salarie_id)
                     
-                # Debug des agriculteurs trouvés
-                agriculteurs = base_queryset.values('id', 'username', 'first_name', 'last_name', 'concessionnaire__username')
-                print("\nAgriculteurs trouvés:")
-                for agri in agriculteurs:
-                    print(f"- {agri['username']} (ID: {agri['id']}, Concessionnaire: {agri['concessionnaire__username']})")
+                # Debug des visiteurs trouvés
+                visiteurs = base_queryset.values('id', 'username', 'first_name', 'last_name', 'salarie__username')
+                print("\nVisiteurs trouvés:")
+                for agri in visiteurs:
+                    print(f"- {agri['username']} (ID: {agri['id']}, Salarie: {agri['salarie__username']})")
         
         elif user.role == ROLE_DEALER:
-            print("\nTraitement pour CONCESSIONNAIRE")
+            print("\nTraitement pour SALARIE")
             if role == ROLE_AGRICULTEUR:
-                print("Filtrage des agriculteurs du concessionnaire")
-                base_queryset = base_queryset.filter(concessionnaire=user)
+                print("Filtrage des visiteurs du salarie")
+                base_queryset = base_queryset.filter(salarie=user)
             else:
                 base_queryset = base_queryset.filter(id=user.id)
         
         else:  # ROLE_AGRICULTEUR
-            print("\nTraitement pour AGRICULTEUR")
+            print("\nTraitement pour VISITEUR")
             base_queryset = base_queryset.filter(id=user.id)
 
         print(f"\nRequête SQL finale: {base_queryset.query}")
@@ -118,9 +118,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsUsine | IsConcessionnaire]
+            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsEntreprise | IsSalarie]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsUsine | IsConcessionnaire]
+            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsEntreprise | IsSalarie]
         return super().get_permissions()
 
     def update(self, request, *args, **kwargs):
@@ -143,21 +143,21 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Ne pas modifier le concessionnaire pour un concessionnaire
+        # Ne pas modifier le salarie pour un salarie
         if instance.role == ROLE_DEALER:
-            if 'concessionnaire' in request.data:
-                del request.data['concessionnaire']
+            if 'salarie' in request.data:
+                del request.data['salarie']
 
-        # Vérifier le concessionnaire uniquement pour les clients
-        elif request.data.get('concessionnaire'):
+        # Vérifier le salarie uniquement pour les clients
+        elif request.data.get('salarie'):
             try:
-                concessionnaire = User.objects.get(
-                    id=request.data['concessionnaire'],
+                salarie = User.objects.get(
+                    id=request.data['salarie'],
                     role=ROLE_DEALER
                 )
             except User.DoesNotExist:
                 return Response(
-                    {'concessionnaire': ['Ce concessionnaire n\'existe pas']},
+                    {'salarie': ['Ce salarie n\'existe pas']},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -205,56 +205,56 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         Lors de la création d'un plan:
         - Le créateur est toujours l'utilisateur courant
-        - Vérifie l'existence et la validité des relations usine/concessionnaire/agriculteur
-        - Pour un concessionnaire, vérifie que l'agriculteur lui appartient
-        - Pour un agriculteur, il est automatiquement assigné comme agriculteur
+        - Vérifie l'existence et la validité des relations entreprise/salarie/visiteur
+        - Pour un salarie, vérifie que l'visiteur lui appartient
+        - Pour un visiteur, il est automatiquement assigné comme visiteur
         """
         user = self.request.user
         data = {}
 
         # Validation des relations
-        usine = serializer.validated_data.get('usine')
-        concessionnaire = serializer.validated_data.get('concessionnaire')
-        agriculteur = serializer.validated_data.get('agriculteur')
+        entreprise = serializer.validated_data.get('entreprise')
+        salarie = serializer.validated_data.get('salarie')
+        visiteur = serializer.validated_data.get('visiteur')
 
         print(f"[PlanViewSet] perform_create - Données validées: {serializer.validated_data}")
 
-        # Vérifier l'existence de l'usine
-        if usine:
-            if usine.role != ROLE_USINE:
-                raise ValidationError({'usine': 'L\'utilisateur sélectionné n\'est pas une usine'})
+        # Vérifier l'existence de l'entreprise
+        if entreprise:
+            if entreprise.role != ROLE_USINE:
+                raise ValidationError({'entreprise': 'L\'utilisateur sélectionné n\'est pas une entreprise'})
 
-        # Vérifier l'existence du concessionnaire
-        if concessionnaire:
-            if concessionnaire.role != ROLE_DEALER:
-                raise ValidationError({'concessionnaire': 'L\'utilisateur sélectionné n\'est pas un concessionnaire'})
-            # Vérifier que le concessionnaire appartient à l'usine
-            if usine and concessionnaire.usine != usine:
-                raise ValidationError({'concessionnaire': 'Ce concessionnaire n\'appartient pas à l\'usine sélectionnée'})
+        # Vérifier l'existence du salarie
+        if salarie:
+            if salarie.role != ROLE_DEALER:
+                raise ValidationError({'salarie': 'L\'utilisateur sélectionné n\'est pas un salarie'})
+            # Vérifier que le salarie appartient à l'entreprise
+            if entreprise and salarie.entreprise != entreprise:
+                raise ValidationError({'salarie': 'Ce salarie n\'appartient pas à l\'entreprise sélectionnée'})
 
-        # Vérifier l'existence de l'agriculteur
-        if agriculteur:
-            if agriculteur.role != ROLE_AGRICULTEUR:
-                raise ValidationError({'agriculteur': 'L\'utilisateur sélectionné n\'est pas un agriculteur'})
-            # Vérifier que l'agriculteur appartient au concessionnaire
-            if concessionnaire and agriculteur.concessionnaire != concessionnaire:
-                raise ValidationError({'agriculteur': 'Cet agriculteur n\'appartient pas au concessionnaire sélectionné'})
+        # Vérifier l'existence de l'visiteur
+        if visiteur:
+            if visiteur.role != ROLE_AGRICULTEUR:
+                raise ValidationError({'visiteur': 'L\'utilisateur sélectionné n\'est pas un visiteur'})
+            # Vérifier que l'visiteur appartient au salarie
+            if salarie and visiteur.salarie != salarie:
+                raise ValidationError({'visiteur': 'Cet visiteur n\'appartient pas au salarie sélectionné'})
 
         # Gestion selon le rôle de l'utilisateur
         if user.role == ROLE_DEALER:
-            if not agriculteur:
-                raise ValidationError({'agriculteur': 'Un agriculteur doit être spécifié'})
-            data['concessionnaire'] = user
-            data['usine'] = user.usine
+            if not visiteur:
+                raise ValidationError({'visiteur': 'Un visiteur doit être spécifié'})
+            data['salarie'] = user
+            data['entreprise'] = user.entreprise
         elif user.role == ROLE_AGRICULTEUR:
-            data['agriculteur'] = user
-            data['concessionnaire'] = user.concessionnaire
-            data['usine'] = user.usine
+            data['visiteur'] = user
+            data['salarie'] = user.salarie
+            data['entreprise'] = user.entreprise
         else:
-            # Pour admin et usine, utiliser les valeurs validées
-            data['usine'] = usine
-            data['concessionnaire'] = concessionnaire
-            data['agriculteur'] = agriculteur
+            # Pour admin et entreprise, utiliser les valeurs validées
+            data['entreprise'] = entreprise
+            data['salarie'] = salarie
+            data['visiteur'] = visiteur
 
         print(f"[PlanViewSet] perform_create - Données finales: {data}")
         serializer.save(createur=user, **data)
@@ -263,27 +263,27 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         Lors de la mise à jour d'un plan:
         - Vérifie les permissions selon le rôle
-        - Maintient la cohérence des relations client/concessionnaire
+        - Maintient la cohérence des relations client/salarie
         - Si un client est retiré, il perd l'accès au plan
-        - Si un concessionnaire est retiré, il perd l'accès au plan et le client aussi
+        - Si un salarie est retiré, il perd l'accès au plan et le client aussi
         """
         instance = serializer.instance
         user = self.request.user
 
-        if user.role == ROLE_DEALER and instance.concessionnaire != user:
-            raise PermissionDenied("Vous ne pouvez pas modifier les plans d'autres concessionnaires")
-        elif user.role == ROLE_AGRICULTEUR and instance.agriculteur != user:
+        if user.role == ROLE_DEALER and instance.salarie != user:
+            raise PermissionDenied("Vous ne pouvez pas modifier les plans d'autres salaries")
+        elif user.role == ROLE_AGRICULTEUR and instance.visiteur != user:
             raise PermissionDenied("Vous ne pouvez pas modifier ce plan")
 
-        # Si le concessionnaire est retiré, retirer aussi le client
-        if 'concessionnaire' in serializer.validated_data and not serializer.validated_data['concessionnaire']:
-            serializer.validated_data['agriculteur'] = None
+        # Si le salarie est retiré, retirer aussi le client
+        if 'salarie' in serializer.validated_data and not serializer.validated_data['salarie']:
+            serializer.validated_data['visiteur'] = None
 
         serializer.save()
 
-class ConcessionnaireViewSet(viewsets.ModelViewSet):
+class SalarieViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(role=ROLE_DEALER)
-    serializer_class = ConcessionnaireSerializer
+    serializer_class = SalarieSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -295,11 +295,11 @@ class ConcessionnaireViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def clients(self, request, pk=None):
         """
-        Récupère la liste des clients d'un concessionnaire.
+        Récupère la liste des clients d'un salarie.
         """
-        concessionnaire = self.get_object()
-        if request.user.role == ROLE_ADMIN or request.user == concessionnaire:
-            clients = User.objects.filter(concessionnaire=concessionnaire, role=ROLE_AGRICULTEUR)
+        salarie = self.get_object()
+        if request.user.role == ROLE_ADMIN or request.user == salarie:
+            clients = User.objects.filter(salarie=salarie, role=ROLE_AGRICULTEUR)
             serializer = ClientSerializer(clients, many=True)
             return Response(serializer.data)
         return Response(
@@ -312,21 +312,21 @@ class ConcessionnaireViewSet(viewsets.ModelViewSet):
 
 class ClientViewSet(viewsets.ModelViewSet):
     serializer_class = ClientSerializer
-    permission_classes = [permissions.IsAuthenticated, IsConcessionnaire]
+    permission_classes = [permissions.IsAuthenticated, IsSalarie]
 
     def get_queryset(self):
         user = self.request.user
         if user.role == 'ADMIN':
-            return User.objects.filter(role='AGRICULTEUR')
-        elif user.role == 'CONCESSIONNAIRE':
-            return User.objects.filter(concessionnaire=user, role='AGRICULTEUR')
+            return User.objects.filter(role='VISITEUR')
+        elif user.role == 'SALARIE':
+            return User.objects.filter(salarie=user, role='VISITEUR')
         return User.objects.none()
 
     def perform_create(self, serializer):
-        if self.request.user.role == 'CONCESSIONNAIRE':
-            serializer.save(role='AGRICULTEUR', concessionnaire=self.request.user)
+        if self.request.user.role == 'SALARIE':
+            serializer.save(role='VISITEUR', salarie=self.request.user)
         else:
-            serializer.save(role='AGRICULTEUR')
+            serializer.save(role='VISITEUR')
 
 class PlanViewSet(viewsets.ModelViewSet):
     """
@@ -338,52 +338,52 @@ class PlanViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filtre les plans selon:
-        - Admin : tous les plans ou filtrés par concessionnaire/agriculteur
-        - Usine : plans où l'usine est assignée ou liée à ses concessionnaires
-        - Concessionnaire : uniquement ses plans ou ceux de ses agriculteurs
-        - Agriculteur : uniquement ses plans
+        - Admin : tous les plans ou filtrés par salarie/visiteur
+        - Entreprise : plans où l'entreprise est assignée ou liée à ses salaries
+        - Salarie : uniquement ses plans ou ceux de ses visiteurs
+        - Visiteur : uniquement ses plans
         """
         user = self.request.user
         base_queryset = Plan.objects.all()
 
         # Récupérer les paramètres de filtrage
-        concessionnaire_id = self.request.query_params.get('concessionnaire')
-        agriculteur_id = self.request.query_params.get('agriculteur')
-        usine_id = self.request.query_params.get('usine')
+        salarie_id = self.request.query_params.get('salarie')
+        visiteur_id = self.request.query_params.get('visiteur')
+        entreprise_id = self.request.query_params.get('entreprise')
 
         if user.role == ROLE_ADMIN:
-            if concessionnaire_id:
-                base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
-            if agriculteur_id:
-                base_queryset = base_queryset.filter(agriculteur_id=agriculteur_id)
-            if usine_id:
-                base_queryset = base_queryset.filter(usine_id=usine_id)
+            if salarie_id:
+                base_queryset = base_queryset.filter(salarie_id=salarie_id)
+            if visiteur_id:
+                base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
+            if entreprise_id:
+                base_queryset = base_queryset.filter(entreprise_id=entreprise_id)
             return base_queryset
         elif user.role == ROLE_USINE:
-            # Une usine peut voir les plans où elle est assignée directement
-            # ou liés à ses concessionnaires et leurs agriculteurs
+            # Une entreprise peut voir les plans où elle est assignée directement
+            # ou liés à ses salaries et leurs visiteurs
             base_queryset = base_queryset.filter(
-                Q(usine=user) |  # Plans directement liés à l'usine
-                Q(concessionnaire__usine=user) |  # Plans liés aux concessionnaires de l'usine
-                Q(agriculteur__concessionnaire__usine=user)  # Plans liés aux agriculteurs des concessionnaires de l'usine
+                Q(entreprise=user) |  # Plans directement liés à l'entreprise
+                Q(salarie__entreprise=user) |  # Plans liés aux salaries de l'entreprise
+                Q(visiteur__salarie__entreprise=user)  # Plans liés aux visiteurs des salaries de l'entreprise
             )
             
             # Filtres additionnels si spécifiés
-            if concessionnaire_id:
-                base_queryset = base_queryset.filter(concessionnaire_id=concessionnaire_id)
-            if agriculteur_id:
-                base_queryset = base_queryset.filter(agriculteur_id=agriculteur_id)
+            if salarie_id:
+                base_queryset = base_queryset.filter(salarie_id=salarie_id)
+            if visiteur_id:
+                base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
                 
             return base_queryset
         elif user.role == ROLE_DEALER:
-            # Filtrer d'abord par le concessionnaire connecté
-            base_queryset = base_queryset.filter(concessionnaire=user)
-            # Si un agriculteur est spécifié, filtrer par cet agriculteur
-            if agriculteur_id:
-                base_queryset = base_queryset.filter(agriculteur_id=agriculteur_id)
+            # Filtrer d'abord par le salarie connecté
+            base_queryset = base_queryset.filter(salarie=user)
+            # Si un visiteur est spécifié, filtrer par cet visiteur
+            if visiteur_id:
+                base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
             return base_queryset
-        else:  # agriculteur
-            return base_queryset.filter(agriculteur=user)
+        else:  # visiteur
+            return base_queryset.filter(visiteur=user)
 
     def get_serializer_class(self):
         """
@@ -450,9 +450,9 @@ class PlanViewSet(viewsets.ModelViewSet):
             plan = self.get_object()
             print(f"[PlanViewSet][save_with_elements] Plan trouvé: {plan.id} - {plan.nom}")
             print(f"[PlanViewSet][save_with_elements] Détails du plan:")
-            print(f" - Usine: {plan.usine.id if plan.usine else None} - {plan.usine.username if plan.usine else 'N/A'}")
-            print(f" - Concessionnaire: {plan.concessionnaire.id if plan.concessionnaire else None} - {plan.concessionnaire.username if plan.concessionnaire else 'N/A'}")
-            print(f" - Agriculteur: {plan.agriculteur.id if plan.agriculteur else None} - {plan.agriculteur.username if plan.agriculteur else 'N/A'}")
+            print(f" - Entreprise: {plan.entreprise.id if plan.entreprise else None} - {plan.entreprise.username if plan.entreprise else 'N/A'}")
+            print(f" - Salarie: {plan.salarie.id if plan.salarie else None} - {plan.salarie.username if plan.salarie else 'N/A'}")
+            print(f" - Visiteur: {plan.visiteur.id if plan.visiteur else None} - {plan.visiteur.username if plan.visiteur else 'N/A'}")
         except Exception as e:
             print(f"[PlanViewSet][save_with_elements] ERREUR lors de la récupération du plan: {str(e)}")
             raise
@@ -460,7 +460,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         # Vérifier les permissions
         if (plan.createur != request.user and 
             request.user.role not in [ROLE_ADMIN, ROLE_DEALER] and
-            (request.user.role == ROLE_DEALER and plan.createur.concessionnaire != request.user)):
+            (request.user.role == ROLE_DEALER and plan.createur.salarie != request.user)):
             print(f"[PlanViewSet][save_with_elements] Permission refusée pour l'utilisateur {request.user.username}")
             return Response(
                 {'detail': 'Vous n\'avez pas la permission de modifier ce plan'},
@@ -540,8 +540,8 @@ class PlanViewSet(viewsets.ModelViewSet):
             serializer = PlanDetailSerializer(plan, context={'request': request})
             print(f"[PlanViewSet][save_with_elements] Sérialisation du plan avec détails complets")
             print(f"[PlanViewSet][save_with_elements] Champs sérialisés: {serializer.data.keys()}")
-            print(f"[PlanViewSet][save_with_elements] Détails usine présents: {'usine_details' in serializer.data}")
-            print(f"[PlanViewSet][save_with_elements] Détails concessionnaire présents: {'concessionnaire_details' in serializer.data}")
+            print(f"[PlanViewSet][save_with_elements] Détails entreprise présents: {'entreprise_details' in serializer.data}")
+            print(f"[PlanViewSet][save_with_elements] Détails salarie présents: {'salarie_details' in serializer.data}")
             print(f"[PlanViewSet][save_with_elements] Détails client présents: {'client_details' in serializer.data}")
             
             return Response(serializer.data)
@@ -567,8 +567,8 @@ class PlanViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(instance, context={'request': request})
             print(f"[PlanViewSet][retrieve] Sérialisation terminée")
             print(f"[PlanViewSet][retrieve] Champs disponibles: {serializer.data.keys()}")
-            print(f"[PlanViewSet][retrieve] Détails usine présents: {'usine_details' in serializer.data}")
-            print(f"[PlanViewSet][retrieve] Détails concessionnaire présents: {'concessionnaire_details' in serializer.data}")
+            print(f"[PlanViewSet][retrieve] Détails entreprise présents: {'entreprise_details' in serializer.data}")
+            print(f"[PlanViewSet][retrieve] Détails salarie présents: {'salarie_details' in serializer.data}")
             print(f"[PlanViewSet][retrieve] Détails client présents: {'client_details' in serializer.data}")
             return Response(serializer.data)
         except Exception as e:
@@ -603,7 +603,7 @@ class FormeGeometriqueViewSet(viewsets.ModelViewSet):
         plan = serializer.validated_data['plan']
         user = self.request.user
         
-        if plan.createur != user and user.role not in ['admin', 'concessionnaire']:
+        if plan.createur != user and user.role not in ['admin', 'salarie']:
             raise PermissionError('Vous n\'avez pas la permission de modifier ce plan')
         
         serializer.save()
@@ -619,7 +619,7 @@ class ConnexionViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'admin':
             return Connexion.objects.all()
-        elif user.role == 'concessionnaire':
+        elif user.role == 'salarie':
             return Connexion.objects.filter(
                 plan__createur__in=[user.id] + list(user.clients.values_list('id', flat=True))
             )
@@ -637,7 +637,7 @@ class TexteAnnotationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'admin':
             return TexteAnnotation.objects.all()
-        elif user.role == 'concessionnaire':
+        elif user.role == 'salarie':
             return TexteAnnotation.objects.filter(
                 plan__createur__in=[user.id] + list(user.clients.values_list('id', flat=True))
             )

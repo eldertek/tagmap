@@ -7,12 +7,12 @@ from authentication.models import Utilisateur
 User = get_user_model()  # Ceci pointera vers authentication.Utilisateur
 
 class UserSerializer(serializers.ModelSerializer):
-    concessionnaire_name = serializers.CharField(source='concessionnaire.get_full_name', read_only=True)
+    salarie_name = serializers.CharField(source='salarie.get_full_name', read_only=True)
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
-                 'role', 'concessionnaire', 'concessionnaire_name', 'company_name', 
+                 'role', 'salarie', 'salarie_name', 'company_name', 
                  'phone', 'date_joined']
         read_only_fields = ['date_joined']
         extra_kwargs = {
@@ -23,7 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
-class ConcessionnaireSerializer(serializers.ModelSerializer):
+class SalarieSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
@@ -32,23 +32,23 @@ class ConcessionnaireSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if self.instance and self.instance.role != 'dealer':
-            raise serializers.ValidationError("Cet utilisateur n'est pas un concessionnaire")
+            raise serializers.ValidationError("Cet utilisateur n'est pas un salarie")
         return data
 
 class ClientSerializer(serializers.ModelSerializer):
-    concessionnaire = serializers.PrimaryKeyRelatedField(
+    salarie = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='dealer')
     )
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
-                 'concessionnaire', 'company_name', 'phone']
+                 'salarie', 'company_name', 'phone']
         read_only_fields = ['role']
 
     def validate(self, data):
-        if not data.get('concessionnaire'):
-            raise serializers.ValidationError("Un concessionnaire doit être spécifié")
+        if not data.get('salarie'):
+            raise serializers.ValidationError("Un salarie doit être spécifié")
         return data
 
 class UserDetailsSerializer(serializers.ModelSerializer):
@@ -59,18 +59,18 @@ class UserDetailsSerializer(serializers.ModelSerializer):
 class PlanSerializer(serializers.ModelSerializer):
     """Sérialiseur pour les plans d'irrigation."""
     createur = UserSerializer(read_only=True)
-    usine = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role=Utilisateur.Role.USINE),
+    entreprise = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=Utilisateur.Role.ENTREPRISE),
         required=False,
         allow_null=True
     )
-    concessionnaire = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role=Utilisateur.Role.CONCESSIONNAIRE),
+    salarie = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=Utilisateur.Role.SALARIE),
         required=False,
         allow_null=True
     )
-    agriculteur = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role=Utilisateur.Role.AGRICULTEUR),
+    visiteur = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=Utilisateur.Role.VISITEUR),
         required=False,
         allow_null=True
     )
@@ -79,23 +79,23 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'nom', 'description', 'date_creation', 'date_modification',
-            'createur', 'usine', 'concessionnaire', 'agriculteur', 'preferences',
+            'createur', 'entreprise', 'salarie', 'visiteur', 'preferences',
             'elements', 'historique'
         ]
         read_only_fields = ['date_creation', 'date_modification', 'historique']
 
     def validate(self, data):
-        """Valide les relations entre usine, concessionnaire et agriculteur."""
-        # Si un agriculteur est spécifié, vérifier qu'il a un concessionnaire
-        if 'agriculteur' in data and data['agriculteur'] and not data.get('concessionnaire'):
+        """Valide les relations entre entreprise, salarie et visiteur."""
+        # Si un visiteur est spécifié, vérifier qu'il a un salarie
+        if 'visiteur' in data and data['visiteur'] and not data.get('salarie'):
             raise serializers.ValidationError({
-                'concessionnaire': 'Un concessionnaire doit être spécifié si un agriculteur est assigné.'
+                'salarie': 'Un salarie doit être spécifié si un visiteur est assigné.'
             })
 
-        # Si un concessionnaire est spécifié, vérifier qu'il a une usine
-        if 'concessionnaire' in data and data['concessionnaire'] and not data.get('usine'):
+        # Si un salarie est spécifié, vérifier qu'il a une entreprise
+        if 'salarie' in data and data['salarie'] and not data.get('entreprise'):
             raise serializers.ValidationError({
-                'usine': 'Une usine doit être spécifiée si un concessionnaire est assigné.'
+                'entreprise': 'Une entreprise doit être spécifiée si un salarie est assigné.'
             })
 
         return data
@@ -104,15 +104,15 @@ class PlanSerializer(serializers.ModelSerializer):
         print("[PlanSerializer] Création avec données:", validated_data)
         user = self.context['request'].user
 
-        # Si l'utilisateur est un agriculteur, utiliser ses relations
-        if user.role == 'AGRICULTEUR':
-            validated_data['agriculteur'] = user
-            validated_data['concessionnaire'] = user.concessionnaire
-            validated_data['usine'] = user.concessionnaire.usine if user.concessionnaire else None
+        # Si l'utilisateur est un visiteur, utiliser ses relations
+        if user.role == 'VISITEUR':
+            validated_data['visiteur'] = user
+            validated_data['salarie'] = user.salarie
+            validated_data['entreprise'] = user.salarie.entreprise if user.salarie else None
             validated_data['createur'] = user
-        # Si un agriculteur est spécifié, il devient le créateur
-        elif 'agriculteur' in validated_data and validated_data['agriculteur']:
-            validated_data['createur'] = validated_data['agriculteur']
+        # Si un visiteur est spécifié, il devient le créateur
+        elif 'visiteur' in validated_data and validated_data['visiteur']:
+            validated_data['createur'] = validated_data['visiteur']
         else:
             validated_data['createur'] = self.context['request'].user
 
@@ -122,11 +122,11 @@ class PlanSerializer(serializers.ModelSerializer):
         print("[PlanSerializer] Début update avec données:", validated_data)
         
         # Si un client est assigné, il devient le créateur
-        if 'agriculteur' in validated_data and validated_data['agriculteur']:
-            instance.createur = validated_data['agriculteur']
+        if 'visiteur' in validated_data and validated_data['visiteur']:
+            instance.createur = validated_data['visiteur']
         
         instance = super().update(instance, validated_data)
-        print(f"[PlanSerializer] Fin update - concessionnaire_id: {instance.concessionnaire_id}, client_id: {instance.agriculteur_id}")
+        print(f"[PlanSerializer] Fin update - salarie_id: {instance.salarie_id}, client_id: {instance.visiteur_id}")
         return instance
 
 class FormeGeometriqueSerializer(serializers.ModelSerializer):
@@ -192,26 +192,26 @@ class TexteAnnotationSerializer(serializers.ModelSerializer):
 
 class PlanDetailSerializer(serializers.ModelSerializer):
     createur = UserDetailsSerializer(read_only=True)
-    usine = UserDetailsSerializer(read_only=True)
-    usine_id = serializers.PrimaryKeyRelatedField(
-        source='usine',
-        queryset=User.objects.filter(role=Utilisateur.Role.USINE),
+    entreprise = UserDetailsSerializer(read_only=True)
+    entreprise_id = serializers.PrimaryKeyRelatedField(
+        source='entreprise',
+        queryset=User.objects.filter(role=Utilisateur.Role.ENTREPRISE),
         required=False,
         allow_null=True,
         write_only=True
     )
-    concessionnaire = UserDetailsSerializer(read_only=True)
-    concessionnaire_id = serializers.PrimaryKeyRelatedField(
-        source='concessionnaire',
-        queryset=User.objects.filter(role=Utilisateur.Role.CONCESSIONNAIRE),
+    salarie = UserDetailsSerializer(read_only=True)
+    salarie_id = serializers.PrimaryKeyRelatedField(
+        source='salarie',
+        queryset=User.objects.filter(role=Utilisateur.Role.SALARIE),
         required=False,
         allow_null=True,
         write_only=True
     )
-    agriculteur = UserDetailsSerializer(read_only=True)
-    agriculteur_id = serializers.PrimaryKeyRelatedField(
-        source='agriculteur',
-        queryset=User.objects.filter(role=Utilisateur.Role.AGRICULTEUR),
+    visiteur = UserDetailsSerializer(read_only=True)
+    visiteur_id = serializers.PrimaryKeyRelatedField(
+        source='visiteur',
+        queryset=User.objects.filter(role=Utilisateur.Role.VISITEUR),
         required=False,
         allow_null=True,
         write_only=True
@@ -221,32 +221,32 @@ class PlanDetailSerializer(serializers.ModelSerializer):
     annotations = TexteAnnotationSerializer(many=True, read_only=True)
     
     # Nouveaux champs pour les détails enrichis
-    usine_details = serializers.SerializerMethodField()
-    concessionnaire_details = serializers.SerializerMethodField()
+    entreprise_details = serializers.SerializerMethodField()
+    salarie_details = serializers.SerializerMethodField()
     client_details = serializers.SerializerMethodField()
     
     class Meta:
         model = Plan
         fields = [
             'id', 'nom', 'description', 'date_creation', 'date_modification',
-            'createur', 'usine', 'usine_id', 'concessionnaire', 'concessionnaire_id',
-            'agriculteur', 'agriculteur_id', 'formes', 'connexions', 'annotations',
+            'createur', 'entreprise', 'entreprise_id', 'salarie', 'salarie_id',
+            'visiteur', 'visiteur_id', 'formes', 'connexions', 'annotations',
             'preferences', 'elements', 'historique', 
-            'usine_details', 'concessionnaire_details', 'client_details'
+            'entreprise_details', 'salarie_details', 'client_details'
         ]
         read_only_fields = ['date_creation', 'date_modification', 'historique']
 
-    def get_usine_details(self, obj):
-        """Retourne les détails complets de l'usine liée au plan."""
-        if obj.usine:
-            print(f"[PlanDetailSerializer][get_usine_details] Récupération des détails pour l'usine: {obj.usine.id}")
-            print(f"[PlanDetailSerializer][get_usine_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
+    def get_entreprise_details(self, obj):
+        """Retourne les détails complets de l'entreprise liée au plan."""
+        if obj.entreprise:
+            print(f"[PlanDetailSerializer][get_entreprise_details] Récupération des détails pour l'entreprise: {obj.entreprise.id}")
+            print(f"[PlanDetailSerializer][get_entreprise_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
             
             # Vérifier si le logo est configuré
-            if hasattr(obj.usine, 'logo'):
-                print(f"[PlanDetailSerializer][get_usine_details] L'usine a un attribut logo: {obj.usine.logo}")
+            if hasattr(obj.entreprise, 'logo'):
+                print(f"[PlanDetailSerializer][get_entreprise_details] L'entreprise a un attribut logo: {obj.entreprise.logo}")
             else:
-                print(f"[PlanDetailSerializer][get_usine_details] L'usine n'a pas d'attribut logo")
+                print(f"[PlanDetailSerializer][get_entreprise_details] L'entreprise n'a pas d'attribut logo")
             
             # Créer un contexte explicite pour le sous-serializer
             if not hasattr(self, '_context_updated'):
@@ -254,44 +254,44 @@ class PlanDetailSerializer(serializers.ModelSerializer):
                 self._context = context
                 self._context_updated = True
                 
-            serializer = UserDetailsSerializer(obj.usine, context=self._context)
+            serializer = UserDetailsSerializer(obj.entreprise, context=self._context)
             result = serializer.data
             
-            print(f"[PlanDetailSerializer][get_usine_details] Résultat de la sérialisation: {result}")
-            print(f"[PlanDetailSerializer][get_usine_details] Champs présents: {result.keys()}")
-            print(f"[PlanDetailSerializer][get_usine_details] Logo présent: {'logo' in result}")
+            print(f"[PlanDetailSerializer][get_entreprise_details] Résultat de la sérialisation: {result}")
+            print(f"[PlanDetailSerializer][get_entreprise_details] Champs présents: {result.keys()}")
+            print(f"[PlanDetailSerializer][get_entreprise_details] Logo présent: {'logo' in result}")
             
             # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
-            if 'logo' not in result and hasattr(obj.usine, 'logo') and obj.usine.logo:
+            if 'logo' not in result and hasattr(obj.entreprise, 'logo') and obj.entreprise.logo:
                 try:
                     from django.conf import settings
                     
                     # Simplement retourner l'URL relative du logo
-                    if hasattr(obj.usine.logo, 'url'):
-                        logo_url = obj.usine.logo.url
+                    if hasattr(obj.entreprise.logo, 'url'):
+                        logo_url = obj.entreprise.logo.url
                     else:
-                        logo_path = str(obj.usine.logo)
+                        logo_path = str(obj.entreprise.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
                     
-                    print(f"[PlanDetailSerializer][get_usine_details] Ajout forcé du logo: {logo_url}")
+                    print(f"[PlanDetailSerializer][get_entreprise_details] Ajout forcé du logo: {logo_url}")
                     result['logo'] = logo_url
                 except Exception as e:
-                    print(f"[PlanDetailSerializer][get_usine_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
+                    print(f"[PlanDetailSerializer][get_entreprise_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
             
             return result
         return None
     
-    def get_concessionnaire_details(self, obj):
-        """Retourne les détails complets du concessionnaire lié au plan."""
-        if obj.concessionnaire:
-            print(f"[PlanDetailSerializer][get_concessionnaire_details] Récupération des détails pour le concessionnaire: {obj.concessionnaire.id}")
-            print(f"[PlanDetailSerializer][get_concessionnaire_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
+    def get_salarie_details(self, obj):
+        """Retourne les détails complets du salarie lié au plan."""
+        if obj.salarie:
+            print(f"[PlanDetailSerializer][get_salarie_details] Récupération des détails pour le salarie: {obj.salarie.id}")
+            print(f"[PlanDetailSerializer][get_salarie_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
             
             # Vérifier si le logo est configuré
-            if hasattr(obj.concessionnaire, 'logo'):
-                print(f"[PlanDetailSerializer][get_concessionnaire_details] Le concessionnaire a un attribut logo: {obj.concessionnaire.logo}")
+            if hasattr(obj.salarie, 'logo'):
+                print(f"[PlanDetailSerializer][get_salarie_details] Le salarie a un attribut logo: {obj.salarie.logo}")
             else:
-                print(f"[PlanDetailSerializer][get_concessionnaire_details] Le concessionnaire n'a pas d'attribut logo")
+                print(f"[PlanDetailSerializer][get_salarie_details] Le salarie n'a pas d'attribut logo")
                 
             # Créer un contexte explicite pour le sous-serializer
             if not hasattr(self, '_context_updated'):
@@ -299,42 +299,42 @@ class PlanDetailSerializer(serializers.ModelSerializer):
                 self._context = context
                 self._context_updated = True
                 
-            serializer = UserDetailsSerializer(obj.concessionnaire, context=self._context)
+            serializer = UserDetailsSerializer(obj.salarie, context=self._context)
             result = serializer.data
             
-            print(f"[PlanDetailSerializer][get_concessionnaire_details] Résultat de la sérialisation: {result}")
-            print(f"[PlanDetailSerializer][get_concessionnaire_details] Champs présents: {result.keys()}")
-            print(f"[PlanDetailSerializer][get_concessionnaire_details] Logo présent: {'logo' in result}")
+            print(f"[PlanDetailSerializer][get_salarie_details] Résultat de la sérialisation: {result}")
+            print(f"[PlanDetailSerializer][get_salarie_details] Champs présents: {result.keys()}")
+            print(f"[PlanDetailSerializer][get_salarie_details] Logo présent: {'logo' in result}")
             
             # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
-            if 'logo' not in result and hasattr(obj.concessionnaire, 'logo') and obj.concessionnaire.logo:
+            if 'logo' not in result and hasattr(obj.salarie, 'logo') and obj.salarie.logo:
                 try:
                     from django.conf import settings
                     
                     # Simplement retourner l'URL relative du logo
-                    if hasattr(obj.concessionnaire.logo, 'url'):
-                        logo_url = obj.concessionnaire.logo.url
+                    if hasattr(obj.salarie.logo, 'url'):
+                        logo_url = obj.salarie.logo.url
                     else:
-                        logo_path = str(obj.concessionnaire.logo)
+                        logo_path = str(obj.salarie.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
                     
-                    print(f"[PlanDetailSerializer][get_concessionnaire_details] Ajout forcé du logo: {logo_url}")
+                    print(f"[PlanDetailSerializer][get_salarie_details] Ajout forcé du logo: {logo_url}")
                     result['logo'] = logo_url
                 except Exception as e:
-                    print(f"[PlanDetailSerializer][get_concessionnaire_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
+                    print(f"[PlanDetailSerializer][get_salarie_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
             
             return result
         return None
     
     def get_client_details(self, obj):
-        """Retourne les détails complets du client (agriculteur) lié au plan."""
-        if obj.agriculteur:
-            print(f"[PlanDetailSerializer][get_client_details] Récupération des détails pour le client: {obj.agriculteur.id}")
+        """Retourne les détails complets du client (visiteur) lié au plan."""
+        if obj.visiteur:
+            print(f"[PlanDetailSerializer][get_client_details] Récupération des détails pour le client: {obj.visiteur.id}")
             print(f"[PlanDetailSerializer][get_client_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
             
             # Vérifier si le logo est configuré
-            if hasattr(obj.agriculteur, 'logo'):
-                print(f"[PlanDetailSerializer][get_client_details] Le client a un attribut logo: {obj.agriculteur.logo}")
+            if hasattr(obj.visiteur, 'logo'):
+                print(f"[PlanDetailSerializer][get_client_details] Le client a un attribut logo: {obj.visiteur.logo}")
             else:
                 print(f"[PlanDetailSerializer][get_client_details] Le client n'a pas d'attribut logo")
                 
@@ -344,7 +344,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
                 self._context = context
                 self._context_updated = True
                 
-            serializer = UserDetailsSerializer(obj.agriculteur, context=self._context)
+            serializer = UserDetailsSerializer(obj.visiteur, context=self._context)
             result = serializer.data
             
             print(f"[PlanDetailSerializer][get_client_details] Résultat de la sérialisation: {result}")
@@ -352,15 +352,15 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             print(f"[PlanDetailSerializer][get_client_details] Logo présent: {'logo' in result}")
             
             # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
-            if 'logo' not in result and hasattr(obj.agriculteur, 'logo') and obj.agriculteur.logo:
+            if 'logo' not in result and hasattr(obj.visiteur, 'logo') and obj.visiteur.logo:
                 try:
                     from django.conf import settings
                     
                     # Simplement retourner l'URL relative du logo
-                    if hasattr(obj.agriculteur.logo, 'url'):
-                        logo_url = obj.agriculteur.logo.url
+                    if hasattr(obj.visiteur.logo, 'url'):
+                        logo_url = obj.visiteur.logo.url
                     else:
-                        logo_path = str(obj.agriculteur.logo)
+                        logo_path = str(obj.visiteur.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
                     
                     print(f"[PlanDetailSerializer][get_client_details] Ajout forcé du logo: {logo_url}")
@@ -376,63 +376,63 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         Surcharge pour s'assurer que les relations sont renvoyées comme des objets.
         """
         print(f"\n[PlanDetailSerializer] Début to_representation pour plan {instance.id}")
-        print(f"- Usine: {instance.usine_id} ({type(instance.usine_id)})")
-        print(f"- Concessionnaire: {instance.concessionnaire_id} ({type(instance.concessionnaire_id)})")
-        print(f"- Agriculteur: {instance.agriculteur_id} ({type(instance.agriculteur_id)})")
+        print(f"- Entreprise: {instance.entreprise_id} ({type(instance.entreprise_id)})")
+        print(f"- Salarie: {instance.salarie_id} ({type(instance.salarie_id)})")
+        print(f"- Visiteur: {instance.visiteur_id} ({type(instance.visiteur_id)})")
         
         # Utiliser super() pour obtenir la représentation de base
         data = super().to_representation(instance)
         
         print("\nDonnées sérialisées initiales:")
-        print("- usine:", data.get('usine'))
-        print("- concessionnaire:", data.get('concessionnaire'))
-        print("- agriculteur:", data.get('agriculteur'))
+        print("- entreprise:", data.get('entreprise'))
+        print("- salarie:", data.get('salarie'))
+        print("- visiteur:", data.get('visiteur'))
         
         # S'assurer que les relations sont bien sérialisées en objets complets
-        if data.get('usine') is None and instance.usine:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de usine: {instance.usine}")
-            data['usine'] = UserDetailsSerializer(instance.usine, context=self.context).data
+        if data.get('entreprise') is None and instance.entreprise:
+            print(f"[PlanDetailSerializer] Forçage sérialisation de entreprise: {instance.entreprise}")
+            data['entreprise'] = UserDetailsSerializer(instance.entreprise, context=self.context).data
             
-        if data.get('concessionnaire') is None and instance.concessionnaire:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de concessionnaire: {instance.concessionnaire}")
-            data['concessionnaire'] = UserDetailsSerializer(instance.concessionnaire, context=self.context).data
+        if data.get('salarie') is None and instance.salarie:
+            print(f"[PlanDetailSerializer] Forçage sérialisation de salarie: {instance.salarie}")
+            data['salarie'] = UserDetailsSerializer(instance.salarie, context=self.context).data
             
-        if data.get('agriculteur') is None and instance.agriculteur:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de agriculteur: {instance.agriculteur}")
-            data['agriculteur'] = UserDetailsSerializer(instance.agriculteur, context=self.context).data
+        if data.get('visiteur') is None and instance.visiteur:
+            print(f"[PlanDetailSerializer] Forçage sérialisation de visiteur: {instance.visiteur}")
+            data['visiteur'] = UserDetailsSerializer(instance.visiteur, context=self.context).data
         
         print("\nDonnées sérialisées finales:")
-        print("- usine:", data.get('usine'))
-        print("- concessionnaire:", data.get('concessionnaire'))
-        print("- agriculteur:", data.get('agriculteur'))
+        print("- entreprise:", data.get('entreprise'))
+        print("- salarie:", data.get('salarie'))
+        print("- visiteur:", data.get('visiteur'))
         
         return data
 
     def validate(self, data):
-        """Valide les relations entre usine, concessionnaire et agriculteur."""
+        """Valide les relations entre entreprise, salarie et visiteur."""
         print("\n[PlanDetailSerializer] Validation des données:", data)
         
-        # Si un agriculteur est spécifié, vérifier qu'il a un concessionnaire
-        if 'agriculteur' in data and data['agriculteur'] and not data.get('concessionnaire'):
+        # Si un visiteur est spécifié, vérifier qu'il a un salarie
+        if 'visiteur' in data and data['visiteur'] and not data.get('salarie'):
             raise serializers.ValidationError({
-                'concessionnaire': 'Un concessionnaire doit être spécifié si un agriculteur est assigné.'
+                'salarie': 'Un salarie doit être spécifié si un visiteur est assigné.'
             })
 
-        # Si un concessionnaire est spécifié, vérifier qu'il a une usine
-        if 'concessionnaire' in data and data['concessionnaire'] and not data.get('usine'):
+        # Si un salarie est spécifié, vérifier qu'il a une entreprise
+        if 'salarie' in data and data['salarie'] and not data.get('entreprise'):
             raise serializers.ValidationError({
-                'usine': 'Une usine doit être spécifiée si un concessionnaire est assigné.'
+                'entreprise': 'Une entreprise doit être spécifiée si un salarie est assigné.'
             })
 
         return data
 
     def update(self, instance, validated_data):
         print("\n[PlanDetailSerializer] Début update avec données:", validated_data)
-        print(f"État initial - usine: {instance.usine_id}, concessionnaire: {instance.concessionnaire_id}, agriculteur: {instance.agriculteur_id}")
+        print(f"État initial - entreprise: {instance.entreprise_id}, salarie: {instance.salarie_id}, visiteur: {instance.visiteur_id}")
         
         instance = super().update(instance, validated_data)
         
-        print(f"État final - usine: {instance.usine_id}, concessionnaire: {instance.concessionnaire_id}, agriculteur: {instance.agriculteur_id}")
+        print(f"État final - entreprise: {instance.entreprise_id}, salarie: {instance.salarie_id}, visiteur: {instance.visiteur_id}")
         return instance
 
     def create(self, validated_data):

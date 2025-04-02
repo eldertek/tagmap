@@ -19,19 +19,28 @@ const showNotificationsMenu = ref(false)
 const bellAnimating = ref(false)
 const activeNotification = ref<{id: number, message: string, type: string} | null>(null)
 const isExpanded = ref(false)
+const isMobile = ref(false)
 
 // Références DOM pour le positionnement
 const bellButtonRef = ref<HTMLElement | null>(null)
 const islandPositionTop = ref('13px')
 const islandPositionRight = ref('65px')
 
+// Fonction pour détecter si on est sur mobile
+function checkMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+
 // Écouter les changements de taille d'écran
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   window.addEventListener('resize', updateIslandPosition)
 })
 
 // Nettoyer les écouteurs d'événement
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkMobile)
   window.removeEventListener('resize', updateIslandPosition)
 })
 
@@ -71,7 +80,7 @@ const userRole = computed(() => {
     case 'entreprise':
       return 'Accès entreprise'
     case 'salarie':
-      return 'Accès salarié'
+      return 'Accès salarie'
     case 'visiteur':
       return 'Accès visiteur'
     default:

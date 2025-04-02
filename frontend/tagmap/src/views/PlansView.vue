@@ -19,59 +19,59 @@
       </div>
       <!-- Interface Admin -->
       <div v-if="authStore.isAdmin" class="mt-8">
-        <!-- Sélection de l'usine -->
+        <!-- Sélection de l'entreprise -->
         <div class="mb-6">
-          <label for="usine-filter" class="block text-sm font-medium text-gray-700">Filtrer par usine</label>
+          <label for="entreprise-filter" class="block text-sm font-medium text-gray-700">Filtrer par entreprise</label>
           <select
-            id="usine-filter"
-            v-model="selectedUsine"
+            id="entreprise-filter"
+            v-model="selectedEntreprise"
             class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
           >
-            <option :value="null">Toutes les usines</option>
-            <option v-for="usine in usines" :key="usine.id" :value="usine.id">
-              {{ formatUserDisplay(usine) }}
+            <option :value="null">Toutes les entreprises</option>
+            <option v-for="entreprise in entreprises" :key="entreprise.id" :value="entreprise.id">
+              {{ formatUserDisplay(entreprise) }}
             </option>
           </select>
         </div>
-        <!-- Sélection du concessionnaire -->
+        <!-- Sélection du salarie -->
         <div class="mb-6">
-          <label for="concessionnaire-filter" class="block text-sm font-medium text-gray-700">Filtrer par concessionnaire</label>
+          <label for="salarie-filter" class="block text-sm font-medium text-gray-700">Filtrer par salarie</label>
           <select
-            id="concessionnaire-filter"
-            v-model="selectedConcessionnaire"
+            id="salarie-filter"
+            v-model="selectedSalarie"
             class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
           >
-            <option :value="null">{{ filteredConcessionnaires.length ? 'Tous les concessionnaires' : 'Aucun concessionnaire disponible' }}</option>
-            <option v-for="concessionnaire in filteredConcessionnaires" :key="concessionnaire.id" :value="concessionnaire.id">
-              {{ formatUserDisplay(concessionnaire) }}
+            <option :value="null">{{ filteredSalaries.length ? 'Tous les salaries' : 'Aucun salarie disponible' }}</option>
+            <option v-for="salarie in filteredSalaries" :key="salarie.id" :value="salarie.id">
+              {{ formatUserDisplay(salarie) }}
             </option>
           </select>
         </div>
-        <!-- Sélection de l'agriculteur si un concessionnaire est sélectionné -->
-        <div v-if="selectedConcessionnaire" class="mb-6">
-          <label for="agriculteur-filter" class="block text-sm font-medium text-gray-700">Filtrer par agriculteur</label>
+        <!-- Sélection de l'visiteur si un salarie est sélectionné -->
+        <div v-if="selectedSalarie" class="mb-6">
+          <label for="visiteur-filter" class="block text-sm font-medium text-gray-700">Filtrer par visiteur</label>
           <select
-            id="agriculteur-filter"
+            id="visiteur-filter"
             v-model="selectedClient"
             class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
           >
-            <option :value="null">{{ filteredClients.length ? 'Tous les agriculteurs' : 'Aucun agriculteur disponible' }}</option>
+            <option :value="null">{{ filteredClients.length ? 'Tous les visiteurs' : 'Aucun visiteur disponible' }}</option>
             <option v-for="client in filteredClients" :key="client.id" :value="client.id">
               {{ formatUserDisplay(client) }}
             </option>
           </select>
         </div>
       </div>
-      <!-- Interface Concessionnaire -->
-      <div v-else-if="authStore.isConcessionnaire" class="mt-8">
+      <!-- Interface Salarie -->
+      <div v-else-if="authStore.isSalarie" class="mt-8">
         <div class="mb-6">
-          <label for="agriculteur-filter" class="block text-sm font-medium text-gray-700">Filtrer par agriculteur</label>
+          <label for="visiteur-filter" class="block text-sm font-medium text-gray-700">Filtrer par visiteur</label>
           <select
-            id="agriculteur-filter"
+            id="visiteur-filter"
             v-model="selectedClient"
             class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
           >
-            <option :value="null">Tous les agriculteurs</option>
+            <option :value="null">Tous les visiteurs</option>
             <option v-for="client in clients" :key="client.id" :value="client.id">
               {{ formatUserDisplay(client) }}
             </option>
@@ -111,13 +111,13 @@
                     Description
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Usine
+                    Entreprise
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Concessionnaire
+                    Salarie
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Agriculteur
+                    Visiteur
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                     <button 
@@ -159,54 +159,54 @@
                   <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                     {{ plan.description || '-' }}
                   </td>
-                  <!-- Usine -->
+                  <!-- Entreprise -->
                   <td class="px-3 py-4 text-sm text-gray-900">
-                    <div v-if="plan.usine && typeof plan.usine === 'object'" class="flex items-center">
+                    <div v-if="plan.entreprise && typeof plan.entreprise === 'object'" class="flex items-center">
                       <div class="h-8 w-8 flex-shrink-0">
                         <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                           <span class="text-primary-700 font-medium text-sm">
-                            {{ getInitials(plan.usine) }}
+                            {{ getInitials(plan.entreprise) }}
                           </span>
                         </div>
                       </div>
                       <div class="ml-3">
-                        <div class="font-medium">{{ formatUserName(plan.usine) }}</div>
+                        <div class="font-medium">{{ formatUserName(plan.entreprise) }}</div>
                       </div>
                     </div>
                     <div v-else class="text-gray-500">
                       Non assigné
                     </div>
                   </td>
-                  <!-- Concessionnaire -->
+                  <!-- Salarie -->
                   <td class="px-3 py-4 text-sm text-gray-900">
-                    <div v-if="plan.concessionnaire && typeof plan.concessionnaire === 'object'" class="flex items-center">
+                    <div v-if="plan.salarie && typeof plan.salarie === 'object'" class="flex items-center">
                       <div class="h-8 w-8 flex-shrink-0">
                         <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                           <span class="text-primary-700 font-medium text-sm">
-                            {{ getInitials(plan.concessionnaire) }}
+                            {{ getInitials(plan.salarie) }}
                           </span>
                         </div>
                       </div>
                       <div class="ml-3">
-                        <div class="font-medium">{{ formatUserName(plan.concessionnaire) }}</div>
+                        <div class="font-medium">{{ formatUserName(plan.salarie) }}</div>
                       </div>
                     </div>
                     <div v-else class="text-gray-500">
                       Non assigné
                     </div>
                   </td>
-                  <!-- Agriculteur -->
+                  <!-- Visiteur -->
                   <td class="px-3 py-4 text-sm text-gray-900">
-                    <div v-if="plan.agriculteur && typeof plan.agriculteur === 'object'" class="flex items-center">
+                    <div v-if="plan.visiteur && typeof plan.visiteur === 'object'" class="flex items-center">
                       <div class="h-8 w-8 flex-shrink-0">
                         <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                           <span class="text-primary-700 font-medium text-sm">
-                            {{ getInitials(plan.agriculteur) }}
+                            {{ getInitials(plan.visiteur) }}
                           </span>
                         </div>
                       </div>
                       <div class="ml-3">
-                        <div class="font-medium">{{ formatUserName(plan.agriculteur) }}</div>
+                        <div class="font-medium">{{ formatUserName(plan.visiteur) }}</div>
                       </div>
                     </div>
                     <div v-else class="text-gray-500">
@@ -246,7 +246,7 @@
       <!-- Modal nouveau plan -->
       <NewPlanModal
         v-model="showNewPlanModal"
-        :concessionnaires="concessionnaires"
+        :salaries="salaries"
         :clients="clients"
         @created="onPlanCreated"
       />
@@ -290,63 +290,63 @@
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               ></textarea>
             </div>
-            <!-- Assignation usine/concessionnaire/agriculteur (admin et usine) -->
-            <div v-if="authStore.isAdmin || authStore.user?.user_type === 'usine'" class="space-y-4">
-              <!-- Section usine (admin uniquement) -->
+            <!-- Assignation entreprise/salarie/visiteur (admin et entreprise) -->
+            <div v-if="authStore.isAdmin || authStore.user?.user_type === 'entreprise'" class="space-y-4">
+              <!-- Section entreprise (admin uniquement) -->
               <div v-if="authStore.isAdmin">
-                <label for="edit-usine" class="block text-sm font-medium text-gray-700">
-                  Usine
+                <label for="edit-entreprise" class="block text-sm font-medium text-gray-700">
+                  Entreprise
                 </label>
                 <select
-                  id="edit-usine"
-                  v-model="editPlanData.usine"
+                  id="edit-entreprise"
+                  v-model="editPlanData.entreprise"
                   :disabled="loading"
                   class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
-                  <option :value="null">Sélectionner une usine</option>
-                  <option v-for="usine in usines" :key="usine.id" :value="usine.id">
-                    {{ formatUserDisplay(usine) }}
+                  <option :value="null">Sélectionner une entreprise</option>
+                  <option v-for="entreprise in entreprises" :key="entreprise.id" :value="entreprise.id">
+                    {{ formatUserDisplay(entreprise) }}
                   </option>
                 </select>
               </div>
-              <!-- Section concessionnaire -->
+              <!-- Section salarie -->
               <div>
-                <label for="edit-concessionnaire" class="block text-sm font-medium text-gray-700">
-                  Concessionnaire
+                <label for="edit-salarie" class="block text-sm font-medium text-gray-700">
+                  Salarie
                 </label>
                 <select
-                  id="edit-concessionnaire"
-                  v-model="editPlanData.concessionnaire"
-                  :disabled="(authStore.isAdmin && !editPlanData.usine) || loading"
+                  id="edit-salarie"
+                  v-model="editPlanData.salarie"
+                  :disabled="(authStore.isAdmin && !editPlanData.entreprise) || loading"
                   class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
-                  <option :value="null">Sélectionner un concessionnaire</option>
-                  <option v-for="concessionnaire in filteredConcessionnairesForEdit" :key="concessionnaire.id" :value="concessionnaire.id">
-                    {{ formatUserDisplay(concessionnaire) }}
+                  <option :value="null">Sélectionner un salarie</option>
+                  <option v-for="salarie in filteredSalariesForEdit" :key="salarie.id" :value="salarie.id">
+                    {{ formatUserDisplay(salarie) }}
                   </option>
                 </select>
-                <p v-if="authStore.isAdmin && !editPlanData.usine" class="mt-1 text-sm text-gray-500">
-                  Veuillez d'abord sélectionner une usine
+                <p v-if="authStore.isAdmin && !editPlanData.entreprise" class="mt-1 text-sm text-gray-500">
+                  Veuillez d'abord sélectionner une entreprise
                 </p>
               </div>
-              <!-- Section agriculteur -->
+              <!-- Section visiteur -->
               <div>
-                <label for="edit-agriculteur" class="block text-sm font-medium text-gray-700">
-                  Agriculteur
+                <label for="edit-visiteur" class="block text-sm font-medium text-gray-700">
+                  Visiteur
                 </label>
                 <select
-                  id="edit-agriculteur"
-                  v-model="editPlanData.agriculteur"
-                  :disabled="!editPlanData.concessionnaire || loading"
+                  id="edit-visiteur"
+                  v-model="editPlanData.visiteur"
+                  :disabled="!editPlanData.salarie || loading"
                   class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
-                  <option :value="null">Sélectionner un agriculteur</option>
+                  <option :value="null">Sélectionner un visiteur</option>
                   <option v-for="client in filteredClientsForEdit" :key="client.id" :value="client.id">
                     {{ formatUserDisplay(client) }}
                   </option>
                 </select>
-                <p v-if="!editPlanData.concessionnaire" class="mt-1 text-sm text-gray-500">
-                  Veuillez d'abord sélectionner un concessionnaire
+                <p v-if="!editPlanData.salarie" class="mt-1 text-sm text-gray-500">
+                  Veuillez d'abord sélectionner un salarie
                 </p>
               </div>
             </div>
@@ -430,22 +430,22 @@ interface LocalUser {
   email: string
   company_name?: string
   role: string
-  concessionnaire?: number | LocalUser | null
-  usine?: LocalUser | null
+  salarie?: number | LocalUser | null
+  entreprise?: LocalUser | null
 }
 
-interface Usine extends LocalUser {
-  role: 'USINE'
+interface Entreprise extends LocalUser {
+  role: 'ENTREPRISE'
 }
 
-interface Concessionnaire extends LocalUser {
-  usine_id?: number
-  role: 'CONCESSIONNAIRE'
+interface Salarie extends LocalUser {
+  entreprise_id?: number
+  role: 'SALARIE'
 }
 
-interface ClientWithConcessionnaire extends LocalUser {
-  concessionnaire_id?: number
-  concessionnaire_ref?: number | LocalUser | null
+interface ClientWithSalarie extends LocalUser {
+  salarie_id?: number
+  salarie_ref?: number | LocalUser | null
 }
 
 interface LocalPlan {
@@ -463,17 +463,17 @@ interface LocalPlan {
     company_name?: string
     role: string
   }
-  usine: UserDetails | null
-  concessionnaire: UserDetails | null
-  agriculteur: UserDetails | null
+  entreprise: UserDetails | null
+  salarie: UserDetails | null
+  visiteur: UserDetails | null
 }
 const router = useRouter()
 const irrigationStore = useIrrigationStore()
 const authStore = useAuthStore()
 const plans = ref<LocalPlan[]>([])
-const concessionnaires = ref<Concessionnaire[]>([])
-const usines = ref<Usine[]>([])
-const clients = ref<ClientWithConcessionnaire[]>([])
+const salaries = ref<Salarie[]>([])
+const entreprises = ref<Entreprise[]>([])
+const clients = ref<ClientWithSalarie[]>([])
 const showNewPlanModal = ref(false)
 const showEditPlanModal = ref(false)
 const showDeleteModal = ref(false)
@@ -487,29 +487,29 @@ const editPlanData = ref({
   id: 0,
   nom: '',
   description: '',
-  usine: null as number | null,
-  concessionnaire: null as number | null,
-  agriculteur: null as number | null
+  entreprise: null as number | null,
+  salarie: null as number | null,
+  visiteur: null as number | null
 })
 const loading = ref(false)
 const error = ref<string | null>(null)
 // Ajout des refs pour la sélection
-const selectedConcessionnaire = ref<number | null>(null);
+const selectedSalarie = ref<number | null>(null);
 const selectedClient = ref<number | null>(null);
 // Ajout des refs pour le tri
 const sortField = ref<'nom' | 'date_creation' | 'date_modification'>('date_modification')
 const sortDirection = ref<'asc' | 'desc'>('desc')
-// Ajout de la ref pour la sélection de l'usine
-const selectedUsine = ref<number | null>(null);
-// Computed pour les clients filtrés selon le concessionnaire sélectionné
+// Ajout de la ref pour la sélection de l'entreprise
+const selectedEntreprise = ref<number | null>(null);
+// Computed pour les clients filtrés selon le salarie sélectionné
 const filteredClients = computed(() => {
-  if (!selectedConcessionnaire.value) return clients.value;
+  if (!selectedSalarie.value) return clients.value;
   return clients.value.filter(client => {
-    if (typeof client.concessionnaire === 'object' && client.concessionnaire) {
-      return client.concessionnaire.id === selectedConcessionnaire.value;
+    if (typeof client.salarie === 'object' && client.salarie) {
+      return client.salarie.id === selectedSalarie.value;
     }
-    return client.concessionnaire === selectedConcessionnaire.value || 
-           client.concessionnaire_id === selectedConcessionnaire.value;
+    return client.salarie === selectedSalarie.value || 
+           client.salarie_id === selectedSalarie.value;
   });
 });
 // Computed pour les plans filtrés
@@ -518,52 +518,52 @@ const filteredPlans = computed(() => {
   
   console.log('\n[PlansView] Filtering plans:', filtered.map(plan => ({
     id: plan.id,
-    usine: plan.usine,
-    concessionnaire: plan.concessionnaire,
-    agriculteur: plan.agriculteur
+    entreprise: plan.entreprise,
+    salarie: plan.salarie,
+    visiteur: plan.visiteur
   })));
   
   if (authStore.isAdmin) {
-    if (selectedUsine.value) {
+    if (selectedEntreprise.value) {
       filtered = filtered.filter(plan => {
-        if (typeof plan.usine === 'object') {
-          return plan.usine?.id === selectedUsine.value;
+        if (typeof plan.entreprise === 'object') {
+          return plan.entreprise?.id === selectedEntreprise.value;
         }
-        return plan.usine === selectedUsine.value;
+        return plan.entreprise === selectedEntreprise.value;
       });
     }
     
-    if (selectedConcessionnaire.value) {
+    if (selectedSalarie.value) {
       filtered = filtered.filter(plan => {
-        if (typeof plan.concessionnaire === 'object') {
-          return plan.concessionnaire?.id === selectedConcessionnaire.value;
+        if (typeof plan.salarie === 'object') {
+          return plan.salarie?.id === selectedSalarie.value;
         }
-        return plan.concessionnaire === selectedConcessionnaire.value;
+        return plan.salarie === selectedSalarie.value;
       });
       
       if (selectedClient.value) {
         filtered = filtered.filter(plan => {
-          if (typeof plan.agriculteur === 'object') {
-            return plan.agriculteur?.id === selectedClient.value;
+          if (typeof plan.visiteur === 'object') {
+            return plan.visiteur?.id === selectedClient.value;
           }
-          return plan.agriculteur === selectedClient.value;
+          return plan.visiteur === selectedClient.value;
         });
       }
     }
-  } else if (authStore.isConcessionnaire) {
+  } else if (authStore.isSalarie) {
     filtered = filtered.filter(plan => {
-      if (typeof plan.concessionnaire === 'object') {
-        return plan.concessionnaire?.id === authStore.user?.id;
+      if (typeof plan.salarie === 'object') {
+        return plan.salarie?.id === authStore.user?.id;
       }
-      return plan.concessionnaire === authStore.user?.id;
+      return plan.salarie === authStore.user?.id;
     });
     
     if (selectedClient.value) {
       filtered = filtered.filter(plan => {
-        if (typeof plan.agriculteur === 'object') {
-          return plan.agriculteur?.id === selectedClient.value;
+        if (typeof plan.visiteur === 'object') {
+          return plan.visiteur?.id === selectedClient.value;
         }
-        return plan.agriculteur === selectedClient.value;
+        return plan.visiteur === selectedClient.value;
       });
     }
   }
@@ -583,9 +583,9 @@ const filteredPlans = computed(() => {
   
   console.log('[PlansView] Final filtered and sorted plans:', sorted.map(plan => ({
     id: plan.id,
-    usine: plan.usine,
-    concessionnaire: plan.concessionnaire,
-    agriculteur: plan.agriculteur
+    entreprise: plan.entreprise,
+    salarie: plan.salarie,
+    visiteur: plan.visiteur
   })));
   
   return sorted;
@@ -598,84 +598,84 @@ const plansList = computed(() => {
       description: "Liste complète des plans",
       plans: plans.value
     }
-  } else if (authStore.isConcessionnaire) {
+  } else if (authStore.isSalarie) {
     return {
-      title: "Plans des agriculteurs",
-      description: "Plans où vous êtes assigné comme concessionnaire",
+      title: "Plans des visiteurs",
+      description: "Plans où vous êtes assigné comme salarie",
       plans: plans.value.filter(plan => {
-        if (typeof plan.concessionnaire === 'object') {
-          return plan.concessionnaire?.id === authStore.user?.id;
+        if (typeof plan.salarie === 'object') {
+          return plan.salarie?.id === authStore.user?.id;
         }
-        return plan.concessionnaire === authStore.user?.id;
+        return plan.salarie === authStore.user?.id;
       })
     }
   } else {
-    // Agriculteur
+    // Visiteur
     return {
       title: "Mes plans",
       description: "Plans qui vous sont assignés ou que vous avez créés",
       plans: plans.value.filter(plan => {
         const isCreator = plan.createur.id === authStore.user?.id;
-        let isAgriculteur = false;
+        let isVisiteur = false;
         
-        if (typeof plan.agriculteur === 'object') {
-          isAgriculteur = plan.agriculteur?.id === authStore.user?.id;
+        if (typeof plan.visiteur === 'object') {
+          isVisiteur = plan.visiteur?.id === authStore.user?.id;
         } else {
-          isAgriculteur = plan.agriculteur === authStore.user?.id;
+          isVisiteur = plan.visiteur === authStore.user?.id;
         }
         
-        return isAgriculteur || isCreator;
+        return isVisiteur || isCreator;
       })
     }
   }
 })
 
-// Computed pour filtrer les concessionnaires selon l'usine sélectionnée dans le dropdown
-const filteredConcessionnaires = computed(() => {
-  if (!selectedUsine.value) return concessionnaires.value;
+// Computed pour filtrer les salaries selon l'entreprise sélectionnée dans le dropdown
+const filteredSalaries = computed(() => {
+  if (!selectedEntreprise.value) return salaries.value;
   
-  return concessionnaires.value.filter(concessionnaire => {
-    if (typeof concessionnaire.usine === 'object') {
-      return concessionnaire.usine?.id === selectedUsine.value;
+  return salaries.value.filter(salarie => {
+    if (typeof salarie.entreprise === 'object') {
+      return salarie.entreprise?.id === selectedEntreprise.value;
     }
-    return concessionnaire.usine_id === selectedUsine.value;
+    return salarie.entreprise_id === selectedEntreprise.value;
   });
 });
 
-// Computed pour filtrer les concessionnaires dans le modal d'édition
-const filteredConcessionnairesForEdit = computed(() => {
-  if (!editPlanData.value.usine) return [];
+// Computed pour filtrer les salaries dans le modal d'édition
+const filteredSalariesForEdit = computed(() => {
+  if (!editPlanData.value.entreprise) return [];
   
-  return concessionnaires.value.filter(concessionnaire => {
-    if (typeof concessionnaire.usine === 'object') {
-      return concessionnaire.usine?.id === editPlanData.value.usine;
+  return salaries.value.filter(salarie => {
+    if (typeof salarie.entreprise === 'object') {
+      return salarie.entreprise?.id === editPlanData.value.entreprise;
     }
-    return concessionnaire.usine_id === editPlanData.value.usine;
+    return salarie.entreprise_id === editPlanData.value.entreprise;
   });
 });
 
-// Computed pour filtrer les clients selon le concessionnaire sélectionné pour l'édition
+// Computed pour filtrer les clients selon le salarie sélectionné pour l'édition
 const filteredClientsForEdit = computed(() => {
-  if (!editPlanData.value.usine || !editPlanData.value.concessionnaire) {
+  if (!editPlanData.value.entreprise || !editPlanData.value.salarie) {
     return [];
   }
   
   return clients.value.filter(client => {
-    if (typeof client.concessionnaire === 'object' && client.concessionnaire) {
-      return client.concessionnaire.id === editPlanData.value.concessionnaire;
+    if (typeof client.salarie === 'object' && client.salarie) {
+      return client.salarie.id === editPlanData.value.salarie;
     }
-    return client.concessionnaire === editPlanData.value.concessionnaire || 
-           client.concessionnaire_id === editPlanData.value.concessionnaire;
+    return client.salarie === editPlanData.value.salarie || 
+           client.salarie_id === editPlanData.value.salarie;
   });
 });
 
 onMounted(async () => {
   await loadPlans()
   if (authStore.isAdmin) {
-    await loadAllUsines()
-  } else if (authStore.isConcessionnaire) {
-    // Charger les agriculteurs du concessionnaire
-    await loadAgriculteurs(authStore.user?.id || 0)
+    await loadAllEntreprises()
+  } else if (authStore.isSalarie) {
+    // Charger les visiteurs du salarie
+    await loadVisiteurs(authStore.user?.id || 0)
   }
 })
 
@@ -688,49 +688,49 @@ async function loadPlans() {
   }
 }
 
-// Utilisation des fonctions centralisées pour charger les usines
-async function loadAllUsines() {
+// Utilisation des fonctions centralisées pour charger les entreprises
+async function loadAllEntreprises() {
   try {
-    console.log('Chargement des usines...');
-    usines.value = await authStore.fetchUsines() as unknown as Usine[];
-    console.log('Usines chargées:', usines.value);
+    console.log('Chargement des entreprises...');
+    entreprises.value = await authStore.fetchEntreprises() as unknown as Entreprise[];
+    console.log('Entreprises chargées:', entreprises.value);
   } catch (error) {
-    console.error('Erreur lors du chargement des usines:', error);
+    console.error('Erreur lors du chargement des entreprises:', error);
   }
 }
 
-// Utilisation des fonctions centralisées pour charger les concessionnaires par usine
-async function loadConcessionnaires(usineId?: number) {
+// Utilisation des fonctions centralisées pour charger les salaries par entreprise
+async function loadSalaries(entrepriseId?: number) {
   try {
-    console.log('Chargement des concessionnaires pour l\'usine:', usineId);
-    // Utiliser fetchUsersByRole quand usineId est undefined
-    if (usineId === undefined) {
-      const result = await authStore.fetchUsersByRole({ role: 'CONCESSIONNAIRE' });
-      concessionnaires.value = result as unknown as Concessionnaire[];
+    console.log('Chargement des salaries pour l\'entreprise:', entrepriseId);
+    // Utiliser fetchUsersByRole quand entrepriseId est undefined
+    if (entrepriseId === undefined) {
+      const result = await authStore.fetchUsersByRole({ role: 'SALARIE' });
+      salaries.value = result as unknown as Salarie[];
     } else {
-      concessionnaires.value = await authStore.fetchUsineConcessionnaires(usineId) as unknown as Concessionnaire[];
+      salaries.value = await authStore.fetchEntrepriseSalaries(entrepriseId) as unknown as Salarie[];
     }
-    console.log('Concessionnaires chargés:', concessionnaires.value);
+    console.log('Salaries chargés:', salaries.value);
   } catch (error) {
-    console.error('Erreur lors du chargement des concessionnaires:', error);
+    console.error('Erreur lors du chargement des salaries:', error);
   }
 }
 
-// Utilisation des fonctions centralisées pour charger les agriculteurs par concessionnaire
-async function loadAgriculteurs(concessionnaireId: number) {
+// Utilisation des fonctions centralisées pour charger les visiteurs par salarie
+async function loadVisiteurs(salarieId: number) {
   try {
-    console.log('Chargement des agriculteurs pour le concessionnaire:', concessionnaireId);
+    console.log('Chargement des visiteurs pour le salarie:', salarieId);
     const result = await fetchUsersByHierarchy({
-      role: 'AGRICULTEUR',
-      concessionnaireId
+      role: 'VISITEUR',
+      salarieId
     });
-    clients.value = result.map((agriculteur: any) => ({
-      ...agriculteur,
-      concessionnaire_id: concessionnaireId
+    clients.value = result.map((visiteur: any) => ({
+      ...visiteur,
+      salarie_id: salarieId
     }));
-    console.log('Agriculteurs chargés:', clients.value);
+    console.log('Visiteurs chargés:', clients.value);
   } catch (error) {
-    console.error('Erreur lors du chargement des agriculteurs:', error);
+    console.error('Erreur lors du chargement des visiteurs:', error);
   }
 }
 
@@ -748,9 +748,9 @@ async function editPlan(plan: LocalPlan) {
   console.log('[PlansView][editPlan] Plan reçu:', {
     id: plan.id,
     nom: plan.nom,
-    usine: plan.usine,
-    concessionnaire: plan.concessionnaire,
-    agriculteur: plan.agriculteur
+    entreprise: plan.entreprise,
+    salarie: plan.salarie,
+    visiteur: plan.visiteur
   });
 
   try {
@@ -825,31 +825,31 @@ async function openEditPlanModal(plan: LocalPlan) {
   
   try {
     // S'assurer que les données sont chargées
-    if (authStore.isAdmin && (!usines.value.length)) {
-      await loadAllUsines();
+    if (authStore.isAdmin && (!entreprises.value.length)) {
+      await loadAllEntreprises();
     }
     
-    const usineId = typeof plan.usine === 'object' && plan.usine ? plan.usine.id : plan.usine;
-    const concessionnaireId = typeof plan.concessionnaire === 'object' && plan.concessionnaire ? plan.concessionnaire.id : plan.concessionnaire;
-    const agriculteurId = typeof plan.agriculteur === 'object' && plan.agriculteur ? plan.agriculteur.id : plan.agriculteur;
+    const entrepriseId = typeof plan.entreprise === 'object' && plan.entreprise ? plan.entreprise.id : plan.entreprise;
+    const salarieId = typeof plan.salarie === 'object' && plan.salarie ? plan.salarie.id : plan.salarie;
+    const visiteurId = typeof plan.visiteur === 'object' && plan.visiteur ? plan.visiteur.id : plan.visiteur;
     
     editPlanData.value = {
       id: plan.id,
       nom: plan.nom,
       description: plan.description,
-      usine: usineId || null,
-      concessionnaire: concessionnaireId || null,
-      agriculteur: agriculteurId || null
+      entreprise: entrepriseId || null,
+      salarie: salarieId || null,
+      visiteur: visiteurId || null
     };
     
-    // Charger les concessionnaires de l'usine si nécessaire
-    if (usineId) {
-      await loadConcessionnaires(usineId);
+    // Charger les salaries de l'entreprise si nécessaire
+    if (entrepriseId) {
+      await loadSalaries(entrepriseId);
     }
     
-    // Charger les agriculteurs du concessionnaire si nécessaire
-    if (concessionnaireId) {
-      await loadAgriculteurs(concessionnaireId);
+    // Charger les visiteurs du salarie si nécessaire
+    if (salarieId) {
+      await loadVisiteurs(salarieId);
     }
     
     showEditPlanModal.value = true;
@@ -870,28 +870,28 @@ async function updatePlan() {
       throw new Error('Le nom du plan est requis')
     }
     // Validation de la logique hiérarchique
-    if (editPlanData.value.agriculteur && !editPlanData.value.concessionnaire) {
-      throw new Error('Un concessionnaire doit être sélectionné pour assigner un agriculteur')
+    if (editPlanData.value.visiteur && !editPlanData.value.salarie) {
+      throw new Error('Un salarie doit être sélectionné pour assigner un visiteur')
     }
-    if (editPlanData.value.concessionnaire && !editPlanData.value.usine) {
-      throw new Error('Une usine doit être sélectionnée pour assigner un concessionnaire')
+    if (editPlanData.value.salarie && !editPlanData.value.entreprise) {
+      throw new Error('Une entreprise doit être sélectionnée pour assigner un salarie')
     }
 
     console.log('Données envoyées pour la mise à jour:', {
       id: editPlanData.value.id,
       nom: editPlanData.value.nom.trim(),
       description: editPlanData.value.description.trim(),
-      usine_id: editPlanData.value.usine,
-      concessionnaire_id: editPlanData.value.concessionnaire,
-      agriculteur_id: editPlanData.value.agriculteur
+      entreprise_id: editPlanData.value.entreprise,
+      salarie_id: editPlanData.value.salarie,
+      visiteur_id: editPlanData.value.visiteur
     });
 
     const response = await irrigationStore.updatePlanDetails(editPlanData.value.id, {
       nom: editPlanData.value.nom.trim(),
       description: editPlanData.value.description.trim(),
-      usine_id: editPlanData.value.usine,
-      concessionnaire_id: editPlanData.value.concessionnaire,
-      agriculteur_id: editPlanData.value.agriculteur
+      entreprise_id: editPlanData.value.entreprise,
+      salarie_id: editPlanData.value.salarie,
+      visiteur_id: editPlanData.value.visiteur
     });
 
     console.log('Réponse de la mise à jour:', response);
@@ -920,42 +920,42 @@ async function updatePlan() {
 }
 
 // Watchers pour gérer les dépendances et le rechargement des données
-watch(() => selectedUsine.value, async (newUsineId) => {
-  selectedConcessionnaire.value = null;
+watch(() => selectedEntreprise.value, async (newEntrepriseId) => {
+  selectedSalarie.value = null;
   selectedClient.value = null;
   
-  if (newUsineId) {
-    await loadConcessionnaires(newUsineId);
+  if (newEntrepriseId) {
+    await loadSalaries(newEntrepriseId);
   } else {
-    // Si aucune usine n'est sélectionnée, charger tous les concessionnaires
-    await loadConcessionnaires();
+    // Si aucune entreprise n'est sélectionnée, charger tous les salaries
+    await loadSalaries();
   }
 });
 
-watch(() => selectedConcessionnaire.value, async (newConcessionnaireId) => {
+watch(() => selectedSalarie.value, async (newSalarieId) => {
   selectedClient.value = null;
   
-  if (newConcessionnaireId) {
-    await loadAgriculteurs(newConcessionnaireId);
+  if (newSalarieId) {
+    await loadVisiteurs(newSalarieId);
   }
 });
 
-watch(() => editPlanData.value.usine, async (newUsineId) => {
-  if (newUsineId === null) {
-    editPlanData.value.concessionnaire = null;
-    editPlanData.value.agriculteur = null;
+watch(() => editPlanData.value.entreprise, async (newEntrepriseId) => {
+  if (newEntrepriseId === null) {
+    editPlanData.value.salarie = null;
+    editPlanData.value.visiteur = null;
   } else {
-    // Charger les concessionnaires pour cette usine
-    await loadConcessionnaires(newUsineId);
+    // Charger les salaries pour cette entreprise
+    await loadSalaries(newEntrepriseId);
   }
 });
 
-watch(() => editPlanData.value.concessionnaire, async (newConcessionnaireId) => {
-  editPlanData.value.agriculteur = null;
+watch(() => editPlanData.value.salarie, async (newSalarieId) => {
+  editPlanData.value.visiteur = null;
   
-  if (newConcessionnaireId) {
-    // Charger les agriculteurs pour ce concessionnaire
-    await loadAgriculteurs(newConcessionnaireId);
+  if (newSalarieId) {
+    // Charger les visiteurs pour ce salarie
+    await loadVisiteurs(newSalarieId);
   }
 });
 
@@ -966,30 +966,30 @@ function canDeletePlan(plan: LocalPlan): boolean {
   
   if (user.user_type === 'admin') return true
   
-  if (user.user_type === 'usine') {
-    if (typeof plan.usine === 'object') {
-      return plan.usine?.id === user.id;
+  if (user.user_type === 'entreprise') {
+    if (typeof plan.entreprise === 'object') {
+      return plan.entreprise?.id === user.id;
     }
-    return plan.usine === user.id;
+    return plan.entreprise === user.id;
   }
   
-  if (user.user_type === 'concessionnaire') {
-    if (typeof plan.concessionnaire === 'object') {
-      return plan.concessionnaire?.id === user.id;
+  if (user.user_type === 'salarie') {
+    if (typeof plan.salarie === 'object') {
+      return plan.salarie?.id === user.id;
     }
-    return plan.concessionnaire === user.id;
+    return plan.salarie === user.id;
   }
   
   const isCreator = plan.createur.id === user.id;
-  let isAgriculteur = false;
+  let isVisiteur = false;
   
-  if (typeof plan.agriculteur === 'object') {
-    isAgriculteur = plan.agriculteur?.id === user.id;
+  if (typeof plan.visiteur === 'object') {
+    isVisiteur = plan.visiteur?.id === user.id;
   } else {
-    isAgriculteur = plan.agriculteur === user.id;
+    isVisiteur = plan.visiteur === user.id;
   }
   
-  return isAgriculteur || isCreator;
+  return isVisiteur || isCreator;
 }
 
 // Ajouter la fonction de callback

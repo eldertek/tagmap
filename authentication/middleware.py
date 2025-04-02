@@ -8,19 +8,27 @@ from django.http import JsonResponse
 
 def get_user_jwt(request):
     """Récupère l'utilisateur à partir du token JWT."""
+    print(f"\n[get_user_jwt] ====== VÉRIFICATION TOKEN JWT ======")
+    print(f"Path: {request.path}")
+    print(f"Headers d'autorisation: {request.META.get('HTTP_AUTHORIZATION', 'Non fourni')}")
+    
     user = None
     auth_header = request.META.get('HTTP_AUTHORIZATION', '').split()
     
     if len(auth_header) == 2 and auth_header[0].lower() == 'bearer':
         try:
             jwt_token = auth_header[1]
+            print("[get_user_jwt] Token JWT trouvé, décodage...")
             jwt_payload = jwt.decode(
                 jwt_token,
                 settings.SECRET_KEY,
                 algorithms=['HS256']
             )
+            print(f"[get_user_jwt] Payload décodé: {jwt_payload}")
             user = JWTAuthentication().get_user(jwt_payload)
-        except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+            print(f"[get_user_jwt] Utilisateur récupéré: {user.username if user else 'Aucun'}")
+        except (jwt.InvalidTokenError, jwt.ExpiredSignatureError) as e:
+            print(f"[get_user_jwt] ERREUR de token JWT: {str(e)}")
             pass
     return user
 
@@ -28,6 +36,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
     """Middleware pour gérer l'authentification et les redirections."""
     
     def process_request(self, request):
+        print(f"\n[AuthenticationMiddleware] ====== VÉRIFICATION AUTHENTIFICATION ======")
+        print(f"Path: {request.path_info}")
+        print(f"Méthode: {request.method}")
+        
         # Liste des chemins qui ne nécessitent pas d'authentification
         public_paths = [
             '/api/token/',
@@ -40,18 +52,23 @@ class AuthenticationMiddleware(MiddlewareMixin):
         
         # Ne vérifier que les requêtes API
         if not request.path_info.startswith('/api/'):
+            print("[AuthenticationMiddleware] Chemin non-API, pas de vérification")
             return None
             
         # Vérifier si le chemin actuel est public
-        if request.path_info in public_paths:
+        if any(request.path_info.startswith(path) for path in public_paths):
+            print("[AuthenticationMiddleware] Chemin public, pas de vérification")
             return None
             
         # Pour les requêtes API protégées
+        print(f"[AuthenticationMiddleware] Utilisateur authentifié: {request.user.is_authenticated}")
         if not request.user.is_authenticated:
+            print("[AuthenticationMiddleware] Accès refusé - Non authentifié")
             return JsonResponse({
                 'detail': 'Authentification requise'
             }, status=401)
             
+        print("[AuthenticationMiddleware] Accès autorisé")
         return None
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):

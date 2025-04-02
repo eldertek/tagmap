@@ -223,7 +223,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 const emit = defineEmits<{
-  (e: 'change-map-type', type: 'Ville' | 'Satellite' | 'Cadastre'): void;
+  (e: 'change-map-type', type: 'Hybride' | 'Cadastre' | 'IGN'): void;
   (e: 'create-new-plan'): void;
   (e: 'load-plan'): void;
   (e: 'save-plan'): void;
@@ -237,7 +237,7 @@ const props = defineProps<{
   saveStatus?: 'saving' | 'success' | null;
 }>();
 // État
-const selectedMapType = ref<'Ville' | 'Satellite' | 'Cadastre'>('Ville');
+const selectedMapType = ref<'Hybride' | 'Cadastre' | 'IGN'>('Hybride');
 const showMobileMenu = ref(false);
 
 // Ajout du positionnement du dropdown
@@ -252,10 +252,10 @@ const updateDropdownPosition = (event: MouseEvent) => {
 };
 
 // Types de carte disponibles
-const mapTypes: Record<'Ville' | 'Satellite' | 'Cadastre', string> = {
-  Ville: 'Ville',
-  Satellite: 'Satellite',
-  Cadastre: 'Cadastre'
+const mapTypes: Record<'Hybride' | 'Cadastre' | 'IGN', string> = {
+  Hybride: 'Hybride',
+  Cadastre: 'Cadastre',
+  IGN: 'IGN'
 };
 // Formater la date de dernière sauvegarde
 const lastSaveFormatted = computed(() => {
@@ -270,7 +270,7 @@ const lastSaveFormatted = computed(() => {
   });
 });
 // Méthodes
-const changeMapType = (type: 'Ville' | 'Satellite' | 'Cadastre') => {
+const changeMapType = (type: 'Hybride' | 'Cadastre' | 'IGN') => {
   selectedMapType.value = type;
   emit('change-map-type', type);
   closeMobileMenu();

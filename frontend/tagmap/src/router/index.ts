@@ -14,7 +14,7 @@ const router = createRouter({
       component: MapView,
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['admin', 'usine', 'concessionnaire', 'agriculteur']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
     },
     {
@@ -23,7 +23,7 @@ const router = createRouter({
       component: PlansView,
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['admin', 'usine', 'concessionnaire', 'agriculteur']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
     },
     {
@@ -32,7 +32,7 @@ const router = createRouter({
       component: UserListView,
       meta: {
         requiresAuth: true,
-        allowedRoles: ['admin', 'usine', 'concessionnaire']
+        allowedRoles: ['admin', 'entreprise', 'salarie']
       }
     },
     {
@@ -41,7 +41,7 @@ const router = createRouter({
       component: () => import('@/views/ProfileView.vue'),
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['admin', 'usine', 'concessionnaire', 'agriculteur']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
     },
     {
@@ -68,7 +68,7 @@ const router = createRouter({
       component: ChangePasswordForm,
       meta: { 
         requiresAuth: true,
-        allowedRoles: ['admin', 'usine', 'concessionnaire', 'agriculteur']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
     },
     {
