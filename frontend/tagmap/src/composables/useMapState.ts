@@ -100,36 +100,19 @@ export function useMapState() {
         );
         mapInstance.setMaxBounds(maxBounds);
         mapInstance.options.maxBoundsViscosity = 1.0;
-        // Optimisations supplémentaires
         mapInstance.options.trackResize = true;
 
         // Gestionnaire d'événements pour les zooms rapides
         let zoomTimeout: NodeJS.Timeout | null = null;
-        let isZooming = false;
+        let isZooming = false; // Used in zoomend event
         let lastZoomLevel = mapInstance.getZoom();
 
         mapInstance.on('zoomstart', () => {
           isZooming = true;
-          if (zoomTimeout) {
-            clearTimeout(zoomTimeout);
-          }
-
-          // Désactiver temporairement les animations pendant le zoom
+          lastZoomLevel = mapInstance.getZoom();
+          // Désactiver les animations pendant le zoom pour améliorer les performances
           mapInstance.options.zoomAnimation = false;
           mapInstance.options.markerZoomAnimation = false;
-
-          // Sauvegarder le niveau de zoom actuel
-          lastZoomLevel = mapInstance.getZoom();
-        });
-
-        mapInstance.on('zoom', () => {
-          const currentZoom = mapInstance.getZoom();
-          // Détecter un dézoom rapide
-          if (currentZoom < lastZoomLevel - 2) {
-            // Forcer un rafraîchissement immédiat pour éviter les artefacts
-            mapInstance.invalidateSize({ animate: false, pan: false });
-          }
-          lastZoomLevel = currentZoom;
         });
 
         mapInstance.on('zoomend', () => {
@@ -177,9 +160,28 @@ export function useMapState() {
 
         // S'assurer que la carte est prête
         mapInstance.whenReady(() => {
-          if (baseMaps[currentBaseMap.value as keyof typeof baseMaps]) {
-            activeLayer.value = baseMaps[currentBaseMap.value as keyof typeof baseMaps];
-            activeLayer.value.addTo(mapInstance);
+          const baseMapKey = currentBaseMap.value as keyof typeof baseMaps;
+          if (baseMaps[baseMapKey]) {
+            console.log(`Initialisation de la couche de base: ${baseMapKey}`);
+            // Vérifier si une couche est déjà active
+            if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
+              try {
+                mapInstance.removeLayer(activeLayer.value);
+                console.log('Couche active précédente supprimée');
+              } catch (e) {
+                console.warn('Erreur lors de la suppression de la couche active précédente:', e);
+              }
+            }
+            
+            activeLayer.value = baseMaps[baseMapKey];
+            try {
+              activeLayer.value.addTo(mapInstance as any);
+              console.log(`Couche ${baseMapKey} ajoutée à la carte`);
+            } catch (e) {
+              console.error(`Erreur lors de l'ajout de la couche ${baseMapKey}:`, e);
+            }
+          } else {
+            console.warn(`Couche de base non disponible: ${baseMapKey}`);
           }
         });
       }, 'useMapState');
@@ -222,175 +224,127 @@ export function useMapState() {
     'useMapState'
   );
 
+  // Implémentation simplifiée et robuste du changement de carte de base
   const changeBaseMap = performanceMonitor.createAsyncPerformanceTracker(
     async (baseMapName: keyof typeof baseMaps) => {
-      if (!map.value || !baseMaps[baseMapName]) return;
+      if (!map.value || !baseMaps[baseMapName]) {
+        console.warn(`Impossible de changer la carte de base: ${!map.value ? 'carte non initialisée' : 'type de carte non disponible'}`);
+        return;
+      }
 
       try {
         // Vérifier si la couche demandée est déjà active
         if (currentBaseMap.value === baseMapName) return;
 
-        // Désactiver toutes les animations temporairement
+        console.log(`Changement de carte: ${currentBaseMap.value} -> ${baseMapName}`);
+        
+        // Récupérer l'instance de carte et la position actuelle
         const mapInstance = map.value;
-        const originalAnimationState = {
-          zoomAnimation: mapInstance.options.zoomAnimation,
-          fadeAnimation: mapInstance.options.fadeAnimation,
-          markerZoomAnimation: mapInstance.options.markerZoomAnimation
-        };
-
-        // Désactiver complètement les animations en premier
+        const currentCenter = mapInstance.getCenter();
+        const currentZoom = mapInstance.getZoom();
+        
+        // Désactiver temporairement les animations
         mapInstance.options.zoomAnimation = false;
         mapInstance.options.fadeAnimation = false;
         mapInstance.options.markerZoomAnimation = false;
-
-        // Mémoriser l'état actuel de la carte
-        const currentCenter = mapInstance.getCenter();
-        const currentZoom = mapInstance.getZoom();
-
-        // Créer une couche temporaire intermédiaire pour éviter les conflits d'animation
+        
+        // Récupérer la nouvelle couche
         const newLayer = baseMaps[baseMapName];
-
-        // Masquer la nouvelle couche pendant la transition
-        if (newLayer instanceof L.LayerGroup) {
-          newLayer.eachLayer((layer: any) => {
-            if (layer.setOpacity) layer.setOpacity(0);
-          });
-        } else if (newLayer.setOpacity) {
-          newLayer.setOpacity(0);
-        }
-
-        // Gestion sécurisée de l'ajout de la couche
-        if (mapInstance && typeof mapInstance.addLayer === 'function') {
+        
+        // Supprimer la couche active actuelle si elle existe
+        if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
           try {
-            mapInstance.addLayer(newLayer);
+            mapInstance.removeLayer(activeLayer.value);
+            console.log(`Couche précédente ${currentBaseMap.value} supprimée`);
           } catch (e) {
-            console.warn('Erreur lors de l\'ajout de la couche:', e);
-            // Fallback si l'ajout direct échoue
-            if (typeof newLayer.addTo === 'function') {
-              newLayer.addTo(mapInstance as any);
-            }
+            console.warn('Erreur lors de la suppression de la couche active:', e);
           }
         }
-
-        // Attendre que la nouvelle couche soit chargée
-        await new Promise<void>((resolve) => {
+        
+        // Ajouter la nouvelle couche
+        try {
           if (newLayer instanceof L.LayerGroup) {
-            const layers = (newLayer as any).getLayers();
-            Promise.all(layers.map((layer: any) =>
-              new Promise<void>((layerResolve) => {
-                if (layer.isLoading && layer.isLoading()) {
-                  layer.once('load', () => layerResolve());
-                } else {
-                  layerResolve();
-                }
-              })
-            )).then(() => resolve());
-          } else if (newLayer.isLoading && newLayer.isLoading()) {
-            newLayer.once('load', () => resolve());
+            newLayer.addTo(mapInstance as any);
           } else {
-            setTimeout(resolve, 100);
+            newLayer.addTo(mapInstance as any);
           }
-        });
-
-        // Transition en fondu avec opacité par défaut pour chaque couche
-        await new Promise<void>((resolve) => {
-          let fadeProgress = 0; // progress goes from 0 to 1
-          const transition = setInterval(() => {
-            fadeProgress += 0.1;
-
-            // Fade out the current active layer
-            if (activeLayer.value instanceof L.LayerGroup) {
-              activeLayer.value.eachLayer((layer: any) => {
-                const initialOpacity = (layer.options && typeof layer.options.opacity === 'number') ? layer.options.opacity : 1;
-                layer.setOpacity(Math.max(0, initialOpacity * (1 - fadeProgress)));
-              });
-            } else if (activeLayer.value?.setOpacity) {
-              const initialOpacity = (activeLayer.value.options && typeof activeLayer.value.options.opacity === 'number') ? activeLayer.value.options.opacity : 1;
-              activeLayer.value.setOpacity(Math.max(0, initialOpacity * (1 - fadeProgress)));
+          console.log(`Nouvelle couche ${baseMapName} ajoutée`);
+        } catch (e) {
+          console.error('Erreur lors de l\'ajout de la nouvelle couche:', e);
+          // Tentative de récupération
+          try {
+            if (mapInstance.hasLayer(newLayer)) {
+              mapInstance.removeLayer(newLayer);
             }
-
-            // Fade in the new layer, using its target opacity
-            if (newLayer instanceof L.LayerGroup) {
-              newLayer.eachLayer((layer: any) => {
-                const targetOpacity = (layer.options && typeof layer.options.opacity === 'number') ? layer.options.opacity : 1;
-                layer.setOpacity(Math.min(targetOpacity, targetOpacity * fadeProgress));
-              });
-            } else if (newLayer.setOpacity) {
-              const targetOpacity = (newLayer.options && typeof newLayer.options.opacity === 'number') ? newLayer.options.opacity : 1;
-              newLayer.setOpacity(Math.min(targetOpacity, targetOpacity * fadeProgress));
-            }
-
-            if (fadeProgress >= 1) {
-              clearInterval(transition);
-              if (activeLayer.value && mapInstance && typeof mapInstance.removeLayer === 'function') {
-                try {
-                  mapInstance.removeLayer(activeLayer.value);
-                } catch (e) {
-                  console.warn('Erreur lors de la suppression de la couche active:', e);
-                }
-              }
-              activeLayer.value = newLayer;
-              currentBaseMap.value = baseMapName;
-              resolve();
-            }
-          }, 50);
-        });
-
-        // Réinitialiser la vue sans animation
+            newLayer.addTo(mapInstance as any);
+            console.log(`Récupération: couche ${baseMapName} réajoutée`);
+          } catch (recoveryError) {
+            console.error('Échec de la récupération:', recoveryError);
+            throw new Error('Impossible d\'ajouter la nouvelle couche');
+          }
+        }
+        
+        // Mettre à jour les références
+        activeLayer.value = newLayer;
+        currentBaseMap.value = baseMapName;
+        
+        // Réinitialiser la vue
         try {
           mapInstance.setView(currentCenter, currentZoom, {
             animate: false,
             duration: 0,
             noMoveStart: true
           });
+          console.log(`Vue réinitialisée: centre=${currentCenter}, zoom=${currentZoom}`);
         } catch (e) {
           console.warn('Erreur lors de la réinitialisation de la vue:', e);
         }
-
-        // Forcer un rafraîchissement de la carte sans animation
+        
+        // Forcer un rafraîchissement de la carte
         try {
           mapInstance.invalidateSize({ animate: false, pan: false });
         } catch (e) {
-          console.warn('Erreur lors de l\'invalidation de la taille:', e);
+          console.warn('Erreur lors du rafraîchissement de la carte:', e);
         }
-
-        // Attendre un délai pour stabiliser la carte
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // Restaurer les animations progressivement
-        if (baseMapName !== 'Cadastre') {
-          setTimeout(() => {
-            try {
-              // Restaurer uniquement fadeAnimation d'abord
-              mapInstance.options.fadeAnimation = originalAnimationState.fadeAnimation;
-
-              // Puis après un délai supplémentaire, restaurer les autres animations
-              setTimeout(() => {
-                try {
-                  mapInstance.options.zoomAnimation = originalAnimationState.zoomAnimation;
-                  mapInstance.options.markerZoomAnimation = originalAnimationState.markerZoomAnimation;
-                } catch (e) {
-                  console.warn('Erreur lors de la restauration des animations:', e);
-                }
-              }, 500);
-            } catch (e) {
-              console.warn('Erreur lors de la restauration des animations:', e);
-            }
-          }, 500);
-        }
-
+        
+        // Restaurer les animations après un court délai
+        setTimeout(() => {
+          mapInstance.options.zoomAnimation = true;
+          mapInstance.options.fadeAnimation = true;
+          mapInstance.options.markerZoomAnimation = true;
+          console.log('Animations restaurées');
+        }, 500);
       } catch (error) {
         console.error('Erreur lors du changement de carte de base:', error);
         // En cas d'erreur, essayer de restaurer un état stable
         if (map.value) {
           try {
             const mapInstance = map.value;
+            
+            // Supprimer toutes les couches de tuiles
+            mapInstance.eachLayer((layer: any) => {
+              if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
+                mapInstance.removeLayer(layer);
+              }
+            });
+            
+            // Ajouter la couche demandée
+            const newLayer = baseMaps[baseMapName];
+            newLayer.addTo(mapInstance as any);
+            
+            // Mettre à jour les références
+            activeLayer.value = newLayer;
+            currentBaseMap.value = baseMapName;
+            
+            // Restaurer les animations
             mapInstance.options.zoomAnimation = true;
             mapInstance.options.fadeAnimation = true;
             mapInstance.options.markerZoomAnimation = true;
             mapInstance.invalidateSize({ animate: false, pan: false });
+            
+            console.log('Récupération effectuée après erreur');
           } catch (e) {
-            console.error('Erreur lors de la restauration après échec:', e);
+            console.error('Erreur lors de la récupération après échec:', e);
           }
         }
       }
@@ -452,4 +406,4 @@ export function useMapState() {
     // Exposer les métriques de performance
     isPerformanceEnabled: isEnabled
   };
-} 
+}
