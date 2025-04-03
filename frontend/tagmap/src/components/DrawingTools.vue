@@ -513,14 +513,14 @@ const updateShapeName = (): void => {
 }
 
 const updateSamplePointStyle = (): void => {
-  if (!props.selectedShape || !localProperties.value || localProperties.value.type !== 'ElevationLine') return
+  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
 
   // Emit the style update to the parent component
   emit('style-update', { samplePointStyle: samplePointStyle.value })
 }
 
 const updateMinMaxPointStyle = (): void => {
-  if (!props.selectedShape || !localProperties.value || localProperties.value.type !== 'ElevationLine') return
+  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
 
   // Emit the style update to the parent component
   emit('style-update', { minMaxPointStyle: minMaxPointStyle.value })

@@ -95,7 +95,7 @@
           <!-- Panneau latéral d'outils de dessin -->
           <div v-if="currentPlan && !isGeneratingSynthesis"
             class="w-64 bg-white border-l border-gray-200 flex-shrink-0 z-[2000]">
-            <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape"
+            <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape as any"
               :all-layers="featureGroup?.getLayers() || []" @tool-change="setDrawingTool"
               @style-update="updateShapeStyle" @properties-update="updateShapeProperties"
               @delete-shape="deleteSelectedShape"/>
@@ -404,13 +404,10 @@ import { useIrrigationStore } from '@/stores/irrigation';
 import { useDrawingStore } from '@/stores/drawing';
 import { performanceMonitor } from '@/utils/usePerformanceMonitor';
 import type { Plan } from '@/stores/irrigation';
-import type { DrawingElement, ShapeType, CircleData, RectangleData, SemicircleData, LineData, TextData, PolygonData, DrawingElementType, ElevationLineData, CircleWithSectionsData } from '@/types/drawing';
-import { CircleArc } from '@/utils/CircleArc';
-import { TextRectangle } from '@/utils/TextRectangle';
+import type { DrawingElement, ShapeType, CircleData, RectangleData, LineData, PolygonData, DrawingElementType, ElevationLineData } from '@/types/drawing';
 import { Rectangle } from '@/utils/Rectangle';
 import { Line } from '@/utils/Line';
 import { Polygon } from '@/utils/Polygon';
-import { CircleWithSections } from '@/utils/CircleWithSections';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 import NewPlanModal from '@/components/NewPlanModal.vue';
@@ -919,26 +916,6 @@ async function refreshMapWithPlan(planId: number) {
                     let layer: L.Layer | null = null;
 
                     switch (element.type_forme) {
-                      case 'TextRectangle': {
-                        const textData = element.data as TextData;
-                        if (!textData.bounds) return;
-                        const bounds = L.latLngBounds(
-                          L.latLng(textData.bounds.southWest[1], textData.bounds.southWest[0]),
-                          L.latLng(textData.bounds.northEast[1], textData.bounds.northEast[0])
-                        );
-                        layer = new TextRectangle(bounds, textData.content || 'Double-cliquez pour éditer', {
-                          ...textData.style,
-                          textStyle: textData.style.textStyle
-                        });
-                        if (textData.rotation && typeof (layer as any).setRotation === 'function') {
-                          (layer as any).setRotation(textData.rotation);
-                        }
-                        if (textData.name) {
-                          (layer as any).properties = { name: textData.name };
-                          (layer as any).name = textData.name;
-                        }
-                        break;
-                      }
                       case 'Circle': {
                         const circleData = element.data as CircleData;
                         if (circleData.center && circleData.radius) {
@@ -958,49 +935,6 @@ async function refreshMapWithPlan(planId: number) {
                             };
                             (layer as any).name = circleData.name;
                           }
-                        }
-                        break;
-                      }
-                      case 'Semicircle': {
-                        const arcData = element.data as SemicircleData;
-                        if (arcData.center && arcData.radius) {
-                          const center = L.latLng(arcData.center[1], arcData.center[0]);
-                          layer = new CircleArc(
-                            center,
-                            arcData.radius,
-                            arcData.startAngle || 0,
-                            arcData.endAngle || 180,
-                            { ...arcData.style }
-                          );
-
-                          // Définir les propriétés
-                          layer.properties = {
-                            type: 'Semicircle',
-                            radius: arcData.radius,
-                            startAngle: arcData.startAngle || 0,
-                            stopAngle: arcData.endAngle || 180,
-                            style: {
-                              ...(arcData.style || {}),
-                              name: arcData.style?.name || ''
-                            },
-                            center: center
-                          };
-
-                          // Calculer les propriétés additionnelles
-                          const openingAngle = ((arcData.endAngle || 180) - (arcData.startAngle || 0) + 360) % 360;
-                          const surface = (Math.PI * Math.pow(arcData.radius, 2) * openingAngle) / 360;
-                          const arcLength = (2 * Math.PI * arcData.radius * openingAngle) / 360;
-                          const perimeter = arcLength + 2 * arcData.radius;
-
-                          // Ajouter les propriétés calculées
-                          layer.properties.surface = surface;
-                          layer.properties.arcLength = arcLength;
-                          layer.properties.perimeter = perimeter;
-                          layer.properties.openingAngle = openingAngle;
-                          layer.properties.diameter = arcData.radius * 2;
-
-                          // Forcer une mise à jour des propriétés
-                          (layer as CircleArc).updateProperties();
                         }
                         break;
                       }
@@ -1064,26 +998,6 @@ async function refreshMapWithPlan(planId: number) {
                           }
                           if (lineData.elevationData) {
                             (layer as any).elevationData = lineData.elevationData;
-                          }
-                        }
-                        break;
-                      }
-                      case 'CircleWithSections': {
-                        const circleData = element.data as CircleWithSectionsData;
-                        if (circleData.center && circleData.radius) {
-                          const center = L.latLng(circleData.center[1], circleData.center[0]);
-                          layer = new CircleWithSections(center, {
-                            ...circleData.style,
-                            radius: circleData.radius
-                          });
-                          if (circleData.sections) {
-                            circleData.sections.forEach(section => {
-                              (layer as CircleWithSections).addSection(section);
-                            });
-                          }
-                          if (circleData.name) {
-                            (layer as any).properties = { name: circleData.name };
-                            (layer as any).name = circleData.name;
                           }
                         }
                         break;
@@ -1219,7 +1133,6 @@ async function savePlan() {
         type: (layer as any).properties?.type,
         name: (layer as any).properties?.name,
         isPolygon: layer instanceof L.Polygon,
-        isCircleArc: layer instanceof CircleArc,
         properties: (layer as any).properties
       });
 
@@ -1236,32 +1149,7 @@ async function savePlan() {
         dashArray: (layer.options as L.PathOptions).dashArray || ''
       };
 
-      if (layer instanceof TextRectangle) {
-        type_forme = 'TextRectangle';
-        const bounds = layer.getBounds();
-        data = {
-          bounds: {
-            southWest: [bounds.getSouthWest().lng, bounds.getSouthWest().lat],
-            northEast: [bounds.getNorthEast().lng, bounds.getNorthEast().lat]
-          },
-          content: layer.properties?.text || '',
-          name: layer.properties?.style?.name || '', // Access name from style object
-          style: {
-            ...commonStyle,
-            textStyle: {
-              color: layer.properties?.style?.textStyle?.color || '#000000',
-              fontSize: layer.properties?.style?.textStyle?.fontSize || '14px',
-              fontFamily: layer.properties?.style?.textStyle?.fontFamily || 'Arial, sans-serif',
-              textAlign: layer.properties?.style?.textStyle?.textAlign || 'center',
-              backgroundColor: layer.properties?.style?.textStyle?.backgroundColor || '#FFFFFF',
-              backgroundOpacity: layer.properties?.style?.textStyle?.backgroundOpacity ?? 1,
-              bold: layer.properties?.style?.textStyle?.bold || false,
-              italic: layer.properties?.style?.textStyle?.italic || false
-            }
-          },
-          rotation: layer.properties?.rotation || 0
-        };
-      } else if (layer instanceof Rectangle) {
+      if (layer instanceof Rectangle) {
         type_forme = 'Rectangle';
         const bounds = layer.getBounds();
         data = {
@@ -1275,42 +1163,6 @@ async function savePlan() {
           width: layer.getDimensions().width,
           height: layer.getDimensions().height,
           center: [layer.getCenter().lng, layer.getCenter().lat]
-        };
-      } else if (layer instanceof CircleArc || (layer as any).properties?.type === 'Semicircle') {
-        type_forme = 'Semicircle';
-        let center;
-        if (typeof (layer as any).getLatLng === 'function') {
-          center = (layer as any).getLatLng();
-        } else if ((layer as any).getCenter && typeof (layer as any).getCenter === 'function') {
-          center = (layer as any).getCenter();
-        } else if ((layer as any)._latlng) {
-          center = (layer as any)._latlng;
-        } else {
-          center = { lat: 0, lng: 0 };
-        }
-        const radius = (layer as any).getRadius ? (layer as any).getRadius() : 0;
-        const startAngle = (layer as any).properties?.startAngle || 0;
-        const endAngle = (layer as any).properties?.stopAngle || 180;
-        data = {
-          center: [center.lng, center.lat],
-          radius: radius,
-          startAngle: startAngle,
-          endAngle: endAngle,
-          name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
-          style: commonStyle
-        };
-      } else if (layer instanceof CircleWithSections || (layer as any).properties?.type === 'CircleWithSections') {
-        type_forme = 'CircleWithSections';
-        const center = (layer as CircleWithSections).getLatLng();
-        const radius = (layer as CircleWithSections).getRadius();
-        const sections = (layer as CircleWithSections).getSections();
-
-        data = {
-          center: [center.lng, center.lat],
-          radius: radius,
-          name: (layer as any).properties?.name || '',
-          style: commonStyle,
-          sections: sections
         };
       } else if (layer instanceof L.Circle) {
         type_forme = 'Circle';

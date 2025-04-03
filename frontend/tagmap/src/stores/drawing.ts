@@ -1,32 +1,21 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
-import type { 
-  DrawingElement, 
-  TextData, 
-  ShapeData, 
-  RectangleData, 
+import type {
+  DrawingElement,
+  ShapeData,
+  RectangleData,
   PolygonData,
   ElevationLineData,
   LineData,
   DrawingElementType,
-  SemicircleData,
-  CircleData,
-  NoteData
+  CircleData
 } from '@/types/drawing';
 import L from 'leaflet';
-import { TextRectangle } from '@/utils/TextRectangle';
 import { Polygon } from '@/utils/Polygon';
 import { ElevationLine } from '@/utils/ElevationLine';
 import { Line } from '@/utils/Line';
-import { CircleArc } from '@/utils/CircleArc';
 import { Rectangle } from '@/utils/Rectangle';
-import { CircleWithSections, type CircleSection } from '@/utils/CircleWithSections';
 import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
-
-// Définir le type pour les données des cercles avec sections
-interface CircleWithSectionsData extends CircleData {
-  sections: CircleSection[];
-}
 
 // Interface pour les notes géolocalisées
 interface NoteData {
@@ -64,12 +53,10 @@ interface DrawingState {
   performanceMonitor: ReturnType<typeof usePerformanceMonitor>;
 }
 
-function isTextData(data: ShapeData): data is TextData {
-  return 'content' in data && 'bounds' in data;
-}
+// TextData function removed as per requirements
 
 function isPolygonData(data: any): data is PolygonData {
-  return data && Array.isArray(data.points) && data.points.length > 0 && 
+  return data && Array.isArray(data.points) && data.points.length > 0 &&
          Array.isArray(data.points[0]) && data.points[0].length === 2;
 }
 
@@ -79,18 +66,18 @@ function isElevationData(data: any): data is ElevationLineData {
     return false;
   }
 
-  const hasValidPoints = Array.isArray(data.points) && 
+  const hasValidPoints = Array.isArray(data.points) &&
                         data.points.length > 0 &&
-                        Array.isArray(data.points[0]) && 
+                        Array.isArray(data.points[0]) &&
                         data.points[0].length === 2;
 
   const hasValidStyle = typeof data.style === 'object' && data.style !== null;
 
-  const hasValidElevationData = !data.elevationData || 
-                               (Array.isArray(data.elevationData) && 
-                                data.elevationData.every((point: any) => 
-                                  typeof point === 'object' && 
-                                  'distance' in point && 
+  const hasValidElevationData = !data.elevationData ||
+                               (Array.isArray(data.elevationData) &&
+                                data.elevationData.every((point: any) =>
+                                  typeof point === 'object' &&
+                                  'distance' in point &&
                                   'elevation' in point));
 
   return hasValidPoints && hasValidStyle && hasValidElevationData;
@@ -101,12 +88,10 @@ function isLineData(data: any): data is LineData {
          Array.isArray(data.points[0]) && data.points[0].length === 2;
 }
 
-function isNoteData(data: ShapeData): data is NoteData {
-  return 'title' in data && 'description' in data && 'visibility' in data;
-}
+// Note data type removed as per requirements
 
 function convertShapeToDrawingElement(shape: any): DrawingElement {
-  console.log('[DrawingStore] Conversion de la forme en élément', { 
+  console.log('[DrawingStore] Conversion de la forme en élément', {
     type: shape.properties?.type,
     name: shape.properties?.style?.name,
     properties: shape.properties
@@ -115,12 +100,9 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
   // Vérifier si c'est une note géolocalisée
   if (shape.properties?.type === 'Note') {
     const latLng = shape.getLatLng();
-    const data: NoteData = {
-      location: [latLng.lng, latLng.lat],
-      title: shape.properties.title || '',
-      description: shape.properties.description || '',
-      visibility: shape.properties.visibility || 'private',
-      attachments: shape.properties.attachments || [],
+    // Convertir en PolygonData pour compatibilité
+    const data: PolygonData = {
+      points: [[latLng.lng, latLng.lat]],
       style: {
         color: shape.properties.style?.color || '#3388ff',
         weight: shape.properties.style?.weight || 3,
@@ -168,7 +150,7 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
         fillOpacity: shape.properties.style?.fillOpacity || 0.2,
         name: shape.properties.style?.name || ''
       },
-      area: shape.properties.area || 0
+      // area is calculated dynamically
     };
     return { type_forme: 'Polygon', data };
   }
@@ -184,7 +166,7 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
         opacity: shape.properties.style?.opacity || 1,
         name: shape.properties.style?.name || ''
       },
-      length: shape.properties.length || 0
+      // length is calculated dynamically
     };
     return { type_forme: 'Line', data };
   }
@@ -196,90 +178,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
   console.log('[DrawingStore] Conversion de l\'élément stocké en forme', { element });
 
   switch (element.type_forme) {
-    case 'CircleWithSections': {
-      const data = element.data as CircleWithSectionsData;
-      if (!data.center || !data.radius) {
-        console.error('[DrawingStore] Données invalides pour CircleWithSections');
-        return null;
-      }
-
-      // Créer un CircleWithSections
-      const circleWithSections = new CircleWithSections(
-        L.latLng(data.center[1], data.center[0]),
-        {
-          color: data.style?.color || '#3388ff',
-          weight: data.style?.weight || 3,
-          opacity: data.style?.opacity || 1,
-          fillColor: data.style?.fillColor || '#3388ff',
-          fillOpacity: data.style?.fillOpacity || 0.2,
-          dashArray: data.style?.dashArray || '',
-          name: data.style?.name || '',
-          radius: data.radius,
-          sections: data.sections || []
-        }
-      );
-
-      // S'assurer que le type est correctement défini
-      circleWithSections.properties.type = 'CircleWithSections';
-
-      console.log('[DrawingStore] CircleWithSections restauré:', {
-        center: data.center,
-        radius: data.radius,
-        sections: data.sections?.length || 0
-      });
-
-      return circleWithSections;
-    }
-
-    case 'TextRectangle': {
-      if (!isTextData(element.data)) {
-        console.error('[DrawingStore] Données invalides pour TextRectangle');
-        return null;
-      }
-
-      const textData = element.data;
-      if (!textData.bounds) {
-        console.error('[DrawingStore] Données de bounds manquantes pour TextRectangle');
-        return null;
-      }
-
-      const bounds = new L.LatLngBounds(
-        L.latLng(textData.bounds.southWest[1], textData.bounds.southWest[0]),
-        L.latLng(textData.bounds.northEast[1], textData.bounds.northEast[0])
-      );
-
-      const options = {
-        color: textData.style?.color || '#3388ff',
-        fillColor: textData.style?.fillColor || '#3388ff',
-        fillOpacity: textData.style?.fillOpacity || 0.2,
-        weight: textData.style?.weight || 3,
-        opacity: textData.style?.opacity || 1,
-        name: textData.style?.name || '',
-        textStyle: {
-          color: textData.style.textStyle?.color || '#000000',
-          fontSize: textData.style.textStyle?.fontSize || '14px',
-          fontFamily: textData.style.textStyle?.fontFamily || 'Arial, sans-serif',
-          textAlign: textData.style.textStyle?.textAlign || 'center',
-          backgroundColor: textData.style.textStyle?.backgroundColor || '#FFFFFF',
-          backgroundOpacity: textData.style.textStyle?.backgroundOpacity ?? 1,
-          bold: textData.style.textStyle?.bold || false,
-          italic: textData.style.textStyle?.italic || false
-        }
-      };
-
-      const textRect = new TextRectangle(bounds, textData.content || 'Double-cliquez pour éditer', options);
-      if (textData.rotation) {
-        textRect.setRotation(textData.rotation);
-      }
-      
-      // S'assurer que le nom est mis dans style.name
-      if (textData.style?.name) {
-        textRect.properties.style.name = textData.style.name;
-      }
-      
-      return textRect;
-    }
-
     case 'Polygon': {
       const data = element.data;
       if (!isPolygonData(data)) {
@@ -287,7 +185,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
         return null;
       }
 
-      const points = data.points.map((point: [number, number]) => 
+      const points = data.points.map((point: [number, number]) =>
         L.latLng(point[1], point[0])
       );
 
@@ -302,7 +200,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
       });
 
       polygon.updateProperties();
-      
+
       return polygon;
     }
 
@@ -313,7 +211,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
         return null;
       }
 
-      const points = data.points.map((point: [number, number]) => 
+      const points = data.points.map((point: [number, number]) =>
         L.latLng(point[1], point[0])
       );
 
@@ -363,7 +261,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
         return null;
       }
 
-      const points = data.points.map((point: [number, number]) => 
+      const points = data.points.map((point: [number, number]) =>
         L.latLng(point[1], point[0])
       );
 
@@ -371,72 +269,9 @@ function convertStoredElementToShape(element: DrawingElement): any {
         ...(data.style || {}),
         name: data.style?.name || ''
       });
-      
+
       line.updateProperties();
       return line;
-    }
-
-    case 'Semicircle': {
-      const data = element.data as SemicircleData;
-      if (!data.center || !data.radius) {
-        console.error('[DrawingStore] Données invalides pour Semicircle');
-        return null;
-      }
-
-      const center = L.latLng(data.center[1], data.center[0]);
-      const circleArc = new CircleArc(
-        center,
-        data.radius,
-        data.startAngle || 0,
-        data.endAngle || 180,
-        {
-          color: data.style?.color || '#3388ff',
-          weight: data.style?.weight || 3,
-          opacity: data.style?.opacity || 1,
-          fillColor: data.style?.fillColor || '#3388ff',
-          fillOpacity: data.style?.fillOpacity || 0.2,
-          dashArray: data.style?.dashArray || '',
-          name: data.style?.name || ''
-        }
-      );
-
-      // Définir les propriétés
-      circleArc.properties = {
-        type: 'Semicircle',
-        radius: data.radius,
-        startAngle: data.startAngle || 0,
-        stopAngle: data.endAngle || 180,
-        style: {
-          ...(data.style || {}),
-          name: data.style?.name || ''
-        },
-        center: center
-      };
-
-      // Calculer les propriétés additionnelles
-      const openingAngle = ((data.endAngle || 180) - (data.startAngle || 0) + 360) % 360;
-      const surface = (Math.PI * Math.pow(data.radius, 2) * openingAngle) / 360;
-      const arcLength = (2 * Math.PI * data.radius * openingAngle) / 360;
-      const perimeter = arcLength + 2 * data.radius;
-
-      // Ajouter les propriétés calculées
-      circleArc.properties.surface = surface;
-      circleArc.properties.arcLength = arcLength;
-      circleArc.properties.perimeter = perimeter;
-      circleArc.properties.openingAngle = openingAngle;
-      circleArc.properties.diameter = data.radius * 2;
-
-      console.log('[DrawingStore] Semicircle restauré:', {
-        center: data.center,
-        radius: data.radius,
-        angles: {
-          start: data.startAngle,
-          end: data.endAngle
-        },
-        properties: circleArc.properties
-      });
-
-      return circleArc;
     }
 
     case 'Rectangle': {
@@ -491,13 +326,13 @@ function convertStoredElementToShape(element: DrawingElement): any {
         hasName: element.data?.style?.name !== undefined,
         name: element.data?.style?.name
       });
-      
+
       const data = element.data as CircleData;
       if (!data.center || !data.radius) {
         console.error('[DrawingStore] Données invalides pour Circle');
         return null;
       }
-      
+
       // Création du cercle
       const circle = L.circle(
         [data.center[1], data.center[0]],
@@ -511,7 +346,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
           radius: data.radius
         }
       );
-      
+
       // Définition des propriétés du cercle
       (circle as any).properties = {
         type: 'Circle',
@@ -524,7 +359,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
           name: data.style?.name || ''
         }
       };
-      
+
       console.log('[DrawingStore] Cercle créé:', {
         centerType: typeof data.center,
         center: data.center,
@@ -532,7 +367,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
         style: (circle as any).properties.style,
         name: (circle as any).properties.style.name
       });
-      
+
       return circle;
     }
 
@@ -610,7 +445,7 @@ export const useDrawingStore = defineStore('drawing', {
     addElement(element: DrawingElement | any) {
       const endMeasure = this.performanceMonitor.startMeasure('addElement', 'DrawingStore');
       try {
-        console.log('[DrawingStore] Ajout d\'un élément', { 
+        console.log('[DrawingStore] Ajout d\'un élément', {
           element,
           isLeafletLayer: element instanceof L.Layer,
           hasProperties: !!element.properties,
@@ -679,13 +514,13 @@ export const useDrawingStore = defineStore('drawing', {
         };
         return;
       }
-      
+
       // Sinon, mettre à jour uniquement les propriétés fournies
       this.currentStyle = { ...this.currentStyle, ...style };
     },
     async loadPlanElements(planId: number) {
       const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');
-      
+
       // Si le plan est déjà chargé avec des éléments, ne pas recharger
       if (this.currentMapId === planId && this.elements.length > 0) {
         console.log(`[DrawingStore] Plan ${planId} déjà chargé avec ${this.elements.length} éléments`);
@@ -706,7 +541,7 @@ export const useDrawingStore = defineStore('drawing', {
           formes: plan.formes,
           preferences: plan.preferences
         });
-        
+
         // Analyse détaillée des formes reçues
         if (plan.formes && Array.isArray(plan.formes)) {
           plan.formes.forEach((forme: any, index: number) => {
@@ -722,14 +557,14 @@ export const useDrawingStore = defineStore('drawing', {
             });
           });
         }
-        
+
         // Convertir les formes en éléments de dessin
         this.elements = plan.formes.map((forme: any) => {
           console.log('[DrawingStore] Traitement de la forme stockée', {
             id: forme.id,
             type_forme: forme.type_forme,
             data: forme.data,
-            isTextRectangle: forme.type_forme === 'TEXTE' || (forme.data && isTextData(forme.data))
+            // TextRectangle removed as per requirements
           });
           // Si la forme a déjà été convertie en élément de dessin
           if (forme.type_forme) {
@@ -773,7 +608,7 @@ export const useDrawingStore = defineStore('drawing', {
           elements: this.elements.map(el => ({
             id: el.id,
             type_forme: el.type_forme,
-            isTextRectangle: el.type_forme === 'TextRectangle' || isTextData(el.data)
+            // TextRectangle removed as per requirements
           }))
         });
         this.currentMapId = planId;
@@ -867,4 +702,4 @@ export const useDrawingStore = defineStore('drawing', {
       }
     }
   }
-}); 
+});

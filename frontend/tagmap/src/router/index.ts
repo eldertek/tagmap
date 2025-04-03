@@ -5,6 +5,7 @@ import LoginView from '../views/LoginView.vue'
 import MapView from '../views/MapView.vue'
 import UserListView from '@/views/UserListView.vue'
 import PlansView from '../views/PlansView.vue'
+import NotesView from '../views/NotesView.vue'
 const router = createRouter({
   history: createWebHistory('/'),
   routes: [
@@ -12,7 +13,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: MapView,
-      meta: { 
+      meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
@@ -21,7 +22,7 @@ const router = createRouter({
       path: '/plans',
       name: 'plans',
       component: PlansView,
-      meta: { 
+      meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
@@ -39,7 +40,7 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: () => import('@/views/ProfileView.vue'),
-      meta: { 
+      meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }
@@ -66,7 +67,16 @@ const router = createRouter({
       path: '/change-password',
       name: 'changePassword',
       component: ChangePasswordForm,
-      meta: { 
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
+      }
+    },
+    {
+      path: '/notes',
+      name: 'notes',
+      component: NotesView,
+      meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
       }

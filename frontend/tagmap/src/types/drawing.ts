@@ -34,8 +34,6 @@ export interface CircleData extends BaseData {
   radius: number;
 }
 
-// CircleSection and CircleWithSectionsData interfaces removed as per requirements
-
 export interface RectangleData {
   bounds: {
     southWest: [number, number];
@@ -69,7 +67,7 @@ export interface ElevationLineData extends BaseData {
   maxSlope?: number;
 }
 export interface ShapeType {
-  type: "unknown" | "Rectangle" | "Circle" | "Polygon" | "Line" | "Semicircle" | "CircleWithSections";
+  type: "unknown" | "Rectangle" | "Circle" | "Polygon" | "Line" | "Note";
   properties: {
     type?: string;
     style?: any;
@@ -86,6 +84,7 @@ export interface ShapeType {
     [key: string]: any;
   };
   layer: any;
+  options?: any;
 }
 
 // Union type pour toutes les formes possibles

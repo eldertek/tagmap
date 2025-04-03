@@ -6,6 +6,7 @@ import { Rectangle } from '../utils/Rectangle';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
 import { ElevationLine } from '../utils/ElevationLine';
+import { GeoNote } from '../utils/GeoNote';
 import type { TextMarker, TextStyle } from '../types/leaflet';
 import type { DrawableLayer } from '../types/drawing';
 import type { Feature, FeatureCollection, GeoJsonProperties, Polygon as GeoJSONPolygon } from 'geojson';
@@ -38,7 +39,7 @@ interface CustomIconOptions extends L.DivIconOptions {
 // Extend GlobalOptions to include snapLayers
 interface ExtendedGlobalOptions extends L.PM.GlobalOptions {
   snapLayers?: L.LayerGroup[];
-  }
+}
 // Modifier l'interface Layer pour éviter les conflits de type
 declare module 'leaflet' {
   interface Layer {
@@ -220,7 +221,7 @@ export function useMapDrawing(): MapDrawingReturn {
   });
   // Nettoyer l'écouteur lors du démontage
   onUnmounted(() => {
-    window.removeEventListener('clearControlPoints', () => {});
+    window.removeEventListener('clearControlPoints', () => { });
     if (map.value) {
       map.value.remove();
       map.value = null;
@@ -555,7 +556,7 @@ export function useMapDrawing(): MapDrawingReturn {
           const latLngs = (layer as L.Polyline).getLatLngs() as L.LatLng[];
           let length = 0;
           for (let i = 1; i < latLngs.length; i++) {
-            length += latLngs[i].distanceTo(latLngs[i-1]);
+            length += latLngs[i].distanceTo(latLngs[i - 1]);
           }
           properties.length = length;
         } catch (e) {
@@ -975,7 +976,7 @@ export function useMapDrawing(): MapDrawingReturn {
     // Mapper les noms d'outils du composant DrawingTools aux noms d'outils internes
     switch (tool) {
       case 'Note':
-        internalTool = 'Text'; // Utiliser l'outil Text existant pour les notes
+        internalTool = 'GeoNote'; // Utiliser notre nouvel outil GeoNote pour les notes géolocalisées
         break;
       case 'Polygon':
         internalTool = 'Polygon';
@@ -1146,6 +1147,34 @@ export function useMapDrawing(): MapDrawingReturn {
                 featureGroup.value.addLayer(marker);
                 selectedShape.value = marker;
                 // Désactiver le mode texte après l'ajout
+                map.value.off('click', onClick);
+                setDrawingTool('');
+              };
+              map.value.on('click', onClick);
+            }
+            break;
+          case 'GeoNote':
+            showHelpMessage('Cliquez pour ajouter une note géolocalisée, double-cliquez pour éditer');
+            if (map.value) {
+              const onClick = (e: L.LeafletMouseEvent) => {
+                if (!map.value || !featureGroup.value) return;
+                // Créer une nouvelle note géolocalisée
+                const geoNote = new GeoNote(e.latlng, {
+                  radius: 8,
+                  color: '#3B82F6',
+                  weight: 2,
+                  fillColor: '#3B82F6',
+                  fillOpacity: 0.6,
+                  name: 'Note géolocalisée',
+                  description: 'Double-cliquez pour éditer'
+                });
+                featureGroup.value.addLayer(geoNote);
+                selectedShape.value = geoNote;
+                // Mettre à jour les propriétés
+                geoNote.updateProperties();
+                // Ouvrir le popup pour édition immédiate
+                geoNote.openPopup();
+                // Désactiver le mode note après l'ajout
                 map.value.off('click', onClick);
                 setDrawingTool('');
               };
@@ -1406,8 +1435,6 @@ export function useMapDrawing(): MapDrawingReturn {
     const center = layer.getLatLng();
     const radius = layer.getRadius();
 
-    // CircleWithSections supprimé selon les exigences
-    const isCircleWithSections = layer.properties?.type === 'CircleWithSections';
 
     // Point central (vert)
     const centerPoint = createControlPoint(center, '#059669') as ControlPoint;
@@ -1439,11 +1466,6 @@ export function useMapDrawing(): MapDrawingReturn {
         map.value.dragging.disable();
         let isDragging = true;
 
-        // Si c'est un CircleWithSections, cacher les sections pendant le redimensionnement
-        if (isCircleWithSections) {
-          (layer as any)._clearSections();
-        }
-
         const onMouseMove = (e: L.LeafletMouseEvent) => {
           if (!isDragging) return;
           // Utiliser la méthode pour redimensionner le cercle sans mise à jour des propriétés
@@ -1469,13 +1491,6 @@ export function useMapDrawing(): MapDrawingReturn {
           // Mettre à jour les propriétés UNIQUEMENT à la fin du redimensionnement
           layer.updateProperties();
 
-          // Si c'est un CircleWithSections, réinitialiser les sections
-          if (isCircleWithSections && (layer as any)._initSections) {
-            setTimeout(() => {
-              (layer as any)._initSections();
-            }, 100);
-          }
-
           // Mise à jour de selectedShape pour déclencher la réactivité
           selectedShape.value = null; // Forcer un reset
           nextTick(() => {
@@ -1496,11 +1511,6 @@ export function useMapDrawing(): MapDrawingReturn {
       let isDragging = true;
       const startLatLng = layer.getLatLng();
       const startMouseLatLng = e.latlng;
-
-      // Si c'est un CircleWithSections, cacher les sections pendant le déplacement
-      if (isCircleWithSections) {
-        (layer as any)._clearSections();
-      }
 
       const onMouseMove = (e: L.LeafletMouseEvent) => {
         if (!isDragging) return;
@@ -1537,13 +1547,6 @@ export function useMapDrawing(): MapDrawingReturn {
         map.value.dragging.enable();
         // Mettre à jour les propriétés UNIQUEMENT à la fin du déplacement
         layer.updateProperties();
-
-        // Si c'est un CircleWithSections, réinitialiser les sections
-        if (isCircleWithSections && (layer as any)._initSections) {
-          setTimeout(() => {
-            (layer as any)._initSections();
-          }, 100);
-        }
 
         // Mise à jour de selectedShape pour déclencher la réactivité
         selectedShape.value = null; // Forcer un reset
@@ -1650,7 +1653,7 @@ export function useMapDrawing(): MapDrawingReturn {
         const sideLength = index % 2 === 0 ? width : height;
         return [
           formatMeasure(sideLength, 'm', 'Longueur du côté'),
-          formatMeasure(sideLength/2, 'm', 'Distance au coin')
+          formatMeasure(sideLength / 2, 'm', 'Distance au coin')
         ].join('<br>');
       });
 
@@ -2025,10 +2028,10 @@ export function useMapDrawing(): MapDrawingReturn {
           if (layer instanceof Line) {
             const segmentLength = layer.getSegmentLengthAt(i);
             const totalLength = layer.getLength() || 0;
-            const distanceFromStart = layer.getLengthToVertex(i) + segmentLength/2;
+            const distanceFromStart = layer.getLengthToVertex(i) + segmentLength / 2;
             return [
               formatMeasure(segmentLength, 'm', 'Longueur du segment'),
-              formatMeasure(segmentLength/2, 'm', 'Demi-segment'),
+              formatMeasure(segmentLength / 2, 'm', 'Demi-segment'),
               formatMeasure(distanceFromStart, 'm', 'Distance depuis le début'),
               formatMeasure(totalLength, 'm', 'Longueur totale')
             ].join('<br>');
@@ -2065,7 +2068,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
       // Stocker la fonction de nettoyage
       (activeControlPoints as any).cleanup = () => {
-        layer.off('move:start', () => {});
+        layer.off('move:start', () => { });
         layer.off('move:end', updateControlPoints);
         layer.off('vertex:moved', updateControlPoints);
         layer.off('latlngs:updated', updateControlPoints);
@@ -2357,7 +2360,7 @@ export function useMapDrawing(): MapDrawingReturn {
           // Récréer immédiatement tous les points de contrôle
           // pour avoir accès au nouveau point créé
           clearActiveControlPoints();
-            updatePolygonControlPoints(layer);
+          updatePolygonControlPoints(layer);
           // Récupérer le nouveau point dans la liste mise à jour des points actifs
           // Le nouveau point sera à la position i+1 dans la liste des sommets
           const newVertexIndex = currentIndex + 1;
@@ -2402,15 +2405,15 @@ export function useMapDrawing(): MapDrawingReturn {
                 );
                 midPoints[nextMidIndex].setLatLng(midPoint);
               }
-          };
-          const onMouseUp = () => {
-            isDragging = false;
+            };
+            const onMouseUp = () => {
+              isDragging = false;
               if (!map.value) {
                 return;
               }
-            map.value.off('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            map.value.dragging.enable();
+              map.value.off('mousemove', onMouseMove);
+              document.removeEventListener('mouseup', onMouseUp);
+              map.value.dragging.enable();
               // Forcer la mise à jour des propriétés de la forme
               if (layer.properties) {
                 // Recalculer les propriétés à jour
@@ -2432,9 +2435,9 @@ export function useMapDrawing(): MapDrawingReturn {
               nextTick(() => {
                 selectedShape.value = layer;
               });
-          };
-          map.value.on('mousemove', onMouseMove);
-          document.addEventListener('mouseup', onMouseUp);
+            };
+            map.value.on('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
           } else {
             // Si on n'a pas trouvé le point (cas d'erreur), on nettoie
             map.value.dragging.enable();
@@ -2775,10 +2778,10 @@ export function useMapDrawing(): MapDrawingReturn {
             if (intersectionResult) {
               const overlapArea = area(intersectionResult);
               intersectionArea += overlapArea;
-              console.log(`Intersection entre formes ${i+1} et ${j+1}: ${overlapArea.toFixed(2)}m²`);
+              console.log(`Intersection entre formes ${i + 1} et ${j + 1}: ${overlapArea.toFixed(2)}m²`);
             }
           } catch (error) {
-            console.error(`Erreur lors du calcul d'intersection entre les formes ${i+1} et ${j+1}:`, error);
+            console.error(`Erreur lors du calcul d'intersection entre les formes ${i + 1} et ${j + 1}:`, error);
           }
         }
       }
@@ -2913,8 +2916,8 @@ export function useMapDrawing(): MapDrawingReturn {
         direction: 'center',
         className: 'connected-group-tooltip'
       })
-      .setContent('<div>Groupe connecté</div>')
-      .setLatLng(center);
+        .setContent('<div>Groupe connecté</div>')
+        .setLatLng(center);
 
       if (coverageOverlayGroup.value) {
         coverageOverlayGroup.value.addLayer(L.marker(center, {
