@@ -44,7 +44,7 @@
               <option value="month">Ce mois</option>
             </select>
           </div>
-          <div class="flex items-end hidden md:block">
+          <div class="flex items-end">
             <button
               @click="showNewColumnModal = true"
               class="w-full inline-flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
@@ -189,18 +189,7 @@
           </template>
         </draggable>
 
-          <!-- Bouton flottant pour ajouter une colonne (visible sur tous les appareils) -->
-          <div class="fixed bottom-4 right-4 z-10">
-            <button
-              @click="showNewColumnModal = true"
-              class="w-12 h-12 flex items-center justify-center rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-              title="Ajouter une colonne"
-            >
-              <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </button>
-          </div>
+
         </div>
       </div>
     </div>
