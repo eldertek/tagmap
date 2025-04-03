@@ -3,9 +3,9 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
-          <h1 class="text-2xl font-semibold text-gray-900">Notes géolocalisées</h1>
+          <h1 class="text-2xl font-semibold text-gray-900">Notes</h1>
           <p class="mt-2 text-sm text-gray-700">
-            Liste de toutes vos notes géolocalisées sur la carte.
+            Liste de toutes vos notes.
           </p>
         </div>
         <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
@@ -83,7 +83,7 @@
               <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- En-tête de colonne avec poignée de drag -->
                 <div
-                  class="p-3 flex items-center justify-between column-drag-handle cursor-move"
+                  class="p-3 flex items-center justify-between column-drag-handle cursor-move no-select"
                   :style="{ backgroundColor: column.color + '20', borderBottom: '2px solid ' + column.color }"
                 >
                   <div class="flex items-center">
@@ -111,28 +111,37 @@
                 </div>
 
                 <!-- Liste des notes dans cette colonne avec drag and drop -->
-                <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto">
+                <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto" :data-column-id="column.id">
                   <div v-if="getNotesByColumn(column.id).length === 0" class="p-4 text-center text-gray-400 text-sm italic">
                     Aucune note dans cette colonne
                   </div>
 
                   <draggable
                     :list="getNotesByColumn(column.id)"
-                    class="min-h-[50px]"
+                    class="min-h-[50px] draggable-container"
                     group="notes"
                     item-key="id"
-                    handle=".note-drag-handle"
-                    @end="onNoteDragEnd"
                     :animation="150"
+                    ghost-class="ghost-card"
+                    drag-class="dragging"
+                    chosen-class="chosen"
+                    handle=".drag-handle"
+                    @change="(event) => onDragChange(event, column.id)"
                     :data-column-id="column.id"
+                    :force-fallback="true"
                   >
                     <template #item="{ element: note }">
-                      <div class="mb-2 p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                      <div class="mb-2 p-3 pl-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select relative" :data-note-id="note.id">
                         <!-- En-tête de la note avec poignée de drag -->
-                        <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-start justify-between mb-2 drag-handle cursor-move">
+                          <div class="absolute top-3 left-1 opacity-30 drag-indicator">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                            </svg>
+                          </div>
                           <div class="flex items-center">
                             <div
-                              class="h-8 w-8 rounded-full flex items-center justify-center mr-2 note-drag-handle cursor-move"
+                              class="h-8 w-8 rounded-full flex items-center justify-center mr-2"
                               :style="{ backgroundColor: note.style.fillColor + '40', color: note.style.color }"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -410,9 +419,11 @@ const filteredNotes = computed(() => {
   return filtered;
 });
 
-// Notes filtrées par colonne
+// Notes filtrées par colonne et triées par ordre
 const getNotesByColumn = computed(() => (columnId: string) => {
-  return filteredNotes.value.filter(note => note.columnId === columnId);
+  return filteredNotes.value
+    .filter(note => note.columnId === columnId)
+    .sort((a, b) => a.order - b.order);
 });
 
 // Colonnes triées par ordre
@@ -540,22 +551,100 @@ function onColumnDragEnd() {
   notificationStore.success('Ordre des colonnes mis à jour');
 }
 
-// Gérer la fin du drag and drop des notes
-function onNoteDragEnd(event: any) {
-  // Identifier la colonne cible
-  const targetColumnId = event.to.getAttribute('data-column-id') ||
-                         event.to.closest('[data-column-id]')?.getAttribute('data-column-id');
+// Gérer les changements lors du drag and drop
+function onDragChange(event: any, columnId: string) {
+  console.log('Drag change event:', event);
 
-  // Si on a déplacé une note entre colonnes
-  if (targetColumnId && event.item && event.item._underlying_vm_) {
-    const note = event.item._underlying_vm_;
-    if (note.columnId !== targetColumnId) {
-      // Mettre à jour la colonne de la note
-      notesStore.moveNote(note.id, targetColumnId);
+  try {
+    // Gérer le déplacement d'une note entre colonnes
+    if (event.added) {
+      const { element: note } = event.added;
 
-      const targetColumn = notesStore.getColumnById(targetColumnId);
+      // Mettre à jour la note dans le store
+      notesStore.moveNote(note.id, columnId);
+
+      // Réorganiser les notes dans la colonne cible
+      const notesInColumn = getNotesByColumn.value(columnId);
+      const noteIds = notesInColumn.map(n => n.id);
+      notesStore.reorderNotes(columnId, noteIds);
+
+      const targetColumn = notesStore.getColumnById(columnId);
       notificationStore.success(`Note déplacée vers ${targetColumn?.title || 'une autre colonne'}`);
     }
+
+    // Gérer le réordonnancement des notes dans une même colonne
+    if (event.moved) {
+      // Réorganiser les notes dans la colonne
+      const notesInColumn = getNotesByColumn.value(columnId);
+      const noteIds = notesInColumn.map(n => n.id);
+      notesStore.reorderNotes(columnId, noteIds);
+
+      notificationStore.success('Ordre des notes mis à jour');
+    }
+
+    // Gérer la suppression d'une note d'une colonne (lors du déplacement vers une autre colonne)
+    if (event.removed) {
+      // Pas besoin de faire quoi que ce soit ici, car la note sera ajoutée à la nouvelle colonne
+      // et gérée par le cas 'added' dans l'autre colonne
+    }
+  } catch (error) {
+    console.error('Erreur lors du drag and drop:', error);
+    notificationStore.error('Une erreur est survenue lors du déplacement de la note');
   }
 }
 </script>
+
+<style scoped>
+.dragging {
+  opacity: 0.5;
+  background-color: #f3f4f6;
+  transform: rotate(2deg);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.chosen {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.ghost-card {
+  opacity: 0.4;
+  background-color: #f9fafb;
+  border: 2px dashed #d1d5db;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: #f9fafb;
+  border: 2px dashed #d1d5db;
+}
+
+.sortable-drag {
+  cursor: grabbing;
+}
+
+.no-select {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+}
+
+.drag-handle {
+  cursor: move; /* fallback if grab cursor is unsupported */
+  cursor: grab;
+  cursor: -moz-grab;
+  cursor: -webkit-grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  cursor: -moz-grabbing;
+  cursor: -webkit-grabbing;
+}
+
+.drag-indicator {
+  pointer-events: none; /* Ensures the indicator doesn't interfere with drag events */
+}
+</style>

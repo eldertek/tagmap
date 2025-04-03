@@ -16,6 +16,7 @@ export interface Note {
   description: string;
   location: [number, number];
   columnId: string;
+  order: number; // Added order property to track position within column
   createdAt: string;
   updatedAt: string;
   style: {
@@ -31,10 +32,11 @@ export interface Note {
 export const useNotesStore = defineStore('notes', () => {
   // État
   const columns = ref<NoteColumn[]>([
+    { id: 'a-faire', title: 'À faire', color: '#F59E0B', order: -1, isDefault: true },
     { id: 'en-cours', title: 'En cours', color: '#3B82F6', order: 0, isDefault: true },
     { id: 'termine', title: 'Terminé', color: '#10B981', order: 1, isDefault: true }
   ]);
-  
+
   const notes = ref<Note[]>([
     {
       id: 1,
@@ -42,6 +44,7 @@ export const useNotesStore = defineStore('notes', () => {
       description: 'Point de départ du système d\'irrigation',
       location: [43.6047, 1.4442],
       columnId: 'en-cours',
+      order: 0,
       createdAt: '2023-05-15T10:30:00Z',
       updatedAt: '2023-05-15T10:30:00Z',
       style: {
@@ -59,6 +62,7 @@ export const useNotesStore = defineStore('notes', () => {
       description: 'Fuite détectée dans cette zone',
       location: [43.6057, 1.4452],
       columnId: 'en-cours',
+      order: 1,
       createdAt: '2023-05-16T14:20:00Z',
       updatedAt: '2023-05-16T14:20:00Z',
       style: {
@@ -76,6 +80,7 @@ export const useNotesStore = defineStore('notes', () => {
       description: 'Vanne principale pour le secteur nord',
       location: [43.6067, 1.4462],
       columnId: 'termine',
+      order: 0,
       createdAt: '2023-05-17T09:15:00Z',
       updatedAt: '2023-05-17T09:15:00Z',
       style: {
@@ -100,7 +105,9 @@ export const useNotesStore = defineStore('notes', () => {
   });
 
   const getNotesByColumn = computed(() => (columnId: string) => {
-    return notes.value.filter(note => note.columnId === columnId);
+    return notes.value
+      .filter(note => note.columnId === columnId)
+      .sort((a, b) => a.order - b.order);
   });
 
   const getDefaultColumn = computed(() => {
@@ -156,31 +163,42 @@ export const useNotesStore = defineStore('notes', () => {
     });
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) {
-    const newId = notes.value.length > 0 
-      ? Math.max(...notes.value.map(n => n.id)) + 1 
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order'>) {
+    const newId = notes.value.length > 0
+      ? Math.max(...notes.value.map(n => n.id)) + 1
       : 1;
-    
+
     const now = new Date().toISOString();
-    
+
+    // Calculate the order for the new note (highest order in the column + 1)
+    const notesInColumn = notes.value.filter(n => n.columnId === note.columnId);
+    const order = notesInColumn.length > 0
+      ? Math.max(...notesInColumn.map(n => n.order)) + 1
+      : 0;
+
     notes.value.push({
       ...note,
       id: newId,
+      order,
       createdAt: now,
       updatedAt: now
     });
-    
+
     return newId;
   }
 
   function updateNote(id: number, data: Partial<Note>) {
     const index = notes.value.findIndex(note => note.id === id);
     if (index !== -1) {
-      notes.value[index] = { 
-        ...notes.value[index], 
-        ...data, 
-        updatedAt: new Date().toISOString() 
+      // Create a new note object with updated properties
+      const updatedNote = {
+        ...notes.value[index],
+        ...data,
+        updatedAt: new Date().toISOString()
       };
+
+      // Replace the note in the array to ensure reactivity
+      notes.value[index] = updatedNote;
     }
   }
 
@@ -189,11 +207,52 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   function moveNote(noteId: number, targetColumnId: string) {
-    const note = notes.value.find(n => n.id === noteId);
-    if (note) {
-      note.columnId = targetColumnId;
-      note.updatedAt = new Date().toISOString();
+    const noteIndex = notes.value.findIndex(n => n.id === noteId);
+    if (noteIndex !== -1) {
+      const note = notes.value[noteIndex];
+      const oldColumnId = note.columnId;
+
+      // If moving to a different column
+      if (oldColumnId !== targetColumnId) {
+        // Calculate the new order (highest order in the target column + 1)
+        const notesInTargetColumn = notes.value.filter(n => n.columnId === targetColumnId);
+        const newOrder = notesInTargetColumn.length > 0
+          ? Math.max(...notesInTargetColumn.map(n => n.order)) + 1
+          : 0;
+
+        // Create a new note object with updated properties
+        const updatedNote = {
+          ...note,
+          columnId: targetColumnId,
+          order: newOrder,
+          updatedAt: new Date().toISOString()
+        };
+
+        // Replace the note in the array
+        notes.value[noteIndex] = updatedNote;
+      } else {
+        // Just update the timestamp if staying in the same column
+        notes.value[noteIndex] = {
+          ...notes.value[noteIndex],
+          updatedAt: new Date().toISOString()
+        };
+      }
     }
+  }
+
+  function reorderNotes(columnId: string, noteIds: number[]) {
+    // Update the order of notes in the specified column
+    noteIds.forEach((id, index) => {
+      const noteIndex = notes.value.findIndex(n => n.id === id && n.columnId === columnId);
+      if (noteIndex !== -1) {
+        // Create a new note object with updated order
+        notes.value[noteIndex] = {
+          ...notes.value[noteIndex],
+          order: index,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    });
   }
 
   return {
@@ -211,6 +270,7 @@ export const useNotesStore = defineStore('notes', () => {
     addNote,
     updateNote,
     removeNote,
-    moveNote
+    moveNote,
+    reorderNotes
   };
 });
