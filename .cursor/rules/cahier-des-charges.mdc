@@ -35,7 +35,6 @@ TagMap est une interface accessible depuis un ordinateur ou un smartphone permet
 
 ### Création de Formes, Lignes, profil altimétrique
 - Possibilité de dessiner des polygones avec calcul de surface, des lignes et profil altimétrique sur la carte
-- (enlever section dans les cercles, demi cercle, outil texte)
 
 ### Gestion des Médias
 - Possibilité de prendre des photos directement depuis l'application
@@ -44,7 +43,7 @@ TagMap est une interface accessible depuis un ordinateur ou un smartphone permet
 ### Planification d'Itinéraires
 - Calcul d'itinéraires à partir d'un point enregistré (ouvrir google map par exemple)
 
-### Intégration d'APIs
+### Intégration d'APIs (pas pour l'instant)
 - Possibilité d'intégrer des APIs externes pour enrichir les fonctionnalités
   - Traceur GPS avec carte SIM intégré récupérer les données via le serveur Ionos
   - Station météo API https://api.ecowitt.net/

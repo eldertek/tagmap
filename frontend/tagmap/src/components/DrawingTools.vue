@@ -400,7 +400,7 @@ const drawingTools = [
   { type: 'Polygon', label: 'Polygone' },
   { type: 'Line', label: 'Ligne' },
   { type: 'ElevationLine', label: 'Profil altimétrique' },
-  { type: 'note', label: 'Note géolocalisée' }
+  { type: 'Note', label: 'Note géolocalisée' }
 ]
 
 const getToolIcon = (type: string) => {
@@ -411,7 +411,7 @@ const getToolIcon = (type: string) => {
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20l16 -16"/></svg>'
     case 'ElevationLine':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20h18l-3-3l-4 4l-4-7l-4 4l-3-3"/></svg>'
-    case 'note':
+    case 'Note':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
     default:
       return ''
@@ -513,14 +513,14 @@ const updateShapeName = (): void => {
 }
 
 const updateSamplePointStyle = (): void => {
-  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
+  if (!props.selectedShape || !localProperties.value || localProperties.value.type !== 'ElevationLine') return
 
   // Emit the style update to the parent component
   emit('style-update', { samplePointStyle: samplePointStyle.value })
 }
 
 const updateMinMaxPointStyle = (): void => {
-  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
+  if (!props.selectedShape || !localProperties.value || localProperties.value.type !== 'ElevationLine') return
 
   // Emit the style update to the parent component
   emit('style-update', { minMaxPointStyle: minMaxPointStyle.value })
@@ -549,16 +549,16 @@ const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'd
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
   if (props.selectedShape) {
-    const style = props.selectedShape.options
+    const style = props.selectedShape.options || {}
     strokeColor.value = style.color || '#3B82F6'
     strokeWidth.value = style.weight || 3
     strokeStyle.value = style.dashArray ? 'dashed' : 'solid'
     fillColor.value = style.fillColor || '#3B82F6'
     fillOpacity.value = style.fillOpacity || 0.2
-    showFillOptions.value = props.selectedShape.properties.type !== 'Line'
+    showFillOptions.value = props.selectedShape.properties?.type !== 'Line'
 
     // Mettre à jour le nom de la forme
-    shapeName.value = props.selectedShape.properties.name || ''
+    shapeName.value = props.selectedShape.properties?.name || ''
   }
 })
 </script>

@@ -19,20 +19,7 @@ export interface Style {
   dashArray?: string;
   name?: string;
 }
-export interface TextStyle {
-  color: string;
-  fontSize: string;
-  fontFamily: string;
-  textAlign: 'left' | 'center' | 'right';
-  backgroundColor: string;
-  backgroundOpacity: number;
-  bold: boolean;
-  italic: boolean;
-}
-export interface TextRectangleStyle extends Style {
-  textStyle: TextStyle;
-  name?: string;
-}
+// TextStyle and TextRectangleStyle interfaces removed as per requirements
 export interface Bounds {
   southWest: [number, number];
   northEast: [number, number];
@@ -47,21 +34,7 @@ export interface CircleData extends BaseData {
   radius: number;
 }
 
-// Interface pour une section de cercle
-export interface CircleSection {
-  id: string;
-  startAngle: number;
-  endAngle: number;
-  radius: number;
-  color: string;
-  name?: string;
-  surface?: number;
-}
-
-// Interface pour un cercle avec sections
-export interface CircleWithSectionsData extends CircleData {
-  sections: CircleSection[];
-}
+// CircleSection and CircleWithSectionsData interfaces removed as per requirements
 
 export interface RectangleData {
   bounds: {
@@ -75,22 +48,11 @@ export interface RectangleData {
   center?: [number, number];
   name?: string;
 }
-export interface SemicircleData extends BaseData {
-  center: [number, number];  // [longitude, latitude]
-  radius: number;
-  startAngle: number;
-  endAngle: number;
-}
+// SemicircleData interface removed as per requirements
 export interface LineData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
 }
-export interface TextData {
-  bounds: Bounds;
-  content: string;
-  style: TextRectangleStyle;
-  rotation?: number;
-  name?: string;
-}
+// TextData interface removed as per requirements
 export interface PolygonData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
 }
@@ -127,26 +89,21 @@ export interface ShapeType {
 }
 
 // Union type pour toutes les formes possibles
-export type ShapeData = 
-  | TextData 
-  | PolygonData 
-  | LineData 
-  | RectangleData 
+export type ShapeData =
+  | PolygonData
+  | LineData
+  | RectangleData
   | CircleData
-  | ElevationLineData
-  | CircleWithSectionsData
-  | SemicircleData;
+  | ElevationLineData;
 
 // Type pour les types de formes possibles
-export type DrawingElementType = 
+export type DrawingElementType =
   | 'Circle'
   | 'Rectangle'
-  | 'Semicircle'
   | 'Line'
-  | 'TextRectangle'
   | 'Polygon'
   | 'ElevationLine'
-  | 'CircleWithSections'
+  | 'Note'
   | 'unknown';
 
 // Interface principale pour un élément de dessin
@@ -156,14 +113,4 @@ export interface DrawingElement {
   data: ShapeData;
 }
 
-export interface TextRectangleProperties {
-  type: 'TextRectangle';
-  text: string;
-  width: number;
-  height: number;
-  area: number;
-  rotation: number;
-  center?: L.LatLng;
-  name?: string;
-  style: TextRectangleStyle;
-} 
+// TextRectangleProperties interface removed as per requirements
