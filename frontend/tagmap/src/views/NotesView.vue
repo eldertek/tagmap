@@ -20,7 +20,7 @@
 
       <!-- Filtres de recherche et bouton d'ajout de colonne -->
       <div class="mt-6 bg-white shadow rounded-lg p-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label for="search" class="block text-sm font-medium text-gray-700">Recherche</label>
             <input
@@ -42,6 +42,17 @@
               <option value="today">Aujourd'hui</option>
               <option value="week">Cette semaine</option>
               <option value="month">Ce mois</option>
+            </select>
+          </div>
+          <div>
+            <label for="accessLevel" class="block text-sm font-medium text-gray-700">Niveau d'accès</label>
+            <select
+              id="accessLevel"
+              v-model="filters.accessLevel"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            >
+              <option value="">Tous les niveaux</option>
+              <option v-for="level in accessLevels" :key="level.id" :value="level.id">{{ level.title }}</option>
             </select>
           </div>
           <div class="flex items-end">
@@ -181,9 +192,18 @@
                         <!-- Pied de la note -->
                         <div class="flex justify-between items-center text-xs text-gray-400">
                           <span>{{ formatDate(note.createdAt) }}</span>
-                          <span class="px-2 py-1 rounded-full" :style="{ backgroundColor: column.color + '20', color: column.color }">
-                            {{ column.title }}
-                          </span>
+                          <div class="flex space-x-1">
+                            <span
+                              class="px-2 py-1 rounded-full"
+                              :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }"
+                              :title="accessLevels.find(l => l.id === note.accessLevel)?.description"
+                            >
+                              {{ getAccessLevelLabel(note.accessLevel) }}
+                            </span>
+                            <span class="px-2 py-1 rounded-full" :style="{ backgroundColor: column.color + '20', color: column.color }">
+                              {{ column.title }}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </template>
@@ -264,6 +284,15 @@
                 </select>
               </div>
               <div class="mb-4">
+                <label for="accessLevel" class="block text-sm font-medium text-gray-700">Niveau d'accès</label>
+                <select id="accessLevel" :value="editingNote?.accessLevel || ''" @change="updateNoteField('accessLevel', $event)"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option v-for="level in accessLevels" :key="level.id" :value="level.id">
+                    {{ level.title }} - {{ level.description }}
+                  </option>
+                </select>
+              </div>
+              <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700">Couleur</label>
                 <div class="mt-1 flex space-x-2">
                   <div v-for="color in colors" :key="color"
@@ -332,7 +361,8 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
-import { useNotesStore, type Note } from '../stores/notes';
+import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
+import { useAuthStore } from '../stores/auth';
 import draggable from 'vuedraggable';
 
 // Utilisation du type Note importé depuis le store
@@ -340,6 +370,7 @@ import draggable from 'vuedraggable';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
+const authStore = useAuthStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const showEditModal = ref(false);
@@ -359,10 +390,19 @@ const columnsForDrag = computed({
   }
 });
 
+// Niveaux d'accès disponibles
+const accessLevels = [
+  { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
+  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible uniquement par l\'entreprise' },
+  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
+  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous (entreprise, salariés et visiteurs)' }
+];
+
 // Filtres
 const filters = reactive({
   search: '',
-  date: ''
+  date: '',
+  accessLevel: ''
 });
 
 // Couleurs disponibles pour les notes
@@ -376,26 +416,34 @@ const colors = [
   '#6B7280', // Gris
 ];
 
-// Notes filtrées par recherche et date
+// Notes filtrées
 const filteredNotes = computed(() => {
-  let filtered = [...notesStore.notes];
+  // D'abord filtrer par accès
+  let filtered = notesStore.getAccessibleNotes;
 
-  // Filtre par recherche
+  // Filtrer par recherche
   if (filters.search) {
-    const search = filters.search.toLowerCase();
+    const searchTerm = filters.search.toLowerCase();
     filtered = filtered.filter(note =>
-      note.title.toLowerCase().includes(search) ||
-      note.description.toLowerCase().includes(search)
+      note.title.toLowerCase().includes(searchTerm) ||
+      note.description.toLowerCase().includes(searchTerm)
     );
   }
 
-  // Filtre par date
+  // Filtrer par niveau d'accès
+  if (filters.accessLevel) {
+    filtered = filtered.filter(note => note.accessLevel === filters.accessLevel);
+  }
+
+  // Filtrer par date
   if (filters.date) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
     filtered = filtered.filter(note => {
       const noteDate = new Date(note.createdAt);
@@ -421,6 +469,29 @@ const getNotesByColumn = computed(() => (columnId: string) => {
     .filter(note => note.columnId === columnId)
     .sort((a, b) => a.order - b.order);
 });
+
+// Obtenir le libellé du niveau d'accès
+function getAccessLevelLabel(level: NoteAccessLevel): string {
+  return notesStore.getAccessLevelLabel(level);
+}
+
+// Obtenir la couleur du niveau d'accès
+function getAccessLevelColor(level: NoteAccessLevel): string {
+  switch (level) {
+    case NoteAccessLevel.PRIVATE:
+      return '#9CA3AF'; // Gris
+    case NoteAccessLevel.COMPANY:
+      return '#EF4444'; // Rouge - pour l'entreprise uniquement
+    case NoteAccessLevel.EMPLOYEE:
+      return '#F59E0B'; // Orange - pour l'entreprise et salariés
+    case NoteAccessLevel.VISITOR:
+      return '#10B981'; // Vert - pour tous
+    default:
+      return '#6B7280';
+  }
+}
+
+
 
 // Colonnes triées par ordre
 const sortedColumns = computed(() => {
@@ -487,6 +558,8 @@ function updateNoteField(field: string, event: Event) {
 
   if (field === 'title' || field === 'description' || field === 'columnId') {
     editingNote.value[field] = target.value;
+  } else if (field === 'accessLevel') {
+    editingNote.value.accessLevel = target.value as NoteAccessLevel;
   }
 }
 

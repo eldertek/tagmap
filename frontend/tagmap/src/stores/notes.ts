@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuthStore } from './auth';
 
 export interface NoteColumn {
   id: string;
@@ -8,6 +9,13 @@ export interface NoteColumn {
   color: string;
   order: number;
   isDefault?: boolean;
+}
+
+export enum NoteAccessLevel {
+  PRIVATE = 'private',
+  COMPANY = 'company',
+  EMPLOYEE = 'employee',
+  VISITOR = 'visitor'
 }
 
 export interface Note {
@@ -19,6 +27,7 @@ export interface Note {
   order: number; // Added order property to track position within column
   createdAt: string;
   updatedAt: string;
+  accessLevel: NoteAccessLevel; // Access level for permissions
   style: {
     color: string;
     weight: number;
@@ -47,6 +56,7 @@ export const useNotesStore = defineStore('notes', () => {
       order: 0,
       createdAt: '2023-05-15T10:30:00Z',
       updatedAt: '2023-05-15T10:30:00Z',
+      accessLevel: NoteAccessLevel.COMPANY,
       style: {
         color: '#3B82F6',
         weight: 2,
@@ -65,6 +75,7 @@ export const useNotesStore = defineStore('notes', () => {
       order: 1,
       createdAt: '2023-05-16T14:20:00Z',
       updatedAt: '2023-05-16T14:20:00Z',
+      accessLevel: NoteAccessLevel.EMPLOYEE,
       style: {
         color: '#EF4444',
         weight: 2,
@@ -83,6 +94,7 @@ export const useNotesStore = defineStore('notes', () => {
       order: 0,
       createdAt: '2023-05-17T09:15:00Z',
       updatedAt: '2023-05-17T09:15:00Z',
+      accessLevel: NoteAccessLevel.VISITOR,
       style: {
         color: '#10B981',
         weight: 2,
@@ -116,6 +128,51 @@ export const useNotesStore = defineStore('notes', () => {
 
   const getSortedColumns = computed(() => {
     return [...columns.value].sort((a, b) => a.order - b.order);
+  });
+
+  // Vérifier si l'utilisateur a accès à une note en fonction de son niveau d'accès
+  const hasAccessToNote = computed(() => (note: Note) => {
+    const authStore = useAuthStore();
+    const user = authStore.user;
+
+    if (!user) return false;
+
+    // Les administrateurs ont accès à toutes les notes
+    if (authStore.isAdmin) return true;
+
+    // L'accès dépend du niveau d'accès de la note et du rôle de l'utilisateur
+    switch (note.accessLevel) {
+      case NoteAccessLevel.PRIVATE:
+        // Seul le créateur peut voir les notes privées (à implémenter avec l'ID du créateur)
+        return true; // Temporairement, tout le monde peut voir les notes privées
+
+      case NoteAccessLevel.COMPANY:
+        // Uniquement l'entreprise peut voir
+        return authStore.isAdmin || authStore.isEntreprise;
+
+      case NoteAccessLevel.EMPLOYEE:
+        // L'entreprise et ses salariés peuvent voir
+        return authStore.isAdmin || authStore.isEntreprise || authStore.isSalarie;
+
+      case NoteAccessLevel.VISITOR:
+        // Tout le monde (entreprise, salariés et visiteurs) peut voir
+        return authStore.isAdmin || authStore.isEntreprise || authStore.isSalarie || authStore.isVisiteur;
+
+      default:
+        return false;
+    }
+  });
+
+  // Filtrer les notes accessibles à l'utilisateur actuel
+  const getAccessibleNotes = computed(() => {
+    return notes.value.filter(note => hasAccessToNote.value(note));
+  });
+
+  // Obtenir les notes accessibles par colonne
+  const getAccessibleNotesByColumn = computed(() => (columnId: string) => {
+    return getAccessibleNotes.value
+      .filter(note => note.columnId === columnId)
+      .sort((a, b) => a.order - b.order);
   });
 
   // Actions
@@ -163,7 +220,7 @@ export const useNotesStore = defineStore('notes', () => {
     });
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order'>) {
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'>) {
     const newId = notes.value.length > 0
       ? Math.max(...notes.value.map(n => n.id)) + 1
       : 1;
@@ -176,10 +233,14 @@ export const useNotesStore = defineStore('notes', () => {
       ? Math.max(...notesInColumn.map(n => n.order)) + 1
       : 0;
 
+    // Default access level is PRIVATE if not specified
+    const accessLevel = (note as any).accessLevel || NoteAccessLevel.PRIVATE;
+
     notes.value.push({
       ...note,
       id: newId,
       order,
+      accessLevel,
       createdAt: now,
       updatedAt: now
     });
@@ -255,6 +316,22 @@ export const useNotesStore = defineStore('notes', () => {
     });
   }
 
+  // Obtenir le libellé du niveau d'accès
+  function getAccessLevelLabel(level: NoteAccessLevel): string {
+    switch (level) {
+      case NoteAccessLevel.PRIVATE:
+        return 'Privé';
+      case NoteAccessLevel.COMPANY:
+        return 'Entreprise';
+      case NoteAccessLevel.EMPLOYEE:
+        return 'Salariés';
+      case NoteAccessLevel.VISITOR:
+        return 'Visiteurs';
+      default:
+        return 'Inconnu';
+    }
+  }
+
   return {
     columns,
     notes,
@@ -263,6 +340,10 @@ export const useNotesStore = defineStore('notes', () => {
     getNotesByColumn,
     getDefaultColumn,
     getSortedColumns,
+    hasAccessToNote,
+    getAccessibleNotes,
+    getAccessibleNotesByColumn,
+    getAccessLevelLabel,
     addColumn,
     updateColumn,
     removeColumn,

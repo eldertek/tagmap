@@ -1,9 +1,16 @@
 import * as L from 'leaflet';
+import { NoteAccessLevel } from '../stores/notes';
 
-export interface GeoNoteOptions extends L.CircleMarkerOptions {
+export interface GeoNoteOptions {
   name?: string;
   description?: string;
   columnId?: string;
+  accessLevel?: NoteAccessLevel;
+  radius?: number;
+  color?: string;
+  weight?: number;
+  fillColor?: string;
+  fillOpacity?: number;
 }
 
 export class GeoNote extends L.CircleMarker {
@@ -19,12 +26,11 @@ export class GeoNote extends L.CircleMarker {
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Options par défaut pour un point GPS
     const defaultOptions: L.CircleMarkerOptions = {
-      radius: 8,
-      color: '#3B82F6',
-      weight: 2,
-      fillColor: '#3B82F6',
-      fillOpacity: 0.6,
-      ...options
+      radius: options.radius || 8,
+      color: options.color || '#3B82F6',
+      weight: options.weight || 2,
+      fillColor: options.fillColor || '#3B82F6',
+      fillOpacity: options.fillOpacity || 0.6
     };
 
     super(latlng, defaultOptions);
@@ -35,6 +41,7 @@ export class GeoNote extends L.CircleMarker {
       name: options.name || 'Note géolocalisée',
       description: options.description || 'Double-cliquez pour éditer',
       columnId: options.columnId || 'en-cours', // Colonne par défaut
+      accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
       style: {
         color: defaultOptions.color,
         weight: defaultOptions.weight,
@@ -68,6 +75,13 @@ export class GeoNote extends L.CircleMarker {
     columnBadge.style.backgroundColor = this.getColumnColor(this.properties.columnId);
     container.appendChild(columnBadge);
 
+    // Ajouter l'étiquette de niveau d'accès
+    const accessBadge = document.createElement('div');
+    accessBadge.className = 'geo-note-access-badge';
+    accessBadge.textContent = this.getAccessLevelLabel(this.properties.accessLevel);
+    accessBadge.style.backgroundColor = this.getAccessLevelColor(this.properties.accessLevel);
+    container.appendChild(accessBadge);
+
     const description = document.createElement('div');
     description.className = 'geo-note-description';
     description.textContent = this.properties.description;
@@ -92,6 +106,38 @@ export class GeoNote extends L.CircleMarker {
       'termine': '#10B981'
     };
     return colors[columnId] || '#6B7280';
+  }
+
+  // Obtenir le libellé du niveau d'accès
+  getAccessLevelLabel(level: NoteAccessLevel): string {
+    switch (level) {
+      case NoteAccessLevel.PRIVATE:
+        return 'Privé';
+      case NoteAccessLevel.COMPANY:
+        return 'Entreprise';
+      case NoteAccessLevel.EMPLOYEE:
+        return 'Salariés';
+      case NoteAccessLevel.VISITOR:
+        return 'Visiteurs';
+      default:
+        return 'Inconnu';
+    }
+  }
+
+  // Obtenir la couleur du niveau d'accès
+  getAccessLevelColor(level: NoteAccessLevel): string {
+    switch (level) {
+      case NoteAccessLevel.PRIVATE:
+        return '#9CA3AF'; // Gris
+      case NoteAccessLevel.COMPANY:
+        return '#EF4444'; // Rouge - pour l'entreprise uniquement
+      case NoteAccessLevel.EMPLOYEE:
+        return '#F59E0B'; // Orange - pour l'entreprise et salariés
+      case NoteAccessLevel.VISITOR:
+        return '#10B981'; // Vert - pour tous
+      default:
+        return '#6B7280';
+    }
   }
 
   // Gestionnaire d'événements pour le double-clic
@@ -143,6 +189,28 @@ export class GeoNote extends L.CircleMarker {
     });
     form.appendChild(columnSelect);
 
+    // Ajouter un sélecteur de niveau d'accès
+    const accessLabel = document.createElement('label');
+    accessLabel.textContent = 'Niveau d\'accès:';
+    form.appendChild(accessLabel);
+
+    const accessSelect = document.createElement('select');
+    // Ajouter les options de niveau d'accès
+    const accessLevels = [
+      { id: NoteAccessLevel.PRIVATE, title: 'Privé' },
+      { id: NoteAccessLevel.COMPANY, title: 'Entreprise' },
+      { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés' },
+      { id: NoteAccessLevel.VISITOR, title: 'Visiteurs' }
+    ];
+    accessLevels.forEach(level => {
+      const option = document.createElement('option');
+      option.value = level.id;
+      option.textContent = level.title;
+      option.selected = level.id === this.properties.accessLevel;
+      accessSelect.appendChild(option);
+    });
+    form.appendChild(accessSelect);
+
     const saveButton = document.createElement('button');
     saveButton.type = 'button';
     saveButton.textContent = 'Enregistrer';
@@ -150,6 +218,7 @@ export class GeoNote extends L.CircleMarker {
       this.properties.name = titleInput.value;
       this.properties.description = descriptionInput.value;
       this.properties.columnId = columnSelect.value;
+      this.properties.accessLevel = accessSelect.value as NoteAccessLevel;
       this.updateProperties();
       this.closePopup();
       this.bindPopup(this.createPopupContent());
@@ -157,7 +226,7 @@ export class GeoNote extends L.CircleMarker {
 
       // Émettre un événement pour informer de la mise à jour
       this.fire('note:updated', {
-        id: this._leaflet_id,
+        id: (this as any)._leaflet_id,
         properties: this.properties
       });
     };
