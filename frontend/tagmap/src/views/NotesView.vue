@@ -112,13 +112,9 @@
 
                 <!-- Liste des notes dans cette colonne avec drag and drop -->
                 <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto" :data-column-id="column.id">
-                  <div v-if="getNotesByColumn(column.id).length === 0" class="p-4 text-center text-gray-400 text-sm italic">
-                    Aucune note dans cette colonne
-                  </div>
-
                   <draggable
                     :list="getNotesByColumn(column.id)"
-                    class="min-h-[50px] draggable-container"
+                    class="min-h-[100px] draggable-container"
                     group="notes"
                     item-key="id"
                     :animation="150"
@@ -130,15 +126,15 @@
                     :data-column-id="column.id"
                     :force-fallback="true"
                   >
+                    <template #header v-if="getNotesByColumn(column.id).length === 0">
+                      <div class="p-4 text-center text-gray-400 text-sm italic">
+                        Aucune note dans cette colonne
+                      </div>
+                    </template>
                     <template #item="{ element: note }">
-                      <div class="mb-2 p-3 pl-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select relative" :data-note-id="note.id">
+                      <div class="mb-2 p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select" :data-note-id="note.id">
                         <!-- En-tête de la note avec poignée de drag -->
                         <div class="flex items-start justify-between mb-2 drag-handle cursor-move">
-                          <div class="absolute top-3 left-1 opacity-30 drag-indicator">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                            </svg>
-                          </div>
                           <div class="flex items-center">
                             <div
                               class="h-8 w-8 rounded-full flex items-center justify-center mr-2"
@@ -646,5 +642,12 @@ function onDragChange(event: any, columnId: string) {
 
 .drag-indicator {
   pointer-events: none; /* Ensures the indicator doesn't interfere with drag events */
+}
+
+.draggable-container:empty {
+  min-height: 100px;
+  border: 2px dashed #e5e7eb;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
 }
 </style>
