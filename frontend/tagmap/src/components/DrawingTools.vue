@@ -36,16 +36,16 @@
     <div v-if="selectedShape && localProperties" class="flex-1 overflow-y-auto">
       <!-- Style - Section collapsable -->
       <div class="p-3 border-b border-gray-200">
-        <button 
+        <button
           class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
           @click="toggleSection('style')"
         >
           <span>Style</span>
-          <svg 
+          <svg
             class="w-4 h-4"
             :class="{ 'rotate-180': !sectionsCollapsed.style }"
-            fill="none" 
-            stroke="currentColor" 
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -170,101 +170,22 @@
               />
             </div>
           </div>
-          <!-- Contrôles spécifiques au texte -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Texte</span>
-            <div class="flex items-center gap-2">
-              <input
-                type="color"
-                v-model="textColor"
-                class="w-16 h-8 rounded border"
-                @change="updateTextStyle({ textColor })"
-                title="Couleur du texte"
-              />
-            </div>
-          </div>
-          <!-- Ajouter le contrôle de taille de police ici -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Taille</span>
-            <div class="flex items-center gap-2 w-full">
-              <select
-                v-model="fontSize"
-                class="w-full rounded border"
-                @change="updateTextStyle({ fontSize })"
-              >
-                <option value="10px">Très petit</option>
-                <option value="12px">Petit</option>
-                <option value="14px">Normal</option>
-                <option value="16px">Moyen</option>
-                <option value="18px">Grand</option>
-                <option value="24px">Très grand</option>
-                <option value="32px">Énorme</option>
-              </select>
-            </div>
-          </div>
-          <!-- Police et alignement -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Police</span>
-            <div class="flex items-center gap-2">
-              <select
-                v-model="fontFamily"
-                class="w-full rounded border"
-                @change="updateTextStyle({ fontFamily })"
-              >
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="'Times New Roman', serif">Times</option>
-                <option value="'Courier New', monospace">Courier</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-              </select>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Align.</span>
-            <div class="flex items-center gap-2">
-              <button
-                v-for="align in textAlignOptions"
-                :key="align.value"
-                class="flex items-center justify-center p-2 rounded border"
-                :class="{ 'bg-blue-50 border-blue-200 text-blue-700': currentTextAlign === align.value }"
-                @click="updateTextStyle({ textAlign: align.value })"
-                :title="align.label"
-              >
-                <span v-html="align.icon"></span>
-              </button>
-              <button
-                class="flex items-center justify-center p-2 rounded border"
-                :class="{ 'bg-blue-50 border-blue-200 text-blue-700': isBold }"
-                @click="toggleBold"
-                title="Gras"
-              >
-                B
-              </button>
-              <button
-                class="flex items-center justify-center p-2 rounded border"
-                :class="{ 'bg-blue-50 border-blue-200 text-blue-700': isItalic }"
-                @click="toggleItalic"
-                title="Italique"
-              >
-                I
-              </button>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
     <!-- Propriétés - Section collapsable -->
     <div v-if="selectedShape && localProperties && localProperties.type !== 'TextRectangle'" class="p-3 border-t border-gray-200">
-      <button 
+      <button
         class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
         @click="toggleSection('properties')"
       >
         <span>Propriétés</span>
-        <svg 
+        <svg
           class="w-4 h-4"
           :class="{ 'rotate-180': !sectionsCollapsed.properties }"
-          fill="none" 
-          stroke="currentColor" 
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -275,122 +196,33 @@
           <!-- Champ pour nommer la forme -->
           <div class="mb-4">
             <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
-            <input 
-              type="text" 
-              id="shapeName" 
-              v-model="shapeName" 
+            <input
+              type="text"
+              id="shapeName"
+              v-model="shapeName"
               @change="updateShapeName"
-              placeholder="Donnez un nom à cette forme" 
+              placeholder="Donnez un nom à cette forme"
               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
 
           <!-- Tableau compact des propriétés pour tous les types -->
           <div class="grid grid-cols-1 gap-4">
-            <!-- Cercle -->
-            <template v-if="localProperties.type === 'Circle'">
+            <!-- Polygone -->
+            <template v-if="localProperties.type === 'Polygon'">
               <div class="space-y-1">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Rayon :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.radius || 0) }}</span>
-                </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700">Surface :</span>
                   <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0) }}</span>
                 </div>
                 <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface totale d'irrigation :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(totalCoverageArea || 0) }}</span>
+                  <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
+                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0) }}</span>
                 </div>
               </div>
             </template>
-            <!-- Cercle avec sections -->
-            <template v-else-if="localProperties.type === 'CircleWithSections'">
-              <div class="space-y-1">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Rayon total :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.radius || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface totale :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface des sections :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.sectionArea || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Nombre de sections :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ circleSections.length }}</span>
-                </div>
-              </div>
-            </template>
-            <!-- Rectangle -->
-            <template v-else-if="localProperties.type === 'Rectangle'">
-              <div class="space-y-1">
-                <!-- Add numeric input fields for width and height -->
-                <div class="flex items-center mb-2">
-                  <label for="rectangle-width" class="text-sm font-semibold text-gray-700 w-20">Largeur :</label>
-                  <div class="flex-1 flex items-center">
-                    <input 
-                      id="rectangle-width" 
-                      type="number" 
-                      v-model="rectangleWidth"
-                      min="1" 
-                      step="0.01" 
-                      class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                      @change="updateRectangleDimensions"
-                    />
-                    <span class="text-sm text-gray-500 ml-1">m</span>
-                  </div>
-                </div>
-                <div class="flex items-center mb-2">
-                  <label for="rectangle-height" class="text-sm font-semibold text-gray-700 w-20">Hauteur :</label>
-                  <div class="flex-1 flex items-center">
-                    <input 
-                      id="rectangle-height" 
-                      type="number" 
-                      v-model="rectangleHeight"
-                      min="1" 
-                      step="0.01" 
-                      class="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                      @change="updateRectangleDimensions"
-                    />
-                    <span class="text-sm text-gray-500 ml-1">m</span>
-                  </div>
-                </div>
-                
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface totale d'irrigation :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(totalCoverageArea || 0) }}</span>
-                </div>
-              </div>
-            </template>
-            <!-- Demi-cercle -->
-            <template v-else-if="localProperties.type === 'Semicircle'">
-              <div class="space-y-1">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Rayon :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.radius || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface totale d'irrigation :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(totalCoverageArea || 0) }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Angle :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ Math.round(localProperties.openingAngle || 0) }}°</span>
-                </div>
-              </div>
-            </template>
+
+
             <!-- Ligne -->
             <template v-else-if="localProperties.type === 'Line'">
               <span class="text-sm font-semibold text-gray-700">Longueur :</span>
@@ -403,10 +235,7 @@
                   <span class="text-sm font-semibold text-gray-700">Surface :</span>
                   <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0) }}</span>
                 </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface totale d'irrigation :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(totalCoverageArea || 0) }}</span>
-                </div>
+
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
                   <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0) }}</span>
@@ -421,22 +250,22 @@
                   <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
                   <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0) }}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
                   <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain || 0) }}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
                   <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss || 0) }}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
                   <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope || 0) }}</span>
                 </div>
-                
+
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
                   <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0) }}</span>
@@ -444,11 +273,9 @@
               </div>
 
               <!-- Graphique du profil sur toute la largeur -->
-              <div 
+              <div
                 ref="elevationProfileContainer"
                 class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4"
-                @mousemove="handleProfileHover"
-                @mouseleave="handleProfileLeave"
               >
                 <canvas ref="elevationCanvas"></canvas>
               </div>
@@ -463,16 +290,16 @@
     <!-- Section de personnalisation des points d'échantillonnage -->
     <div v-if="selectedShape && localProperties && localProperties.type === 'ElevationLine'" class="p-3 border-t border-gray-200">
       <!-- Section Points d'échantillonnage (toujours fermée par défaut) -->
-      <button 
+      <button
         class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
         @click="toggleSection('samplePoints')"
       >
         <span>Points d'échantillonnage</span>
-        <svg 
+        <svg
           class="w-4 h-4"
           :class="{ 'rotate-180': !sectionsCollapsed.samplePoints }"
-          fill="none" 
-          stroke="currentColor" 
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -485,22 +312,22 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-xs text-gray-600">Taille</label>
-              <input type="number" v-model="samplePointStyle.radius" min="2" max="10" step="1" 
+              <input type="number" v-model="samplePointStyle.radius" min="2" max="10" step="1"
                      class="w-full px-2 py-1 border rounded" @change="updateSamplePointStyle">
             </div>
             <div>
               <label class="text-xs text-gray-600">Couleur</label>
-              <input type="color" v-model="samplePointStyle.color" 
+              <input type="color" v-model="samplePointStyle.color"
                      class="w-full h-8 px-1 border rounded" @change="updateSamplePointStyle">
             </div>
             <div>
               <label class="text-xs text-gray-600">Opacité</label>
-              <input type="range" v-model="samplePointStyle.fillOpacity" min="0" max="1" step="0.1" 
+              <input type="range" v-model="samplePointStyle.fillOpacity" min="0" max="1" step="0.1"
                      class="w-full" @change="updateSamplePointStyle">
             </div>
             <div>
               <label class="text-xs text-gray-600">Bordure</label>
-              <input type="number" v-model="samplePointStyle.weight" min="1" max="5" step="1" 
+              <input type="number" v-model="samplePointStyle.weight" min="1" max="5" step="1"
                      class="w-full px-2 py-1 border rounded" @change="updateSamplePointStyle">
             </div>
           </div>
@@ -512,272 +339,228 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-xs text-gray-600">Taille</label>
-              <input type="number" v-model="minMaxPointStyle.radius" min="4" max="12" step="1" 
+              <input type="number" v-model="minMaxPointStyle.radius" min="4" max="12" step="1"
                      class="w-full px-2 py-1 border rounded" @change="updateMinMaxPointStyle">
             </div>
             <div>
               <label class="text-xs text-gray-600">Bordure</label>
-              <input type="number" v-model="minMaxPointStyle.weight" min="1" max="5" step="1" 
+              <input type="number" v-model="minMaxPointStyle.weight" min="1" max="5" step="1"
                      class="w-full px-2 py-1 border rounded" @change="updateMinMaxPointStyle">
             </div>
             <div>
               <label class="text-xs text-gray-600">Opacité</label>
-              <input type="range" v-model="minMaxPointStyle.fillOpacity" min="0" max="1" step="0.1" 
+              <input type="range" v-model="minMaxPointStyle.fillOpacity" min="0" max="1" step="0.1"
                      class="w-full" @change="updateMinMaxPointStyle">
             </div>
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- Section des sections d'irrigation pour CircleWithSections -->
-    <div v-if="selectedShape && localProperties && localProperties.type === 'CircleWithSections'" class="p-3 border-t border-gray-200">
-      <button 
-        class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
-        @click="toggleSection('circleSections')"
-      >
-        <span>Sections</span>
-        <svg 
-          class="w-4 h-4"
-          :class="{ 'rotate-180': !sectionsCollapsed.circleSections }"
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      <div v-show="!sectionsCollapsed.circleSections" class="mt-3">
-        <!-- En-tête avec bouton d'ajout -->
-        <div class="flex justify-between items-center mb-3">
-          <h4 class="text-sm font-semibold">Sections d'irrigation</h4>
-          <button 
-            class="p-1 rounded-full bg-blue-500 text-white hover:bg-blue-600"
-            @click="addSection"
-            title="Ajouter une section"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Liste des sections existantes -->
-        <div v-if="circleSections.length > 0" class="space-y-3">
-          <div 
-            v-for="section in circleSections" 
-            :key="section.id" 
-            class="border rounded p-2 relative"
-          >
-            <!-- Barre de couleur de la section -->
-            <div class="absolute top-0 left-0 w-1 h-full" :style="{ backgroundColor: section.color }"></div>
-            
-            <!-- Informations et contrôles de la section -->
-            <div class="pl-3">
-              <!-- Nom et actions de la section -->
-              <div class="flex justify-between items-center mb-2">
-                <div class="flex-grow min-w-0 mr-2">
-                  <input 
-                    type="text" 
-                    v-model="section.name" 
-                    class="w-full font-medium px-2 py-1 border border-gray-200 focus:border-blue-300 rounded text-sm truncate text-ellipsis"
-                    @change="updateSection(section.id, { name: section.name })"
-                  />
-                </div>
-                <button 
-                  class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 flex-shrink-0"
-                  @click="removeSection(section.id)"
-                  title="Supprimer la section"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <!-- Propriétés de la section -->
-              <div class="grid grid-cols-2 gap-2 mb-2">
-                <!-- Angles -->
-                <div class="min-w-0">
-                  <label class="text-xs text-gray-600 block truncate">Angle début</label>
-                  <input 
-                    type="number" 
-                    v-model.number="section.startAngle" 
-                    min="0" 
-                    max="360" 
-                    step="5"
-                    class="w-full px-2 py-1 border rounded text-sm" 
-                    @change="updateSection(section.id, { startAngle: section.startAngle })"
-                  />
-                </div>
-                <div class="min-w-0">
-                  <label class="text-xs text-gray-600 block truncate">Angle fin</label>
-                  <input 
-                    type="number" 
-                    v-model.number="section.endAngle" 
-                    min="0" 
-                    max="360" 
-                    step="5"
-                    class="w-full px-2 py-1 border rounded text-sm" 
-                    @change="updateSection(section.id, { endAngle: section.endAngle })"
-                  />
-                </div>
-                
-                <!-- Rayon et surface -->
-                <div class="min-w-0">
-                  <label class="text-xs text-gray-600 block truncate">Rayon (m)</label>
-                  <input 
-                    type="number" 
-                    v-model.number="section.radius" 
-                    :min="1" 
-                    step="1"
-                    class="w-full px-2 py-1 border rounded text-sm" 
-                    @change="updateSection(section.id, { radius: section.radius })"
-                  />
-                </div>
-                <div class="min-w-0">
-                  <label class="text-xs text-gray-600 block truncate">Surface</label>
-                  <div class="w-full px-2 py-1 text-sm text-gray-700 bg-gray-50 rounded truncate">
-                    {{ formatArea((Math.PI * section.radius * section.radius * (section.endAngle - section.startAngle) / 360) || 0) }}
-                  </div>
-                </div>
-                <div class="col-span-2">
-                  <label class="text-xs text-gray-600 block truncate">Couleur</label>
-                  <input 
-                    type="color" 
-                    v-model="section.color" 
-                    class="w-full h-8 px-1 border rounded" 
-                    @change="updateSection(section.id, { color: section.color })"
-                  />
-                </div>
-              </div>
-              
-              <!-- Aperçu des angles -->
-              <div class="w-full h-8 bg-gray-100 rounded relative overflow-hidden">
-                <!-- Visualisation des angles -->
-                <div 
-                  v-if="isFullCircle(section)"
-                  class="absolute h-full w-full" 
-                  :style="{ 
-                    backgroundColor: section.color,
-                    opacity: 0.5
-                  }"
-                ></div>
-                <div 
-                  v-else
-                  class="absolute h-full" 
-                  :style="{ 
-                    backgroundColor: section.color,
-                    opacity: 0.5,
-                    left: (section.startAngle / 360 * 100) + '%',
-                    width: (((section.endAngle - section.startAngle + 360) % 360) / 360 * 100) + '%'
-                  }"
-                ></div>
 
-                <!-- Bouton pour faire un cercle complet -->
-                <button 
-                  v-if="!isFullCircle(section)"
-                  class="absolute right-0 top-0 p-0.5 text-xs text-gray-500 hover:text-gray-700 z-10"
-                  title="Faire un cercle complet"
-                  @click="makeFullCircle(section)"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </button>
 
-                <!-- Repères -->
-                <div class="absolute h-full w-px bg-gray-400 left-0"></div>
-                <div class="absolute h-full w-px bg-gray-400 left-25%"></div>
-                <div class="absolute h-full w-px bg-gray-400 left-50%"></div>
-                <div class="absolute h-full w-px bg-gray-400 left-75%"></div>
-                <div class="absolute h-full w-px bg-gray-400 right-0"></div>
-                <!-- Labels repères -->
-                <div class="absolute text-xs bottom-0 left-0 text-gray-600">0°</div>
-                <div class="absolute text-xs bottom-0 left-25% -ml-2 text-gray-600">90°</div>
-                <div class="absolute text-xs bottom-0 left-50% -ml-2 text-gray-600">180°</div>
-                <div class="absolute text-xs bottom-0 left-75% -ml-2 text-gray-600">270°</div>
-                <div class="absolute text-xs bottom-0 right-0 -mr-6 text-gray-600">360°</div>
-              </div>
-
-              <!-- Badge indiquant si c'est un cercle complet -->
-              <div v-if="isFullCircle(section)" class="mt-1 text-xs text-center p-1 bg-blue-100 text-blue-800 rounded">
-                Cercle complet (360°)
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Message si aucune section -->
-        <div v-else class="text-center text-sm text-gray-500 py-2">
-          Aucune section d'irrigation définie.
-          <br>
-          Cliquez sur le bouton + pour en ajouter.
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useDrawingStore } from '@/stores/drawing'
+import { ref, computed, watchEffect } from 'vue'
+
+// Define types
+interface ShapeProperties {
+  type: string;
+  name?: string;
+  style?: any;
+  [key: string]: any;
+}
+
+interface ShapeType {
+  type: string;
+  properties: ShapeProperties;
+  layer: any;
+  options: any;
+}
+
+// Pas d'interface SectionType
+
+// Define props for the component
+const props = defineProps({
+  currentTool: {
+    type: String as () => string,
+    default: ''
+  },
+  selectedShape: {
+    type: Object as () => ShapeType | null,
+    default: null
+  },
+  allLayers: {
+    type: Array,
+    default: () => []
+  }
+})
 
 const drawingTools = [
-  { type: 'polygon', label: 'Polygone' },
-  { type: 'line', label: 'Ligne' },
-  { type: 'elevation', label: 'Profil altimétrique' },
+  { type: 'Polygon', label: 'Polygone' },
+  { type: 'Line', label: 'Ligne' },
+  { type: 'ElevationLine', label: 'Profil altimétrique' },
   { type: 'note', label: 'Note géolocalisée' }
 ]
 
 const getToolIcon = (type: string) => {
   switch (type) {
-    case 'polygon':
+    case 'Polygon':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5l16 0l0 14l-16 0l0 -14z"/></svg>'
-    case 'line':
+    case 'Line':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20l16 -16"/></svg>'
-    case 'elevation':
+    case 'ElevationLine':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20h18l-3-3l-4 4l-4-7l-4 4l-3-3"/></svg>'
     case 'note':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+    default:
+      return ''
   }
 }
 
-// Propriétés pour les notes géolocalisées
-const noteProperties = ref({
-  title: '',
-  description: '',
-  visibility: 'private', // private, enterprise, employee, visitor
-  attachments: [] as File[],
-  location: null as any
+// Propriétés pour les notes géolocalisées - à implémenter
+
+// Define reactive variables for the component
+const sectionsCollapsed = ref({
+  style: false,
+  properties: false,
+  samplePoints: true,
+  circleSections: false
 })
 
-// Permissions de visibilité selon le rôle de l'utilisateur
-const visibilityOptions = computed(() => {
-  const userType = useAuthStore().user?.user_type
-  switch (userType) {
-    case 'admin':
-    case 'entreprise':
-      return [
-        { value: 'private', label: 'Privé' },
-        { value: 'enterprise', label: 'Entreprise' },
-        { value: 'employee', label: 'Salaries' },
-        { value: 'visitor', label: 'Visiteurs' }
-      ]
-    case 'salarie':
-      return [
-        { value: 'private', label: 'Privé' },
-        { value: 'employee', label: 'Salaries' },
-        { value: 'visitor', label: 'Visiteurs' }
-      ]
-    default:
-      return [
-        { value: 'private', label: 'Privé' }
-      ]
+// Style properties
+const strokeColor = ref('#3B82F6')
+const strokeWidth = ref(2)
+const strokeStyle = ref('solid')
+const fillColor = ref('#3B82F6')
+const fillOpacity = ref(0.2)
+const showFillOptions = ref(true)
+
+// Propriétés de la forme
+const shapeName = ref('')
+
+// Sample point styles
+const samplePointStyle = ref({
+  radius: 4,
+  color: '#3B82F6',
+  fillOpacity: 0.6,
+  weight: 2
+})
+
+// Min/max point styles
+const minMaxPointStyle = ref({
+  radius: 6,
+  color: '#EF4444',
+  fillOpacity: 0.8,
+  weight: 2
+})
+
+// Pas de sections de cercles
+
+// Predefined colors
+const predefinedColors = [
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Yellow
+  '#EF4444', // Red
+  '#8B5CF6', // Purple
+  '#EC4899'  // Pink
+]
+
+// Stroke styles
+const strokeStyles = [
+  { value: 'solid', label: 'Continu' },
+  { value: 'dashed', label: 'Tirets' },
+  { value: 'dotted', label: 'Pointillés' }
+]
+
+// Pas d'options d'alignement de texte
+
+// Computed property to get the properties from the selected shape
+const localProperties = computed(() => {
+  if (!props.selectedShape) return null
+  return props.selectedShape.properties || null
+})
+
+// Define types for method parameters
+type SectionKey = 'style' | 'properties' | 'samplePoints' | 'circleSections';
+type StyleProps = { [key: string]: any };
+
+// Methods
+const toggleSection = (section: SectionKey): void => {
+  sectionsCollapsed.value[section] = !sectionsCollapsed.value[section]
+}
+
+const selectPresetColor = (color: string): void => {
+  strokeColor.value = color
+  fillColor.value = color
+  updateStyle({ strokeColor: color, fillColor: color })
+}
+
+const updateStyle = (styleProps: StyleProps): void => {
+  if (!props.selectedShape) return
+
+  // Emit the style update to the parent component
+  emit('style-update', styleProps)
+}
+
+// Méthode pour mettre à jour le nom de la forme
+const updateShapeName = (): void => {
+  if (!props.selectedShape) return
+
+  // Mettre à jour le nom de la forme
+  emit('properties-update', { name: shapeName.value })
+}
+
+const updateSamplePointStyle = (): void => {
+  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
+
+  // Emit the style update to the parent component
+  emit('style-update', { samplePointStyle: samplePointStyle.value })
+}
+
+const updateMinMaxPointStyle = (): void => {
+  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
+
+  // Emit the style update to the parent component
+  emit('style-update', { minMaxPointStyle: minMaxPointStyle.value })
+}
+
+// Pas de méthodes pour les sections de cercles
+
+const formatLength = (value: number): string => {
+  return `${Math.round(value)} m`
+}
+
+const formatArea = (value: number): string => {
+  if (value >= 10000) {
+    return `${(value / 10000).toFixed(2)} ha`
+  }
+  return `${Math.round(value)} m²`
+}
+
+const formatSlope = (value: number): string => {
+  return `${value.toFixed(1)}%`
+}
+
+// Define emits
+const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape'])
+
+// Watch for changes in the selected shape to update the style controls
+watchEffect(() => {
+  if (props.selectedShape) {
+    const style = props.selectedShape.options
+    strokeColor.value = style.color || '#3B82F6'
+    strokeWidth.value = style.weight || 3
+    strokeStyle.value = style.dashArray ? 'dashed' : 'solid'
+    fillColor.value = style.fillColor || '#3B82F6'
+    fillOpacity.value = style.fillOpacity || 0.2
+    showFillOptions.value = props.selectedShape.properties.type !== 'Line'
+
+    // Mettre à jour le nom de la forme
+    shapeName.value = props.selectedShape.properties.name || ''
   }
 })
-
-// ... rest of the existing style code ...
 </script>
 <style scoped>
 .h-full {
@@ -1221,4 +1004,4 @@ canvas {
   background-image: radial-gradient(circle, #3B82F6 1px, transparent 1px);
   background-size: 5px 5px;
 }
-</style> 
+</style>

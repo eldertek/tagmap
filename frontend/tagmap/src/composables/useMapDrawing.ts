@@ -1,10 +1,8 @@
 import { ref, onUnmounted, nextTick, type Ref } from 'vue';
 import * as L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
-import { CircleArc } from '../utils/CircleArc';
 import { Circle } from '../utils/Circle';
 import { Rectangle } from '../utils/Rectangle';
-import { TextRectangle } from '../utils/TextRectangle';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
 import { ElevationLine } from '../utils/ElevationLine';
@@ -18,7 +16,7 @@ import intersect from '@turf/intersect';
 import centroid from '@turf/centroid';
 import circle from '@turf/circle';
 import { featureCollection } from '@turf/helpers';
-import { CircleWithSections } from '@/utils/CircleWithSections';
+// CircleWithSections and CircleArc (Semicircle) have been removed as per requirements
 import { performanceMonitor } from '@/utils/usePerformanceMonitor';
 
 interface FrozenState {
@@ -461,17 +459,17 @@ export function useMapDrawing(): MapDrawingReturn {
     if ((activeControlPoints as any).cleanup) {
       (activeControlPoints as any).cleanup();
     }
-    
+
     // Remplacer la boucle de suppression par un clearLayers complet
     if (controlPointsGroup.value) {
       controlPointsGroup.value.clearLayers();
     }
     activeControlPoints = [];
-    
+
     // Nettoyer aussi les points temporaires et les mesures
     tempControlPointsGroup.value?.clearLayers();
     document.querySelectorAll('.measure-tooltip').forEach(el => el.remove());
-    
+
     // Nettoyer les points d'aide des rectangles
     if (featureGroup.value) {
       featureGroup.value.getLayers().forEach((layer: L.Layer) => {
@@ -690,15 +688,15 @@ export function useMapDrawing(): MapDrawingReturn {
         showHelpMessage('Cliquez sur la forme pour afficher les points de contrôle');
       }
     });
-    
+
     // Utiliser le gestionnaire d'événements par défaut pour pm:create
     mapInstance.on('pm:create', defaultCreateHandler);
-    
+
     // Événements de sélection uniquement sur featureGroup (formes)
     fg.on('click', (e: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(e);
       const layer = e.layer;
-      
+
       // S'assurer que le nom est toujours dans l'objet properties
       // qui est conservé lors du proxying
       if (layer.name && !layer.properties?.name) {
@@ -708,19 +706,19 @@ export function useMapDrawing(): MapDrawingReturn {
       else if (layer.properties?.name && !layer.name) {
         layer.name = layer.properties.name;
       }
-      
+
       // Définir explicitement pour le débogage
       console.log('[featureGroup click] État du nom:', {
         directName: layer.name,
         propertiesName: layer.properties?.name,
         fullProperties: layer.properties
       });
-      
+
       // Reste du code...
       tempControlPointsGroup.value?.clearLayers();
       clearActiveControlPoints();
       selectedShape.value = layer;
-      
+
       // ...
       if (layer instanceof TextRectangle) {
         console.log('[featureGroup click] TextRectangle sélectionné', {
@@ -746,13 +744,13 @@ export function useMapDrawing(): MapDrawingReturn {
           properties: layer.properties,
           sections: layer.properties?.sections
         });
-        
+
         // Utiliser la méthode standard pour les points de contrôle du cercle
         updateCircleControlPoints(layer);
-        
+
         // Afficher un message d'aide spécifique pour les sections
         showHelpMessage('Utilisez les points de contrôle verts pour manipuler le cercle. Configurez les sections dans le panneau latéral.');
-        
+
         return;
       }
 
@@ -772,25 +770,25 @@ export function useMapDrawing(): MapDrawingReturn {
           allProperties: Object.keys((layer as any).properties || {}),
           _dbId: (layer as any)._dbId
         });
-        
+
         // Sauvegarder les propriétés importantes avant conversion
         const layerName = (layer as any).name;
         const propertiesName = (layer as any).properties?.name;
         const stylePropertyName = (layer as any).properties?.style?.name;
         const dbId = (layer as any)._dbId;
-        
+
         const circle = new Circle(layer.getLatLng(), {
           ...layer.options,
           radius: layer.getRadius()
         });
-        
+
         // Restaurer toutes les propriétés du layer d'origine
         if ((layer as any).properties) {
           circle.properties = { ...((layer as any).properties || {}) };
         } else {
           circle.updateProperties();
         }
-        
+
         // S'assurer explicitement que le nom est conservé dans tous les emplacements
         const preservedName = layerName || propertiesName || stylePropertyName;
         if (preservedName) {
@@ -801,12 +799,12 @@ export function useMapDrawing(): MapDrawingReturn {
           circle.properties.style.name = preservedName;
           (circle as any).name = preservedName;
         }
-        
+
         // Restaurer l'ID de base de données
         if (dbId) {
           (circle as any)._dbId = dbId;
         }
-        
+
         // Log final pour vérifier l'état
         console.log('[useMapDrawing] Cercle après conversion:', {
           name: (circle as any).name,
@@ -814,7 +812,7 @@ export function useMapDrawing(): MapDrawingReturn {
           stylePropertyName: circle.properties.style?.name,
           allProperties: Object.keys(circle.properties || {})
         });
-        
+
         featureGroup.value?.removeLayer(layer);
         featureGroup.value?.addLayer(circle);
         selectedShape.value = circle;
@@ -993,7 +991,7 @@ export function useMapDrawing(): MapDrawingReturn {
           try {
             // Restaurer uniquement fadeAnimation d'abord
             map.value.options.fadeAnimation = originalAnimationState.fadeAnimation;
-            
+
             // Puis après un délai supplémentaire, restaurer les autres animations
             setTimeout(() => {
               try {
@@ -1050,12 +1048,81 @@ export function useMapDrawing(): MapDrawingReturn {
       return;
     }
 
+    // Convertir les noms d'outils du composant DrawingTools aux noms d'outils internes
+    let internalTool = tool;
+
+    // Mapper les noms d'outils du composant DrawingTools aux noms d'outils internes
+    switch (tool) {
+      case 'note':
+        internalTool = 'Text'; // Utiliser l'outil Text existant pour les notes
+        break;
+      case 'Polygon':
+        internalTool = 'Polygon';
+        break;
+      case 'Line':
+        internalTool = 'Line';
+        break;
+      case 'ElevationLine':
+        internalTool = 'ElevationLine';
+        break;
+      default:
+        internalTool = tool;
+    }
+
+    // Utiliser le nom d'outil interne pour le reste de la fonction
+    tool = internalTool;
+
     // Restaurer le gestionnaire par défaut pour tous les outils
     restoreDefaultCreateHandler();
 
     setTimeout(() => {
       try {
         switch (tool) {
+          case 'Polygon':
+            showHelpMessage('Cliquez pour ajouter des points, double-cliquez pour terminer le polygone');
+            map.value?.pm.enableDraw('Polygon', {
+              finishOn: 'dblclick',
+              continueDrawing: false,
+              snapMiddle: true,
+              snapDistance: 20
+            });
+
+            // Supprimer l'ancien gestionnaire d'événements s'il existe
+            map.value?.off('pm:create');
+            // Ajouter le nouveau gestionnaire
+            map.value?.on('pm:create', (e: any) => {
+              if (e.shape === 'Polygon' && e.layer) {
+                const latLngs = e.layer.getLatLngs()[0];
+                // Supprimer le polygone temporaire
+                map.value?.removeLayer(e.layer);
+                if (featureGroup.value?.hasLayer(e.layer)) {
+                  featureGroup.value.removeLayer(e.layer);
+                }
+
+                // Créer un nouveau polygone avec notre classe personnalisée
+                const polygon = new Polygon(latLngs, {
+                  color: '#3B82F6',
+                  weight: 3,
+                  fillColor: '#3B82F6',
+                  fillOpacity: 0.2
+                });
+
+                // Ajouter le polygone au groupe de fonctionnalités
+                if (featureGroup.value) {
+                  featureGroup.value.addLayer(polygon);
+                  selectedShape.value = polygon;
+
+                  // Forcer la mise à jour des propriétés
+                  polygon.updateProperties();
+                }
+
+                // Désactiver le mode dessin
+                map.value?.pm.disableDraw();
+                // Restaurer le gestionnaire par défaut
+                restoreDefaultCreateHandler();
+              }
+            });
+            break;
           case 'Circle':
           case 'Semicircle':
             // Préparer les points de repère (centres potentiels)
@@ -1064,13 +1131,13 @@ export function useMapDrawing(): MapDrawingReturn {
               const rectangles = featureGroup.value.getLayers().filter((layer: L.Layer) => {
                 return layer instanceof Rectangle;
               }) as Rectangle[];
-              
+
               // Ajouter les points de repère en utilisant la nouvelle méthode pour tous les rectangles
               rectangles.forEach(rect => {
                 rect.toggleHelperPoints(map.value, true, '#DC2626', '#2563EB');
               });
             }
-            
+
             // Configurer le snapping
             map.value.pm.setGlobalOptions({
               snapDistance: 15,
@@ -1080,14 +1147,14 @@ export function useMapDrawing(): MapDrawingReturn {
               snapMiddle: true,
               snapIntersections: true
             } as any);
-            
+
             // Message d'aide approprié selon l'outil
             let helpMessage = 'Positionnez le centre du cercle. Points bleus : milieu des côtés, Points rouges : sommets, Point vert : centre';
             if (tool === 'Semicircle') {
               helpMessage = 'Positionnez le centre du demi-cercle. Points bleus : milieu des côtés, Points rouges : sommets, Point vert : centre';
             }
             showHelpMessage(helpMessage);
-            
+
             // Activer le dessin du cercle
             map.value.pm.enableDraw('Circle', {
               finishOn: 'mouseup',
@@ -1101,13 +1168,13 @@ export function useMapDrawing(): MapDrawingReturn {
               const rectangles = featureGroup.value.getLayers().filter((layer: L.Layer) => {
                 return layer instanceof Rectangle;
               }) as Rectangle[];
-              
+
               // Ajouter les points de repère en utilisant la nouvelle méthode pour tous les rectangles
               rectangles.forEach(rect => {
                 rect.toggleHelperPoints(map.value, true, '#DC2626', '#2563EB');
               });
             }
-            
+
             // Configurer le snapping
             map.value.pm.setGlobalOptions({
               snapDistance: 15,
@@ -1117,18 +1184,18 @@ export function useMapDrawing(): MapDrawingReturn {
               snapMiddle: true,
               snapIntersections: true
             } as any);
-            
+
             showHelpMessage('Positionnez le centre du cercle d\'irrigation. Vous pourrez ajouter des sections après sa création.');
-            
+
             // Activer le dessin du cercle
             map.value.pm.enableDraw('Circle', {
               finishOn: 'mouseup',
               continueDrawing: false
             });
-            
+
             // Supprimer le gestionnaire par défaut et ajouter le gestionnaire personnalisé
             map.value.off('pm:create');
-            
+
             // Ajouter le gestionnaire pour créer un CircleWithSections au lieu d'un Circle standard
             map.value.on('pm:create', (e: any) => {
               if (e.shape === 'Circle' && e.layer && currentTool.value === 'CircleWithSections') {
@@ -1136,13 +1203,13 @@ export function useMapDrawing(): MapDrawingReturn {
                 const createdCircle = e.layer;
                 const center = createdCircle.getLatLng();
                 const radius = createdCircle.getRadius();
-                
+
                 // Supprimer immédiatement le cercle temporaire
                 map.value?.removeLayer(createdCircle);
                 if (featureGroup.value?.hasLayer(createdCircle)) {
                   featureGroup.value.removeLayer(createdCircle);
                 }
-                
+
                 // Créer un CircleWithSections à la place
                 const circleWithSections = new CircleWithSections(center, {
                   radius: radius,
@@ -1152,19 +1219,19 @@ export function useMapDrawing(): MapDrawingReturn {
                   fillOpacity: 0.2,
                   name: 'Cercle d\'irrigation'
                 });
-                
+
                 // Ajouter le CircleWithSections au groupe de fonctionnalités
                 if (featureGroup.value) {
                   featureGroup.value.addLayer(circleWithSections);
                   selectedShape.value = circleWithSections;
                   circleWithSections.updateProperties();
-                  
+
                   console.log('[CircleWithSections] Nouveau cercle avec sections créé', {
                     center: center,
                     radius: radius,
                     properties: circleWithSections.properties
                   });
-                  
+
                   // Ajouter une première section par défaut
                   circleWithSections.addSection({
                     startAngle: 0,
@@ -1173,10 +1240,10 @@ export function useMapDrawing(): MapDrawingReturn {
                     name: 'Section 1'
                   });
                 }
-                
+
                 // Désactiver le mode dessin
                 map.value?.pm.disableDraw();
-                
+
                 // Restaurer le gestionnaire par défaut
                 restoreDefaultCreateHandler();
               }
@@ -1204,6 +1271,41 @@ export function useMapDrawing(): MapDrawingReturn {
               continueDrawing: false,
               snapMiddle: true,
               snapDistance: 20
+            });
+
+            // Supprimer l'ancien gestionnaire d'événements s'il existe
+            map.value?.off('pm:create');
+            // Ajouter le nouveau gestionnaire
+            map.value?.on('pm:create', (e: any) => {
+              if (e.shape === 'Line' && e.layer) {
+                const latLngs = e.layer.getLatLngs();
+                // Supprimer la ligne temporaire
+                map.value?.removeLayer(e.layer);
+                if (featureGroup.value?.hasLayer(e.layer)) {
+                  featureGroup.value.removeLayer(e.layer);
+                }
+
+                // Créer une nouvelle ligne avec notre classe personnalisée
+                const line = new Line(latLngs, {
+                  color: '#3B82F6',
+                  weight: 3,
+                  opacity: 0.8
+                });
+
+                // Ajouter la ligne au groupe de fonctionnalités
+                if (featureGroup.value) {
+                  featureGroup.value.addLayer(line);
+                  selectedShape.value = line;
+
+                  // Forcer la mise à jour des propriétés
+                  line.updateProperties();
+                }
+
+                // Désactiver le mode dessin
+                map.value?.pm.disableDraw();
+                // Restaurer le gestionnaire par défaut
+                restoreDefaultCreateHandler();
+              }
             });
             break;
           case 'Text':
@@ -1353,13 +1455,13 @@ export function useMapDrawing(): MapDrawingReturn {
                 if (featureGroup.value) {
                   featureGroup.value.addLayer(elevationLine);
                   selectedShape.value = elevationLine;
-                  
+
                   // Initialiser le profil d'élévation et attendre la fin
                   await elevationLine.updateElevationProfile();
-                  
+
                   // Forcer la mise à jour des propriétés
                   const updatedProperties = calculateShapeProperties(elevationLine, 'ElevationLine');
-                  
+
                   // Fusionner avec les propriétés spécifiques d'élévation
                   Object.assign(elevationLine.properties, {
                     ...updatedProperties,
@@ -1378,7 +1480,7 @@ export function useMapDrawing(): MapDrawingReturn {
                 // Désactiver le mode dessin et réinitialiser l'outil
                 map.value?.pm.disableDraw();
                 currentTool.value = '';
-                
+
                 // Restaurer le gestionnaire par défaut
                 restoreDefaultCreateHandler();
               }
@@ -1419,15 +1521,15 @@ export function useMapDrawing(): MapDrawingReturn {
           hasTextStyle: !!layer.properties.style.textStyle,
           textStyleIncoming: style.textStyle
         });
-        
+
         // Styles de texte
         let textStyles: any = {};
-        
+
         // Handle if we receive a nested textStyle object
         if (style.textStyle) {
           console.log('[updateShapeStyle] Using nested textStyle object', style.textStyle);
           textStyles = { ...style.textStyle };
-        } 
+        }
         // Handle flat properties
         else {
           if (style.textColor !== undefined) textStyles.color = style.textColor;
@@ -1442,7 +1544,7 @@ export function useMapDrawing(): MapDrawingReturn {
           if (style.bold !== undefined) textStyles.bold = style.bold;
           if (style.italic !== undefined) textStyles.italic = style.italic;
         }
-        
+
         // Styles visuels de la forme
         if (style.fillColor) textStyles.fillColor = style.fillColor;
         if (style.fillOpacity !== undefined) textStyles.fillOpacity = style.fillOpacity;
@@ -1452,9 +1554,9 @@ export function useMapDrawing(): MapDrawingReturn {
         if (style.strokeWidth !== undefined) textStyles.weight = style.strokeWidth;
         if (style.weight !== undefined) textStyles.weight = style.weight;
         if (style.dashArray) textStyles.dashArray = style.dashArray;
-        
+
         console.log('[updateShapeStyle] Final textStyles being applied:', textStyles);
-        
+
         // Appliquer les styles
         layer.setTextStyle(textStyles);
       }
@@ -1491,7 +1593,7 @@ export function useMapDrawing(): MapDrawingReturn {
       // Appliquer les nouvelles propriétés
       Object.keys(properties).forEach(key => {
         selectedShape.value.properties[key] = properties[key];
-        
+
         // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
         if (key === 'name') {
           console.log(`[useMapDrawing] Setting name "${properties[key]}" directly on layer`);
@@ -1501,7 +1603,7 @@ export function useMapDrawing(): MapDrawingReturn {
     }
 
     console.log('[useMapDrawing] Updated shape properties', {
-      after: selectedShape.value.properties, 
+      after: selectedShape.value.properties,
       name: selectedShape.value.name,
       propertiesName: selectedShape.value.properties?.name,
       allLayerKeys: Object.keys(selectedShape.value),
@@ -1516,14 +1618,14 @@ export function useMapDrawing(): MapDrawingReturn {
       circle.properties.diameter = radius * 2;
       circle.properties.surface = Math.PI * radius * radius;
       circle.properties.perimeter = 2 * Math.PI * radius;
-      
+
       // Assurons-nous que le nom est bien défini sur le cercle
       if (properties.name) {
         console.log(`[useMapDrawing] Ensuring circle name "${properties.name}" is set in multiple places`);
         circle.properties.name = properties.name;
         circle.properties.style.name = properties.name; // Ajout crucial
         (circle as any).name = properties.name;
-        
+
         // Débogage supplémentaire
         console.log('[useMapDrawing] Circle name verification:', {
           circleDirectName: (circle as any).name,
@@ -1599,10 +1701,10 @@ export function useMapDrawing(): MapDrawingReturn {
     clearActiveControlPoints();
     const center = layer.getLatLng();
     const radius = layer.getRadius();
-    
+
     // Déterminer si c'est un CircleWithSections
     const isCircleWithSections = layer instanceof CircleWithSections || layer.properties?.type === 'CircleWithSections';
-    
+
     // Point central (vert)
     const centerPoint = createControlPoint(center, '#059669') as ControlPoint;
     activeControlPoints.push(centerPoint);
@@ -1632,12 +1734,12 @@ export function useMapDrawing(): MapDrawingReturn {
         L.DomEvent.stopPropagation(e);
         map.value.dragging.disable();
         let isDragging = true;
-        
+
         // Si c'est un CircleWithSections, cacher les sections pendant le redimensionnement
         if (isCircleWithSections) {
           (layer as any)._clearSections();
         }
-        
+
         const onMouseMove = (e: L.LeafletMouseEvent) => {
           if (!isDragging) return;
           // Utiliser la méthode pour redimensionner le cercle sans mise à jour des propriétés
@@ -1662,14 +1764,14 @@ export function useMapDrawing(): MapDrawingReturn {
           map.value.dragging.enable();
           // Mettre à jour les propriétés UNIQUEMENT à la fin du redimensionnement
           layer.updateProperties();
-          
+
           // Si c'est un CircleWithSections, réinitialiser les sections
           if (isCircleWithSections && (layer as any)._initSections) {
             setTimeout(() => {
               (layer as any)._initSections();
             }, 100);
           }
-          
+
           // Mise à jour de selectedShape pour déclencher la réactivité
           selectedShape.value = null; // Forcer un reset
           nextTick(() => {
@@ -1690,12 +1792,12 @@ export function useMapDrawing(): MapDrawingReturn {
       let isDragging = true;
       const startLatLng = layer.getLatLng();
       const startMouseLatLng = e.latlng;
-      
+
       // Si c'est un CircleWithSections, cacher les sections pendant le déplacement
       if (isCircleWithSections) {
         (layer as any)._clearSections();
       }
-      
+
       const onMouseMove = (e: L.LeafletMouseEvent) => {
         if (!isDragging) return;
         // Calculer le déplacement
@@ -1731,14 +1833,14 @@ export function useMapDrawing(): MapDrawingReturn {
         map.value.dragging.enable();
         // Mettre à jour les propriétés UNIQUEMENT à la fin du déplacement
         layer.updateProperties();
-        
+
         // Si c'est un CircleWithSections, réinitialiser les sections
         if (isCircleWithSections && (layer as any)._initSections) {
           setTimeout(() => {
             (layer as any)._initSections();
           }, 100);
         }
-        
+
         // Mise à jour de selectedShape pour déclencher la réactivité
         selectedShape.value = null; // Forcer un reset
         nextTick(() => {
@@ -1760,7 +1862,7 @@ export function useMapDrawing(): MapDrawingReturn {
   // Fonction pour mettre à jour les points de contrôle d'un rectangle
   const updateRectangleControlPoints = (layer: any) => {
     if (!map.value || !featureGroup.value) return;
-    
+
     // Vérifier que la couche est bien une instance de notre classe Rectangle
     if (!(layer instanceof Rectangle)) {
       console.warn('La couche n\'est pas une instance de Rectangle');
@@ -1829,7 +1931,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
       // Désactivé: Gestion du redimensionnement via les points de coin
       // Les points de coin sont toujours visibles mais ne permettent plus de redimensionner
-      
+
       return cornerPoint;
     });
 
@@ -1850,7 +1952,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
       // Désactivé: Gestion du redimensionnement via les points milieux
       // Les points milieux sont toujours visibles mais ne permettent plus de redimensionner
-      
+
       return midPointMarker;
     });
 
@@ -1864,16 +1966,16 @@ export function useMapDrawing(): MapDrawingReturn {
       const onMouseMove = (e: L.LeafletMouseEvent) => {
         if (!isDragging) return;
         rectangleLayer.moveFromCenter(e.latlng);
-        
+
         // Mettre à jour les positions des points de contrôle
         const newCorners = rectangleLayer.getRotatedCorners();
         const newMidPoints = rectangleLayer.getMidPoints();
-        
+
         // Mettre à jour tous les points de contrôle
         cornerPoints.forEach((point, i) => point.setLatLng(newCorners[i]));
         midPointMarkers.forEach((point, i) => point.setLatLng(newMidPoints[i]));
         centerPoint.setLatLng(e.latlng);
-        
+
         // Mettre à jour le point et la ligne de rotation
         const newRotationPoint = L.latLng(
           e.latlng.lat + (newCorners[0].lat - e.latlng.lat) * 1.2,
@@ -1957,7 +2059,7 @@ export function useMapDrawing(): MapDrawingReturn {
         if (isDragging) {
           rectangleLayer.finalizeRotation();
         }
-        
+
         selectedShape.value = null;
         nextTick(() => {
           selectedShape.value = rectangleLayer;
@@ -1980,7 +2082,7 @@ export function useMapDrawing(): MapDrawingReturn {
       cornerPoints.forEach((point, i) => point.setLatLng(corners[i]));
       midPointMarkers.forEach((point, i) => point.setLatLng(midPoints[i]));
       centerPoint.setLatLng(center);
-      
+
       // Mettre à jour le point et la ligne de rotation
       const newRotationPoint = L.latLng(
         center.lat + (corners[0].lat - center.lat) * 1.2,
@@ -1995,42 +2097,42 @@ export function useMapDrawing(): MapDrawingReturn {
     if (!map.value || !featureGroup.value) {
       return;
     }
-    
+
     // Nettoyer les points de contrôle existants
     clearActiveControlPoints();
-    
+
     // Récupérer les points à jour
     const points = layer.getLatLngs() as L.LatLng[];
     if (!points || points.length === 0) {
       console.warn('Pas de points pour la ligne');
       return;
     }
-    
+
     // Point central (vert)
     let centerPoint: ControlPoint | null = null;
     if (layer instanceof Line) {
       const center = layer.getCenter();
       centerPoint = createControlPoint(center, '#059669') as ControlPoint;
       activeControlPoints.push(centerPoint);
-      
+
       // Ajouter les mesures au point central
       addMeasureEvents(centerPoint, layer, () => {
         const totalLength = layer.getLength() || 0;
         return formatMeasure(totalLength, 'm', 'Longueur totale');
       });
-      
+
       // Gestion du déplacement via le point central
       centerPoint.on('mousedown', (e: L.LeafletMouseEvent) => {
         if (!map.value) return;
-        
+
         L.DomEvent.stopPropagation(e);
         map.value.dragging.disable();
         let isDragging = true;
-        
+
         // Stocker les positions initiales
         const startLatLngs = (layer.getLatLngs() as L.LatLng[]).map(p => L.latLng(p.lat, p.lng));
         const startMousePoint = e.latlng;
-        
+
         // Désactiver temporairement les écouteurs d'événements de mise à jour
         if (layer instanceof Line) {
           layer.off('move:end');
@@ -2038,7 +2140,7 @@ export function useMapDrawing(): MapDrawingReturn {
           layer.off('latlngs:updated');
           layer.off('properties:updated');
         }
-        
+
         // Cacher tous les points de contrôle sauf le point central
         activeControlPoints.forEach((point, index) => {
           if (index > 0) { // Ne pas cacher le point central
@@ -2048,37 +2150,37 @@ export function useMapDrawing(): MapDrawingReturn {
             }
           }
         });
-        
+
         const onMouseMove = (e: L.LeafletMouseEvent) => {
           if (!isDragging) return;
-          
+
           // Calculer le déplacement relatif depuis le début du drag
           const dx = e.latlng.lng - startMousePoint.lng;
           const dy = e.latlng.lat - startMousePoint.lat;
-          
+
           // Appliquer le déplacement à tous les points de la ligne
-          const newLatLngs = startLatLngs.map(p => 
+          const newLatLngs = startLatLngs.map(p =>
             L.latLng(p.lat + dy, p.lng + dx)
           );
-          
+
           // Mettre à jour la ligne sans déclencher d'événements
           L.Polyline.prototype.setLatLngs.call(layer, newLatLngs);
-          
+
           // Mettre à jour la position du point central pour qu'il suive exactement la souris
           centerPoint?.setLatLng(e.latlng);
         };
-        
+
         // Utiliser throttle pour limiter les mises à jour
         const throttledMove = throttle(onMouseMove, 16);
-        
+
         const onMouseUp = () => {
           isDragging = false;
           if (!map.value) return;
-          
+
           map.value.off('mousemove', throttledMove);
           document.removeEventListener('mouseup', onMouseUp);
           map.value.dragging.enable();
-          
+
           // Mettre à jour les propriétés
           if (layer instanceof Line) {
             // Réactiver les écouteurs d'événements
@@ -2086,32 +2188,32 @@ export function useMapDrawing(): MapDrawingReturn {
               clearActiveControlPoints();
               updateLineControlPoints(layer);
             };
-            
+
             layer.on('move:end', updateControlPoints);
             layer.on('vertex:moved', updateControlPoints);
             layer.on('latlngs:updated', updateControlPoints);
             layer.on('properties:updated', updateControlPoints);
-            
+
             // Mettre à jour les propriétés
             layer.updateProperties();
             updateLayerProperties(layer, 'Line');
           }
-          
+
           // Forcer la mise à jour des points de contrôle
           clearActiveControlPoints();
           updateLineControlPoints(layer);
         };
-        
+
         map.value.on('mousemove', throttledMove);
         document.addEventListener('mouseup', onMouseUp);
       });
     }
-    
+
     // Points d'extrémité (rouge)
     points.forEach((point, i) => {
       const pointMarker = createControlPoint(point, '#DC2626') as ControlPoint;
       activeControlPoints.push(pointMarker);
-      
+
       // Ajouter les mesures
       addMeasureEvents(pointMarker, layer, () => {
         if (layer instanceof Line) {
@@ -2124,15 +2226,15 @@ export function useMapDrawing(): MapDrawingReturn {
         }
         return '';
       });
-      
+
       // Gestion du déplacement des points d'extrémité
       pointMarker.on('mousedown', (e: L.LeafletMouseEvent) => {
         if (!map.value) return;
-        
+
         L.DomEvent.stopPropagation(e);
         map.value.dragging.disable();
         let isDragging = true;
-        
+
         // Désactiver temporairement les écouteurs d'événements de mise à jour
         if (layer instanceof Line) {
           layer.off('move:end');
@@ -2140,7 +2242,7 @@ export function useMapDrawing(): MapDrawingReturn {
           layer.off('latlngs:updated');
           layer.off('properties:updated');
         }
-        
+
         // Cacher tous les points de contrôle sauf celui en cours de déplacement
         activeControlPoints.forEach((point, index) => {
           if (index !== i + 1) { // +1 car le point central est en position 0
@@ -2150,29 +2252,29 @@ export function useMapDrawing(): MapDrawingReturn {
             }
           }
         });
-        
+
         const onMouseMove = throttle((e: L.LeafletMouseEvent) => {
           if (!isDragging) return;
-          
+
           // Récupérer les points actuels
           const currentPoints = layer.getLatLngs() as L.LatLng[];
           // Mettre à jour uniquement le point déplacé
           currentPoints[i] = e.latlng;
           // Mettre à jour la ligne sans déclencher d'événements
           L.Polyline.prototype.setLatLngs.call(layer, currentPoints);
-          
+
           // Mettre à jour la position du point de contrôle
           pointMarker.setLatLng(e.latlng);
         }, 16);
-        
+
         const onMouseUp = () => {
           isDragging = false;
           if (!map.value) return;
-          
+
           map.value.off('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
           map.value.dragging.enable();
-          
+
           // Mettre à jour les propriétés
           if (layer instanceof Line) {
             // Réactiver les écouteurs d'événements
@@ -2180,27 +2282,27 @@ export function useMapDrawing(): MapDrawingReturn {
               clearActiveControlPoints();
               updateLineControlPoints(layer);
             };
-            
+
             layer.on('move:end', updateControlPoints);
             layer.on('vertex:moved', updateControlPoints);
             layer.on('latlngs:updated', updateControlPoints);
             layer.on('properties:updated', updateControlPoints);
-            
+
             // Mettre à jour les propriétés
             layer.updateProperties();
             updateLayerProperties(layer, 'Line');
           }
-          
+
           // Forcer la mise à jour complète des points de contrôle
           clearActiveControlPoints();
           updateLineControlPoints(layer);
         };
-        
+
         map.value.on('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
       });
     });
-    
+
     // Points milieux (bleu)
     if (points.length >= 2) {
       for (let i = 0; i < points.length - 1; i++) {
@@ -2210,10 +2312,10 @@ export function useMapDrawing(): MapDrawingReturn {
           (p1.lat + p2.lat) / 2,
           (p1.lng + p2.lng) / 2
         );
-        
+
         const midPointMarker = createControlPoint(midPoint, '#2563EB') as ControlPoint;
         activeControlPoints.push(midPointMarker);
-        
+
         // Ajouter les mesures
         addMeasureEvents(midPointMarker, layer, () => {
           if (layer instanceof Line) {
@@ -2231,14 +2333,14 @@ export function useMapDrawing(): MapDrawingReturn {
         });
       }
     }
-    
+
     // Ajouter les écouteurs d'événements pour la synchronisation
     if (layer instanceof Line) {
       const updateControlPoints = () => {
         clearActiveControlPoints();
         updateLineControlPoints(layer);
       };
-      
+
       // Écouter les événements de déplacement
       layer.on('move:start', () => {
         // Cacher tous les points de contrôle sauf le point central
@@ -2251,12 +2353,12 @@ export function useMapDrawing(): MapDrawingReturn {
           }
         });
       });
-      
+
       layer.on('move:end', updateControlPoints);
       layer.on('vertex:moved', updateControlPoints);
       layer.on('latlngs:updated', updateControlPoints);
       layer.on('properties:updated', updateControlPoints);
-      
+
       // Stocker la fonction de nettoyage
       (activeControlPoints as any).cleanup = () => {
         layer.off('move:start', () => {});
@@ -2333,7 +2435,7 @@ export function useMapDrawing(): MapDrawingReturn {
         const dx = moveEvent.latlng.lng - startPoint.lng;
         const dy = moveEvent.latlng.lat - startPoint.lat;
         // Déplacer tous les points du polygone
-        const newPoints = originalPoints.map(point => 
+        const newPoints = originalPoints.map(point =>
           L.latLng(
             point.lat + dy,
             point.lng + dx
@@ -2556,7 +2658,7 @@ export function useMapDrawing(): MapDrawingReturn {
           // Le nouveau point sera à la position i+1 dans la liste des sommets
           const newVertexIndex = currentIndex + 1;
           const newVertexOffset = 1 + newVertexIndex; // +1 pour le point central
-          const newVertexMarker = newVertexIndex < activeControlPoints.length - 1 ? 
+          const newVertexMarker = newVertexIndex < activeControlPoints.length - 1 ?
             activeControlPoints[newVertexOffset] : null;
           // Si on a bien trouvé le nouveau point, on va déplacer ce point spécifique
           if (newVertexMarker) {
@@ -2622,7 +2724,7 @@ export function useMapDrawing(): MapDrawingReturn {
               clearActiveControlPoints();
               updatePolygonControlPoints(layer);
               // Mise à jour de selectedShape pour déclencher la réactivité
-              selectedShape.value = null; 
+              selectedShape.value = null;
               nextTick(() => {
                 selectedShape.value = layer;
               });
@@ -2676,20 +2778,20 @@ export function useMapDrawing(): MapDrawingReturn {
 
         const onMouseMove = (e: L.LeafletMouseEvent) => {
           if (!isDragging || !radiusControl) return;
-          
+
           // Calculer le nouveau rayon basé sur la distance au centre
           const newRadius = center.distanceTo(e.latlng);
-          
+
           // Mettre à jour le rayon du demi-cercle
           layer.setRadius(newRadius);
-          
+
           // Recalculer les positions des points de contrôle
           const newStartPoint = layer.calculatePointOnArc(startAngle);
           const newStopPoint = layer.calculatePointOnArc(stopAngle);
-          
+
           // Calculer le point milieu sur l'arc plutôt que d'utiliser la position de la souris
           const midPoint = layer.calculateMidpointPosition();
-          
+
           // Mettre à jour les positions des points de contrôle
           startControl.setLatLng(newStartPoint);
           stopControl.setLatLng(newStopPoint);
@@ -2697,7 +2799,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
           // Mettre à jour les propriétés pendant le redimensionnement
           layer.updateProperties();
-          
+
           // Mettre à jour la mesure affichée si elle existe
           const controlPoint = radiusControl as ControlPoint;
           if (controlPoint?.measureDiv) {
@@ -2741,18 +2843,18 @@ export function useMapDrawing(): MapDrawingReturn {
           // Calculer le vecteur entre le centre et la position de la souris
           const dx = e.latlng.lng - center.lng;
           const dy = e.latlng.lat - center.lat;
-          
+
           // Calculer la distance actuelle au centre
           const currentRadius = layer.getRadius();
-          
+
           // Normaliser le vecteur pour maintenir le rayon constant
           const distance = Math.sqrt(dx * dx + dy * dy);
           const scale = currentRadius / (distance * 111319.9 * Math.cos(center.lat * Math.PI / 180));
-          
+
           // Calculer la nouvelle position projetée sur le cercle
           const projectedLng = center.lng + dx * scale;
           const projectedLat = center.lat + dy * scale;
-          
+
           // Calculer l'angle à partir de la position projetée
           const newAngle = (Math.atan2(
             projectedLat - center.lat,
@@ -2882,15 +2984,15 @@ export function useMapDrawing(): MapDrawingReturn {
     if (!map.value || !tempControlPointsGroup.value) {
       return;
     }
-    
+
     console.log('[generateTempControlPoints] Génération des points temporaires pour', {
       layerType: layer.constructor.name,
       properties: layer.properties
     });
-    
+
     // Supprimer les points temporaires existants
     tempControlPointsGroup.value.clearLayers();
-    
+
     try {
       // Traitement selon le type de forme
       if (layer instanceof TextRectangle) {
@@ -2931,7 +3033,7 @@ export function useMapDrawing(): MapDrawingReturn {
       else if (layer instanceof Polygon || layer instanceof L.Polygon) {
         // Récupérer les points du polygone
         let points: L.LatLng[] = [];
-        
+
         if ('getLatLngs' in layer) {
           const latLngs = layer.getLatLngs();
           if (Array.isArray(latLngs) && latLngs.length > 0) {
@@ -2943,10 +3045,10 @@ export function useMapDrawing(): MapDrawingReturn {
             }
           }
         }
-        
+
         // Point central (vert)
         let center: L.LatLng | null = null;
-        
+
         if (layer instanceof Polygon && typeof layer.getCenter === 'function') {
           center = layer.getCenter();
         } else if (points.length > 0) {
@@ -2960,7 +3062,7 @@ export function useMapDrawing(): MapDrawingReturn {
             centroidPoint.geometry.coordinates[0]
           );
         }
-        
+
         if (center) {
           const tempCenterPoint = L.circleMarker(center, {
             radius: 5,
@@ -2973,7 +3075,7 @@ export function useMapDrawing(): MapDrawingReturn {
           });
           tempControlPointsGroup.value.addLayer(tempCenterPoint);
         }
-        
+
         // Points de sommet (rouge)
         points.forEach(point => {
           if (point) {
@@ -2989,7 +3091,7 @@ export function useMapDrawing(): MapDrawingReturn {
             tempControlPointsGroup.value.addLayer(tempPoint);
           }
         });
-        
+
         // Points milieux (bleu)
         for (let i = 0; i < points.length; i++) {
           const p1 = points[i];
@@ -3012,7 +3114,7 @@ export function useMapDrawing(): MapDrawingReturn {
           }
         }
       }
-      
+
       console.log('[generateTempControlPoints] Points temporaires générés', {
         count: tempControlPointsGroup.value.getLayers().length
       });
@@ -3302,7 +3404,7 @@ export function useMapDrawing(): MapDrawingReturn {
     // Filtrer les couches valides et afficher leurs propriétés
     const validLayers = layers.filter(layer => {
       if (!layer) return false;
-      
+
       let surface = 0;
       let dimensions = { width: 0, height: 0 };
 
@@ -3317,14 +3419,14 @@ export function useMapDrawing(): MapDrawingReturn {
         const bounds = (layer as L.Rectangle).getBounds();
         const sw = bounds.getSouthWest();
         const ne = bounds.getNorthEast();
-        
+
         // Calculer la largeur et la hauteur en mètres
         const widthLine = lineString([[sw.lng, sw.lat], [ne.lng, sw.lat]]);
         const heightLine = lineString([[sw.lng, sw.lat], [sw.lng, ne.lat]]);
         dimensions.width = length(widthLine, { units: 'meters' });
         dimensions.height = length(heightLine, { units: 'meters' });
         surface = dimensions.width * dimensions.height;
-        
+
         console.log('\nForme détectée: Rectangle');
         console.log(`- Surface propre: ${surface.toFixed(2)} m²`);
         console.log(`- Largeur: ${dimensions.width.toFixed(2)} m`);
@@ -3393,7 +3495,7 @@ export function useMapDrawing(): MapDrawingReturn {
             const ne = bounds.getNorthEast();
             const nw = L.latLng(ne.lat, sw.lng);
             const se = L.latLng(sw.lat, ne.lng);
-            
+
             const coordinates: [number, number][] = [
               [sw.lng, sw.lat],
               [se.lng, se.lat],
@@ -3401,16 +3503,16 @@ export function useMapDrawing(): MapDrawingReturn {
               [nw.lng, nw.lat],
               [sw.lng, sw.lat]
             ];
-            
+
             feature = polygon([coordinates]) as unknown as Feature<GeoJSONPolygon, GeoJsonProperties>;
             const geoJsonArea = area(feature);
-            
+
             const widthLine = lineString([[sw.lng, sw.lat], [ne.lng, sw.lat]]);
             const heightLine = lineString([[sw.lng, sw.lat], [sw.lng, ne.lat]]);
             const width = length(widthLine, { units: 'meters' });
             const height = length(heightLine, { units: 'meters' });
             const theoreticalArea = width * height;
-            
+
             console.log('\nConversion Rectangle -> GeoJSON');
             console.log(`- Largeur: ${width.toFixed(2)}m`);
             console.log(`- Hauteur: ${height.toFixed(2)}m`);
@@ -3423,12 +3525,12 @@ export function useMapDrawing(): MapDrawingReturn {
             const circleRadius = (layer as any).getRadius();
             const startAngle = (layer as any).getStartAngle();
             const stopAngle = (layer as any).getStopAngle();
-            
+
             const points: [number, number][] = [];
             const numPoints = 64;
-            
+
             points.push([circleCenter.lng, circleCenter.lat]);
-            
+
             for (let i = 0; i <= numPoints; i++) {
               const angle = startAngle + ((stopAngle - startAngle + 360) % 360) * i / numPoints;
               const rad = (angle * Math.PI) / 180;
@@ -3441,19 +3543,19 @@ export function useMapDrawing(): MapDrawingReturn {
                 circleCenter.lat + latOffset
               ]);
             }
-            
+
             points.push([circleCenter.lng, circleCenter.lat]);
-            
+
             feature = polygon([points]) as unknown as Feature<GeoJSONPolygon, GeoJsonProperties>;
             const geoJsonArea = area(feature);
             const propertyArea = (layer as any).properties?.surface || 0;
-            
+
             console.log('\nConversion Semicircle -> GeoJSON');
             console.log(`- Rayon: ${circleRadius.toFixed(2)}m`);
             console.log(`- Surface propriété: ${propertyArea.toFixed(2)}m²`);
             console.log(`- Surface GeoJSON: ${geoJsonArea.toFixed(2)}m²`);
             console.log(`- Différence: ${Math.abs(propertyArea - geoJsonArea).toFixed(2)}m² (${((Math.abs(propertyArea - geoJsonArea) / propertyArea) * 100).toFixed(2)}%)`);
-            
+
             return feature;
           }
           return null;
@@ -3478,7 +3580,7 @@ export function useMapDrawing(): MapDrawingReturn {
           try {
             const collection = featureCollection([features[i], features[j]]) as FeatureCollection<GeoJSONPolygon, GeoJsonProperties>;
             const intersectionResult = intersect(collection);
-            
+
             if (intersectionResult) {
               const overlapArea = area(intersectionResult);
               intersectionArea += overlapArea;
@@ -3517,28 +3619,28 @@ export function useMapDrawing(): MapDrawingReturn {
   // Fonction pour afficher la visualisation de la couverture
   const showCoverageOverlay = (layers: L.Layer[], targetLayer?: L.Layer) => {
     if (!map.value) return;
-    
+
     // Hide existing overlay first
     hideCoverageOverlay();
-    
+
     // If targetLayer is provided, only show coverage for connected shapes
-    const shapesToShow = targetLayer ? 
-      getConnectedShapes(layers, targetLayer) : 
+    const shapesToShow = targetLayer ?
+      getConnectedShapes(layers, targetLayer) :
       layers;
-    
+
     // Create the overlay group if it doesn't exist
     if (!coverageOverlayGroup.value) {
       coverageOverlayGroup.value = L.layerGroup().addTo(map.value);
     }
-    
+
     // Create and add each coverage overlay
     shapesToShow.forEach(layer => {
       const type = (layer as any).properties?.type;
-      
+
       if (type === 'Circle' || type === 'Semicircle') {
         const center = (layer as any).getLatLng();
         const radius = (layer as any).getRadius();
-        
+
         // Add a circle with dashed outline for better visual indication
         const circleOverlay = L.circle(center, {
           radius: radius,
@@ -3552,7 +3654,7 @@ export function useMapDrawing(): MapDrawingReturn {
           interactive: false,
           renderer: L.canvas({ padding: 0.5 })
         });
-        
+
         // Add another circle for the filled pattern
         const patternCircle = L.circle(center, {
           radius: radius,
@@ -3562,15 +3664,15 @@ export function useMapDrawing(): MapDrawingReturn {
           interactive: false,
           renderer: L.canvas({ padding: 0.5 })
         });
-        
+
         if (coverageOverlayGroup.value) {
           coverageOverlayGroup.value.addLayer(patternCircle);
           coverageOverlayGroup.value.addLayer(circleOverlay);
         }
-        
+
       } else if (type === 'Rectangle' || type === 'Polygon') {
         const latLngs = (layer as any).getLatLngs();
-        
+
         // Add polygon with dashed outline
         const polygonOverlay = L.polygon(latLngs, {
           fillColor: '#3B82F6',
@@ -3583,7 +3685,7 @@ export function useMapDrawing(): MapDrawingReturn {
           interactive: false,
           renderer: L.canvas({ padding: 0.5 })
         });
-        
+
         // Add another polygon for the filled pattern
         const patternPolygon = L.polygon(latLngs, {
           fillColor: '#3B82F6',
@@ -3592,19 +3694,19 @@ export function useMapDrawing(): MapDrawingReturn {
           interactive: false,
           renderer: L.canvas({ padding: 0.5 })
         });
-        
+
         if (coverageOverlayGroup.value) {
           coverageOverlayGroup.value.addLayer(patternPolygon);
           coverageOverlayGroup.value.addLayer(polygonOverlay);
         }
       }
     });
-    
+
     // Add a label to indicate this is a connected group
     if (targetLayer && shapesToShow.length > 1 && map.value) {
       // Get bounds of all shapes in the group
       const bounds = L.latLngBounds([]);
-      
+
       shapesToShow.forEach(layer => {
         if ((layer as any).getBounds) {
           bounds.extend((layer as any).getBounds());
@@ -3612,7 +3714,7 @@ export function useMapDrawing(): MapDrawingReturn {
           bounds.extend((layer as any).getLatLng());
         }
       });
-      
+
       // Add a tooltip at the center of the bounds
       const center = bounds.getCenter();
       const tooltip = L.tooltip({
@@ -3622,7 +3724,7 @@ export function useMapDrawing(): MapDrawingReturn {
       })
       .setContent('<div>Groupe connecté</div>')
       .setLatLng(center);
-      
+
       if (coverageOverlayGroup.value) {
         coverageOverlayGroup.value.addLayer(L.marker(center, {
           opacity: 0,
@@ -3635,35 +3737,35 @@ export function useMapDrawing(): MapDrawingReturn {
   // Function to find all shapes connected to a given shape (directly or indirectly)
   const getConnectedShapes = (layers: L.Layer[], startLayer: L.Layer): L.Layer[] => {
     if (!startLayer) return [];
-    
+
     // Set to keep track of visited layers
     const visited = new Set<number>();
     // Queue for breadth-first search
     const queue: L.Layer[] = [startLayer];
     // Result array of connected layers
     const connectedLayers: L.Layer[] = [startLayer];
-    
+
     // Add initial layer to visited set
     if ((startLayer as any)._leaflet_id !== undefined) {
       visited.add((startLayer as any)._leaflet_id);
     }
-    
+
     while (queue.length > 0) {
       const currentLayer = queue.shift()!;
-      
+
       // Check if this layer intersects with any other layers
       for (const layer of layers) {
         // Skip if it's the same layer or already visited
         if (
-          layer === currentLayer || 
+          layer === currentLayer ||
           visited.has((layer as any)._leaflet_id)
         ) {
           continue;
         }
-        
+
         // Check if layers intersect
         const intersects = doLayersIntersect(currentLayer, layer);
-        
+
         if (intersects) {
           // Add to results and queue for further processing
           connectedLayers.push(layer);
@@ -3672,7 +3774,7 @@ export function useMapDrawing(): MapDrawingReturn {
         }
       }
     }
-    
+
     return connectedLayers;
   };
 
@@ -3681,7 +3783,7 @@ export function useMapDrawing(): MapDrawingReturn {
     // Get bounds for both layers
     let bounds1: L.LatLngBounds | null = null;
     let bounds2: L.LatLngBounds | null = null;
-    
+
     // Handle Circle
     if ((layer1 as any).getBounds && typeof (layer1 as any).getBounds === 'function') {
       bounds1 = (layer1 as any).getBounds();
@@ -3693,7 +3795,7 @@ export function useMapDrawing(): MapDrawingReturn {
         [center.lat + radius / 111000, center.lng + radius / (111000 * Math.cos(center.lat * Math.PI / 180))]
       );
     }
-    
+
     if ((layer2 as any).getBounds && typeof (layer2 as any).getBounds === 'function') {
       bounds2 = (layer2 as any).getBounds();
     } else if ((layer2 as any).getLatLng && (layer2 as any).getRadius) {
@@ -3704,13 +3806,13 @@ export function useMapDrawing(): MapDrawingReturn {
         [center.lat + radius / 111000, center.lng + radius / (111000 * Math.cos(center.lat * Math.PI / 180))]
       );
     }
-    
+
     // Return false if bounds couldn't be computed for either layer
     if (!bounds1 || !bounds2) return false;
-    
+
     // Check if bounding boxes intersect
     if (!bounds1.intersects(bounds2)) return false;
-    
+
     // For more complex shapes, we could perform more detailed intersection checks here
     // But for simple case, bounding box intersection is a good approximation
     return true;
@@ -3719,7 +3821,7 @@ export function useMapDrawing(): MapDrawingReturn {
   // Function to calculate the total coverage area of connected shapes
   const calculateConnectedCoverageArea = (layers: L.Layer[], startLayer: L.Layer): number => {
     const connectedLayers = getConnectedShapes(layers, startLayer);
-    
+
     // Si la forme n'est connectée à aucune autre (seulement elle-même dans connectedLayers)
     if (connectedLayers.length === 1) {
       // Pour un rectangle seul, retourner sa propre surface
@@ -3727,7 +3829,7 @@ export function useMapDrawing(): MapDrawingReturn {
         return (startLayer as any).properties.surface;
       }
     }
-    
+
     return calculateTotalCoverageArea(connectedLayers);
   };
 
@@ -3814,13 +3916,13 @@ export function useMapDrawing(): MapDrawingReturn {
         radius: layer.getRadius(),
         ...layer.options
       });
-      
+
       // S'assurer que les propriétés sont bien définies avec un type explicite
       circle.properties = {
         ...calculateShapeProperties(circle, 'Circle'),
         type: 'Circle'
       };
-      
+
       // S'assurer que l'attribut name existe et est défini comme une propriété énumérable
       Object.defineProperty(circle, 'name', {
         value: circle.properties.name,
@@ -3828,7 +3930,7 @@ export function useMapDrawing(): MapDrawingReturn {
         enumerable: true,
         configurable: true
       });
-      
+
       console.log('[useMapDrawing] Création du cercle personnalisé:', {
         propertyDescriptor: Object.getOwnPropertyDescriptor(circle, 'name'),
         directName: (circle as any).name,
@@ -3837,7 +3939,7 @@ export function useMapDrawing(): MapDrawingReturn {
         allProperties: Object.keys(circle.properties),
         allKeys: Object.keys(circle)
       });
-      
+
       featureGroup.value?.addLayer(circle);
       selectedShape.value = circle;
       updateCircleControlPoints(circle);
