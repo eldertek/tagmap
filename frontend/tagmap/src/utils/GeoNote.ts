@@ -49,7 +49,7 @@ export class GeoNote extends L.Marker {
     this.properties = {
       type: 'Note',
       name: options.name || 'Note géolocalisée',
-      description: options.description || 'Double-cliquez pour éditer',
+      description: options.description || '',
       columnId: options.columnId || 'en-cours', // Colonne par défaut
       accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
       style: {
@@ -123,11 +123,13 @@ export class GeoNote extends L.Marker {
     content.className = 'geo-note-content';
     container.appendChild(content);
 
-    // Ajouter la description
-    const description = document.createElement('div');
-    description.className = 'geo-note-description';
-    description.textContent = this.properties.description;
-    content.appendChild(description);
+    // Ajouter la description seulement si elle existe
+    if (this.properties.description && this.properties.description.trim() !== '') {
+      const description = document.createElement('div');
+      description.className = 'geo-note-description';
+      description.textContent = this.properties.description;
+      content.appendChild(description);
+    }
 
     // Créer le pied de page
     const footer = document.createElement('div');
@@ -141,7 +143,7 @@ export class GeoNote extends L.Marker {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
       </svg>
-      Éditer
+      Modifier cette note
     `;
     editButton.onclick = (e) => {
       e.stopPropagation();

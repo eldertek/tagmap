@@ -1162,7 +1162,7 @@ export function useMapDrawing(): MapDrawingReturn {
                 const geoNote = new GeoNote(e.latlng, {
                   color: '#3B82F6',
                   name: 'Note géolocalisée',
-                  description: 'Double-cliquez pour éditer'
+                  description: ''
                 });
                 featureGroup.value.addLayer(geoNote);
                 selectedShape.value = geoNote;
