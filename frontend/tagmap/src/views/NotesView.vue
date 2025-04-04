@@ -374,15 +374,45 @@ async function loadInitialData() {
     console.log('[NotesView][loadInitialData] Chargement des colonnes...');
     await notesStore.loadColumns();
     console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
+    
+    // Vérifier si une colonne par défaut existe
+    const defaultColumn = notesStore.columns.find(col => col.isDefault);
+    console.log(`[NotesView][loadInitialData] Colonne par défaut: ${defaultColumn ? defaultColumn.title : 'aucune'}`);
 
     // Récupérer les notes depuis le backend
     console.log('[NotesView][loadInitialData] Chargement des notes...');
     const response = await noteService.getNotes();
     console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
+    
+    // Vérifier que chaque note a bien une colonne
+    const notesWithoutColumn = response.data.filter((note: Note) => !note.column_id);
+    if (notesWithoutColumn.length > 0) {
+      console.warn(`[NotesView][loadInitialData] ${notesWithoutColumn.length} notes sans colonne:`, notesWithoutColumn);
+      
+      // Assigner la colonne par défaut aux notes sans colonne
+      if (defaultColumn) {
+        console.log(`[NotesView][loadInitialData] Assignation de la colonne par défaut (${defaultColumn.id}) aux notes sans colonne`);
+        for (const note of notesWithoutColumn) {
+          note.column_id = defaultColumn.id;
+          // Essayer de mettre à jour la note dans le backend
+          try {
+            await noteService.updateNote(note.id, { column_id: defaultColumn.id });
+          } catch (err) {
+            console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de colonne à la note ${note.id}:`, err);
+          }
+        }
+      }
+    }
 
     // Mettre à jour le store de notes
     notesStore.notes = response.data;
     console.log('[NotesView][loadInitialData] Notes chargées dans le store');
+    
+    // Vérifier la répartition des notes par colonne
+    for (const column of notesStore.columns) {
+      const notesInColumn = notesStore.getNotesByColumn(column.id);
+      console.log(`[NotesView][loadInitialData] Colonne ${column.title} (${column.id}): ${notesInColumn.length} notes`);
+    }
   } catch (error) {
     console.error('[NotesView][loadInitialData] Erreur:', error);
     notificationStore.error('Erreur lors du chargement des données');

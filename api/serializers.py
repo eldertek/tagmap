@@ -333,28 +333,59 @@ class GeoNoteSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, data):
+        print(f"\n[GeoNoteSerializer][validate] Validation des données de note: {data}")
+        
         # Vérifier que le plan existe
         if 'plan' in data and not Plan.objects.filter(id=data['plan'].id).exists():
             raise serializers.ValidationError({
                 'plan': 'Le plan spécifié n\'existe pas.'
             })
 
-        # Si aucune colonne n'est spécifiée, utiliser la colonne "Idées"
+        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
         if 'column' not in data or not data['column']:
-            ideas_column = NoteColumn.objects.filter(title='Idées').first()
-            if ideas_column:
-                data['column'] = ideas_column
+            default_column = NoteColumn.objects.filter(is_default=True).first()
+            if default_column:
+                print(f"[GeoNoteSerializer][validate] Utilisation de la colonne par défaut: {default_column.id} - {default_column.title}")
+                data['column'] = default_column
             else:
-                # Créer la colonne "Idées" si elle n'existe pas
-                ideas_column = NoteColumn.objects.create(
-                    title='Idées',
-                    color='#8B5CF6',
-                    order=0,
-                    is_default=False
-                )
-                data['column'] = ideas_column
-
+                # Sinon utiliser/créer la colonne "Idées"
+                ideas_column = NoteColumn.objects.filter(title='Idées').first()
+                if ideas_column:
+                    print(f"[GeoNoteSerializer][validate] Utilisation de la colonne Idées existante: {ideas_column.id}")
+                    data['column'] = ideas_column
+                else:
+                    print(f"[GeoNoteSerializer][validate] Création de la colonne Idées")
+                    ideas_column = NoteColumn.objects.create(
+                        title='Idées',
+                        color='#8B5CF6',
+                        order=0,
+                        is_default=True
+                    )
+                    data['column'] = ideas_column
+        
+        print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column'].id if 'column' in data and data['column'] else 'None'}")
         return data
+        
+    def create(self, validated_data):
+        """
+        S'assurer que la note est bien créée avec une colonne assignée
+        """
+        print(f"\n[GeoNoteSerializer][create] Création de note avec données: {validated_data}")
+        
+        # Vérifier une dernière fois que la colonne est bien assignée
+        if 'column' not in validated_data or not validated_data['column']:
+            default_column = NoteColumn.objects.filter(is_default=True).first()
+            if not default_column:
+                default_column = NoteColumn.objects.order_by('order').first()
+            
+            if default_column:
+                print(f"[GeoNoteSerializer][create] Assignation de la colonne par défaut: {default_column.id}")
+                validated_data['column'] = default_column
+        
+        print(f"[GeoNoteSerializer][create] Données finales pour création: {validated_data}")
+        instance = super().create(validated_data)
+        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column_id if instance.column else 'None'}")
+        return instance
 
 class PlanDetailSerializer(serializers.ModelSerializer):
     createur = UserDetailsSerializer(read_only=True)

@@ -1157,32 +1157,83 @@ export function useMapDrawing(): MapDrawingReturn {
           case 'GeoNote':
             showHelpMessage('Cliquez pour ajouter une note géolocalisée, double-cliquez pour éditer');
             if (map.value) {
-              const onClick = (e: L.LeafletMouseEvent) => {
+              const onClick = async (e: L.LeafletMouseEvent) => {
                 if (!map.value || !featureGroup.value) return;
-                // Créer une nouvelle note géolocalisée
-                const geoNote = new GeoNote(e.latlng, {
-                  color: '#3B82F6',
-                  name: 'Note géolocalisée',
-                  description: '',
-                  columnId: '1' // Associer automatiquement à la colonne 'Idées'
-                });
-                featureGroup.value.addLayer(geoNote);
-                selectedShape.value = geoNote;
-                // Mettre à jour les propriétés
-                geoNote.updateProperties();
-                // Ouvrir le popup pour édition immédiate
-                geoNote.openPopup();
-                // Émettre un événement pour sauvegarder la note dans le backend
-                window.dispatchEvent(new CustomEvent('shape:created', {
-                  detail: {
-                    shape: geoNote,
-                    type: 'Note',
-                    properties: geoNote.properties
-                  }
-                }));
-                // Désactiver le mode note après l'ajout
-                map.value.off('click', onClick);
-                setDrawingTool('');
+                
+                try {
+                  // Initialiser le store de dessin
+                  const drawingStore = useDrawingStore();
+                  
+                  // Créer une nouvelle note géolocalisée
+                  const geoNote = new GeoNote(e.latlng, {
+                    color: '#3B82F6',
+                    name: 'Note géolocalisée',
+                    description: '',
+                    columnId: '1' // Associer automatiquement à la colonne 'Idées'
+                  });
+                  featureGroup.value.addLayer(geoNote);
+                  selectedShape.value = geoNote;
+                  
+                  // Mettre à jour les propriétés
+                  geoNote.updateProperties();
+                  
+                  // Préparer les données pour l'API
+                  const noteData = {
+                    plan: drawingStore.currentMapId, // Utiliser l'ID du plan courant
+                    title: geoNote.properties.name,
+                    description: geoNote.properties.description,
+                    location: [e.latlng.lat, e.latlng.lng],
+                    accessLevel: geoNote.properties.accessLevel,
+                    style: geoNote.properties.style,
+                    category: geoNote.properties.category
+                  };
+                  
+                  console.log('[useMapDrawing] Sauvegarde de la note géolocalisée dans le backend:', noteData);
+                  
+                  // Sauvegarder la note dans le backend
+                  import('../services/api').then(async ({ noteService }) => {
+                    try {
+                      const response = await noteService.createNote(noteData);
+                      console.log('[useMapDrawing] Note sauvegardée avec succès:', response.data);
+                      
+                      // Mettre à jour l'ID de la note avec celui renvoyé par le backend
+                      (geoNote as any)._dbId = response.data.id;
+                      
+                      // Mettre à jour la columnId avec celle renvoyée par le backend
+                      if (response.data.column_id) {
+                        geoNote.properties.columnId = response.data.column_id;
+                        console.log('[useMapDrawing] colonne mise à jour avec:', response.data.column_id);
+                      }
+                      
+                      // Émettre un événement pour informer de la création réussie
+                      window.dispatchEvent(new CustomEvent('note:created', {
+                        detail: {
+                          note: response.data,
+                          geoNote
+                        }
+                      }));
+                      
+                      // Ouvrir le popup pour édition immédiate
+                      geoNote.openPopup();
+                    } catch (error) {
+                      console.error('[useMapDrawing] Erreur lors de la sauvegarde de la note:', error);
+                      // Afficher un message d'erreur ou annuler l'opération
+                      import('../stores/notification').then(({ useNotificationStore }) => {
+                        const notificationStore = useNotificationStore();
+                        notificationStore.error('Erreur lors de la création de la note');
+                      });
+                    }
+                  });
+                  
+                  // Désactiver le mode note après l'ajout
+                  map.value.off('click', onClick);
+                  setDrawingTool('');
+                } catch (error) {
+                  console.error('[useMapDrawing] Erreur lors de la création de la note:', error);
+                  // Désactiver le mode note en cas d'erreur
+                  map.value.off('click', onClick);
+                  setDrawingTool('');
+                }
               };
               map.value.on('click', onClick);
             }
