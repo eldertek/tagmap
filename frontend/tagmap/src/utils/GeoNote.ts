@@ -1,6 +1,5 @@
 import * as L from 'leaflet';
 import { NoteAccessLevel } from '../stores/notes';
-import mapPinIcon from '../assets/map-pin.svg';
 
 export interface GeoNoteOptions {
   name?: string;
@@ -54,11 +53,11 @@ export class GeoNote extends L.Marker {
       columnId: options.columnId || 'en-cours', // Colonne par défaut
       accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
       style: {
-        color: defaultOptions.color,
-        weight: defaultOptions.weight,
-        fillColor: defaultOptions.fillColor,
-        fillOpacity: defaultOptions.fillOpacity,
-        radius: defaultOptions.radius
+        color: options.color || '#3B82F6',
+        weight: options.weight || 2,
+        fillColor: options.fillColor || '#3B82F6',
+        fillOpacity: options.fillOpacity !== undefined ? options.fillOpacity : 0.8,
+        radius: options.radius || 12
       }
     };
 
@@ -74,38 +73,81 @@ export class GeoNote extends L.Marker {
     const container = document.createElement('div');
     container.className = 'geo-note-popup';
 
+    // Créer l'en-tête
+    const header = document.createElement('div');
+    header.className = 'geo-note-header';
+    container.appendChild(header);
+
+    // Ajouter le titre
     const title = document.createElement('div');
     title.className = 'geo-note-title';
     title.textContent = this.properties.name;
-    container.appendChild(title);
+    header.appendChild(title);
+
+    // Conteneur pour les badges
+    const badgesContainer = document.createElement('div');
+    badgesContainer.className = 'geo-note-badges';
+    header.appendChild(badgesContainer);
 
     // Ajouter l'étiquette de colonne
     const columnBadge = document.createElement('div');
-    columnBadge.className = 'geo-note-column-badge';
-    columnBadge.textContent = this.properties.columnId;
+    columnBadge.className = 'geo-note-badge';
     columnBadge.style.backgroundColor = this.getColumnColor(this.properties.columnId);
-    container.appendChild(columnBadge);
+
+    // Ajouter une icône pour la colonne
+    columnBadge.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5z" />
+        <path d="M11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+      </svg>
+      ${this.properties.columnId}
+    `;
+    badgesContainer.appendChild(columnBadge);
 
     // Ajouter l'étiquette de niveau d'accès
     const accessBadge = document.createElement('div');
-    accessBadge.className = 'geo-note-access-badge';
-    accessBadge.textContent = this.getAccessLevelLabel(this.properties.accessLevel);
+    accessBadge.className = 'geo-note-badge';
     accessBadge.style.backgroundColor = this.getAccessLevelColor(this.properties.accessLevel);
-    container.appendChild(accessBadge);
 
+    // Ajouter une icône pour le niveau d'accès
+    accessBadge.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+      </svg>
+      ${this.getAccessLevelLabel(this.properties.accessLevel)}
+    `;
+    badgesContainer.appendChild(accessBadge);
+
+    // Créer le contenu
+    const content = document.createElement('div');
+    content.className = 'geo-note-content';
+    container.appendChild(content);
+
+    // Ajouter la description
     const description = document.createElement('div');
     description.className = 'geo-note-description';
     description.textContent = this.properties.description;
-    container.appendChild(description);
+    content.appendChild(description);
 
+    // Créer le pied de page
+    const footer = document.createElement('div');
+    footer.className = 'geo-note-footer';
+    container.appendChild(footer);
+
+    // Ajouter le bouton d'édition
     const editButton = document.createElement('button');
     editButton.className = 'geo-note-edit-button';
-    editButton.textContent = 'Éditer';
+    editButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+      </svg>
+      Éditer
+    `;
     editButton.onclick = (e) => {
       e.stopPropagation();
       this.editNote();
     };
-    container.appendChild(editButton);
+    footer.appendChild(editButton);
 
     return container;
   }
