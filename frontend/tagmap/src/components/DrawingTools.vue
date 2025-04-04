@@ -79,16 +79,6 @@
         </button>
       </div>
 
-      <!-- Message spécifique pour les notes -->
-      <div v-if="selectedShape && selectedShape.properties?.type === 'Note'" class="p-4 text-center">
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-blue-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-sm text-blue-700 font-medium">Les notes géolocalisées se modifient directement sur la carte.</p>
-        </div>
-      </div>
-
       <!-- Onglet Style -->
       <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3">
         <!-- Couleurs prédéfinies - compact -->
@@ -422,6 +412,8 @@ import { ref, computed, watchEffect, reactive, watch } from 'vue'
 import type { AccessLevel, ElementCategory } from '@/types/drawing'
 import { useDrawingStore } from '@/stores/drawing'
 
+// Les types pour les filtres sont définis plus bas dans le fichier
+
 // Define types
 interface ShapeProperties {
   type: string;
@@ -482,6 +474,23 @@ const getToolIcon = (type: string) => {
 
 // Define reactive variables for the component
 const activeTab = ref('tools') // Onglet actif par défaut
+
+// Watch for tab changes to ensure filters are applied when switching to the filters tab
+watch(activeTab, (newTab, oldTab) => {
+  console.log('[DrawingTools][watch activeTab] Changement d\'onglet:', { newTab, oldTab });
+
+  // If we're switching to the filters tab, make sure filters are up to date
+  if (newTab === 'filters' && oldTab !== 'filters') {
+    // Just ensure the UI reflects the current state
+    console.log('[DrawingTools][watch activeTab] Mise à jour des filtres depuis le store');
+  }
+
+  // If we're leaving the filters tab, apply any pending changes
+  if (oldTab === 'filters' && newTab !== 'filters') {
+    console.log('[DrawingTools][watch activeTab] Application des filtres en quittant l\'onglet');
+    applyFilters();
+  }
+})
 
 const sectionsCollapsed = ref({
   samplePoints: true,
@@ -658,13 +667,36 @@ const updateMinMaxPointStyle = (): void => {
 
 // Méthode pour réinitialiser les filtres
 const resetFilters = (): void => {
-  // Réinitialiser tous les filtres à true
-  // Niveaux d'accès
+  console.log('[DrawingTools][resetFilters] Réinitialisation des filtres');
+
+  // Créer un nouvel objet de filtres avec toutes les valeurs à true
+  const resetedFilters = {
+    accessLevels: {
+      company: true,
+      employee: true,
+      visitor: true
+    },
+    categories: {
+      forages: true,
+      clients: true,
+      entrepots: true,
+      livraisons: true,
+      cultures: true,
+      parcelles: true
+    },
+    shapeTypes: {
+      Polygon: true,
+      Line: true,
+      ElevationLine: true,
+      Note: true
+    }
+  };
+
+  // Mettre à jour directement les filtres locaux
   filters.accessLevels.company = true;
   filters.accessLevels.employee = true;
   filters.accessLevels.visitor = true;
 
-  // Catégories
   filters.categories.forages = true;
   filters.categories.clients = true;
   filters.categories.entrepots = true;
@@ -672,18 +704,28 @@ const resetFilters = (): void => {
   filters.categories.cultures = true;
   filters.categories.parcelles = true;
 
-  // Types de formes
   filters.shapeTypes.Polygon = true;
   filters.shapeTypes.Line = true;
   filters.shapeTypes.ElevationLine = true;
   filters.shapeTypes.Note = true;
 
   // Mettre à jour les filtres dans le store
-  applyFilters();
+  drawingStore.updateFilters(resetedFilters);
+
+  // Émettre un événement pour indiquer que les filtres ont changé
+  emit('filter-change', resetedFilters);
+
+  console.log('[DrawingTools][resetFilters] Filtres réinitialisés:', resetedFilters);
 }
 
 // Méthode pour appliquer les filtres
 const applyFilters = (): void => {
+  console.log('[DrawingTools][applyFilters] Application des filtres:', {
+    accessLevels: filters.accessLevels,
+    categories: filters.categories,
+    shapeTypes: filters.shapeTypes
+  });
+
   // Mettre à jour les filtres dans le store de dessin
   drawingStore.updateFilters({
     accessLevels: { ...filters.accessLevels },
@@ -793,7 +835,13 @@ watchEffect(() => {
 
 // Observer les changements dans les filtres et appliquer automatiquement
 // Utiliser watch au lieu de watchEffect pour éviter les problèmes de variables non utilisées
-watch(filters, () => {
+watch(filters, (newFilters, oldFilters) => {
+  console.log('[DrawingTools][watch filters] Changement détecté:', {
+    activeTab: activeTab.value,
+    newFilters,
+    oldFilters
+  });
+
   // Appliquer les filtres automatiquement lorsqu'ils changent
   // Mais pas lors de l'initialisation
   if (activeTab.value === 'filters') {

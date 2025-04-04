@@ -445,7 +445,7 @@ export const useDrawingStore = defineStore('drawing', {
     getFilters: (state) => state.filters,
     // Getter pour obtenir les éléments filtrés selon les critères actuels
     getFilteredElements: (state) => {
-      return state.elements.filter(element => {
+      const filteredElements = state.elements.filter(element => {
         // Vérifier si le type de forme est activé dans les filtres
         if (!state.filters.shapeTypes[element.type_forme]) {
           return false;
@@ -473,6 +473,14 @@ export const useDrawingStore = defineStore('drawing', {
 
         return true;
       });
+
+      console.log('[DrawingStore][getFilteredElements] Filtrage:', {
+        total: state.elements.length,
+        filtered: filteredElements.length,
+        filters: state.filters
+      });
+
+      return filteredElements;
     }
   },
   actions: {
@@ -618,6 +626,8 @@ export const useDrawingStore = defineStore('drawing', {
       categories?: { [key: string]: boolean };
       shapeTypes?: { [key: string]: boolean };
     }) {
+      console.log('[DrawingStore][updateFilters] Mise à jour des filtres:', filters);
+
       // Mettre à jour les niveaux d'accès si fournis
       if (filters.accessLevels) {
         this.filters.accessLevels = {
@@ -641,6 +651,8 @@ export const useDrawingStore = defineStore('drawing', {
           ...filters.shapeTypes
         };
       }
+
+      console.log('[DrawingStore][updateFilters] Filtres mis à jour:', this.filters);
     },
     async loadPlanElements(planId: number) {
       const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');

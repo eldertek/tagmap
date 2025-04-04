@@ -937,9 +937,15 @@ watch(() => drawingStore.hasUnsavedChanges, (newValue) => {
   }
 });
 
-// Surveiller les changements dans les filtres ou les éléments
-watch(() => drawingStore.getFilteredElements, () => {
-  console.log('[MapView][watch drawingStore.getFilteredElements] Mise à jour de l\'affichage');
+// Surveiller les changements dans les filtres
+watch(() => drawingStore.filters, (newFilters) => {
+  console.log('[MapView][watch drawingStore.filters] Changement de filtres détecté:', newFilters);
+  updateMapDisplay();
+}, { deep: true });
+
+// Surveiller les changements dans les éléments filtrés
+watch(() => drawingStore.getFilteredElements, (newElements) => {
+  console.log('[MapView][watch drawingStore.getFilteredElements] Mise à jour de l\'affichage, éléments filtrés:', newElements.length);
   updateMapDisplay();
 }, { deep: true });
 // Surveiller l'initialisation de la carte
@@ -2742,6 +2748,8 @@ function handleFilterChange(filters: {
   categories: { [key: string]: boolean };
   shapeTypes: { [key: string]: boolean };
 }) {
+  console.log('[MapView][handleFilterChange] Nouveaux filtres reçus:', filters);
+
   // Mettre à jour les filtres dans le store de dessin
   drawingStore.updateFilters(filters);
 
@@ -2753,28 +2761,89 @@ function handleFilterChange(filters: {
 function updateMapDisplay() {
   if (!featureGroup.value) return;
 
+  console.log('[MapView][updateMapDisplay] Mise à jour de l\'affichage avec filtres:', drawingStore.filters);
+
   // Obtenir les éléments filtrés
   const filteredElements = drawingStore.getFilteredElements;
+  console.log('[MapView][updateMapDisplay] Éléments filtrés:', {
+    total: drawingStore.elements.length,
+    filtered: filteredElements.length
+  });
 
   // Obtenir tous les éléments actuellement affichés
   const currentLayers = featureGroup.value.getLayers();
+  console.log('[MapView][updateMapDisplay] Couches actuelles:', currentLayers.length);
 
-  // Parcourir les couches actuelles et les masquer/afficher selon les filtres
+  // Créer un mapping entre les éléments du store et les couches Leaflet
+  const layerMapping = new Map();
+  shapes.value.forEach(shape => {
+    if (shape.layer && shape.id) {
+      layerMapping.set(shape.id, shape.layer);
+    }
+  });
+
+  // Créer un mapping inverse entre les couches Leaflet et les éléments du store
+  const layerToElementMapping = new Map();
   currentLayers.forEach((layer: any) => {
-    const layerId = layer._leaflet_id;
-    const element = drawingStore.elements.find(e => e.id === layerId);
+    if (layer._dbId) {
+      layerToElementMapping.set(layer, layer._dbId);
+    }
+  });
 
-    // Si l'élément est dans les éléments filtrés, l'afficher, sinon le masquer
-    if (element && filteredElements.includes(element)) {
-      if (!featureGroup.value.hasLayer(layer)) {
-        featureGroup.value.addLayer(layer);
-      }
-    } else {
-      if (featureGroup.value.hasLayer(layer)) {
-        featureGroup.value.removeLayer(layer);
+  // Créer un ensemble des IDs des éléments filtrés pour une recherche plus rapide
+  const filteredElementIds = new Set(filteredElements.map(e => e.id));
+
+  // Parcourir toutes les couches et masquer/afficher selon les filtres
+  currentLayers.forEach((layer: any) => {
+    // Vérifier si la couche a un ID de base de données
+    const dbId = layer._dbId;
+
+    if (dbId) {
+      // Vérifier si l'élément est dans les éléments filtrés
+      const shouldBeVisible = filteredElementIds.has(dbId);
+
+      // Appliquer la visibilité
+      if (shouldBeVisible) {
+        // Vérifier les propriétés de la couche pour déterminer si elle doit être visible
+        const properties = layer.properties || {};
+        const type = properties.type || '';
+        const category = properties.category || 'default';
+        const accessLevel = properties.accessLevel || 'visitor';
+
+        // Vérifier si le type, la catégorie et le niveau d'accès sont activés dans les filtres
+        const typeVisible = type in drawingStore.filters.shapeTypes ? drawingStore.filters.shapeTypes[type as keyof typeof drawingStore.filters.shapeTypes] : false;
+        const categoryVisible = category in drawingStore.filters.categories ? drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] : false;
+
+        // Gérer le niveau d'accès
+        let accessLevelVisible = false;
+        if (accessLevel === 'company') {
+          accessLevelVisible = drawingStore.filters.accessLevels.company;
+        } else if (accessLevel === 'employee') {
+          accessLevelVisible = drawingStore.filters.accessLevels.employee;
+        } else if (accessLevel === 'visitor') {
+          accessLevelVisible = drawingStore.filters.accessLevels.visitor;
+        }
+
+        const isVisible = typeVisible && categoryVisible && accessLevelVisible;
+
+        if (isVisible && !featureGroup.value.hasLayer(layer)) {
+          featureGroup.value.addLayer(layer);
+          console.log(`[MapView][updateMapDisplay] Affichage de la couche ${dbId} (${type})`);
+        } else if (!isVisible && featureGroup.value.hasLayer(layer)) {
+          featureGroup.value.removeLayer(layer);
+          console.log(`[MapView][updateMapDisplay] Masquage de la couche ${dbId} (${type})`);
+        }
+      } else {
+        // L'élément n'est pas dans les éléments filtrés, le masquer
+        if (featureGroup.value.hasLayer(layer)) {
+          featureGroup.value.removeLayer(layer);
+          console.log(`[MapView][updateMapDisplay] Masquage de la couche ${dbId} (non filtrée)`);
+        }
       }
     }
   });
+
+  console.log('[MapView][updateMapDisplay] Mise à jour terminée');
 }
 
 function handleNoteSave(note: any) {
