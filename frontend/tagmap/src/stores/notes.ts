@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from './auth';
+import { noteService } from '@/services/api';
 
 export interface NoteColumn {
   id: string;
@@ -290,7 +291,9 @@ export const useNotesStore = defineStore('notes', () => {
       order,
       accessLevel,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      comments: [],  // Initialiser un tableau vide pour les commentaires
+      photos: []     // Initialiser un tableau vide pour les photos
     });
 
     return newId;
@@ -381,119 +384,213 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   // Fonctions pour gérer les commentaires
-  function addComment(noteId: number, text: string) {
-    const noteIndex = notes.value.findIndex(note => note.id === noteId);
-    if (noteIndex === -1) return;
+  async function addComment(noteId: number, text: string) {
+    try {
+      const authStore = useAuthStore();
+      if (!authStore.user) {
+        throw new Error('Vous devez être connecté pour ajouter un commentaire');
+      }
 
-    const authStore = useAuthStore();
-    if (!authStore.user) return;
+      // Vérifier si l'utilisateur a le droit d'ajouter un commentaire
+      // Seuls les utilisateurs de l'entreprise peuvent commenter
+      if (!authStore.isEntreprise && !authStore.isAdmin) {
+        throw new Error('Seules les entreprises peuvent ajouter des commentaires');
+      }
 
-    // Vérifier si l'utilisateur a le droit d'ajouter un commentaire
-    // Seuls les utilisateurs de l'entreprise peuvent commenter
-    if (!authStore.isEntreprise && !authStore.isAdmin) return;
+      // Vérifier si la note existe dans le store
+      const noteExists = notes.value.some(note => note.id === noteId);
+      if (!noteExists) {
+        throw new Error(`La note avec l'ID ${noteId} n'existe pas`);
+      }
 
-    const note = notes.value[noteIndex];
+      // Appel à l'API pour ajouter un commentaire
+      const response = await noteService.addComment(noteId, text);
 
-    // Initialiser le tableau de commentaires s'il n'existe pas
-    if (!note.comments) {
-      note.comments = [];
+      const newComment = response.data;
+
+      // Mettre à jour le store local
+      const noteIndex = notes.value.findIndex(note => note.id === noteId);
+      if (noteIndex === -1) return;
+
+      const note = notes.value[noteIndex];
+
+      // Initialiser le tableau de commentaires s'il n'existe pas
+      if (!note.comments) {
+        note.comments = [];
+      }
+
+      // Transformer le format de l'API au format du store
+      const storeComment: Comment = {
+        id: newComment.id,
+        text: newComment.text,
+        createdAt: newComment.created_at,
+        userId: newComment.user,
+        userName: newComment.user_name,
+        userRole: newComment.user_role
+      };
+
+      note.comments.push(storeComment);
+      note.updatedAt = new Date().toISOString();
+
+      // Mettre à jour la note
+      notes.value[noteIndex] = { ...note };
+
+      return storeComment.id;
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du commentaire:', error);
+      throw error;
     }
-
-    // Créer un nouvel ID pour le commentaire
-    const commentId = note.comments.length > 0
-      ? Math.max(...note.comments.map(c => c.id)) + 1
-      : 1;
-
-    // Ajouter le commentaire
-    const newComment: Comment = {
-      id: commentId,
-      text,
-      createdAt: new Date().toISOString(),
-      userId: authStore.user.id,
-      userName: authStore.user.username,
-      userRole: authStore.user.user_type
-    };
-
-    note.comments.push(newComment);
-    note.updatedAt = new Date().toISOString();
-
-    // Mettre à jour la note
-    notes.value[noteIndex] = { ...note };
-
-    return commentId;
   }
 
-  function removeComment(noteId: number, commentId: number) {
-    const noteIndex = notes.value.findIndex(note => note.id === noteId);
-    if (noteIndex === -1 || !notes.value[noteIndex].comments) return;
+  async function removeComment(noteId: number, commentId: number) {
+    try {
+      // Vérifier si la note existe dans le store
+      const noteIndex = notes.value.findIndex(note => note.id === noteId);
+      if (noteIndex === -1) {
+        throw new Error(`La note avec l'ID ${noteId} n'existe pas`);
+      }
 
-    const note = notes.value[noteIndex];
-    note.comments = note.comments!.filter(comment => comment.id !== commentId);
-    note.updatedAt = new Date().toISOString();
+      const note = notes.value[noteIndex];
 
-    // Mettre à jour la note
-    notes.value[noteIndex] = { ...note };
+      // Vérifier si les commentaires existent
+      if (!note.comments || note.comments.length === 0) {
+        throw new Error(`Aucun commentaire trouvé pour cette note`);
+      }
+
+      // Vérifier si le commentaire spécifique existe
+      const commentExists = note.comments.some(comment => comment.id === commentId);
+      if (!commentExists) {
+        throw new Error(`Le commentaire avec l'ID ${commentId} n'existe pas`);
+      }
+
+      // Appel à l'API pour supprimer un commentaire
+      await noteService.deleteComment(commentId);
+
+      // Mettre à jour le store local
+      note.comments = note.comments.filter(comment => comment.id !== commentId);
+      note.updatedAt = new Date().toISOString();
+
+      // Mettre à jour la note
+      notes.value[noteIndex] = { ...note };
+    } catch (error) {
+      console.error('Erreur lors de la suppression du commentaire:', error);
+      throw error;
+    }
   }
 
   // Fonctions pour gérer les photos
-  function addPhoto(noteId: number, photoData: { url: string, caption?: string }) {
-    const noteIndex = notes.value.findIndex(note => note.id === noteId);
-    if (noteIndex === -1) return;
+  async function addPhoto(noteId: number, photoData: { url: string, caption?: string } | any) {
+    try {
+      // Si photoData est un objet de l'API, l'utiliser directement
+      if (photoData.id && photoData.image) {
+        // Mettre à jour le store local
+        const noteIndex = notes.value.findIndex(note => note.id === noteId);
+        if (noteIndex === -1) return;
 
-    const note = notes.value[noteIndex];
+        const note = notes.value[noteIndex];
 
-    // Initialiser le tableau de photos s'il n'existe pas
-    if (!note.photos) {
-      note.photos = [];
+        // Initialiser le tableau de photos s'il n'existe pas
+        if (!note.photos) {
+          note.photos = [];
+        }
+
+        // Transformer le format de l'API au format du store
+        const storePhoto: Photo = {
+          id: photoData.id,
+          url: photoData.image,
+          caption: photoData.caption,
+          createdAt: photoData.created_at
+        };
+
+        note.photos.push(storePhoto);
+        note.updatedAt = new Date().toISOString();
+
+        // Mettre à jour la note
+        notes.value[noteIndex] = { ...note };
+
+        return storePhoto.id;
+      } else {
+        // Sinon, envoyer la photo à l'API
+        const response = await noteService.addPhoto(noteId, photoData.url, photoData.caption || '');
+
+        const newPhoto = response.data;
+
+        // Mettre à jour le store local
+        const noteIndex = notes.value.findIndex(note => note.id === noteId);
+        if (noteIndex === -1) return;
+
+        const note = notes.value[noteIndex];
+
+        // Initialiser le tableau de photos s'il n'existe pas
+        if (!note.photos) {
+          note.photos = [];
+        }
+
+        // Transformer le format de l'API au format du store
+        const storePhoto: Photo = {
+          id: newPhoto.id,
+          url: newPhoto.image,
+          caption: newPhoto.caption,
+          createdAt: newPhoto.created_at
+        };
+
+        note.photos.push(storePhoto);
+        note.updatedAt = new Date().toISOString();
+
+        // Mettre à jour la note
+        notes.value[noteIndex] = { ...note };
+
+        return storePhoto.id;
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la photo:', error);
+      throw error;
     }
-
-    // Créer un nouvel ID pour la photo
-    const photoId = note.photos.length > 0
-      ? Math.max(...note.photos.map(p => p.id)) + 1
-      : 1;
-
-    // Ajouter la photo
-    const newPhoto: Photo = {
-      id: photoId,
-      url: photoData.url,
-      caption: photoData.caption,
-      createdAt: new Date().toISOString()
-    };
-
-    note.photos.push(newPhoto);
-    note.updatedAt = new Date().toISOString();
-
-    // Mettre à jour la note
-    notes.value[noteIndex] = { ...note };
-
-    return photoId;
   }
 
-  function removePhoto(noteId: number, photoId: number) {
-    const noteIndex = notes.value.findIndex(note => note.id === noteId);
-    if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
+  async function removePhoto(noteId: number, photoId: number) {
+    try {
+      // Appel à l'API pour supprimer une photo
+      await noteService.deletePhoto(photoId);
 
-    const note = notes.value[noteIndex];
-    note.photos = note.photos!.filter(photo => photo.id !== photoId);
-    note.updatedAt = new Date().toISOString();
+      // Mettre à jour le store local
+      const noteIndex = notes.value.findIndex(note => note.id === noteId);
+      if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
 
-    // Mettre à jour la note
-    notes.value[noteIndex] = { ...note };
+      const note = notes.value[noteIndex];
+      note.photos = note.photos!.filter(photo => photo.id !== photoId);
+      note.updatedAt = new Date().toISOString();
+
+      // Mettre à jour la note
+      notes.value[noteIndex] = { ...note };
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la photo:', error);
+      throw error;
+    }
   }
 
-  function updatePhotoCaption(noteId: number, photoId: number, caption: string) {
-    const noteIndex = notes.value.findIndex(note => note.id === noteId);
-    if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
+  async function updatePhotoCaption(noteId: number, photoId: number, caption: string) {
+    try {
+      // Appel à l'API pour mettre à jour la légende
+      await noteService.updatePhotoCaption(photoId, caption);
 
-    const note = notes.value[noteIndex];
-    const photoIndex = note.photos!.findIndex(photo => photo.id === photoId);
-    if (photoIndex === -1) return;
+      // Mettre à jour le store local
+      const noteIndex = notes.value.findIndex(note => note.id === noteId);
+      if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
 
-    note.photos![photoIndex].caption = caption;
-    note.updatedAt = new Date().toISOString();
+      const note = notes.value[noteIndex];
+      const photoIndex = note.photos!.findIndex(photo => photo.id === photoId);
+      if (photoIndex === -1) return;
 
-    // Mettre à jour la note
-    notes.value[noteIndex] = { ...note };
+      note.photos![photoIndex].caption = caption;
+      note.updatedAt = new Date().toISOString();
+
+      // Mettre à jour la note
+      notes.value[noteIndex] = { ...note };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la légende:', error);
+      throw error;
+    }
   }
 
   return {

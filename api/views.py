@@ -11,11 +11,14 @@ from .serializers import (
     FormeGeometriqueSerializer,
     ConnexionSerializer,
     TexteAnnotationSerializer,
-    PlanDetailSerializer
+    PlanDetailSerializer,
+    GeoNoteSerializer,
+    NoteCommentSerializer,
+    NotePhotoSerializer
 )
 from .permissions import IsAdmin, IsSalarie, IsEntreprise
 from django.contrib.auth import get_user_model
-from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation
+from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto
 import requests
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -47,19 +50,19 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         base_queryset = User.objects.annotate(plans_count=Count('plans'))
-        
+
         # Récupérer les paramètres de filtrage
         role = self.request.query_params.get('role')
         entreprise_id = self.request.query_params.get('entreprise')
         salarie_id = self.request.query_params.get('salarie')
-        
+
         print(f"\n[UserViewSet][get_queryset] ====== DÉBUT REQUÊTE ======")
         print(f"Utilisateur connecté: {user.username} (role: {user.role}, id: {user.id})")
         print(f"Paramètres reçus:")
         print(f"- role demandé: {role}")
         print(f"- entreprise_id: {entreprise_id}")
         print(f"- salarie_id: {salarie_id}")
-        
+
         # Appliquer les filtres de base selon le rôle demandé
         if role:
             print(f"\nApplication du filtre de rôle: {role}")
@@ -79,7 +82,7 @@ class UserViewSet(viewsets.ModelViewSet):
             if salarie_id:
                 print(f"Filtrage par salarie: {salarie_id}")
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
-        
+
         elif user.role == ROLE_USINE:
             print("\nTraitement pour ENTREPRISE")
             if role == ROLE_DEALER:
@@ -91,13 +94,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 if salarie_id:
                     print(f"Filtrage supplémentaire par salarie: {salarie_id}")
                     base_queryset = base_queryset.filter(salarie_id=salarie_id)
-                    
+
                 # Debug des visiteurs trouvés
                 visiteurs = base_queryset.values('id', 'username', 'first_name', 'last_name', 'salarie__username')
                 print("\nVisiteurs trouvés:")
                 for agri in visiteurs:
                     print(f"- {agri['username']} (ID: {agri['id']}, Salarie: {agri['salarie__username']})")
-        
+
         elif user.role == ROLE_DEALER:
             print("\nTraitement pour SALARIE")
             if role == ROLE_AGRICULTEUR:
@@ -105,7 +108,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 base_queryset = base_queryset.filter(salarie=user)
             else:
                 base_queryset = base_queryset.filter(id=user.id)
-        
+
         else:  # ROLE_AGRICULTEUR
             print("\nTraitement pour VISITEUR")
             base_queryset = base_queryset.filter(id=user.id)
@@ -126,17 +129,17 @@ class UserViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         partial = kwargs.pop('partial', False)
-        
+
         # Vérifier si username/email existe déjà pour un autre utilisateur
         username = request.data.get('username')
         email = request.data.get('email')
-        
+
         if username and User.objects.exclude(id=instance.id).filter(username=username).exists():
             return Response(
                 {'username': ['Un utilisateur avec ce nom existe déjà']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         if email and User.objects.exclude(id=instance.id).filter(email=email).exists():
             return Response(
                 {'email': ['Un utilisateur avec cet email existe déjà']},
@@ -170,13 +173,13 @@ class UserViewSet(viewsets.ModelViewSet):
         # Vérifier si username/email existe déjà
         username = request.data.get('username')
         email = request.data.get('email')
-        
+
         if User.objects.filter(username=username).exists():
             return Response(
                 {'username': ['Un utilisateur avec ce nom existe déjà.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         if User.objects.filter(email=email).exists():
             return Response(
                 {'email': ['Un utilisateur avec cet email existe déjà.']},
@@ -192,13 +195,13 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         data = serializer.validated_data
         instance = serializer.instance
-        
+
         # Empêcher la modification du rôle sauf pour les admins
         if 'role' in data and not self.request.user.is_admin:
             raise ValidationError({
                 'role': ['Seul un administrateur peut modifier le rôle']
             })
-            
+
         serializer.save()
 
     def perform_create(self, serializer):
@@ -367,13 +370,13 @@ class PlanViewSet(viewsets.ModelViewSet):
                 Q(salarie__entreprise=user) |  # Plans liés aux salaries de l'entreprise
                 Q(visiteur__salarie__entreprise=user)  # Plans liés aux visiteurs des salaries de l'entreprise
             )
-            
+
             # Filtres additionnels si spécifiés
             if salarie_id:
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
             if visiteur_id:
                 base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
-                
+
             return base_queryset
         elif user.role == ROLE_DEALER:
             # Filtrer d'abord par le salarie connecté
@@ -390,7 +393,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         Retourne le serializer approprié selon le contexte.
         """
         print(f"[PlanViewSet] get_serializer_class - Action: {self.action}, Params: {self.request.query_params}")
-        
+
         # Si l'action est 'list' et que le paramètre include_details est True, utiliser PlanDetailSerializer
         if self.action == 'list' and self.request.query_params.get('include_details') == 'true':
             print("[PlanViewSet] Utilisation de PlanDetailSerializer pour la liste avec détails")
@@ -398,7 +401,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         elif self.action in ['retrieve', 'update', 'partial_update', 'save_with_elements']:
             print(f"[PlanViewSet] Utilisation de PlanDetailSerializer pour {self.action}")
             return PlanDetailSerializer
-        
+
         print(f"[PlanViewSet] Utilisation de PlanSerializer par défaut pour {self.action}")
         return PlanSerializer
 
@@ -407,32 +410,32 @@ class PlanViewSet(viewsets.ModelViewSet):
         Surcharge pour s'assurer que le contexte est toujours fourni au sérialiseur
         """
         serializer_class = self.get_serializer_class()
-        
+
         # S'assurer que le contexte contient toujours la requête
         if 'context' not in kwargs:
             kwargs['context'] = self.get_serializer_context()
-            
+
         if 'request' not in kwargs['context'] and hasattr(self, 'request'):
             kwargs['context']['request'] = self.request
-            
+
         print(f"[PlanViewSet][get_serializer] Création d'un sérialiseur {serializer_class.__name__} avec contexte: {kwargs['context'].keys()}")
-        
+
         return serializer_class(*args, **kwargs)
-        
+
     def get_serializer_context(self):
         """
         Ajoute des éléments supplémentaires au contexte du sérialiseur
         """
         context = super().get_serializer_context()
-        
+
         # Debug du contexte
         print(f"[PlanViewSet][get_serializer_context] Contexte de base: {context.keys()}")
-        
+
         # S'assurer que la requête est dans le contexte
         if 'request' not in context and hasattr(self, 'request'):
             context['request'] = self.request
             print(f"[PlanViewSet][get_serializer_context] Ajout de la requête au contexte")
-            
+
         return context
 
     @action(detail=True, methods=['post'])
@@ -445,7 +448,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         print(f"[PlanViewSet][save_with_elements] URL de la requête: {request.path}")
         print(f"[PlanViewSet][save_with_elements] Méthode: {request.method}")
         print(f"[PlanViewSet][save_with_elements] User: {request.user.username} (role: {request.user.role})")
-        
+
         try:
             plan = self.get_object()
             print(f"[PlanViewSet][save_with_elements] Plan trouvé: {plan.id} - {plan.nom}")
@@ -456,9 +459,9 @@ class PlanViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"[PlanViewSet][save_with_elements] ERREUR lors de la récupération du plan: {str(e)}")
             raise
-        
+
         # Vérifier les permissions
-        if (plan.createur != request.user and 
+        if (plan.createur != request.user and
             request.user.role not in [ROLE_ADMIN, ROLE_DEALER] and
             (request.user.role == ROLE_DEALER and plan.createur.salarie != request.user)):
             print(f"[PlanViewSet][save_with_elements] Permission refusée pour l'utilisateur {request.user.username}")
@@ -472,13 +475,13 @@ class PlanViewSet(viewsets.ModelViewSet):
         connexions_data = request.data.get('connexions', [])
         annotations_data = request.data.get('annotations', [])
         elements_to_delete = request.data.get('elementsToDelete', [])
-        
+
         print(f"[PlanViewSet][save_with_elements] Données reçues:")
         print(f"- Formes: {len(formes_data)} éléments")
         print(f"- Connexions: {len(connexions_data)} éléments")
         print(f"- Annotations: {len(annotations_data)} éléments")
         print(f"- Éléments à supprimer: {elements_to_delete}")
-        
+
         try:
             # Supprimer les éléments existants si demandé
             if request.data.get('clear_existing', False):
@@ -486,7 +489,7 @@ class PlanViewSet(viewsets.ModelViewSet):
                 plan.formes.all().delete()
                 plan.connexions.all().delete()
                 plan.annotations.all().delete()
-            
+
             # Supprimer les éléments spécifiques demandés
             if elements_to_delete:
                 print(f"[PlanViewSet][save_with_elements] Suppression des éléments: {elements_to_delete}")
@@ -501,9 +504,9 @@ class PlanViewSet(viewsets.ModelViewSet):
                 forme_id = forme_data.pop('id', None)
                 type_forme = forme_data.get('type_forme')
                 data = forme_data.get('data', {})
-                
+
                 print(f"[PlanViewSet][save_with_elements] Traitement forme: ID={forme_id}, Type={type_forme}")
-                
+
                 if forme_id:
                     try:
                         forme = FormeGeometrique.objects.get(id=forme_id, plan=plan)
@@ -543,7 +546,7 @@ class PlanViewSet(viewsets.ModelViewSet):
             print(f"[PlanViewSet][save_with_elements] Détails entreprise présents: {'entreprise_details' in serializer.data}")
             print(f"[PlanViewSet][save_with_elements] Détails salarie présents: {'salarie_details' in serializer.data}")
             print(f"[PlanViewSet][save_with_elements] Détails client présents: {'client_details' in serializer.data}")
-            
+
             return Response(serializer.data)
 
         except Exception as e:
@@ -602,10 +605,10 @@ class FormeGeometriqueViewSet(viewsets.ModelViewSet):
         """
         plan = serializer.validated_data['plan']
         user = self.request.user
-        
+
         if plan.createur != user and user.role not in ['admin', 'salarie']:
             raise PermissionError('Vous n\'avez pas la permission de modifier ce plan')
-        
+
         serializer.save()
 
 class ConnexionViewSet(viewsets.ModelViewSet):
@@ -644,6 +647,166 @@ class TexteAnnotationViewSet(viewsets.ModelViewSet):
         else:  # client
             return TexteAnnotation.objects.filter(plan__createur=user)
 
+
+class GeoNoteViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les notes géolocalisées.
+    """
+    serializer_class = GeoNoteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Ne retourne que les notes des plans accessibles à l'utilisateur
+        """
+        user = self.request.user
+        if user.role == ROLE_ADMIN:
+            return GeoNote.objects.all()
+        elif user.role == ROLE_USINE:
+            # Une entreprise peut voir les notes où elle est assignée directement
+            # ou liées à ses salaries et leurs visiteurs
+            return GeoNote.objects.filter(
+                Q(plan__entreprise=user) |
+                Q(plan__salarie__entreprise=user) |
+                Q(plan__visiteur__salarie__entreprise=user)
+            )
+        elif user.role == ROLE_DEALER:
+            # Un salarie peut voir ses notes et celles de ses visiteurs
+            return GeoNote.objects.filter(
+                Q(plan__salarie=user) |
+                Q(plan__visiteur__salarie=user)
+            )
+        else:  # visiteur
+            return GeoNote.objects.filter(plan__visiteur=user)
+
+    def perform_create(self, serializer):
+        """
+        Vérifie que l'utilisateur a le droit de créer une note sur ce plan
+        """
+        plan = serializer.validated_data['plan']
+        user = self.request.user
+
+        # Vérifier les permissions
+        if plan.createur != user and user.role not in [ROLE_ADMIN, ROLE_DEALER]:
+            raise PermissionDenied('Vous n\'avez pas la permission de modifier ce plan')
+
+        serializer.save()
+
+
+class NoteCommentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les commentaires sur les notes géolocalisées.
+    """
+    serializer_class = NoteCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Ne retourne que les commentaires des notes accessibles à l'utilisateur
+        """
+        user = self.request.user
+        if user.role == ROLE_ADMIN:
+            return NoteComment.objects.all()
+        elif user.role in [ROLE_USINE, ROLE_DEALER]:
+            # Entreprises et salaries peuvent voir tous les commentaires des notes auxquelles ils ont accès
+            note_ids = GeoNote.objects.filter(
+                Q(plan__entreprise=user) |
+                Q(plan__salarie=user) |
+                Q(plan__salarie__entreprise=user) |
+                Q(plan__visiteur__salarie=user) |
+                Q(plan__visiteur__salarie__entreprise=user)
+            ).values_list('id', flat=True)
+            return NoteComment.objects.filter(note_id__in=note_ids)
+        else:  # visiteur
+            # Les visiteurs ne peuvent voir que les commentaires des notes de leurs plans
+            note_ids = GeoNote.objects.filter(plan__visiteur=user).values_list('id', flat=True)
+            return NoteComment.objects.filter(note_id__in=note_ids)
+
+    def perform_create(self, serializer):
+        """
+        Assigne l'utilisateur courant au commentaire et vérifie les permissions
+        """
+        note = serializer.validated_data['note']
+        user = self.request.user
+
+        # Seuls les entreprises et les admins peuvent ajouter des commentaires
+        if user.role not in [ROLE_ADMIN, ROLE_USINE]:
+            raise PermissionDenied('Seules les entreprises peuvent ajouter des commentaires')
+
+        # Vérifier que l'utilisateur a accès à la note
+        if not GeoNote.objects.filter(
+            id=note.id
+        ).filter(
+            Q(plan__entreprise=user) |
+            Q(plan__salarie__entreprise=user) |
+            Q(plan__visiteur__salarie__entreprise=user)
+        ).exists():
+            raise PermissionDenied('Vous n\'avez pas accès à cette note')
+
+        serializer.save(user=user)
+
+
+class NotePhotoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les photos des notes géolocalisées.
+    """
+    serializer_class = NotePhotoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Ne retourne que les photos des notes accessibles à l'utilisateur
+        """
+        user = self.request.user
+        if user.role == ROLE_ADMIN:
+            return NotePhoto.objects.all()
+        elif user.role in [ROLE_USINE, ROLE_DEALER]:
+            # Entreprises et salaries peuvent voir toutes les photos des notes auxquelles ils ont accès
+            note_ids = GeoNote.objects.filter(
+                Q(plan__entreprise=user) |
+                Q(plan__salarie=user) |
+                Q(plan__salarie__entreprise=user) |
+                Q(plan__visiteur__salarie=user) |
+                Q(plan__visiteur__salarie__entreprise=user)
+            ).values_list('id', flat=True)
+            return NotePhoto.objects.filter(note_id__in=note_ids)
+        else:  # visiteur
+            # Les visiteurs ne peuvent voir que les photos des notes de leurs plans
+            note_ids = GeoNote.objects.filter(plan__visiteur=user).values_list('id', flat=True)
+            return NotePhoto.objects.filter(note_id__in=note_ids)
+
+    def perform_create(self, serializer):
+        """
+        Assigne l'utilisateur courant à la photo et vérifie les permissions et le quota
+        """
+        note = serializer.validated_data['note']
+        user = self.request.user
+
+        # Vérifier que l'utilisateur a accès à la note
+        if not GeoNote.objects.filter(
+            id=note.id
+        ).filter(
+            Q(plan__entreprise=user) |
+            Q(plan__salarie=user) |
+            Q(plan__salarie__entreprise=user) |
+            Q(plan__visiteur__salarie=user) |
+            Q(plan__visiteur__salarie__entreprise=user)
+        ).exists():
+            raise PermissionDenied('Vous n\'avez pas accès à cette note')
+
+        # Vérifier le quota de stockage
+        if 'image' in serializer.validated_data:
+            image = serializer.validated_data['image']
+            # Estimer la taille en MB
+            estimated_size_mb = image.size / (1024 * 1024)
+
+            if user.storage_used + round(estimated_size_mb) > user.storage_quota:
+                raise ValidationError({
+                    'image': f"Quota de stockage dépassé. Vous avez utilisé {user.storage_used}MB sur {user.storage_quota}MB."
+                })
+
+        serializer.save(user=user)
+
 @api_view(['POST'])
 def elevation_proxy(request):
     """
@@ -651,7 +814,7 @@ def elevation_proxy(request):
     """
     try:
         points = request.data.get('points', [])
-        
+
         # Reformater les points pour l'API Open-Elevation
         try:
             locations = [
@@ -666,22 +829,22 @@ def elevation_proxy(request):
                 {'error': f'Format de données invalide: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Appel à l'API Open-Elevation
         response = requests.post(
             'https://api.open-elevation.com/api/v1/lookup',
             json={'locations': locations}
         )
-        
+
         if response.status_code == 200:
             return Response(response.json())
-        
+
         # Si l'API principale échoue, essayer l'API de fallback
         fallback_response = requests.post(
             'https://elevation-api.io/api/elevation',
             json={'points': [{'lat': p['latitude'], 'lng': p['longitude']} for p in points]}
         )
-        
+
         if fallback_response.status_code == 200:
             # Reformater la réponse pour correspondre au format attendu
             elevation_data = fallback_response.json()
@@ -694,12 +857,12 @@ def elevation_proxy(request):
                 for i, e in enumerate(elevation_data['elevations'])
             ]
             return Response({'results': results})
-        
+
         return Response(
             {'error': 'Les services d\'élévation sont indisponibles'},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
-        
+
     except Exception as e:
         print("Erreur complète:", str(e))
         return Response(

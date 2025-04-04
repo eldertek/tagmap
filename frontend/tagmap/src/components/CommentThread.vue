@@ -6,15 +6,15 @@
         <div class="flex justify-between items-start">
           <div class="flex items-center">
             <div class="font-medium text-sm text-gray-900">{{ comment.userName }}</div>
-            <span class="ml-2 text-xs px-2 py-0.5 rounded-full" 
+            <span class="ml-2 text-xs px-2 py-0.5 rounded-full"
                   :class="getRoleBadgeClass(comment.userRole)">
               {{ getRoleLabel(comment.userRole) }}
             </span>
           </div>
           <div class="flex items-center">
             <span class="text-xs text-gray-500">{{ formatDate(comment.createdAt) }}</span>
-            <button v-if="canDelete(comment)" 
-                    @click="deleteComment(comment.id)" 
+            <button v-if="canDelete(comment)"
+                    @click="deleteComment(comment.id)"
                     class="ml-2 text-gray-400 hover:text-red-500">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -31,16 +31,16 @@
 
     <!-- Formulaire d'ajout de commentaire -->
     <div v-if="canAddComment" class="mt-3">
-      <textarea 
-        v-model="newComment" 
-        placeholder="Ajouter un commentaire..." 
+      <textarea
+        v-model="newComment"
+        placeholder="Ajouter un commentaire..."
         class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         rows="2"
       ></textarea>
       <div class="flex justify-end mt-2">
-        <button 
-          @click="addComment" 
-          :disabled="!newComment.trim()" 
+        <button
+          @click="addComment"
+          :disabled="!newComment.trim()"
           class="px-3 py-1 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Ajouter
@@ -85,26 +85,56 @@ function canDelete(comment: Comment) {
 }
 
 // Ajouter un commentaire
-function addComment() {
+async function addComment() {
   if (!newComment.value.trim()) return;
-  
+
   try {
-    notesStore.addComment(props.noteId, newComment.value.trim());
+    // Utiliser await pour capturer les erreurs correctement
+    await notesStore.addComment(props.noteId, newComment.value.trim());
     newComment.value = '';
-  } catch (error) {
+    notificationStore.success('Commentaire ajouté avec succès');
+  } catch (error: any) {
     console.error('Erreur lors de l\'ajout du commentaire:', error);
-    notificationStore.error('Erreur lors de l\'ajout du commentaire');
+
+    // Afficher un message d'erreur plus spécifique si possible
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      if (errorData.note) {
+        notificationStore.error(`Erreur: ${errorData.note[0]}`);
+      } else if (errorData.user) {
+        notificationStore.error(`Erreur: ${errorData.user[0]}`);
+      } else if (errorData.text) {
+        notificationStore.error(`Erreur: ${errorData.text[0]}`);
+      } else {
+        notificationStore.error('Erreur lors de l\'ajout du commentaire');
+      }
+    } else {
+      notificationStore.error('Erreur lors de l\'ajout du commentaire');
+    }
   }
 }
 
 // Supprimer un commentaire
-function deleteComment(commentId: number) {
+async function deleteComment(commentId: number) {
+  if (!confirm('Voulez-vous vraiment supprimer ce commentaire ?')) return;
+
   try {
-    notesStore.removeComment(props.noteId, commentId);
+    await notesStore.removeComment(props.noteId, commentId);
     notificationStore.success('Commentaire supprimé');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la suppression du commentaire:', error);
-    notificationStore.error('Erreur lors de la suppression du commentaire');
+
+    // Afficher un message d'erreur plus spécifique si possible
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      if (errorData.detail) {
+        notificationStore.error(`Erreur: ${errorData.detail}`);
+      } else {
+        notificationStore.error('Erreur lors de la suppression du commentaire');
+      }
+    } else {
+      notificationStore.error('Erreur lors de la suppression du commentaire');
+    }
   }
 }
 

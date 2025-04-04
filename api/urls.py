@@ -7,6 +7,9 @@ from .views import (
     FormeGeometriqueViewSet,
     ConnexionViewSet,
     TexteAnnotationViewSet,
+    GeoNoteViewSet,
+    NoteCommentViewSet,
+    NotePhotoViewSet,
     elevation_proxy
 )
 
@@ -17,8 +20,11 @@ router.register(r'plans', PlanViewSet, basename='plan')
 router.register(r'formes', FormeGeometriqueViewSet, basename='forme')
 router.register(r'connexions', ConnexionViewSet, basename='connexion')
 router.register(r'annotations', TexteAnnotationViewSet, basename='annotation')
+router.register(r'notes', GeoNoteViewSet, basename='note')
+router.register(r'note-comments', NoteCommentViewSet, basename='note-comment')
+router.register(r'note-photos', NotePhotoViewSet, basename='note-photo')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('elevation/', elevation_proxy, name='elevation-proxy'),
-] 
+]

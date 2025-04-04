@@ -57,12 +57,24 @@ class Utilisateur(AbstractUser):
         null=True,
         verbose_name='Téléphone'
     )
-    
+
     logo = models.ImageField(
         upload_to='logos/',
         blank=True,
         null=True,
         verbose_name='Logo'
+    )
+
+    storage_quota = models.PositiveIntegerField(
+        default=50,  # 50 MB par défaut
+        verbose_name='Quota de stockage (MB)',
+        help_text='Quota de stockage en mégaoctets pour les photos des notes'
+    )
+
+    storage_used = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Stockage utilisé (MB)',
+        help_text='Espace de stockage actuellement utilisé en mégaoctets'
     )
 
     class Meta:

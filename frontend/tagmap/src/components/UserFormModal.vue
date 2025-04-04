@@ -160,6 +160,22 @@
                   />
                 </div>
 
+                <!-- Quota de stockage (pour les entreprises et les salaries) -->
+                <div v-if="form.role === 'ENTREPRISE' || form.role === 'SALARIE'">
+                  <label for="storage_quota" class="block text-sm font-medium text-gray-700">Quota de stockage (MB)</label>
+                  <div class="flex items-center">
+                    <input
+                      type="number"
+                      id="storage_quota"
+                      v-model="form.storage_quota"
+                      min="1"
+                      class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                    <span class="ml-2 text-sm text-gray-500">MB</span>
+                  </div>
+                  <p class="mt-1 text-sm text-gray-500">Espace de stockage maximum pour les photos des notes</p>
+                </div>
+
                 <div v-if="!form.id">
                       <label for="password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
                       <input
@@ -234,6 +250,8 @@ interface User {
   entreprise?: number | UserReference | null
   entreprise_id?: number | null
   is_active?: boolean
+  storage_quota?: number
+  storage_used?: number
 }
 
 interface UserReference {
@@ -310,7 +328,9 @@ const form = reactive({
   role: props.isEntreprise ? 'SALARIE' : (props.isAdmin ? 'ADMIN' : 'VISITEUR'),
   salarie: null as number | null,
   entreprise: null as number | null,
-  is_active: true
+  is_active: true,
+  storage_quota: 50, // 50 MB par défaut
+  storage_used: 0
 })
 
 // Initialiser le formulaire avec les valeurs de l'utilisateur existant

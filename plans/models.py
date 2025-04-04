@@ -80,31 +80,31 @@ class Plan(models.Model):
     def clean(self):
         """Valide les relations entre entreprise, salarie et visiteur."""
         super().clean()
-        
+
         # Si un visiteur est assigné, il doit avoir un salarie
         if self.visiteur and not self.salarie:
             raise ValidationError({
                 'salarie': 'Un salarie doit être assigné si un visiteur est spécifié.'
             })
-        
+
         # Si un salarie est assigné, il doit avoir une entreprise
         if self.salarie and not self.entreprise:
             raise ValidationError({
                 'entreprise': 'Une entreprise doit être assignée si un salarie est spécifié.'
             })
-        
+
         # Vérifier que le salarie appartient à l'entreprise
         if self.salarie and self.entreprise and self.salarie.entreprise != self.entreprise:
             raise ValidationError({
                 'salarie': 'Le salarie doit appartenir à l\'entreprise spécifiée.'
             })
-        
+
         # Vérifier que l'visiteur appartient au salarie
         if self.visiteur and self.salarie and self.visiteur.salarie != self.salarie:
             raise ValidationError({
                 'visiteur': 'L\'visiteur doit appartenir au salarie spécifié.'
             })
-        
+
         # Vérifier que l'visiteur appartient indirectement à l'entreprise
         if self.visiteur and self.entreprise and (not self.visiteur.salarie or self.visiteur.salarie.entreprise != self.entreprise):
             raise ValidationError({
@@ -133,7 +133,7 @@ class FormeGeometrique(models.Model):
         choices=TypeForme.choices,
         verbose_name='Type de forme'
     )
-    
+
     # Stockage des données spécifiques à chaque type de forme
     data = models.JSONField(
         default=dict,
@@ -227,3 +227,157 @@ class TexteAnnotation(models.Model):
 
     def __str__(self):
         return f"Annotation sur {self.plan.nom}: {self.texte[:30]}..."
+
+
+class GeoNote(models.Model):
+    """
+    Modèle pour les notes géolocalisées.
+    """
+    class AccessLevel(models.TextChoices):
+        PRIVATE = 'private', 'Privé'
+        COMPANY = 'company', 'Entreprise'
+        EMPLOYEE = 'employee', 'Salariés'
+        VISITOR = 'visitor', 'Visiteurs'
+
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.CASCADE,
+        related_name='notes',
+        verbose_name='Plan associé'
+    )
+    title = models.CharField(max_length=200, verbose_name='Titre')
+    description = models.TextField(blank=True, verbose_name='Description')
+    location = models.PointField(srid=4326, verbose_name='Position')
+    column_id = models.CharField(max_length=50, default='en-cours', verbose_name='Colonne')
+    access_level = models.CharField(
+        max_length=20,
+        choices=AccessLevel.choices,
+        default=AccessLevel.PRIVATE,
+        verbose_name='Niveau d\'accès'
+    )
+    style = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Style de la note'
+    )
+    order = models.IntegerField(default=0, verbose_name='Ordre d\'affichage')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Dernière modification')
+    category = models.CharField(
+        max_length=50,
+        default='forages',
+        verbose_name='Catégorie'
+    )
+
+    class Meta:
+        verbose_name = 'Note géolocalisée'
+        verbose_name_plural = 'Notes géolocalisées'
+        ordering = ['column_id', 'order', '-updated_at']
+
+    def __str__(self):
+        return f"Note '{self.title}' dans {self.plan.nom}"
+
+
+class NoteComment(models.Model):
+    """
+    Modèle pour les commentaires sur les notes géolocalisées.
+    """
+    note = models.ForeignKey(
+        GeoNote,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Note associée'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='note_comments',
+        verbose_name='Utilisateur'
+    )
+    text = models.TextField(verbose_name='Texte du commentaire')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+
+    class Meta:
+        verbose_name = 'Commentaire de note'
+        verbose_name_plural = 'Commentaires de notes'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Commentaire de {self.user.get_display_name()} sur {self.note.title}"
+
+
+def note_photo_upload_path(instance, filename):
+    """Définit le chemin d'upload pour les photos de notes."""
+    # Format: notes/user_id/note_id/timestamp_filename
+    import os
+    from django.utils import timezone
+
+    base_name, extension = os.path.splitext(filename)
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    return f'notes/{instance.note.plan.createur.id}/{instance.note.id}/{timestamp}{extension}'
+
+
+class NotePhoto(models.Model):
+    """
+    Modèle pour les photos attachées aux notes géolocalisées.
+    """
+    note = models.ForeignKey(
+        GeoNote,
+        on_delete=models.CASCADE,
+        related_name='photos',
+        verbose_name='Note associée'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='note_photos',
+        verbose_name='Utilisateur'
+    )
+    image = models.ImageField(
+        upload_to=note_photo_upload_path,
+        verbose_name='Image'
+    )
+    caption = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Légende'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    size = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Taille (KB)',
+        help_text='Taille de l\'image en kilooctets'
+    )
+
+    class Meta:
+        verbose_name = 'Photo de note'
+        verbose_name_plural = 'Photos de notes'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Photo sur {self.note.title} par {self.user.get_display_name()}"
+
+    def save(self, *args, **kwargs):
+        # Calculer la taille de l'image si elle est nouvelle
+        if self.image and not self.pk:
+            # Convertir la taille en KB
+            self.size = self.image.size // 1024
+
+            # Mettre à jour le stockage utilisé par l'utilisateur
+            size_mb = self.size / 1024  # Convertir KB en MB
+            self.user.storage_used += round(size_mb)
+            self.user.save(update_fields=['storage_used'])
+
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Récupérer la taille avant de supprimer
+        size_mb = self.size / 1024  # Convertir KB en MB
+
+        # Supprimer l'image
+        super().delete(*args, **kwargs)
+
+        # Mettre à jour le stockage utilisé par l'utilisateur
+        if self.user.storage_used >= round(size_mb):
+            self.user.storage_used -= round(size_mb)
+            self.user.save(update_fields=['storage_used'])
