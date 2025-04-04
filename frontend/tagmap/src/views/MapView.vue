@@ -3019,6 +3019,7 @@ function updateMapDisplay() {
     // Vérifier directement les propriétés de la couche pour déterminer si elle doit être visible
     const properties = layer.properties || {};
     const type = properties.type || layer.type_forme || '';
+    // Conserver la catégorie existante ou utiliser 'default' comme valeur par défaut
     const category = properties.category || 'default';
     const accessLevel = properties.accessLevel || 'visitor';
 
@@ -3053,11 +3054,8 @@ function updateMapDisplay() {
       console.log(`[MapView][updateMapDisplay] Catégorie non spécifiée, utilisation de 'forages': ${categoryVisible}`);
     }
 
-    // Forcer la mise à jour de la catégorie dans les propriétés de la couche
-    if (layer.properties && !layer.properties.category) {
-      layer.properties.category = 'forages';
-      console.log(`[MapView][updateMapDisplay] Ajout de la catégorie 'forages' à la couche ${leafletId}`);
-    }
+    // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
+    // Cela évite de réinitialiser à 'forages' quand on filtre puis défiltre
 
     // Gérer le niveau d'accès avec logique hiérarchique
     let accessLevelVisible = false; // Par défaut, non visible
@@ -3122,11 +3120,8 @@ function updateMapDisplay() {
       shapeTypes: drawingStore.filters.shapeTypes
     }, null, 2));
 
-    // Forcer la mise à jour de la catégorie dans les propriétés de la couche
-    if (layer.properties && !layer.properties.category) {
-      layer.properties.category = 'forages';
-      console.log(`[MapView][updateMapDisplay] Ajout de la catégorie 'forages' à la couche ${leafletId}`);
-    }
+    // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
+    // Cela évite de réinitialiser à 'forages' quand on filtre puis défiltre
 
     // Afficher ou masquer la couche selon les filtres
     if (isVisible) {
@@ -3183,16 +3178,16 @@ function updateMapDisplay() {
     // Vérifier les propriétés de la couche
     const properties = layer.properties || {};
     const type = properties.type || layer.type_forme || '';
-    const category = properties.category || 'forages'; // Utiliser 'forages' comme catégorie par défaut
+    // Conserver la catégorie existante ou utiliser 'default' comme valeur par défaut
+    // Ne pas forcer 'forages' pour éviter de perdre la catégorie d'origine
+    const category = properties.category || 'default';
     const accessLevel = properties.accessLevel || 'visitor';
 
-    // S'assurer que la catégorie est définie
+    // S'assurer que les propriétés de base sont définies
     if (!layer.properties) {
       layer.properties = {};
     }
-    if (!layer.properties.category) {
-      layer.properties.category = 'forages';
-    }
+    // Ne pas écraser la catégorie existante
     if (!layer.properties.accessLevel) {
       layer.properties.accessLevel = 'visitor';
     }

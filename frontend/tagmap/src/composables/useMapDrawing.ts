@@ -1314,6 +1314,7 @@ export function useMapDrawing(): MapDrawingReturn {
       layerType: selectedShape.value.properties?.type,
       beforeName: selectedShape.value.name,
       beforePropertiesName: selectedShape.value.properties?.name,
+      beforeCategory: selectedShape.value.properties?.category,
       nameIsDirectProperty: 'name' in selectedShape.value
     });
 
@@ -1354,6 +1355,10 @@ export function useMapDrawing(): MapDrawingReturn {
     const originalType = selectedShape.value.properties.type;
     console.log(`[useMapDrawing] Type original avant mise à jour: ${originalType}`);
 
+    // Sauvegarder la catégorie existante avant la mise à jour
+    const existingCategory = selectedShape.value.properties.category;
+    console.log(`[useMapDrawing] Catégorie existante: ${existingCategory}`);
+
     // Appliquer les nouvelles propriétés
     Object.keys(properties).forEach(key => {
       // Ne pas écraser le type si la forme en a déjà un
@@ -1369,11 +1374,22 @@ export function useMapDrawing(): MapDrawingReturn {
         console.log(`[useMapDrawing] Setting name "${properties[key]}" directly on layer`);
         (selectedShape.value as any).name = properties[key];
       }
+
+      // Si on met à jour la catégorie, la logger pour débogage
+      if (key === 'category') {
+        console.log(`[useMapDrawing] Mise à jour de la catégorie: ${existingCategory} -> ${properties[key]}`);
+      }
     });
 
     // S'assurer que le type est toujours préservé après la mise à jour
     if (originalType) {
       selectedShape.value.properties.type = originalType;
+    }
+
+    // S'assurer que la catégorie est préservée si elle n'a pas été explicitement mise à jour
+    if (existingCategory && !('category' in properties)) {
+      console.log(`[useMapDrawing] Restauration de la catégorie originale: ${existingCategory}`);
+      selectedShape.value.properties.category = existingCategory;
     }
 
     console.log('[useMapDrawing] Updated shape properties', {

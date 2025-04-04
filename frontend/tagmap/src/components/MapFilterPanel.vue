@@ -68,12 +68,14 @@
             <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
           </label>
           <!-- Catégories personnalisées -->
-          <div v-for="(value, key) in filters.categories" :key="key" v-if="!defaultCategories.includes(key)">
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories[key]" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">{{ formatCategoryName(key) }}</span>
-            </label>
-          </div>
+          <template v-for="categoryKey in Object.keys(filters.categories)" :key="categoryKey">
+            <div v-if="!defaultCategories.includes(categoryKey)">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories[categoryKey as keyof CategoryFilters]" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">{{ formatCategoryName(categoryKey) }}</span>
+              </label>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -116,6 +118,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import type { ElementCategory, AccessLevel } from '@/types/drawing';
 
 // Définir les props
 const props = defineProps({
@@ -147,8 +150,19 @@ const defaultCategories = [
   'parcelles'
 ];
 
+// Type definitions for filters
+type AccessLevelFilters = Record<AccessLevel | string, boolean>;
+type CategoryFilters = Record<ElementCategory | string, boolean>;
+type ShapeTypeFilters = Record<string, boolean>;
+
+interface Filters {
+  accessLevels: AccessLevelFilters;
+  categories: CategoryFilters;
+  shapeTypes: ShapeTypeFilters;
+}
+
 // État des filtres
-const filters = reactive({
+const filters = reactive<Filters>({
   accessLevels: {
     company: true,
     employee: true,
@@ -178,17 +192,17 @@ function toggleCollapsed() {
 function resetFilters() {
   // Réinitialiser tous les filtres à true
   Object.keys(filters.accessLevels).forEach(key => {
-    filters.accessLevels[key] = true;
+    filters.accessLevels[key as keyof AccessLevelFilters] = true;
   });
-  
+
   Object.keys(filters.categories).forEach(key => {
-    filters.categories[key] = true;
+    filters.categories[key as keyof CategoryFilters] = true;
   });
-  
+
   Object.keys(filters.shapeTypes).forEach(key => {
-    filters.shapeTypes[key] = true;
+    filters.shapeTypes[key as keyof ShapeTypeFilters] = true;
   });
-  
+
   // Émettre l'événement de changement
   applyFilters();
 }
