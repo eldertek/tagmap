@@ -87,14 +87,49 @@
         </Teleport>
 
         <!-- Conteneur principal avec carte et outils -->
-        <div class="map-content flex">
+        <div class="map-content flex flex-col md:flex-row relative">
+          <!-- Overlay semi-transparent quand le panneau d'outils est ouvert sur mobile -->
+          <div
+            v-if="showDrawingTools && currentPlan && !isGeneratingSynthesis"
+            @click="toggleDrawingTools"
+            class="md:hidden fixed inset-0 bg-black/30 z-[1999] transition-opacity duration-300"
+          ></div>
+          <!-- Barre d'outils compacte sur mobile -->
+          <div
+            v-if="currentPlan && !isGeneratingSynthesis"
+            @click="toggleDrawingTools"
+            class="md:hidden fixed bottom-0 left-0 right-0 z-[2500] bg-white py-2 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between">
+
+            <div class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+              </svg>
+            </div>
+          </div>
+
           <!-- Conteneur de la carte -->
           <div class="flex-1 relative">
             <div ref="mapContainer" class="absolute inset-0 z-[1000]"></div>
           </div>
-          <!-- Panneau latéral d'outils de dessin -->
+
+          <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
           <div v-if="currentPlan && !isGeneratingSynthesis"
-            class="w-64 bg-white border-l border-gray-200 flex-shrink-0 z-[2000]">
+            :class="[showDrawingTools ? 'translate-y-0' : 'translate-y-full md:translate-y-0',
+                    'w-full md:w-64 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
+                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none overflow-y-auto']">
+            <!-- Poignée de fermeture pour le panneau mobile (style tiroir) -->
+            <div class="md:hidden w-full flex justify-between items-center px-4 py-2 border-b border-gray-200">
+              <div class="flex items-center">
+                <div @click="toggleDrawingTools" class="w-10 h-1.5 bg-gray-300 rounded-full cursor-pointer mr-3"></div>
+              </div>
+              <button
+                @click="toggleDrawingTools"
+                class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape as any"
               :all-layers="featureGroup?.getLayers() || []" @tool-change="setDrawingTool"
               @style-update="updateShapeStyle" @properties-update="updateShapeProperties"
@@ -447,6 +482,7 @@ interface ExtendedPlan extends Plan {
 }
 
 const mapContainer = ref<HTMLElement | null>(null);
+const showDrawingTools = ref(false);
 const irrigationStore = useIrrigationStore();
 const drawingStore = useDrawingStore();
 const shapes = ref<any[]>([]);
@@ -803,7 +839,7 @@ watch(() => irrigationStore.currentPlan, async (newPlan, oldPlan) => {
     if (newPlan) {
       console.log('[MapView][watch currentPlan] Mise à jour du plan courant...');
       currentPlan.value = newPlan;
-      
+
       // Forcer l'affichage de la carte et cacher l'écran d'accueil
       const mapParent = document.querySelector('.map-parent');
       if (mapParent instanceof HTMLElement) {
@@ -842,6 +878,11 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener('shape:created', (() => { }) as EventListener);
 });
+// Fonction pour afficher/masquer les outils de dessin sur mobile
+function toggleDrawingTools() {
+  showDrawingTools.value = !showDrawingTools.value;
+}
+
 // Fonction pour nettoyer la carte
 function clearMap() {
   if (featureGroup.value) {
@@ -860,17 +901,17 @@ async function refreshMapWithPlan(planId: number) {
       performanceMonitor.measure('refreshMapWithPlan:clearMap', () => {
         clearMap();
       }, 'MapView');
-      
+
       // Charger les éléments du plan
       await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanElements', async () => {
         await drawingStore.loadPlanElements(planId);
       }, 'MapView');
-      
+
       // Récupérer le plan depuis le store
       const loadedPlan = performanceMonitor.measure('refreshMapWithPlan:getPlanById', () => {
         return irrigationStore.getPlanById(planId);
       }, 'MapView');
-      
+
       if (loadedPlan) {
         // Mettre à jour le plan courant
         performanceMonitor.measure('refreshMapWithPlan:updateCurrentPlan', () => {
@@ -879,7 +920,7 @@ async function refreshMapWithPlan(planId: number) {
           drawingStore.setCurrentPlan(loadedPlan.id);
           localStorage.setItem('lastPlanId', loadedPlan.id.toString());
         }, 'MapView');
-        
+
         // Ajouter les formes à la carte
         if (map.value && featureGroup.value) {
           await performanceMonitor.measureAsync('refreshMapWithPlan:addShapesToMap', async () => {
@@ -908,7 +949,7 @@ async function refreshMapWithPlan(planId: number) {
               // Diviser les éléments en lots
               for (let i = 0; i < elements.length; i += batchSize) {
                 const batch = elements.slice(i, i + batchSize);
-                
+
                 // Traiter le lot en parallèle
                 await Promise.all(batch.map(async (element) => {
                   await performanceMonitor.measureAsync(`refreshMapWithPlan:createElement:${element.type_forme}`, async () => {
@@ -924,7 +965,7 @@ async function refreshMapWithPlan(planId: number) {
                             { ...circleData.style, radius: circleData.radius }
                           );
                           if (circleData.name) {
-                            (layer as any).properties = { 
+                            (layer as any).properties = {
                               type: 'Circle',
                               name: circleData.name,
                               style: circleData.style,
@@ -983,7 +1024,7 @@ async function refreshMapWithPlan(planId: number) {
                           const latLngs = lineData.points.map(point => L.latLng(point[1], point[0]));
                           layer = new ElevationLine(latLngs, lineData.style);
                           if (lineData.name) {
-                            (layer as any).properties = { 
+                            (layer as any).properties = {
                               name: lineData.name,
                               type: 'ElevationLine',
                               elevationData: lineData.elevationData,
@@ -1024,7 +1065,7 @@ async function refreshMapWithPlan(planId: number) {
 
             // Attendre que tous les éléments soient créés
             await Promise.all(creationPromises);
-            
+
             // Ajuster la vue après avoir ajouté toutes les formes
             performanceMonitor.measure('refreshMapWithPlan:adjustView', () => {
               adjustView();
@@ -1053,7 +1094,7 @@ async function loadPlan(planId: number) {
       const plan = await performanceMonitor.measureAsync('loadPlan:getPlanFromStore', async () => {
         return irrigationStore.getPlanById(planId);
       }, 'MapView');
-      
+
       console.log('[MapView][loadPlan] Plan trouvé dans le store:', !!plan);
 
       // Si le plan n'existe pas dans le store, vérifier avec l'API
@@ -1080,7 +1121,7 @@ async function loadPlan(planId: number) {
       await performanceMonitor.measureAsync('loadPlan:refreshMap', async () => {
         await refreshMapWithPlan(planId);
       }, 'MapView');
-      
+
       showLoadPlanModal.value = false;
 
       console.log('[MapView][loadPlan] Invalidation de la taille de la carte...');
@@ -2292,12 +2333,12 @@ async function generateSynthesis() {
 // Ajouter un debounce pour l'invalidation de la taille
 const debouncedInvalidateMapSize = debounce(() => {
   const endMeasure = performanceMonitor.startMeasure('invalidateMapSize', 'MapView');
-  
+
   if (!map.value) {
     endMeasure();
     return;
   }
-  
+
   // Attendre que le DOM soit mis à jour
   nextTick(() => {
     performanceMonitor.measure('invalidateMapSize:nextTick', () => {
@@ -2306,7 +2347,7 @@ const debouncedInvalidateMapSize = debounce(() => {
         if (map.value && map.value.getContainer() && document.body.contains(map.value.getContainer())) {
           // Invalider la taille sans animation pour éviter des problèmes
           map.value.invalidateSize({ animate: false });
-          
+
           // Si des formes sont présentes, ajuster la vue de manière sécurisée
           if (featureGroup.value?.getLayers().length) {
             try {
@@ -2321,7 +2362,7 @@ const debouncedInvalidateMapSize = debounce(() => {
       } catch (error) {
         console.warn('[invalidateMapSize] Erreur lors de l\'invalidation de la taille de la carte:', error);
       }
-      
+
       endMeasure();
     }, 'MapView');
   });
@@ -2654,7 +2695,7 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
     }
 
     let xPos = startX + padding;
-    
+
     // Nom de la section
     const name = section.name || `Section ${index + 1}`;
     pdf.text(name, xPos + padding/2, rowY + 4); // Ajusté Y et X
@@ -2739,3 +2780,4 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
   z-index: 1000 !important;
 }
 </style>
+F

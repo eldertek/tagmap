@@ -83,6 +83,41 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
+/* Styles responsifs pour mobile */
+@media (max-width: 768px) {
+  .marker-pin {
+    width: 16px;
+    height: 16px;
+    border-width: 3px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Augmenter la taille des contrôles pour les écrans tactiles */
+  .leaflet-control-container .leaflet-control {
+    margin: 10px !important;
+  }
+
+  .leaflet-touch .leaflet-control-layers,
+  .leaflet-touch .leaflet-bar {
+    border-width: 2px;
+  }
+
+  .leaflet-touch .leaflet-bar a {
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 18px !important;
+  }
+
+  /* Ajuster les messages d'aide pour mobile */
+  .drawing-help-message {
+    max-width: 90%;
+    padding: 10px 16px;
+    font-size: 14px;
+    bottom: 30px;
+  }
+}
+
 /* Styles pour les lignes de guide */
 .leaflet-pm-draggable {
   cursor: move;
@@ -97,6 +132,26 @@
 
 .leaflet-pm-drawing {
   cursor: crosshair;
+}
+
+/* Ajustements pour les écrans tactiles */
+@media (max-width: 768px) {
+  .leaflet-pm-draggable {
+    width: 20px !important;
+    height: 20px !important;
+    margin-left: -10px !important;
+    margin-top: -10px !important;
+  }
+
+  .leaflet-pm-draggable:hover,
+  .leaflet-pm-draggable:active {
+    transform: scale(1.3);
+  }
+
+  /* Augmenter la zone de touch pour les points de contrôle */
+  .leaflet-marker-icon {
+    touch-action: none;
+  }
 }
 
 /* Styles pour le mode édition */
@@ -258,6 +313,47 @@
   z-index: 1000;
   max-width: 200px;
   white-space: normal;
+}
+
+/* Ajustements pour mobile */
+@media (max-width: 768px) {
+  .measurement-info {
+    padding: 10px 16px;
+    font-size: 14px;
+    max-width: 80%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Ajuster la position des infobulles sur mobile */
+  .leaflet-tooltip {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    max-width: 80% !important;
+  }
+
+  /* Assurer que la carte prend tout l'espace disponible */
+  .map-parent {
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Ajuster le contenu de la carte pour mobile */
+  .map-content {
+    flex-direction: column !important;
+    height: 100% !important;
+    padding-bottom: 50px !important; /* Espace pour la barre d'outils en bas */
+  }
+
+  /* Animation pour le panneau d'outils sur mobile */
+  @keyframes slideUp {
+    0% { transform: translateY(100%); }
+    100% { transform: translateY(0); }
+  }
+
+  @keyframes slideDown {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(100%); }
+  }
 }
 
 .measurement-info.distance {

@@ -1,21 +1,32 @@
 <template>
   <div class="fixed inset-0 z-50 overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+    <div class="flex items-center justify-center min-h-screen w-full p-0">
       <div class="fixed inset-0 transition-opacity" aria-hidden="true">
         <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
       </div>
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
       <div
-        class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6"
+        class="relative bg-white w-full h-full max-h-full overflow-y-auto md:rounded-lg md:max-w-4xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-headline"
       >
         <div>
-          <div class="mt-3 text-center sm:mt-0 sm:text-left">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
-              {{ user ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur' }}
-            </h3>
+          <div class="p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4 border-b pb-4">
+              <h3 class="text-xl font-semibold text-gray-900" id="modal-headline">
+                {{ user ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur' }}
+              </h3>
+              <button
+                type="button"
+                @click="$emit('close')"
+                class="text-gray-400 hover:text-gray-500"
+              >
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
             <div class="mt-4">
               <!-- Message d'erreur global -->
               <div v-if="globalError" class="mb-4 rounded-md bg-red-50 p-4">
@@ -30,7 +41,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <form @submit.prevent="saveUser" class="space-y-6">
                 <!-- Champ de type d'utilisateur (uniquement pour les admins) -->
                 <div v-if="isAdmin">
@@ -47,7 +58,7 @@
                     <option value="VISITEUR">Visiteur</option>
                   </select>
                 </div>
-                
+
                 <!-- Sélection d'entreprise (uniquement pour les salaries créés par un admin) -->
                 <div v-if="isAdmin && form.role === 'SALARIE'">
                   <label for="entreprise" class="block text-sm font-medium text-gray-700">Entreprise</label>
@@ -76,7 +87,7 @@
                     <option value="VISITEUR">Visiteur</option>
                   </select>
                 </div>
-                
+
                 <!-- Sélection de salarie pour les visiteurs (sauf si le créateur est un salarie) -->
                 <div v-if="(isAdmin || isEntreprise) && form.role === 'VISITEUR' && !currentSalarie">
                   <label for="salarie" class="block text-sm font-medium text-gray-700">Salarie</label>
@@ -92,7 +103,7 @@
                     </option>
                   </select>
                 </div>
-                
+
                 <!-- Champs pour les informations générales de l'utilisateur -->
                 <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
                   <div>
@@ -114,7 +125,7 @@
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
                   <input
@@ -126,7 +137,7 @@
                   />
                   <div v-if="emailError" class="mt-2 text-sm text-red-600">{{ emailError }}</div>
                 </div>
-                
+
                 <div>
                   <label for="username" class="block text-sm font-medium text-gray-700">Nom d'utilisateur</label>
                   <input
@@ -138,7 +149,7 @@
                   />
                   <div v-if="usernameError" class="mt-2 text-sm text-red-600">{{ usernameError }}</div>
                 </div>
-                
+
                 <div>
                   <label for="company_name" class="block text-sm font-medium text-gray-700">Entreprise</label>
                   <input
@@ -148,7 +159,7 @@
                     class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
-                
+
                 <div v-if="!form.id">
                       <label for="password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
                       <input
@@ -160,7 +171,7 @@
                     class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                       />
                     </div>
-                
+
                 <div v-if="!form.id">
                       <label for="password_confirm" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
                       <input
@@ -173,7 +184,7 @@
                   />
                   <div v-if="passwordError" class="mt-2 text-sm text-red-600">{{ passwordError }}</div>
                 </div>
-                
+
                 <div class="flex justify-end space-x-3">
                   <button
                     type="button"
@@ -261,7 +272,7 @@ const props = defineProps({
     default: undefined
   },
   currentEntreprise: {
-    type: String, 
+    type: String,
     default: undefined
   },
   // Ajout d'une prop pour recevoir les erreurs API du parent
@@ -313,7 +324,7 @@ onMounted(() => {
     form.company_name = props.user.company_name || ''
     form.role = props.user.role || 'VISITEUR'
     form.is_active = props.user.is_active ?? true
-    
+
     // Gérer les relations
     if (props.user.salarie) {
       if (typeof props.user.salarie === 'object') {
@@ -326,7 +337,7 @@ onMounted(() => {
     } else if (props.currentSalarie) {
       form.salarie = parseInt(props.currentSalarie)
     }
-    
+
     if (props.user.entreprise) {
       if (typeof props.user.entreprise === 'object') {
     form.entreprise = props.user.entreprise.id
@@ -378,7 +389,7 @@ watchEffect(() => {
   usernameError.value = ''
   passwordError.value = ''
   globalError.value = ''
-  
+
   // Traiter les erreurs API reçues du parent
   if (props.apiErrors && props.apiErrors.length > 0) {
     props.apiErrors.forEach(err => {
@@ -408,10 +419,10 @@ async function saveUser() {
   usernameError.value = ''
   passwordError.value = ''
   globalError.value = ''
-  
+
   // Valider le formulaire
   let isValid = true
-  
+
   // Valider les mots de passe pour un nouvel utilisateur
   if (!form.id) {
     if (form.password !== passwordConfirm.value) {
@@ -422,43 +433,43 @@ async function saveUser() {
       isValid = false
     }
   }
-  
+
   if (!isValid) return
-  
+
   loading.value = true
-  
+
   try {
     // Préparer les données à envoyer
     const userData: Record<string, any> = { ...form }
-    
+
     // Si c'est une mise à jour, ne pas envoyer le mot de passe
     if (form.id) {
       delete userData.password
     }
-    
+
     // Si le rôle est défini par le contexte, s'assurer qu'il est correct
     if (props.isEntreprise && ['SALARIE', 'VISITEUR'].includes(form.role)) {
       userData.entreprise_id = props.currentEntreprise ? parseInt(props.currentEntreprise) : undefined
     }
-    
+
     // Transformer salarie en salarie_id
     if (userData.salarie) {
       userData.salarie_id = userData.salarie
       delete userData.salarie
     }
-    
+
     if (props.currentSalarie && form.role === 'VISITEUR') {
       userData.salarie_id = parseInt(props.currentSalarie)
     }
-    
+
     await emit('save', userData)
     // Émettre un événement de rafraîchissement après la sauvegarde
     emit('refresh')
-    
+
   } catch (error: any) {
     console.error('Erreur locale:', error);
   } finally {
     loading.value = false
   }
 }
-</script> 
+</script>

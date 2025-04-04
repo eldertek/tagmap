@@ -199,19 +199,20 @@
       </div>
     </div>
     <!-- Modal de création/édition d'utilisateur -->
-    <UserFormModal
-      v-if="showUserModal"
-      :user="selectedUser"
-      :salaries="salaries"
-      :entreprises="entreprises"
-      :is-admin="isAdmin"
-      :is-entreprise="isEntreprise"
-      :current-salarie="isSalarie ? authStore.user?.id?.toString() : undefined"
-      :current-entreprise="isEntreprise ? authStore.user?.id?.toString() : undefined"
-      :api-errors="apiErrors"
-      @close="closeUserModal"
-      @save="saveUser"
-    />
+    <div v-if="showUserModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <UserFormModal
+        :user="selectedUser"
+        :salaries="salaries"
+        :entreprises="entreprises"
+        :is-admin="isAdmin"
+        :is-entreprise="isEntreprise"
+        :current-salarie="isSalarie ? authStore.user?.id?.toString() : undefined"
+        :current-entreprise="isEntreprise ? authStore.user?.id?.toString() : undefined"
+        :api-errors="apiErrors"
+        @close="closeUserModal"
+        @save="saveUser"
+      />
+    </div>
     <!-- Modal de confirmation de suppression -->
     <ConfirmationModal
       v-if="showDeleteModal"
@@ -308,8 +309,8 @@ const availableSalaries = computed(() => {
     return users.value.filter(user => user.role === 'SALARIE')
   } else if (isEntreprise.value) {
     // Pour une entreprise, uniquement ses propres salaries
-    return users.value.filter(user => 
-      user.role === 'SALARIE' && 
+    return users.value.filter(user =>
+      user.role === 'SALARIE' &&
       user.entreprise?.id === authStore.user?.id
     )
   }
@@ -319,7 +320,7 @@ const availableSalaries = computed(() => {
 // Filtrage des utilisateurs adapté au rôle
 const filteredUsers = computed(() => {
   let filtered = users.value
-  
+
   // Si c'est une entreprise, ne montrer que ses salaries et les visiteurs associés
   if (isEntreprise.value) {
     filtered = filtered.filter(user => {
@@ -331,29 +332,29 @@ const filteredUsers = computed(() => {
       return false
     })
   }
-  
+
   // Si c'est un salarie, ne montrer que ses visiteurs
   if (isSalarie.value) {
-    filtered = filtered.filter(user => 
-      user.role === 'VISITEUR' && 
-      (user.salarie_id === authStore.user?.id || 
+    filtered = filtered.filter(user =>
+      user.role === 'VISITEUR' &&
+      (user.salarie_id === authStore.user?.id ||
        (user.salarie && user.salarie.id === authStore.user?.id))
     )
   }
-  
+
   // Pour les admins et entreprises, appliquer les filtres
   if (isAdmin.value || isEntreprise.value) {
     if (filters.role) {
       filtered = filtered.filter(user => user.role === filters.role)
     }
-    
+
     if (filters.salarie) {
       filtered = filtered.filter(user => {
         const salarieId = user.salarie?.id || user.salarie_id;
         return salarieId?.toString() === filters.salarie.toString()
       })
     }
-    
+
     if (filters.entreprise && isAdmin.value) {
       filtered = filtered.filter(user => {
         if (user.role === 'SALARIE') {
@@ -365,11 +366,11 @@ const filteredUsers = computed(() => {
       })
     }
   }
-  
+
   // Filtre de recherche commun
   if (filters.search) {
     const search = filters.search.toLowerCase()
-    filtered = filtered.filter(user => 
+    filtered = filtered.filter(user =>
       user.username?.toLowerCase().includes(search) ||
       user.email?.toLowerCase().includes(search) ||
       user.first_name?.toLowerCase().includes(search) ||
@@ -377,7 +378,7 @@ const filteredUsers = computed(() => {
       (user.company_name && user.company_name.toLowerCase().includes(search))
     )
   }
-  
+
   return filtered
 })
 
@@ -455,7 +456,7 @@ async function fetchAllSalaries() {
 // Récupération spécifique des salaries d'une entreprise
 async function fetchEntrepriseSalaries() {
   if (!isEntreprise.value || !authStore.user?.id) return
-  
+
   try {
     salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id)
   } catch (error) {
@@ -493,7 +494,7 @@ function closeUserModal() {
 async function saveUser(userData: any) {
   // Réinitialiser les erreurs d'API
   apiErrors.value = []
-  
+
   const isUpdate = Boolean(userData.id)
   try {
     // Mise à jour de la logique pour gérer correctement les relations
@@ -566,17 +567,17 @@ async function saveUser(userData: any) {
       fetchUsers(),
       fetchDependencies()
     ])
-    
+
     closeUserModal()
   } catch (error: any) {
     console.error('Error saving user:', error.response?.data || error)
-    
+
     // Formater et stocker les erreurs d'API pour le modal
     apiErrors.value = formatApiErrors(error)
-    
+
     // Afficher également une notification d'erreur
     notificationStore.error('Erreur lors de la sauvegarde de l\'utilisateur')
-    
+
     // Générer un message d'erreur pour l'exception
     const errorData = error.response?.data || {}
     let errorMessage = ''
@@ -609,13 +610,13 @@ async function deleteUser() {
   try {
     await authStore.deleteUser(userToDelete.value.id)
     notificationStore.success('Utilisateur supprimé avec succès')
-    
+
     // Recharger les données après une suppression
     await Promise.all([
       fetchUsers(),
       fetchDependencies()
     ])
-    
+
     showDeleteModal.value = false
     userToDelete.value = null
   } catch (error) {
@@ -643,11 +644,11 @@ function canDeleteUser(user: User): boolean {
 
   // Un salarie peut supprimer ses visiteurs
   if (isSalarie.value) {
-    return user.role === 'VISITEUR' && 
-           (user.salarie_id === authStore.user?.id || 
+    return user.role === 'VISITEUR' &&
+           (user.salarie_id === authStore.user?.id ||
             user.salarie?.id === authStore.user?.id);
   }
 
   return false;
 }
-</script> 
+</script>

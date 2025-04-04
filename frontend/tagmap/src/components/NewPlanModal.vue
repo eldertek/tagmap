@@ -1,7 +1,7 @@
 <template>
-  <div v-if="modelValue" class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[9999] p-4 overflow-y-auto">
-    <div class="bg-white rounded-lg p-6 max-w-2xl w-full my-8 relative">
-      <div class="flex justify-between items-center mb-4 sticky top-0 bg-white pb-4 border-b">
+  <div v-if="modelValue" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] overflow-y-auto">
+    <div class="bg-white w-full h-full md:rounded-lg md:max-w-4xl md:h-auto md:max-h-[90vh] md:my-8 relative overflow-y-auto">
+      <div class="flex justify-between items-center mb-4 sticky top-0 bg-white p-4 md:p-6 pb-4 border-b z-10">
         <h2 class="text-xl font-semibold text-gray-900">Créer un nouveau plan</h2>
         <button @click="closeModal" class="text-gray-400 hover:text-gray-500">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -9,7 +9,7 @@
           </svg>
         </button>
       </div>
-      <div class="overflow-y-auto max-h-[calc(100vh-12rem)]">
+      <div class="p-4 md:p-6 pt-0 overflow-y-auto max-h-[calc(100vh-80px)] md:max-h-[calc(90vh-80px)]">
         <!-- Sélection de l'entreprise (admin uniquement) -->
         <div v-if="authStore.isAdmin" class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-2">Entreprise</label>
@@ -215,11 +215,11 @@ const isFormValid = computed(() => {
 // Watcher pour charger les salaries quand une entreprise est sélectionnée
 watch(() => planData.value.entreprise, async (newEntrepriseId) => {
   if (!props.modelValue) return;
-  
+
   planData.value.salarie = null;
   planData.value.visiteur = null;
   visiteurs.value = [];
-  
+
   const entrepriseId = extractId(newEntrepriseId);
   console.log('[NewPlanModal] Entreprise sélectionnée:', entrepriseId);
   if (entrepriseId) {
@@ -232,9 +232,9 @@ watch(() => planData.value.entreprise, async (newEntrepriseId) => {
 // Watcher pour charger les visiteurs quand un salarie est sélectionné
 watch(() => planData.value.salarie, async (newSalarieId) => {
   if (!props.modelValue) return;
-  
+
   planData.value.visiteur = null;
-  
+
   const salarieId = extractId(newSalarieId);
   if (salarieId) {
     await loadVisiteurs(salarieId);
@@ -312,7 +312,7 @@ async function loadVisiteurs(salarieId: number) {
 async function selectSalarie(salarie: UserDetails) {
   // N'exécuter que si le modal est visible
   if (!props.modelValue) return;
-  
+
   selectedSalarie.value = salarie;
   planData.value.salarie = salarie.id;
   await loadVisiteurs(salarie.id);
@@ -323,7 +323,7 @@ async function selectSalarie(salarie: UserDetails) {
 function selectVisiteur(visiteur: UserDetails) {
   // N'exécuter que si le modal est visible
   if (!props.modelValue) return;
-  
+
   selectedVisiteur.value = visiteur;
   planData.value.visiteur = visiteur.id;
   emit('visiteurSelected', visiteur);
@@ -332,7 +332,7 @@ function selectVisiteur(visiteur: UserDetails) {
 // Fonction pour fermer le modal
 function closeModal() {
   emit('update:modelValue', false);
-  
+
   // Réinitialiser les données
   planData.value = {
     nom: '',
@@ -365,7 +365,7 @@ async function loadEntreprises() {
 async function createPlan() {
   error.value = null;
   isCreating.value = true;
-  
+
   try {
     const data: any = {
       nom: planData.value.nom.trim(),
@@ -411,16 +411,16 @@ async function createPlan() {
     // S'assurer que l'état est propre avant de créer un nouveau plan
     irrigationStore.clearCurrentPlan();
     drawingStore.setCurrentPlan(null);
-    
+
     const newPlan = await irrigationStore.createPlan(data);
     emit('created', newPlan.id);
     closeModal();
   } catch (err: any) {
     console.error('[NewPlanModal] Error creating plan:', err);
     console.error('Response data:', err.response?.data);
-    
+
     let errorMessage = 'Une erreur est survenue lors de la création du plan';
-    
+
     if (err.response?.data) {
       if (typeof err.response.data === 'object') {
         errorMessage = Object.entries(err.response.data)
@@ -435,7 +435,7 @@ async function createPlan() {
         errorMessage = err.response.data;
       }
     }
-    
+
     error.value = errorMessage;
   } finally {
     isCreating.value = false;
@@ -453,4 +453,4 @@ defineExpose({
   selectSalarie,
   selectVisiteur
 });
-</script> 
+</script>

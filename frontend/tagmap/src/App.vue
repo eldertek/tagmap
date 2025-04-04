@@ -47,17 +47,17 @@ onBeforeUnmount(() => {
 // Fonction pour déterminer la position de la Dynamic Island par rapport à la cloche
 function updateIslandPosition() {
   if (!bellButtonRef.value) return
-  
+
   const rect = bellButtonRef.value.getBoundingClientRect()
-  
+
   // Utiliser des valeurs en pourcentage pour le positionnement vertical
   // pour éviter les sauts visuels lors des animations
   islandPositionTop.value = `${rect.top + window.scrollY + 5}px`
-  
+
   // Centrer horizontalement avec une approche qui évite les sauts
   // en utilisant transform au lieu d'ajuster directement le right
   const centerPoint = rect.left + rect.width/2
-  
+
   // Position horizontale (ajustée pour être centrée sur la cloche)
   islandPositionRight.value = `${window.innerWidth - centerPoint - 22}px`
 }
@@ -98,12 +98,12 @@ const baseNavigationItems = [
 const navigationItems = computed(() => {
   if (!isAuthenticated.value) return []
   const items = [...baseNavigationItems]
-  
+
   // Ajouter l'accès aux utilisateurs pour admin et entreprise
   if (isAdmin.value || authStore.user?.user_type === 'entreprise') {
     items.push({ name: 'Utilisateurs', to: '/users' })
   }
-  
+
   return items
 })
 // Items du menu profil
@@ -129,8 +129,8 @@ async function handleLogout() {
 // Fonction pour gérer la sélection d'une adresse
 function handleLocationSelect(location: Location) {
   // Émettre un événement personnalisé pour la carte
-  window.dispatchEvent(new CustomEvent('map-set-location', { 
-    detail: { 
+  window.dispatchEvent(new CustomEvent('map-set-location', {
+    detail: {
       lat: location.lat,
       lng: location.lng,
       zoom: 16
@@ -148,12 +148,12 @@ onMounted(async () => {
       await authStore.checkAuth()
       // Forcer la récupération du profil utilisateur
       await authStore.fetchUserProfile()
-      
+
       // Vérifier s'il y a un dernier plan ouvert
       const lastPlanId = localStorage.getItem('lastPlanId')
       if (lastPlanId) {
         // Émettre un événement pour charger le dernier plan
-        window.dispatchEvent(new CustomEvent('load-last-plan', { 
+        window.dispatchEvent(new CustomEvent('load-last-plan', {
           detail: { planId: lastPlanId }
         }))
       }
@@ -208,33 +208,33 @@ watchEffect(() => {
   if (notificationStore.lastAddedId !== null) {
     // Trouver la notification qui vient d'être ajoutée
     const notif = notificationStore.notifications.find(n => n.id === notificationStore.lastAddedId);
-    
+
     if (notif) {
       // Mettre à jour la position immédiatement
       nextTick(() => {
         updateIslandPosition();
-        
+
         // Animer la cloche et afficher la notification en même temps
         bellAnimating.value = true;
-        
+
         // Afficher la Dynamic Island immédiatement
         activeNotification.value = {
           id: notif.id,
           message: notif.message,
           type: notif.type
         };
-        
+
         // Développer l'island après un très court délai (pour permettre au rendu initial)
         requestAnimationFrame(() => {
           // Utiliser requestAnimationFrame pour s'assurer que l'animation est synchronisée avec le cycle de rendu
           setTimeout(() => {
             isExpanded.value = true;
-            
+
             // Durée d'affichage avant de refermer
             setTimeout(() => {
               // Fermer l'island
               isExpanded.value = false;
-              
+
               // Attendre la fin de l'animation de fermeture avant de masquer
               setTimeout(() => {
                 if (activeNotification.value?.id === notif.id) {
@@ -287,15 +287,15 @@ watchEffect(() => {
                 />
               </svg>
             </button>
-            
-            <router-link 
-              to="/" 
+
+            <router-link
+              to="/"
               class="text-xl font-semibold text-primary-600 truncate ml-2 md:ml-0"
             >
               <span class="md:inline hidden">TagMap</span>
               <span class="md:hidden inline">TM</span>
             </router-link>
-            
+
             <div class="hidden md:flex md:ml-6 space-x-8">
               <router-link
                 v-for="item in navigationItems"
@@ -312,24 +312,24 @@ watchEffect(() => {
               </router-link>
             </div>
           </div>
-          
+
           <!-- Barre de recherche uniquement sur la carte -->
           <div v-if="$route.path === '/'" class="hidden md:block flex-1 mx-8">
             <SearchBar @select-location="handleLocationSelect" />
           </div>
           <div v-else class="flex-1"></div>
-          
+
           <!-- Menu de droite (notifications et profil) -->
           <div class="flex items-center space-x-2 md:space-x-4">
             <!-- Bouton performances (visible uniquement si perf=true) -->
-            <button 
-              v-if="isQueryParamEnabled" 
+            <button
+              v-if="isQueryParamEnabled"
               class="hidden md:flex items-center justify-center p-2 text-amber-500 hover:text-amber-600 rounded-full hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
               title="Performance activée"
             >
               <span class="sr-only">Performance</span>
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </button>
@@ -352,57 +352,70 @@ watchEffect(() => {
                   />
                 </svg>
               </button>
-              
+
               <!-- Menu notifications -->
-              <div 
-                v-if="showNotificationsMenu" 
-                class="absolute right-0 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000]"
+              <div
+                v-if="showNotificationsMenu"
+                class="absolute right-0 mt-2 md:w-80 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000] md:right-0 right-0 left-0 md:left-auto"
+                :style="isMobile ? 'position: fixed; top: 64px; left: 0; right: 0; margin: 0;' : ''"
               >
                 <div class="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
-                  <h3 class="text-sm font-semibold text-gray-700">Notifications</h3>
-                  <button
-                    v-if="notificationCount > 0"
-                    @click="clearAllNotifications"
-                    class="text-xs text-primary-600 hover:text-primary-800"
-                  >
-                    Tout effacer
-                  </button>
+                  <div class="flex items-center justify-between w-full">
+                    <h3 class="text-sm font-semibold text-gray-700">Notifications</h3>
+                    <div class="flex items-center space-x-3">
+                      <button
+                        v-if="notificationCount > 0"
+                        @click="clearAllNotifications"
+                        class="text-xs text-primary-600 hover:text-primary-800"
+                      >
+                        Tout effacer
+                      </button>
+                      <button
+                        @click="showNotificationsMenu = false"
+                        class="md:hidden p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                
+
                 <div class="max-h-72 overflow-y-auto">
                   <div v-if="notificationCount === 0" class="px-4 py-3 text-sm text-gray-500 text-center">
                     Aucune notification
                   </div>
-                  
-                  <div 
-                    v-for="notification in notificationStore.notifications" 
+
+                  <div
+                    v-for="notification in notificationStore.notifications"
                     :key="notification.id"
-                    class="px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                    class="px-4 py-3 md:py-3 py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50"
                   >
                     <div class="flex items-start">
                       <div class="flex-shrink-0 mr-3">
                         <!-- Success icon -->
-                        <svg v-if="notification.type === 'success'" class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg v-if="notification.type === 'success'" class="h-6 w-6 md:h-5 md:w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>
                         <!-- Error icon -->
-                        <svg v-else-if="notification.type === 'error'" class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg v-else-if="notification.type === 'error'" class="h-6 w-6 md:h-5 md:w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                         </svg>
                         <!-- Warning icon -->
-                        <svg v-else-if="notification.type === 'warning'" class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg v-else-if="notification.type === 'warning'" class="h-6 w-6 md:h-5 md:w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                         </svg>
                         <!-- Info icon -->
-                        <svg v-else class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg v-else class="h-6 w-6 md:h-5 md:w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                         </svg>
                       </div>
                       <div class="flex-1">
-                        <p class="text-sm text-gray-800">{{ notification.message }}</p>
-                        <button 
+                        <p class="text-sm md:text-sm text-gray-800">{{ notification.message }}</p>
+                        <button
                           @click="notificationStore.removeNotification(notification.id)"
-                          class="text-xs text-primary-600 hover:text-primary-800 mt-1"
+                          class="text-xs md:text-xs text-primary-600 hover:text-primary-800 mt-2 md:mt-1 py-1 md:py-0"
                         >
                           Fermer
                         </button>
@@ -432,24 +445,32 @@ watchEffect(() => {
               <!-- Menu profil déroulant -->
               <div
                 v-if="showProfileMenu"
-                class="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000]"
+                class="absolute right-0 mt-2 md:w-48 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000] md:right-0 right-0 left-0 md:left-auto"
+                :style="isMobile ? 'position: fixed; top: 64px; left: 0; right: 0; margin: 0;' : ''"
               >
-                <div class="md:hidden px-4 py-2 border-b border-gray-100">
-                  <div class="text-sm font-medium text-gray-700">{{ userName }}</div>
-                  <div class="text-xs text-gray-500">{{ userRole }}</div>
+                <div class="md:hidden px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                  <div>
+                    <div class="text-sm font-semibold text-gray-700">{{ userName }}</div>
+                    <div class="text-xs text-gray-500">{{ userRole }}</div>
+                  </div>
+                  <button @click="showProfileMenu = false" class="p-1 rounded-full hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
                 <router-link
                   v-for="item in profileMenuItems"
                   :key="item.name"
                   :to="item.to"
-                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  class="block px-4 md:py-2 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                   @click="showProfileMenu = false"
                 >
                   {{ item.name }}
                 </router-link>
                 <button
                   @click="handleLogout"
-                  class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
+                  class="block w-full px-4 md:py-2 py-3 text-left text-sm text-red-600 hover:bg-gray-50 font-medium"
                 >
                   Déconnexion
                 </button>
@@ -487,14 +508,14 @@ watchEffect(() => {
       </nav>
     </header>
     <!-- Main content -->
-    <main :class="[ 
-      $route.path === '/' && !isMobile ? 'overflow-hidden' : 'overflow-auto', 
+    <main :class="[
+      $route.path === '/' && !isMobile ? 'overflow-hidden' : 'overflow-auto',
       'flex-1 flex flex-col',
       'md:h-[calc(100vh-64px)]'
     ]">
       <router-view></router-view>
     </main>
-    
+
     <!-- Panneau de performance (visible si le paramètre URL perf=true est présent) -->
     <PerformancePanel position="bottom-left" />
   </div>
@@ -611,9 +632,10 @@ body {
   transform: translateX(10px);
 }
 
-/* Ajout d'une variable CSS pour la hauteur du header */
+/* Ajout d'une variable CSS pour la hauteur du header et de la barre d'outils mobile */
 :root {
   --header-height: 64px; /* 4rem = 64px */
+  --mobile-toolbar-height: 50px; /* Hauteur de la barre d'outils mobile */
 }
 
 /* Ajuster la hauteur de main */
