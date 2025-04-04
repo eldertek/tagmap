@@ -3,9 +3,11 @@ import { lineString, length } from '@turf/turf';
 import along from '@turf/along';
 import { performanceMonitor } from './usePerformanceMonitor';
 
-// Interface étendue pour inclure name
+// Interface étendue pour inclure name, category et accessLevel
 interface ExtendedPolylineOptions extends L.PolylineOptions {
   name?: string;
+  category?: string;
+  accessLevel?: string;
 }
 
 /**
@@ -30,15 +32,17 @@ export class Line extends L.Polyline {
       pmIgnore: false,
       interactive: true
     });
-    
+
     this.properties = performanceMonitor.measure('Line.constructor.initProperties', () => ({
       type: 'Line',
+      category: options.category || 'forages',
+      accessLevel: options.accessLevel || 'visitor',
       style: {
         ...(options || {}),
         name: options.name || ''
       }
     }));
-    
+
     this.updateProperties();
     this.on('add', () => {
       this.updateProperties();
@@ -52,13 +56,13 @@ export class Line extends L.Polyline {
         console.warn('Line has less than 2 points, cannot calculate properties');
         return;
       }
-      
+
       const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
       try {
         const line = lineString(coordinates);
         const lengthValue = length(line, { units: 'meters' });
         let center: L.LatLng;
-        
+
         if (latLngs.length === 2) {
           center = L.latLng(
             (latLngs[0].lat + latLngs[1].lat) / 2,
@@ -68,10 +72,12 @@ export class Line extends L.Polyline {
           const alongPoint = along(line, lengthValue / 2, { units: 'meters' });
           center = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
         }
-        
+
         const influenceWidth = 10;
         const existingName = this.properties?.style?.name || '';
-        
+        const existingCategory = this.properties?.category || 'forages';
+        const existingAccessLevel = this.properties?.accessLevel || 'visitor';
+
         this.properties = {
           type: 'Line',
           length: lengthValue,
@@ -88,6 +94,8 @@ export class Line extends L.Polyline {
           dimensions: {
             width: influenceWidth
           },
+          category: existingCategory,
+          accessLevel: existingAccessLevel,
           style: {
             ...this.options,
             color: this.options.color || '#2b6451',
@@ -97,13 +105,13 @@ export class Line extends L.Polyline {
             name: existingName
           }
         };
-        
+
         this.cachedProperties.length = lengthValue;
         this.cachedProperties.center = center;
         this.cachedProperties.midPoints = undefined;
         this.cachedProperties.segmentLengths = undefined;
         this.needsUpdate = false;
-        
+
         this.fire('properties:updated', {
           shape: this,
           properties: this.properties
@@ -128,7 +136,7 @@ export class Line extends L.Polyline {
   }
 
   getName(): string {
-    return performanceMonitor.measure('Line.getName', () => 
+    return performanceMonitor.measure('Line.getName', () =>
       this.properties?.style?.name || ''
     );
   }
@@ -142,16 +150,16 @@ export class Line extends L.Polyline {
 
   setLatLngs(latlngs: L.LatLngExpression[] | L.LatLngExpression[][]): this {
     super.setLatLngs(latlngs);
-    
+
     // Invalider TOUT le cache
     this.needsUpdate = true;
     this.cachedProperties = {};
-    
+
     // Émettre un événement de changement
     this.fire('latlngs:updated', {
       latlngs: this.getLatLngs()
     });
-    
+
     return this;
   }
 
@@ -160,14 +168,14 @@ export class Line extends L.Polyline {
       if (!this.needsUpdate && this.cachedProperties.midPoints) {
         return this.cachedProperties.midPoints;
       }
-      
+
       const latLngs = this.getLatLngs() as L.LatLng[];
       const midPoints: L.LatLng[] = [];
-      
+
       if (latLngs.length < 2) {
         return midPoints;
       }
-      
+
       for (let i = 0; i < latLngs.length - 1; i++) {
         const p1 = latLngs[i];
         const p2 = latLngs[i + 1];
@@ -180,7 +188,7 @@ export class Line extends L.Polyline {
           (p1.lng + p2.lng) / 2
         ));
       }
-      
+
       this.cachedProperties.midPoints = midPoints;
       return midPoints;
     });
@@ -192,14 +200,14 @@ export class Line extends L.Polyline {
       if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
         return null;
       }
-      
+
       const p1 = latLngs[segmentIndex];
       const p2 = latLngs[segmentIndex + 1];
       if (!p1 || !p2) {
         console.warn('Points invalides pour calcul du midpoint au segment', segmentIndex);
         return null;
       }
-      
+
       return L.latLng(
         (p1.lat + p2.lat) / 2,
         (p1.lng + p2.lng) / 2
@@ -212,21 +220,21 @@ export class Line extends L.Polyline {
       const latLngs = this.getLatLngs() as L.LatLng[];
       if (vertexIndex >= 0 && vertexIndex < latLngs.length) {
         latLngs[vertexIndex] = newLatLng;
-        
+
         // Utiliser setLatLngs pour garantir la propagation des événements
         this.setLatLngs(latLngs);
-        
+
         // Invalider TOUT le cache
         this.needsUpdate = true;
         this.cachedProperties = {};
-        
+
         // Émettre l'événement avec toutes les informations nécessaires
         this.fire('vertex:moved', {
           index: vertexIndex,
           latlng: newLatLng,
           allPoints: latLngs
         });
-        
+
         if (updateProps) {
           this.updateProperties();
         }
@@ -258,27 +266,27 @@ export class Line extends L.Polyline {
       this.fire('move:start');
 
       const latLngs = this.getLatLngs() as L.LatLng[];
-      const newLatLngs = latLngs.map(point => 
+      const newLatLngs = latLngs.map(point =>
         L.latLng(
-          point.lat + deltaLatLng.lat, 
+          point.lat + deltaLatLng.lat,
           point.lng + deltaLatLng.lng
         )
       );
-      
+
       // Utiliser setLatLngs pour la mise à jour
       this.setLatLngs(newLatLngs);
-      
+
       // Invalider TOUT le cache
       this.needsUpdate = true;
       this.cachedProperties = {};
-      
+
       // Émettre l'événement avec toutes les informations
       this.fire('move', {
         delta: deltaLatLng,
         newPositions: newLatLngs,
         oldPositions: latLngs
       });
-      
+
       if (updateProps) {
         this.updateProperties();
         // Émettre un événement supplémentaire après la mise à jour des propriétés
@@ -298,13 +306,13 @@ export class Line extends L.Polyline {
       if (!this.needsUpdate && this.cachedProperties.center) {
         return this.cachedProperties.center;
       }
-      
+
       const latLngs = this.getLatLngs() as L.LatLng[];
       if (latLngs.length < 2) {
         const result = latLngs[0] || new L.LatLng(0, 0);
         return result;
       }
-      
+
       try {
         const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
         const line = lineString(coordinates);
@@ -329,19 +337,19 @@ export class Line extends L.Polyline {
       if (!this.needsUpdate && this.cachedProperties.segmentLengths) {
         return this.cachedProperties.segmentLengths;
       }
-      
+
       const latLngs = this.getLatLngs() as L.LatLng[];
       const distances: number[] = [];
       if (latLngs.length < 2) {
         return distances;
       }
-      
+
       for (let i = 0; i < latLngs.length - 1; i++) {
         const p1 = latLngs[i];
         const p2 = latLngs[i + 1];
         distances.push(p1.distanceTo(p2));
       }
-      
+
       this.cachedProperties.segmentLengths = distances;
       return distances;
     });
@@ -378,15 +386,15 @@ export class Line extends L.Polyline {
       if (!this.needsUpdate && this.cachedProperties.length) {
         return this.cachedProperties.length;
       }
-      
+
       const latLngs = this.getLatLngs() as L.LatLng[];
       let totalLength = 0;
       for (let i = 0; i < latLngs.length - 1; i++) {
         totalLength += latLngs[i].distanceTo(latLngs[i + 1]);
       }
-      
+
       this.cachedProperties.length = totalLength;
       return totalLength;
     });
   }
-} 
+}

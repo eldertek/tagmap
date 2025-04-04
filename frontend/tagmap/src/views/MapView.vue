@@ -475,6 +475,7 @@ import logo from '@/assets/logo.svg';
 import { debounce } from 'lodash';
 import { Circle } from '@/utils/Circle';
 import { ElevationLine } from '@/utils/ElevationLine';
+import { GeoNote } from '@/utils/GeoNote';
 
 // Types étendus pour les utilisateurs et plans
 interface UserDetails {
@@ -1321,6 +1322,46 @@ async function refreshMapWithPlan(planId: number) {
                         }
                         break;
                       }
+                      case 'Note': {
+                        console.log('[MapView][refreshMapWithPlan] Création d\'une note:', element.data);
+                        const noteData = element.data as any;
+                        if (noteData.location && Array.isArray(noteData.location) && noteData.location.length === 2) {
+                          try {
+                            // S'assurer que la catégorie et le niveau d'accès sont définis
+                            if (!noteData.category) {
+                              noteData.category = 'forages';
+                              console.log('[MapView][refreshMapWithPlan] Catégorie par défaut ajoutée:', noteData.category);
+                            }
+
+                            if (!noteData.accessLevel) {
+                              noteData.accessLevel = 'private';
+                              console.log('[MapView][refreshMapWithPlan] Niveau d\'accès par défaut ajouté:', noteData.accessLevel);
+                            }
+
+                            // Utiliser la méthode statique de GeoNote pour créer une note à partir des données
+                            const geoNote = GeoNote.fromBackendData(noteData);
+
+                            // Stocker l'ID de la base de données pour la sauvegarde ultérieure
+                            (geoNote as any)._dbId = element.id;
+
+                            layer = geoNote;
+
+                            console.log('[MapView][refreshMapWithPlan] Note créée:', {
+                              id: element.id,
+                              location: noteData.location,
+                              name: noteData.name,
+                              category: noteData.category,
+                              accessLevel: noteData.accessLevel,
+                              type: (geoNote as any).properties.type
+                            });
+                          } catch (error) {
+                            console.error('[MapView][refreshMapWithPlan] Erreur lors de la création de la Note:', error);
+                          }
+                        } else {
+                          console.error('[MapView][refreshMapWithPlan] Données invalides pour Note:', noteData);
+                        }
+                        break;
+                      }
                     }
 
                     if (layer) {
@@ -1507,15 +1548,25 @@ async function savePlan() {
         if ((layer as any).properties?.type === 'ElevationLine') {
           type_forme = 'ElevationLine';
           const latLngs = layer.getLatLngs() as L.LatLng[];
+          // Récupérer la catégorie et le niveau d'accès
+          const category = (layer as any).properties?.category || 'forages';
+          const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
+
+          console.log('[savePlan] ElevationLine - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
+
           data = {
             points: latLngs.map(ll => [ll.lng, ll.lat]),
             style: {
               ...commonStyle,
               color: (layer as any).properties.style?.color || '#FF4500',
               weight: (layer as any).properties.style?.weight || 4,
-              opacity: (layer as any).properties.style?.opacity || 0.8
+              opacity: (layer as any).properties.style?.opacity || 0.8,
+              _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
+              accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
             },
             name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
+            category: category, // Ajouter la catégorie
+            accessLevel: accessLevel, // Ajouter le niveau d'accès
             elevationData: (layer as any).properties.elevationData,
             samplePointStyle: (layer as any).properties.samplePointStyle,
             minMaxPointStyle: (layer as any).properties.minMaxPointStyle,
@@ -1529,20 +1580,79 @@ async function savePlan() {
         } else {
           type_forme = 'Line';
           const latLngs = layer.getLatLngs() as L.LatLng[];
+          // Récupérer la catégorie et le niveau d'accès
+          const category = (layer as any).properties?.category || 'forages';
+          const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
+
+          console.log('[savePlan] Line - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
+
           data = {
             points: latLngs.map(ll => [ll.lng, ll.lat]),
             name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
-            style: commonStyle
+            category: category, // Ajouter la catégorie
+            accessLevel: accessLevel, // Ajouter le niveau d'accès
+            style: {
+              ...commonStyle,
+              _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
+              accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
+            }
           };
         }
       } else if (layer instanceof L.Polygon && !(layer instanceof L.Rectangle)) {
         type_forme = 'Polygon';
         const latLngs = (layer.getLatLngs()[0] as L.LatLng[]);
+        // Récupérer la catégorie et le niveau d'accès
+        const category = (layer as any).properties?.category || 'forages';
+        const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
+
+        console.log('[savePlan] Polygon - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
+
         data = {
           points: latLngs.map(ll => [ll.lng, ll.lat]),
           name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
-          style: commonStyle
+          category: category, // Ajouter la catégorie
+          accessLevel: accessLevel, // Ajouter le niveau d'accès
+          style: {
+            ...commonStyle,
+            _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
+            accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
+          }
         };
+      } else if ((layer as any).properties?.type === 'Note') {
+        // Traitement spécial pour les GeoNote
+        console.log('[savePlan] Traitement d\'une GeoNote');
+
+        // Vérifier si c'est bien une instance de GeoNote
+        const geoNote = layer as any;
+        if (geoNote.toBackendFormat) {
+          // S'assurer que la catégorie et le niveau d'accès sont définis
+          if (!geoNote.properties.category) {
+            geoNote.properties.category = 'forages';
+            console.log('[savePlan] Catégorie par défaut ajoutée:', geoNote.properties.category);
+          }
+
+          if (!geoNote.properties.accessLevel) {
+            geoNote.properties.accessLevel = 'private';
+            console.log('[savePlan] Niveau d\'accès par défaut ajouté:', geoNote.properties.accessLevel);
+          }
+
+          // Utiliser la méthode toBackendFormat de GeoNote
+          const noteElement = geoNote.toBackendFormat(geoNote._dbId);
+          type_forme = noteElement.type_forme;
+          data = noteElement.data;
+
+          // Ajouter l'ID à la liste des couches actuelles
+          if (geoNote._dbId && typeof geoNote._dbId === 'number') {
+            currentLayerIds.add(geoNote._dbId);
+          }
+
+          console.log('[savePlan] Données de la note préparées pour la sauvegarde:', {
+            id: geoNote._dbId,
+            type: type_forme,
+            category: data.category,
+            accessLevel: data.accessLevel
+          });
+        }
       }
 
       if (type_forme && data) {
@@ -1574,7 +1684,18 @@ async function savePlan() {
     // Identifier les éléments supprimés
     const elementsToDelete = Array.from(existingIds).filter(id => !currentLayerIds.has(id));
 
-    drawingStore.elements = elements;
+    console.log('[savePlan] Éléments supprimés:', {
+      existingIds: Array.from(existingIds),
+      currentLayerIds: Array.from(currentLayerIds),
+      elementsToDelete
+    });
+
+    // Mettre à jour les éléments dans le store en excluant les éléments supprimés
+    drawingStore.elements = elements.filter(el => {
+      // Garder les éléments sans ID (nouveaux) ou ceux qui ne sont pas dans la liste des éléments à supprimer
+      return !el.id || !elementsToDelete.includes(el.id);
+    });
+
     // Passer les éléments à supprimer au store
     const updatedPlan = await drawingStore.saveToPlan(currentPlan.value.id, { elementsToDelete });
 
@@ -3470,6 +3591,11 @@ function handleNoteSave(note: any) {
       noteLayer.properties.columnId = note.columnId;
       noteLayer.properties.accessLevel = note.accessLevel;
 
+      // Conserver la catégorie existante ou utiliser une valeur par défaut
+      if (!noteLayer.properties.category) {
+        noteLayer.properties.category = 'forages';
+      }
+
       // Mettre à jour le style
       noteLayer.setNoteStyle({
         color: note.style.color,
@@ -3483,6 +3609,12 @@ function handleNoteSave(note: any) {
       noteLayer.closePopup();
       noteLayer.unbindPopup();
       noteLayer.bindPopup(noteLayer.createPopupContent());
+
+      console.log('[handleNoteSave] Note mise à jour:', {
+        name: noteLayer.properties.name,
+        category: noteLayer.properties.category,
+        accessLevel: noteLayer.properties.accessLevel
+      });
     }
   }
 

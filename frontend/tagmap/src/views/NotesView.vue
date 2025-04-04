@@ -341,6 +341,8 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
+import { useIrrigationStore } from '../stores/irrigation';
+import { useDrawingStore } from '../stores/drawing';
 import NoteEditModal from '../components/NoteEditModal.vue';
 
 import draggable from 'vuedraggable';
@@ -350,6 +352,8 @@ import draggable from 'vuedraggable';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
+const irrigationStore = useIrrigationStore();
+const drawingStore = useDrawingStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const showEditModal = ref(false);
@@ -359,6 +363,7 @@ const editingNote = ref<Note | null>(null);
 const newColumnName = ref('');
 const newColumnColor = ref('#6B7280');
 const activeTab = ref('info'); // Onglet actif dans le modal d'édition
+const currentPlanId = ref<number | null>(null);
 
 // Colonnes pour le drag and drop
 const columnsForDrag = computed({
@@ -474,17 +479,70 @@ function getAccessLevelColor(level: NoteAccessLevel): string {
 
 
 
-// Charger les notes
+// Charger les notes depuis le plan actuel
 onMounted(async () => {
   try {
-    // Simuler le chargement des notes (à remplacer par un appel API réel)
-    setTimeout(() => {
-      // Les notes sont déjà chargées depuis le store
-      loading.value = false;
-    }, 500);
+    loading.value = true;
+
+    // Récupérer l'ID du plan actuel depuis le localStorage ou le store
+    const lastPlanId = localStorage.getItem('lastPlanId');
+    currentPlanId.value = lastPlanId ? parseInt(lastPlanId) : irrigationStore.currentPlan?.id || null;
+
+    if (currentPlanId.value) {
+      console.log('[NotesView] Chargement des notes du plan:', currentPlanId.value);
+
+      // Charger le plan s'il n'est pas déjà chargé
+      if (!irrigationStore.currentPlan || irrigationStore.currentPlan.id !== currentPlanId.value) {
+        // Charger le plan depuis l'API
+        await irrigationStore.fetchPlans();
+        const plan = irrigationStore.getPlanById(currentPlanId.value);
+        if (plan) {
+          irrigationStore.setCurrentPlan(plan);
+        }
+      }
+
+      // Charger les éléments du plan
+      await drawingStore.loadPlanElements(currentPlanId.value);
+
+      // Extraire les notes du plan
+      const notes = drawingStore.elements
+        .filter(element => element.type_forme === 'Note')
+        .map(element => {
+          const data = element.data as any;
+          return {
+            id: element.id || Date.now() + Math.floor(Math.random() * 1000),
+            title: data.name || 'Note sans titre',
+            description: data.description || '',
+            location: data.location,
+            columnId: data.columnId || 'en-cours',
+            accessLevel: data.accessLevel || NoteAccessLevel.PRIVATE,
+            style: data.style || {
+              color: '#2b6451',
+              weight: 2,
+              opacity: 1,
+              fillColor: '#2b6451',
+              fillOpacity: 0.6,
+              radius: 8
+            },
+            order: data.order || 0,
+            createdAt: data.createdAt || new Date().toISOString(),
+            updatedAt: data.updatedAt || new Date().toISOString(),
+            comments: data.comments || [],
+            photos: data.photos || []
+          } as Note;
+        });
+
+      // Mettre à jour le store de notes
+      notesStore.notes = notes;
+
+      console.log('[NotesView] Notes chargées:', notes.length);
+    } else {
+      console.log('[NotesView] Aucun plan actif, utilisation des notes par défaut du store');
+    }
   } catch (error) {
     console.error('Erreur lors du chargement des notes:', error);
     notificationStore.error('Erreur lors du chargement des notes');
+  } finally {
     loading.value = false;
   }
 });
@@ -542,10 +600,54 @@ function editNote(note: Note) {
 }
 
 // Gérer la sauvegarde d'une note depuis le modal
-function handleNoteSave() {
+async function handleNoteSave() {
   // La note est déjà sauvegardée dans le store par le composant NoteEditModal
-  // Nous n'avons qu'à fermer le modal
   showEditModal.value = false;
+
+  // Si un plan est actif, mettre à jour les éléments du plan
+  if (currentPlanId.value && editingNote.value) {
+    try {
+      // Convertir la note en format compatible avec le backend
+      const noteData: any = {
+        location: editingNote.value.location,
+        name: editingNote.value.title,
+        description: editingNote.value.description,
+        columnId: editingNote.value.columnId,
+        accessLevel: editingNote.value.accessLevel,
+        style: editingNote.value.style,
+        comments: editingNote.value.comments || [],
+        photos: editingNote.value.photos || [],
+        order: editingNote.value.order,
+        createdAt: editingNote.value.createdAt,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Trouver l'élément correspondant dans le store de dessin ou en créer un nouveau
+      const existingElementIndex = drawingStore.elements.findIndex(el =>
+        el.type_forme === 'Note' && el.id === editingNote.value?.id
+      );
+
+      if (existingElementIndex !== -1) {
+        // Mettre à jour l'élément existant
+        drawingStore.elements[existingElementIndex].data = noteData;
+      } else {
+        // Ajouter un nouvel élément
+        drawingStore.elements.push({
+          id: editingNote.value.id,
+          type_forme: 'Note',
+          data: noteData
+        });
+      }
+
+      // Sauvegarder le plan
+      await drawingStore.saveToPlan(currentPlanId.value);
+
+      notificationStore.success('Note sauvegardée et plan mis à jour avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la note:', error);
+      notificationStore.error('Erreur lors de la sauvegarde de la note');
+    }
+  }
 }
 
 // Confirmer la suppression d'une note
@@ -555,15 +657,41 @@ function confirmDeleteNote(note: Note) {
 }
 
 // Supprimer une note
-function deleteNote() {
+async function deleteNote() {
   if (!noteToDelete.value) return;
 
-  notesStore.removeNote(noteToDelete.value.id);
+  try {
+    // Supprimer la note du store local
+    notesStore.removeNote(noteToDelete.value.id);
 
-  notificationStore.success('Note supprimée avec succès');
+    // Si un plan est actif, mettre à jour les éléments du plan
+    if (currentPlanId.value) {
+      // Trouver l'élément correspondant dans le store de dessin
+      const elementIndex = drawingStore.elements.findIndex(el =>
+        el.type_forme === 'Note' && el.id === noteToDelete.value?.id
+      );
 
-  showDeleteModal.value = false;
-  noteToDelete.value = null;
+      if (elementIndex !== -1) {
+        // Créer une liste d'éléments à supprimer
+        const elementsToDelete = [noteToDelete.value.id];
+
+        // Sauvegarder le plan avec l'élément supprimé
+        await drawingStore.saveToPlan(currentPlanId.value, { elementsToDelete });
+
+        notificationStore.success('Note supprimée et plan mis à jour avec succès');
+      } else {
+        notificationStore.success('Note supprimée avec succès');
+      }
+    } else {
+      notificationStore.success('Note supprimée avec succès');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la note:', error);
+    notificationStore.error('Erreur lors de la suppression de la note');
+  } finally {
+    showDeleteModal.value = false;
+    noteToDelete.value = null;
+  }
 }
 
 // Ajouter une nouvelle colonne
@@ -595,7 +723,7 @@ function onColumnDragEnd() {
 }
 
 // Gérer les changements lors du drag and drop
-function onDragChange(event: any, columnId: string) {
+async function onDragChange(event: any, columnId: string) {
   console.log('Drag change event:', event);
 
   try {
@@ -613,6 +741,9 @@ function onDragChange(event: any, columnId: string) {
 
       const targetColumn = notesStore.getColumnById(columnId);
       notificationStore.success(`Note déplacée vers ${targetColumn?.title || 'une autre colonne'}`);
+
+      // Mettre à jour la note dans le backend si un plan est actif
+      await updateNoteInBackend(note.id, { columnId });
     }
 
     // Gérer le réordonnancement des notes dans une même colonne
@@ -623,6 +754,14 @@ function onDragChange(event: any, columnId: string) {
       notesStore.reorderNotes(columnId, noteIds);
 
       notificationStore.success('Ordre des notes mis à jour');
+
+      // Mettre à jour l'ordre des notes dans le backend si un plan est actif
+      if (currentPlanId.value) {
+        // Mettre à jour l'ordre de toutes les notes dans la colonne
+        for (const [index, note] of notesInColumn.entries()) {
+          await updateNoteInBackend(note.id, { order: index });
+        }
+      }
     }
 
     // Gérer la suppression d'une note d'une colonne (lors du déplacement vers une autre colonne)
@@ -633,6 +772,46 @@ function onDragChange(event: any, columnId: string) {
   } catch (error) {
     console.error('Erreur lors du drag and drop:', error);
     notificationStore.error('Une erreur est survenue lors du déplacement de la note');
+  }
+}
+
+// Fonction utilitaire pour mettre à jour une note dans le backend
+async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
+  if (!currentPlanId.value) return;
+
+  try {
+    // Trouver la note dans le store
+    const note = notesStore.notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    // Trouver l'élément correspondant dans le store de dessin
+    const elementIndex = drawingStore.elements.findIndex(el =>
+      el.type_forme === 'Note' && el.id === noteId
+    );
+
+    if (elementIndex !== -1) {
+      // Mettre à jour les propriétés de l'élément
+      const element = drawingStore.elements[elementIndex];
+      const data = element.data as any;
+
+      // Appliquer les mises à jour
+      Object.keys(updates).forEach(key => {
+        if (key === 'columnId') {
+          data.columnId = updates.columnId;
+        } else if (key === 'order') {
+          data.order = updates.order;
+        }
+      });
+
+      // Mettre à jour la date de modification
+      data.updatedAt = new Date().toISOString();
+
+      // Sauvegarder le plan
+      await drawingStore.saveToPlan(currentPlanId.value);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la note dans le backend:', error);
+    throw error;
   }
 }
 </script>

@@ -1,17 +1,19 @@
 import * as L from 'leaflet';
 import { NoteAccessLevel } from '../stores/notes';
-import type { DrawingElementType } from '../types/drawing';
+import type { DrawingElementType, NoteData } from '../types/drawing';
 
-export interface GeoNoteOptions {
+// Interface pour les options de création d'une GeoNote
+export interface GeoNoteOptions extends L.MarkerOptions {
   name?: string;
   description?: string;
   columnId?: string;
   accessLevel?: NoteAccessLevel;
-  radius?: number;
+  category?: string;
   color?: string;
   weight?: number;
   fillColor?: string;
   fillOpacity?: number;
+  radius?: number;
 }
 
 export class GeoNote extends L.Marker {
@@ -53,13 +55,19 @@ export class GeoNote extends L.Marker {
       description: options.description || '',
       columnId: options.columnId || 'en-cours', // Colonne par défaut
       accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
+      category: options.category || 'forages', // Catégorie par défaut
       style: {
         color: options.color || '#2b6451',
         weight: options.weight || 2,
         fillColor: options.fillColor || '#2b6451',
         fillOpacity: options.fillOpacity !== undefined ? options.fillOpacity : 0.8,
         radius: options.radius || 12
-      }
+      },
+      comments: [],
+      photos: [],
+      order: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // Ajouter un popup pour afficher la description
@@ -67,6 +75,13 @@ export class GeoNote extends L.Marker {
 
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
+
+    console.log('[GeoNote][constructor] Note créée:', {
+      location: latlng,
+      name: this.properties.name,
+      type: this.properties.type,
+      style: this.properties.style
+    });
   }
 
   // Créer le contenu du popup
@@ -316,6 +331,19 @@ export class GeoNote extends L.Marker {
 
   // Mettre à jour les propriétés
   updateProperties(): void {
+    // S'assurer que le type est correctement défini
+    this.properties.type = 'Note';
+
+    // S'assurer que la catégorie est définie
+    if (!this.properties.category) {
+      this.properties.category = 'forages';
+    }
+
+    // S'assurer que le niveau d'accès est défini
+    if (!this.properties.accessLevel) {
+      this.properties.accessLevel = NoteAccessLevel.PRIVATE;
+    }
+
     // Mettre à jour les propriétés de style
     // Pour un marqueur, nous stockons la couleur dans les propriétés
     const iconElement = this.getElement()?.querySelector('.geo-note-marker');
@@ -323,17 +351,20 @@ export class GeoNote extends L.Marker {
       window.getComputedStyle(iconElement).color :
       '#2b6451';
 
+    // Conserver le radius existant s'il existe
+    const existingRadius = (this.properties.style as any)?.radius || 12;
+
     this.properties.style = {
       color: color,
       fillColor: color,
       weight: 2,
       fillOpacity: 0.8,
-      radius: 12
+      radius: existingRadius
     };
   }
 
   // Méthode pour mettre à jour le style
-  setNoteStyle(style: Partial<L.CircleMarkerOptions>): void {
+  setNoteStyle(style: any): void {
     // Mettre à jour les propriétés de style
     if (style.color || style.fillColor) {
       const color = style.color || style.fillColor || '#2b6451';
@@ -350,7 +381,160 @@ export class GeoNote extends L.Marker {
       this.setIcon(icon);
     }
 
+    // S'assurer que le style dans les propriétés est à jour
+    if (this.properties && this.properties.style) {
+      this.properties.style = {
+        ...this.properties.style,
+        color: style.color || this.properties.style.color,
+        weight: style.weight || this.properties.style.weight,
+        fillColor: style.fillColor || this.properties.style.fillColor,
+        fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity,
+        radius: style.radius || (this.properties.style as any).radius || 12
+      };
+    }
+
     // Mettre à jour les propriétés
     this.updateProperties();
+  }
+
+  // Convertir la note en format compatible avec le backend
+  toBackendFormat(elementId?: number): { id?: number, type_forme: DrawingElementType, data: NoteData } {
+    // Mettre à jour les propriétés pour s'assurer qu'elles sont à jour
+    this.updateProperties();
+
+    // Récupérer les coordonnées
+    const latlng = this.getLatLng();
+
+    // S'assurer que le style contient le radius
+    const style = {
+      ...this.properties.style,
+      radius: (this.properties.style as any).radius || 12
+    };
+
+    // Ajouter le niveau d'accès dans le style pour s'assurer qu'il est sauvegardé
+    const styleWithAccessLevel = {
+      ...style,
+      _accessLevel: this.properties.accessLevel, // Stocker le niveau d'accès dans le style
+      accessLevel: this.properties.accessLevel // Stocker aussi le niveau d'accès directement
+    };
+
+    // Créer l'objet de données pour le backend
+    return {
+      id: elementId,
+      type_forme: 'Note',
+      data: {
+        location: [latlng.lat, latlng.lng],
+        name: this.properties.name,
+        description: this.properties.description,
+        columnId: this.properties.columnId,
+        accessLevel: this.properties.accessLevel,
+        category: this.properties.category || 'forages',
+        style: styleWithAccessLevel,
+        comments: this.properties.comments || [],
+        photos: this.properties.photos || [],
+        order: this.properties.order || 0,
+        createdAt: this.properties.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    };
+  }
+
+  // Mettre à jour les propriétés de la note à partir des données du backend
+  updateFromBackendData(data: NoteData): void {
+    // S'assurer que le type est correctement défini
+    this.properties.type = 'Note';
+
+    // S'assurer que le style contient le radius
+    const style = data.style ? {
+      ...data.style,
+      radius: (data.style as any).radius || 12
+    } : this.properties.style;
+
+    // Mettre à jour les propriétés
+    this.properties = {
+      ...this.properties,
+      name: data.name || this.properties.name,
+      description: data.description || this.properties.description,
+      columnId: data.columnId || this.properties.columnId,
+      accessLevel: data.accessLevel || this.properties.accessLevel,
+      category: data.category || this.properties.category || 'forages',
+      style: style,
+      comments: data.comments || this.properties.comments || [],
+      photos: data.photos || this.properties.photos || [],
+      order: data.order || this.properties.order || 0,
+      createdAt: data.createdAt || this.properties.createdAt,
+      updatedAt: data.updatedAt || new Date().toISOString()
+    };
+
+    // Mettre à jour le style visuel
+    this.setNoteStyle(style);
+
+    // Mettre à jour le popup
+    this.bindPopup(this.createPopupContent());
+
+    console.log('[GeoNote][updateFromBackendData] Note mise à jour:', {
+      name: this.properties.name,
+      type: this.properties.type,
+      style: this.properties.style
+    });
+  }
+
+  // Méthode statique pour créer une GeoNote à partir des données du backend
+  static fromBackendData(data: NoteData): GeoNote {
+    // Vérifier que les données contiennent une position valide
+    if (!data.location || !Array.isArray(data.location) || data.location.length !== 2) {
+      throw new Error('Les données de la note ne contiennent pas de position valide');
+    }
+
+    console.log('[GeoNote][fromBackendData] Création d\'une note à partir des données:', data);
+
+    // Récupérer le niveau d'accès depuis le style si disponible
+    const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || NoteAccessLevel.PRIVATE;
+    console.log('[GeoNote][fromBackendData] Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
+
+    // Forcer la mise à jour du niveau d'accès dans les données
+    data.accessLevel = accessLevel;
+
+    // Créer une nouvelle instance de GeoNote
+    const note = new GeoNote(data.location as L.LatLngExpression, {
+      name: data.name,
+      description: data.description,
+      columnId: data.columnId,
+      accessLevel: accessLevel as NoteAccessLevel,
+      category: data.category || 'forages',
+      color: data.style?.color,
+      weight: data.style?.weight,
+      fillColor: data.style?.fillColor,
+      fillOpacity: data.style?.fillOpacity,
+      radius: (data.style as any)?.radius
+    });
+
+    // S'assurer que le type est correctement défini
+    note.properties.type = 'Note';
+
+    // Ajouter les propriétés supplémentaires
+    note.properties.comments = data.comments || [];
+    note.properties.photos = data.photos || [];
+    note.properties.order = data.order || 0;
+    note.properties.createdAt = data.createdAt || new Date().toISOString();
+    note.properties.updatedAt = data.updatedAt || new Date().toISOString();
+
+    // Mettre à jour le style visuel
+    if (data.style) {
+      note.setNoteStyle(data.style);
+    }
+
+    // Mettre à jour le popup
+    note.bindPopup(note.createPopupContent());
+
+    console.log('[GeoNote][fromBackendData] Note créée:', {
+      location: data.location,
+      name: note.properties.name,
+      type: note.properties.type,
+      style: note.properties.style
+    });
+
+    // Retourner la note créée
+    return note;
   }
 }

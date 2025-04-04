@@ -18,6 +18,7 @@ export interface Style {
   fontSize?: string;
   dashArray?: string;
   name?: string;
+  radius?: number;
 }
 // TextStyle and TextRectangleStyle interfaces removed as per requirements
 export interface Bounds {
@@ -42,17 +43,14 @@ export interface CircleData extends BaseData {
   radius: number;
 }
 
-export interface RectangleData {
+export interface RectangleData extends BaseData {
   bounds: {
     southWest: [number, number];
     northEast: [number, number];
   };
-  style: any;
-  rotation?: number;
   width?: number;
   height?: number;
   center?: [number, number];
-  name?: string;
 }
 // SemicircleData interface removed as per requirements
 export interface LineData extends BaseData {
@@ -95,13 +93,38 @@ export interface ShapeType {
   options?: any;
 }
 
+// Interface pour les données de notes géolocalisées
+export interface NoteData extends BaseData {
+  location: [number, number];  // [latitude, longitude]
+  description?: string;
+  columnId?: string;
+  comments?: Array<{
+    id: number;
+    text: string;
+    createdAt: string;
+    userId: number;
+    userName: string;
+    userRole: string;
+  }>;
+  photos?: Array<{
+    id: number;
+    url: string;
+    createdAt: string;
+    caption?: string;
+  }>;
+  order?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Union type pour toutes les formes possibles
 export type ShapeData =
   | PolygonData
   | LineData
   | RectangleData
   | CircleData
-  | ElevationLineData;
+  | ElevationLineData
+  | NoteData;
 
 // Type pour les types de formes possibles
 export type DrawingElementType =

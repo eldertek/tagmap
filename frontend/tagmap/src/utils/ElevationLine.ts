@@ -4,9 +4,11 @@ import { lineString } from '@turf/turf';
 import along from '@turf/along';
 import { performanceMonitor } from './usePerformanceMonitor';
 
-// Interface étendue pour inclure name
+// Interface étendue pour inclure name, category et accessLevel
 interface ExtendedPolylineOptions extends L.PolylineOptions {
   name?: string;
+  category?: string;
+  accessLevel?: string;
 }
 
 /**
@@ -58,6 +60,8 @@ export class ElevationLine extends Line {
     this.properties = performanceMonitor.measure('ElevationLine.constructor.initProperties', () => ({
       ...this.properties,
       type: 'ElevationLine',
+      category: options.category || 'forages',
+      accessLevel: options.accessLevel || 'visitor',
       style: {
         ...(this.properties.style || {}),
         name: options.name || ''
@@ -80,7 +84,7 @@ export class ElevationLine extends Line {
   private setupEventListeners(): void {
     performanceMonitor.measure('ElevationLine.setupEventListeners', () => {
       this.on('move', () => this.updateElevationProfile());
-      
+
       this.on('add', () => {
         if (this._map) {
           this._map.on('zoomstart', this.handleZoomStart, this);
@@ -119,7 +123,7 @@ export class ElevationLine extends Line {
       clearTimeout(this.zoomAnimationTimeout);
       this.zoomAnimationTimeout = null;
     }
-    
+
     try {
       if (this.elevationMarker) {
         this.elevationMarker.remove();
@@ -146,7 +150,7 @@ export class ElevationLine extends Line {
             smoothFactor: 1,
             interactive: false
           });
-          
+
           // Vérifier si la carte est toujours valide avant d'ajouter la ligne
           if (this._map && this._map.getContainer()) {
             this.simpleLine.addTo(this._map);
@@ -170,7 +174,7 @@ export class ElevationLine extends Line {
                 (this.simpleLine as any)._path.style.transform = originalTransform;
                 (this.simpleLine as any)._path.style.display = '';
               }
-              
+
               if (path && !this.isDestroyed) {
                 path.style.display = '';
               }
@@ -210,7 +214,7 @@ export class ElevationLine extends Line {
 
   private handleZoomStart(): void {
     if (this.isDestroyed) return;
-    
+
     performanceMonitor.measure('ElevationLine.handleZoomStart', () => {
       if (this.isZooming || !this._map) return;
       this.isZooming = true;
@@ -219,12 +223,12 @@ export class ElevationLine extends Line {
         if (this.elevationMarker) {
           this.elevationMarker.remove();
         }
-        
+
         const path = (this as any)._path;
         if (path) {
           path.style.display = 'none';
         }
-        
+
         if (!this.isDestroyed) {
           this.setStyle({ opacity: 0.3 });
         }
@@ -237,13 +241,13 @@ export class ElevationLine extends Line {
 
   private handleZoomEnd(): void {
     if (this.isDestroyed) return;
-    
+
     performanceMonitor.measure('ElevationLine.handleZoomEnd', () => {
       if (!this._map) {
         this.isZooming = false;
         return;
       }
-      
+
       try {
         if (this.simpleLine && this._map) {
           this.simpleLine.remove();
@@ -254,18 +258,18 @@ export class ElevationLine extends Line {
         if (path) {
           path.style.display = '';
         }
-        
+
         if (!this.isDestroyed) {
           this.setStyle({ opacity: 0.8 });
         }
-        
+
         if (this.zoomAnimationTimeout) {
           clearTimeout(this.zoomAnimationTimeout);
         }
-        
+
         this.zoomAnimationTimeout = setTimeout(() => {
           if (this.isDestroyed || !this._map) return;
-          
+
           try {
             if (this._map && this._map.hasLayer(this) && !this.isDestroyed) {
               this.redraw();
@@ -287,12 +291,12 @@ export class ElevationLine extends Line {
     performanceMonitor.measure('ElevationLine.cleanup', () => {
       this.isZooming = false;
       this.hideElevationMarker();
-      
+
       if (this.zoomAnimationTimeout) {
         clearTimeout(this.zoomAnimationTimeout);
         this.zoomAnimationTimeout = null;
       }
-      
+
       if (this.simpleLine && this._map) {
         try {
           this.simpleLine.remove();
@@ -301,7 +305,7 @@ export class ElevationLine extends Line {
         }
         this.simpleLine = null;
       }
-      
+
       if (this.elevationProfile) {
         try {
           this.elevationProfile.remove();
@@ -315,7 +319,7 @@ export class ElevationLine extends Line {
       if (path) {
         path.style.display = '';
       }
-      
+
       if (!this.isDestroyed && this._map && this._map.hasLayer(this)) {
         this.setStyle({ opacity: 0.8 });
       }
@@ -402,7 +406,7 @@ export class ElevationLine extends Line {
     performanceMonitor.measure('ElevationLine.simulateElevationData', () => {
       const totalLength = this.getLength();
       const sampleCount = this.calculateOptimalSampleCount();
-      
+
       this.elevationData = Array.from({ length: sampleCount }, (_, index) => {
         const distance = (index / (sampleCount - 1)) * totalLength;
         const elevation = 100 + Math.sin(distance / totalLength * Math.PI * 2) * 50;
@@ -418,7 +422,7 @@ export class ElevationLine extends Line {
   private calculateElevationStatistics(): void {
     performanceMonitor.measure('ElevationLine.calculateElevationStatistics', () => {
       if (!this.elevationData.length) return;
-      
+
       const elevations = this.elevationData.map(d => d.elevation);
       const maxElevation = elevations.length ? Math.max(...elevations) : 0;
       const minElevation = elevations.length ? Math.min(...elevations) : 0;
@@ -437,7 +441,7 @@ export class ElevationLine extends Line {
       for (let i = 1; i < this.elevationData.length; i++) {
         const prevPoint = this.elevationData[i - 1];
         const currPoint = this.elevationData[i];
-        
+
         // Calcul du dénivelé
         const elevationDiff = currPoint.elevation - prevPoint.elevation;
         if (elevationDiff > 0) {
@@ -488,15 +492,15 @@ export class ElevationLine extends Line {
   showElevationAt(distance: number): void {
     performanceMonitor.measure('ElevationLine.showElevationAt', () => {
       if (!this.elevationData.length || !this._map) return;
-      
+
       try {
         const point = this.elevationData.reduce((prev, curr) =>
           Math.abs(curr.distance - distance) < Math.abs(prev.distance - distance) ? curr : prev
         );
-        
+
         const latLng = this.getPointAtDistance(distance);
         if (!latLng) return;
-        
+
         if (!this.elevationMarker) {
           // Créer le marqueur avec un style plus visible
           this.elevationMarker = L.circleMarker(latLng, {
@@ -507,7 +511,7 @@ export class ElevationLine extends Line {
             weight: 2,
             className: 'elevation-marker'
           });
-          
+
           // Ajouter un tooltip permanent
           this.elevationMarker.bindTooltip(
             `Distance: ${this.formatDistance(point.distance)}<br>Altitude: ${this.formatElevation(point.elevation)}`,
@@ -518,7 +522,7 @@ export class ElevationLine extends Line {
               className: 'elevation-marker-tooltip'
             }
           );
-          
+
           // Vérifier que la carte est toujours valide avant d'ajouter le marqueur
           if (this._map && this._map.hasLayer(this)) {
             this.elevationMarker.addTo(this._map);
@@ -530,7 +534,7 @@ export class ElevationLine extends Line {
             `Distance: ${this.formatDistance(point.distance)}<br>Altitude: ${this.formatElevation(point.elevation)}`
           );
         }
-        
+
         this.fire('elevation:show', {
           distance,
           elevation: point.elevation,
@@ -628,26 +632,26 @@ export class ElevationLine extends Line {
       });
     });
   }
-  
+
   /**
    * Obtient le nom de la ligne d'élévation
    */
   getName(): string {
-    return performanceMonitor.measure('ElevationLine.getName', () => 
+    return performanceMonitor.measure('ElevationLine.getName', () =>
       this.properties?.style?.name || ''
     );
   }
 
   private formatDistance(distance: number): string {
-    return performanceMonitor.measure('ElevationLine.formatDistance', () => 
-      distance >= 1000 
+    return performanceMonitor.measure('ElevationLine.formatDistance', () =>
+      distance >= 1000
         ? `${(distance / 1000).toFixed(2)} km`
         : `${distance.toFixed(0)} m`
     );
   }
 
   private formatElevation(elevation: number): string {
-    return performanceMonitor.measure('ElevationLine.formatElevation', () => 
+    return performanceMonitor.measure('ElevationLine.formatElevation', () =>
       `${elevation.toFixed(0)} m`
     );
   }
@@ -683,12 +687,12 @@ export class ElevationLine extends Line {
           // Use the stored data
           this.elevationData = this.properties.elevationData;
           this.calculateElevationStatistics();
-          
+
           // Vérifier que la carte est toujours valide avant d'afficher les points
           if (this._map && this._map.hasLayer(this)) {
             this.redraw();
           }
-          
+
           this.fire('elevation:updated', {
             shape: this,
             elevationData: this.elevationData,
@@ -700,12 +704,12 @@ export class ElevationLine extends Line {
         // If no stored data or not restored, fetch new data
         await this.fetchElevationData();
         this.updateProperties();
-        
+
         // Vérifier que la carte est toujours valide avant d'afficher les points
         if (this._map && this._map.hasLayer(this)) {
           this.redraw();
         }
-        
+
         this.fire('elevation:updated', {
           shape: this,
           elevationData: this.elevationData,
@@ -741,7 +745,7 @@ export class ElevationLine extends Line {
         for (let i = 1; i < this.elevationData.length; i++) {
           const prevPoint = this.elevationData[i - 1];
           const currPoint = this.elevationData[i];
-          
+
           // Calcul du dénivelé
           const elevationDiff = currPoint.elevation - prevPoint.elevation;
           if (elevationDiff > 0) {
@@ -767,6 +771,10 @@ export class ElevationLine extends Line {
           lng: ll.lng
         }));
 
+        // Préserver les propriétés existantes
+        const existingCategory = this.properties?.category || 'forages';
+        const existingAccessLevel = this.properties?.accessLevel || 'visitor';
+
         // Mettre à jour les propriétés avec les nouvelles statistiques
         this.properties = {
           ...this.properties,
@@ -782,7 +790,9 @@ export class ElevationLine extends Line {
           elevationLoss: loss,
           maxSlope,
           averageSlope: slopeCount > 0 ? totalSlope / slopeCount : 0,
-          dataSource: this.properties.dataSource || 'api'
+          dataSource: this.properties.dataSource || 'api',
+          category: existingCategory,
+          accessLevel: existingAccessLevel
         };
 
         // Émettre un événement pour notifier les changements
@@ -798,7 +808,7 @@ export class ElevationLine extends Line {
    * Retourne le tableau des données d'élévation sous forme de {distance, elevation}.
    */
   getElevationData(): { distance: number; elevation: number }[] {
-    return performanceMonitor.measure('ElevationLine.getElevationData', () => 
+    return performanceMonitor.measure('ElevationLine.getElevationData', () =>
       this.elevationData
     );
   }

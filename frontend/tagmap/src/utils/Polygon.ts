@@ -3,9 +3,11 @@ import { polygon, area, length, lineString } from '@turf/turf';
 import centroid from '@turf/centroid';
 import { performanceMonitor } from './usePerformanceMonitor';
 
-// Interface étendue pour inclure name
+// Interface étendue pour inclure name, category et accessLevel
 interface ExtendedPolylineOptions extends L.PolylineOptions {
   name?: string;
+  category?: string;
+  accessLevel?: string;
 }
 
 /**
@@ -23,9 +25,11 @@ export class Polygon extends L.Polygon {
       pmIgnore: false,
       interactive: true
     });
-    
+
     this.properties = performanceMonitor.measure('Polygon.constructor.initProperties', () => ({
       type: 'Polygon',
+      category: options.category || 'forages',
+      accessLevel: options.accessLevel || 'visitor',
       style: {
         color: options.color || '#2b6451',
         weight: options.weight || 3,
@@ -67,10 +71,12 @@ export class Polygon extends L.Polygon {
           centroidPoint.geometry.coordinates[1],
           centroidPoint.geometry.coordinates[0]
         );
-        
-        // Préserver le nom existant s'il existe
+
+        // Préserver les propriétés existantes
         const existingName = this.properties?.style?.name || '';
-        
+        const existingCategory = this.properties?.category || 'forages';
+        const existingAccessLevel = this.properties?.accessLevel || 'visitor';
+
         // Mettre à jour les propriétés
         this.properties = {
           type: 'Polygon',
@@ -85,6 +91,8 @@ export class Polygon extends L.Polygon {
             lng: center.lng
           },
           vertices: latLngs.length,
+          category: existingCategory,
+          accessLevel: existingAccessLevel,
           style: {
             ...this.options,
             color: this.options.color || '#2b6451',
@@ -106,7 +114,7 @@ export class Polygon extends L.Polygon {
       }
     });
   }
-  
+
   /**
    * Définit le nom du polygone
    */
@@ -123,12 +131,12 @@ export class Polygon extends L.Polygon {
       });
     });
   }
-  
+
   /**
    * Obtient le nom du polygone
    */
   getName(): string {
-    return performanceMonitor.measure('Polygon.getName', () => 
+    return performanceMonitor.measure('Polygon.getName', () =>
       this.properties?.style?.name || ''
     );
   }
@@ -286,4 +294,4 @@ export class Polygon extends L.Polygon {
       return distances;
     });
   }
-} 
+}

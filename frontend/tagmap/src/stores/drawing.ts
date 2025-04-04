@@ -9,32 +9,16 @@ import type {
   DrawingElementType,
   CircleData,
   AccessLevel,
-  ElementCategory
+  ElementCategory,
+  NoteData
 } from '@/types/drawing';
 import L from 'leaflet';
 import { Polygon } from '@/utils/Polygon';
 import { ElevationLine } from '@/utils/ElevationLine';
 import { Line } from '@/utils/Line';
 import { Rectangle } from '@/utils/Rectangle';
+import { GeoNote } from '@/utils/GeoNote';
 import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
-
-// Interface pour les notes géolocalisées
-interface NoteData {
-  location: [number, number];
-  title: string;
-  description: string;
-  accessLevel: AccessLevel;
-  category?: ElementCategory;
-  attachments: string[];
-  style: {
-    color: string;
-    weight: number;
-    opacity: number;
-    fillColor: string;
-    fillOpacity: number;
-    name: string;
-  };
-}
 
 // Interface pour les filtres de la carte
 interface MapFilters {
@@ -144,6 +128,8 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
         opacity: shape.properties.style?.opacity || 0.8,
         name: shape.properties.style?.name || ''
       },
+      category: shape.properties.category || 'forages',
+      accessLevel: shape.properties.accessLevel || 'visitor',
       elevationData: shape.properties.elevationData,
       minElevation: shape.properties.minElevation,
       maxElevation: shape.properties.maxElevation,
@@ -168,6 +154,8 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
         fillOpacity: shape.properties.style?.fillOpacity || 0.2,
         name: shape.properties.style?.name || ''
       },
+      category: shape.properties.category || 'forages',
+      accessLevel: shape.properties.accessLevel || 'visitor',
       // area is calculated dynamically
     };
     return { type_forme: 'Polygon', data };
@@ -178,6 +166,8 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     const latLngs = shape.getLatLngs() as L.LatLng[];
     const data: LineData = {
       points: latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]),
+      category: shape.properties.category || 'forages',
+      accessLevel: shape.properties.accessLevel || 'visitor',
       style: {
         color: shape.properties.style?.color || '#2b6451',
         weight: shape.properties.style?.weight || 3,
@@ -207,6 +197,13 @@ function convertStoredElementToShape(element: DrawingElement): any {
         L.latLng(point[1], point[0])
       );
 
+      // Récupérer le niveau d'accès depuis le style si disponible
+      const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
+      console.log('[DrawingStore] Polygon - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
+
+      // Forcer la mise à jour du niveau d'accès dans les données
+      data.accessLevel = accessLevel;
+
       const polygon = new Polygon([points], {
         color: data.style?.color || '#2b6451',
         weight: data.style?.weight || 3,
@@ -214,7 +211,9 @@ function convertStoredElementToShape(element: DrawingElement): any {
         fillColor: data.style?.fillColor || '#2b6451',
         fillOpacity: data.style?.fillOpacity || 0.2,
         dashArray: data.style?.dashArray || '',
-        name: data.style?.name || ''
+        name: data.style?.name || '',
+        category: data.category || 'forages',
+        accessLevel: accessLevel
       });
 
       polygon.updateProperties();
@@ -233,16 +232,27 @@ function convertStoredElementToShape(element: DrawingElement): any {
         L.latLng(point[1], point[0])
       );
 
+      // Récupérer le niveau d'accès depuis le style si disponible
+      const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
+      console.log('[DrawingStore] ElevationLine - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
+
+      // Forcer la mise à jour du niveau d'accès dans les données
+      data.accessLevel = accessLevel;
+
       const elevationLine = new ElevationLine(points, {
         color: data.style?.color || '#2b6451',
         weight: data.style?.weight || 4,
         opacity: data.style?.opacity || 0.8,
-        name: data.style?.name || ''
+        name: data.style?.name || '',
+        category: data.category || 'forages',
+        accessLevel: accessLevel
       });
 
       // Restore all properties including elevation data
       elevationLine.properties = {
         type: 'ElevationLine',
+        category: data.category || 'forages',
+        accessLevel: accessLevel, // Utiliser le niveau d'accès récupéré précédemment
         style: {
           ...(data.style || {}),
           name: data.style?.name || ''
@@ -283,9 +293,18 @@ function convertStoredElementToShape(element: DrawingElement): any {
         L.latLng(point[1], point[0])
       );
 
+      // Récupérer le niveau d'accès depuis le style si disponible
+      const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
+      console.log('[DrawingStore] Line - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
+
+      // Forcer la mise à jour du niveau d'accès dans les données
+      data.accessLevel = accessLevel;
+
       const line = new Line(points, {
         ...(data.style || {}),
-        name: data.style?.name || ''
+        name: data.style?.name || '',
+        category: data.category || 'forages',
+        accessLevel: accessLevel
       });
 
       line.updateProperties();
@@ -387,6 +406,63 @@ function convertStoredElementToShape(element: DrawingElement): any {
       });
 
       return circle;
+    }
+
+    case 'Note': {
+      console.log('[DrawingStore] Traitement d\'une Note à partir de l\'API', {
+        id: element.id,
+        data: element.data
+      });
+
+      const data = element.data as any;
+      if (!data.location) {
+        console.error('[DrawingStore] Données invalides pour Note');
+        return null;
+      }
+
+      try {
+        // Préparer les données pour la création de la note
+        const noteData: NoteData = {
+          location: data.location,
+          name: data.name || 'Note géolocalisée',
+          description: data.description || '',
+          columnId: data.columnId || 'en-cours',
+          accessLevel: data.accessLevel || 'private',
+          category: data.category || 'forages',
+          style: {
+            color: data.style?.color || '#2b6451',
+            weight: data.style?.weight || 2,
+            fillColor: data.style?.fillColor || '#2b6451',
+            fillOpacity: data.style?.fillOpacity || 0.8,
+            radius: data.style?.radius || 12
+          },
+          comments: data.comments || [],
+          photos: data.photos || [],
+          order: data.order || 0,
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString()
+        };
+
+        console.log('[DrawingStore] Données préparées pour la note:', noteData);
+
+        // Utiliser la méthode statique de GeoNote pour créer une note à partir des données
+        const geoNote = GeoNote.fromBackendData(noteData);
+
+        // Stocker l'ID de la base de données pour la sauvegarde ultérieure
+        (geoNote as any)._dbId = element.id;
+
+        console.log('[DrawingStore] Note créée:', {
+          id: element.id,
+          location: noteData.location,
+          name: noteData.name,
+          type: (geoNote as any).properties.type
+        });
+
+        return geoNote;
+      } catch (error) {
+        console.error('[DrawingStore] Erreur lors de la création de la Note:', error);
+        return null;
+      }
     }
 
     default:
@@ -938,12 +1014,23 @@ export const useDrawingStore = defineStore('drawing', {
 
         this.elements = this.performanceMonitor.measure(
           'saveToPlan_processResponse',
-          () => response.data.formes.map((forme: any) => ({
-            ...forme,
-            type_forme: forme.type_forme
-          })),
+          () => {
+            // Filtrer les éléments supprimés de la réponse
+            const deletedIds = new Set(elementsToDelete);
+            return response.data.formes
+              .filter((forme: any) => !deletedIds.has(forme.id))
+              .map((forme: any) => ({
+                ...forme,
+                type_forme: forme.type_forme
+              }));
+          },
           'DrawingStore'
         );
+
+        console.log('[DrawingStore][saveToPlan] Éléments après filtrage:', {
+          totalElements: this.elements.length,
+          elementsToDelete: elementsToDelete
+        });
 
         this.unsavedChanges = false;
         return response.data;
