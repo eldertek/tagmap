@@ -129,6 +129,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
+import { noteService } from '../services/api';
 import CommentThread from './CommentThread.vue';
 import PhotoGallery from './PhotoGallery.vue';
 
@@ -234,33 +235,51 @@ function closeModal() {
 }
 
 // Sauvegarder la note
-function saveNote() {
-  if (props.note) {
-    // Mise à jour d'une note existante
-    notesStore.updateNote(props.note.id, editingNote.value);
-    notificationStore.success('Note mise à jour avec succès');
-  } else if (props.isNewNote && props.location) {
-    // Création d'une nouvelle note
-    // Nous devons utiliser 'as any' car le type de la fonction addNote n'inclut pas accessLevel
-    // mais la fonction l'accepte quand même
-    const newNoteId = notesStore.addNote({
+async function saveNote() {
+  try {
+    const noteData = {
       title: editingNote.value.title,
       description: editingNote.value.description,
-      location: props.location,
+      location: editingNote.value.location,
       columnId: editingNote.value.columnId,
       style: editingNote.value.style,
-      accessLevel: editingNote.value.accessLevel
-    } as any);
+      accessLevel: editingNote.value.accessLevel,
+      comments: editingNote.value.comments || [],
+      photos: editingNote.value.photos || []
+    };
 
-    notificationStore.success('Note créée avec succès');
+    if (props.note) {
+      // Mise à jour d'une note existante
+      await noteService.updateNote(props.note.id, noteData);
+      notesStore.updateNote(props.note.id, editingNote.value);
+      notificationStore.success('Note mise à jour avec succès');
+    } else if (props.isNewNote && props.location) {
+      // Création d'une nouvelle note
+      const response = await noteService.createNote(noteData);
+      const newNoteId = response.data.id;
+      
+      // Mettre à jour le store avec la nouvelle note
+      notesStore.addNote({
+        title: noteData.title,
+        description: noteData.description,
+        location: noteData.location,
+        columnId: noteData.columnId,
+        style: noteData.style
+      });
 
-    // Récupérer la note complète après création
-    const newNote = notesStore.notes.find(n => n.id === newNoteId);
-    if (newNote) {
-      emit('save', newNote);
+      notificationStore.success('Note créée avec succès');
+
+      // Récupérer la note complète après création
+      const newNote = notesStore.notes.find(n => n.id === newNoteId);
+      if (newNote) {
+        emit('save', newNote);
+      }
     }
-  }
 
-  emit('close');
+    emit('close');
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde de la note:', error);
+    notificationStore.error('Erreur lors de la sauvegarde de la note');
+  }
 }
 </script>

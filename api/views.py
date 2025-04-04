@@ -1,33 +1,40 @@
-from django.shortcuts import render
+"""
+Module de vues pour l'API TagMap.
+Gère les endpoints REST pour les utilisateurs, plans, notes et autres ressources.
+"""
+
+# Imports Django
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Q, Count
+from django.shortcuts import get_object_or_404, render
+
+# Imports DRF
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from django.db.models import Q, Count
-from .serializers import (
-    UserSerializer,
-    SalarieSerializer,
-    ClientSerializer,
-    PlanSerializer,
-    FormeGeometriqueSerializer,
-    ConnexionSerializer,
-    TexteAnnotationSerializer,
-    PlanDetailSerializer,
-    GeoNoteSerializer,
-    NoteCommentSerializer,
-    NotePhotoSerializer
-)
-from .permissions import IsAdmin, IsSalarie, IsEntreprise
-from django.contrib.auth import get_user_model
-from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto
+from rest_framework.exceptions import ValidationError, PermissionDenied
+
+# Imports tiers
 import requests
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import ValidationError
-from rest_framework.exceptions import PermissionDenied
 
-User = get_user_model()  # Ceci pointera vers authentication.Utilisateur
+# Imports locaux
+from .permissions import IsAdmin, IsSalarie, IsEntreprise
+from .serializers import (
+    UserSerializer, SalarieSerializer, ClientSerializer,
+    PlanSerializer, FormeGeometriqueSerializer, ConnexionSerializer,
+    TexteAnnotationSerializer, PlanDetailSerializer, GeoNoteSerializer,
+    NoteCommentSerializer, NotePhotoSerializer
+)
+from plans.models import (
+    Plan, FormeGeometrique, Connexion, TexteAnnotation,
+    GeoNote, NoteComment, NotePhoto
+)
 
-# Mise à jour des valeurs de rôle pour correspondre au modèle Utilisateur
+# Configuration
+User = get_user_model()
+
+# Constantes
 ROLE_ADMIN = 'ADMIN'
 ROLE_USINE = 'ENTREPRISE'
 ROLE_DEALER = 'SALARIE'
@@ -36,6 +43,7 @@ ROLE_AGRICULTEUR = 'VISITEUR'
 # Create your views here.
 
 class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des utilisateurs."""
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -151,19 +159,6 @@ class UserViewSet(viewsets.ModelViewSet):
             if 'salarie' in request.data:
                 del request.data['salarie']
 
-        # Vérifier le salarie uniquement pour les clients
-        elif request.data.get('salarie'):
-            try:
-                salarie = User.objects.get(
-                    id=request.data['salarie'],
-                    role=ROLE_DEALER
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {'salarie': ['Ce salarie n\'existe pas']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -262,29 +257,27 @@ class UserViewSet(viewsets.ModelViewSet):
         print(f"[PlanViewSet] perform_create - Données finales: {data}")
         serializer.save(createur=user, **data)
 
-    def perform_update(self, serializer):
+    def retrieve(self, request, *args, **kwargs):
         """
-        Lors de la mise à jour d'un plan:
-        - Vérifie les permissions selon le rôle
-        - Maintient la cohérence des relations client/salarie
-        - Si un client est retiré, il perd l'accès au plan
-        - Si un salarie est retiré, il perd l'accès au plan et le client aussi
+        Récupère un plan avec ses détails complets
         """
-        instance = serializer.instance
-        user = self.request.user
-
-        if user.role == ROLE_DEALER and instance.salarie != user:
-            raise PermissionDenied("Vous ne pouvez pas modifier les plans d'autres salaries")
-        elif user.role == ROLE_AGRICULTEUR and instance.visiteur != user:
-            raise PermissionDenied("Vous ne pouvez pas modifier ce plan")
-
-        # Si le salarie est retiré, retirer aussi le client
-        if 'salarie' in serializer.validated_data and not serializer.validated_data['salarie']:
-            serializer.validated_data['visiteur'] = None
-
-        serializer.save()
+        print(f"\n[PlanViewSet][retrieve] Début de la récupération - Plan ID: {kwargs.get('pk')}")
+        try:
+            instance = self.get_object()
+            print(f"[PlanViewSet][retrieve] Plan trouvé: {instance.id} - {instance.nom}")
+            serializer = self.get_serializer(instance, context={'request': request})
+            print(f"[PlanViewSet][retrieve] Sérialisation terminée")
+            print(f"[PlanViewSet][retrieve] Champs disponibles: {serializer.data.keys()}")
+            print(f"[PlanViewSet][retrieve] Détails entreprise présents: {'entreprise_details' in serializer.data}")
+            print(f"[PlanViewSet][retrieve] Détails salarie présents: {'salarie_details' in serializer.data}")
+            print(f"[PlanViewSet][retrieve] Détails client présents: {'client_details' in serializer.data}")
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"[PlanViewSet][retrieve] ERREUR: {str(e)}")
+            raise
 
 class SalarieViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des salariés."""
     queryset = User.objects.filter(role=ROLE_DEALER)
     serializer_class = SalarieSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -314,6 +307,7 @@ class SalarieViewSet(viewsets.ModelViewSet):
         serializer.save(role=ROLE_DEALER)
 
 class ClientViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des clients."""
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated, IsSalarie]
 
@@ -332,9 +326,7 @@ class ClientViewSet(viewsets.ModelViewSet):
             serializer.save(role='VISITEUR')
 
 class PlanViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les plans d'irrigation.
-    """
+    """ViewSet pour la gestion des plans d'irrigation."""
     serializer_class = PlanSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -559,29 +551,8 @@ class PlanViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Récupère un plan avec ses détails complets
-        """
-        print(f"\n[PlanViewSet][retrieve] Début de la récupération - Plan ID: {kwargs.get('pk')}")
-        try:
-            instance = self.get_object()
-            print(f"[PlanViewSet][retrieve] Plan trouvé: {instance.id} - {instance.nom}")
-            serializer = self.get_serializer(instance, context={'request': request})
-            print(f"[PlanViewSet][retrieve] Sérialisation terminée")
-            print(f"[PlanViewSet][retrieve] Champs disponibles: {serializer.data.keys()}")
-            print(f"[PlanViewSet][retrieve] Détails entreprise présents: {'entreprise_details' in serializer.data}")
-            print(f"[PlanViewSet][retrieve] Détails salarie présents: {'salarie_details' in serializer.data}")
-            print(f"[PlanViewSet][retrieve] Détails client présents: {'client_details' in serializer.data}")
-            return Response(serializer.data)
-        except Exception as e:
-            print(f"[PlanViewSet][retrieve] ERREUR: {str(e)}")
-            raise
-
 class FormeGeometriqueViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les formes géométriques.
-    """
+    """ViewSet pour la gestion des formes géométriques."""
     serializer_class = FormeGeometriqueSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -612,9 +583,7 @@ class FormeGeometriqueViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 class ConnexionViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les connexions entre formes.
-    """
+    """ViewSet pour la gestion des connexions entre formes."""
     serializer_class = ConnexionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -630,9 +599,7 @@ class ConnexionViewSet(viewsets.ModelViewSet):
             return Connexion.objects.filter(plan__createur=user)
 
 class TexteAnnotationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les annotations textuelles.
-    """
+    """ViewSet pour la gestion des annotations textuelles."""
     serializer_class = TexteAnnotationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -647,11 +614,8 @@ class TexteAnnotationViewSet(viewsets.ModelViewSet):
         else:  # client
             return TexteAnnotation.objects.filter(plan__createur=user)
 
-
 class GeoNoteViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les notes géolocalisées.
-    """
+    """ViewSet pour la gestion des notes géolocalisées."""
     serializer_class = GeoNoteSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -692,11 +656,8 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
-
 class NoteCommentViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les commentaires sur les notes géolocalisées.
-    """
+    """ViewSet pour la gestion des commentaires sur les notes."""
     serializer_class = NoteCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -760,11 +721,8 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         serializer.save(user=user)
         print("[NoteCommentViewSet][perform_create] Commentaire sauvegardé avec succès")
 
-
 class NotePhotoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet pour gérer les photos des notes géolocalisées.
-    """
+    """ViewSet pour la gestion des photos des notes."""
     serializer_class = NotePhotoSerializer
     permission_classes = [permissions.IsAuthenticated]
 

@@ -514,63 +514,114 @@ export const irrigationService = {
   }
 };
 
-// Service pour les notes géolocalisées et leurs composants
+// Service pour les notes géolocalisées
 export const noteService = {
   // Récupérer toutes les notes
-  async getNotes(planId?: number) {
-    const params = planId ? { plan: planId } : {};
-    return await api.get('/notes/', { params });
+  async getNotes(filters = {}) {
+    const endMeasure = performanceMonitor.startMeasure('get_notes', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_notes_request',
+        () => api.get('/notes/', { params: filters }),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
   },
 
   // Récupérer une note spécifique
   async getNote(noteId: number) {
-    return await api.get(`/notes/${noteId}/`);
+    const endMeasure = performanceMonitor.startMeasure('get_note', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_note_request',
+        () => api.get(`/notes/${noteId}/`),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
   },
 
   // Créer une nouvelle note
   async createNote(noteData: any) {
-    return await api.post('/notes/', noteData);
+    const endMeasure = performanceMonitor.startMeasure('create_note', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'create_note_request',
+        () => api.post('/notes/', noteData),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
   },
 
   // Mettre à jour une note existante
   async updateNote(noteId: number, noteData: any) {
-    return await api.patch(`/notes/${noteId}/`, noteData);
+    const endMeasure = performanceMonitor.startMeasure('update_note', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'update_note_request',
+        () => api.patch(`/notes/${noteId}/`, noteData),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
   },
 
   // Supprimer une note
   async deleteNote(noteId: number) {
-    return await api.delete(`/notes/${noteId}/`);
+    const endMeasure = performanceMonitor.startMeasure('delete_note', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'delete_note_request',
+        () => api.delete(`/notes/${noteId}/`),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
   },
 
-  // Commentaires
+  // Gérer les commentaires
   async getComments(noteId: number) {
-    return await api.get('/note-comments/', { params: { note: noteId } });
+    return await api.get(`/notes/${noteId}/comments/`);
   },
 
-  async addComment(noteId: number, text: string) {
-    // La vérification de l'existence de la note est gérée par le backend
-    return await api.post('/note-comments/', { note: noteId, text });
+  async addComment(noteId: number, commentData: any) {
+    return await api.post(`/notes/${noteId}/comments/`, commentData);
   },
 
-  async deleteComment(commentId: number) {
-    return await api.delete(`/note-comments/${commentId}/`);
+  async updateComment(noteId: number, commentId: number, commentData: any) {
+    return await api.patch(`/notes/${noteId}/comments/${commentId}/`, commentData);
   },
 
-  // Photos
+  async deleteComment(noteId: number, commentId: number) {
+    return await api.delete(`/notes/${noteId}/comments/${commentId}/`);
+  },
+
+  // Gérer les photos
   async getPhotos(noteId: number) {
-    return await api.get('/note-photos/', { params: { note: noteId } });
+    return await api.get(`/notes/${noteId}/photos/`);
   },
 
-  async addPhoto(noteId: number, imageData: string, caption: string = '') {
-    return await api.post('/note-photos/', { note: noteId, image: imageData, caption });
+  async addPhoto(noteId: number, photoData: FormData) {
+    return await api.post(`/notes/${noteId}/photos/`, photoData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
   },
 
-  async updatePhotoCaption(photoId: number, caption: string) {
-    return await api.patch(`/note-photos/${photoId}/`, { caption });
+  async updatePhoto(noteId: number, photoId: number, photoData: any) {
+    return await api.patch(`/notes/${noteId}/photos/${photoId}/`, photoData);
   },
 
-  async deletePhoto(photoId: number) {
-    return await api.delete(`/note-photos/${photoId}/`);
+  async deletePhoto(noteId: number, photoId: number) {
+    return await api.delete(`/notes/${noteId}/photos/${photoId}/`);
   }
 };
 

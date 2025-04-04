@@ -464,7 +464,7 @@ export const useNotesStore = defineStore('notes', () => {
       }
 
       // Appel à l'API pour supprimer un commentaire
-      await noteService.deleteComment(commentId);
+      await noteService.deleteComment(noteId, commentId);
 
       // Mettre à jour le store local
       note.comments = note.comments.filter(comment => comment.id !== commentId);
@@ -511,7 +511,12 @@ export const useNotesStore = defineStore('notes', () => {
         return storePhoto.id;
       } else {
         // Sinon, envoyer la photo à l'API
-        const response = await noteService.addPhoto(noteId, photoData.url, photoData.caption || '');
+        const formData = new FormData();
+        formData.append('image', photoData.url);
+        if (photoData.caption) {
+          formData.append('caption', photoData.caption);
+        }
+        const response = await noteService.addPhoto(noteId, formData);
 
         const newPhoto = response.data;
 
@@ -551,7 +556,7 @@ export const useNotesStore = defineStore('notes', () => {
   async function removePhoto(noteId: number, photoId: number) {
     try {
       // Appel à l'API pour supprimer une photo
-      await noteService.deletePhoto(photoId);
+      await noteService.deletePhoto(noteId, photoId);
 
       // Mettre à jour le store local
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
@@ -569,10 +574,10 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  async function updatePhotoCaption(noteId: number, photoId: number, caption: string) {
+  async function updatePhoto(noteId: number, photoId: number, caption: string) {
     try {
       // Appel à l'API pour mettre à jour la légende
-      await noteService.updatePhotoCaption(photoId, caption);
+      await noteService.updatePhoto(noteId, photoId, { caption });
 
       // Mettre à jour le store local
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
@@ -619,6 +624,6 @@ export const useNotesStore = defineStore('notes', () => {
     removeComment,
     addPhoto,
     removePhoto,
-    updatePhotoCaption
+    updatePhoto
   };
 });

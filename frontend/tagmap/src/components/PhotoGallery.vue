@@ -232,7 +232,7 @@ function saveCaption() {
   if (!editingPhoto.value) return;
   
   try {
-    notesStore.updatePhotoCaption(props.noteId, editingPhoto.value.id, editingCaption.value);
+    notesStore.updatePhoto(props.noteId, editingPhoto.value.id, editingCaption.value);
     showCaptionModal.value = false;
     notificationStore.success('Légende mise à jour');
   } catch (error) {

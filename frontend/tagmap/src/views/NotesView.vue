@@ -343,6 +343,7 @@ import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useIrrigationStore } from '../stores/irrigation';
 import { useDrawingStore } from '../stores/drawing';
+import { noteService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
 
 import draggable from 'vuedraggable';
@@ -476,69 +477,39 @@ function getAccessLevelColor(level: NoteAccessLevel): string {
   }
 }
 
-
-
-
-// Charger les notes depuis le plan actuel
+// Charger les notes depuis le backend
 onMounted(async () => {
   try {
     loading.value = true;
 
-    // Récupérer l'ID du plan actuel depuis le localStorage ou le store
-    const lastPlanId = localStorage.getItem('lastPlanId');
-    currentPlanId.value = lastPlanId ? parseInt(lastPlanId) : irrigationStore.currentPlan?.id || null;
+    // Récupérer les notes depuis le backend
+    const response = await noteService.getNotes();
+    const notes = response.data.map((note: any) => ({
+      id: note.id,
+      title: note.title,
+      description: note.description,
+      location: note.location,
+      columnId: note.columnId || 'en-cours',
+      accessLevel: note.accessLevel,
+      style: note.style || {
+        color: '#2b6451',
+        weight: 2,
+        opacity: 1,
+        fillColor: '#2b6451',
+        fillOpacity: 0.6,
+        radius: 8
+      },
+      order: note.order || 0,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      comments: note.comments || [],
+      photos: note.photos || []
+    }));
 
-    if (currentPlanId.value) {
-      console.log('[NotesView] Chargement des notes du plan:', currentPlanId.value);
+    // Mettre à jour le store de notes
+    notesStore.notes = notes;
 
-      // Charger le plan s'il n'est pas déjà chargé
-      if (!irrigationStore.currentPlan || irrigationStore.currentPlan.id !== currentPlanId.value) {
-        // Charger le plan depuis l'API
-        await irrigationStore.fetchPlans();
-        const plan = irrigationStore.getPlanById(currentPlanId.value);
-        if (plan) {
-          irrigationStore.setCurrentPlan(plan);
-        }
-      }
-
-      // Charger les éléments du plan
-      await drawingStore.loadPlanElements(currentPlanId.value);
-
-      // Extraire les notes du plan
-      const notes = drawingStore.elements
-        .filter(element => element.type_forme === 'Note')
-        .map(element => {
-          const data = element.data as any;
-          return {
-            id: element.id || Date.now() + Math.floor(Math.random() * 1000),
-            title: data.name || 'Note sans titre',
-            description: data.description || '',
-            location: data.location,
-            columnId: data.columnId || 'en-cours',
-            accessLevel: data.accessLevel || NoteAccessLevel.PRIVATE,
-            style: data.style || {
-              color: '#2b6451',
-              weight: 2,
-              opacity: 1,
-              fillColor: '#2b6451',
-              fillOpacity: 0.6,
-              radius: 8
-            },
-            order: data.order || 0,
-            createdAt: data.createdAt || new Date().toISOString(),
-            updatedAt: data.updatedAt || new Date().toISOString(),
-            comments: data.comments || [],
-            photos: data.photos || []
-          } as Note;
-        });
-
-      // Mettre à jour le store de notes
-      notesStore.notes = notes;
-
-      console.log('[NotesView] Notes chargées:', notes.length);
-    } else {
-      console.log('[NotesView] Aucun plan actif, utilisation des notes par défaut du store');
-    }
+    console.log('[NotesView] Notes chargées:', notes.length);
   } catch (error) {
     console.error('Erreur lors du chargement des notes:', error);
     notificationStore.error('Erreur lors du chargement des notes');
@@ -558,8 +529,6 @@ function formatDate(dateString: string): string {
     minute: '2-digit'
   }).format(date);
 }
-
-
 
 // Aller à la carte pour créer une note
 function goToMap() {
@@ -661,30 +630,13 @@ async function deleteNote() {
   if (!noteToDelete.value) return;
 
   try {
+    // Supprimer la note du backend
+    await noteService.deleteNote(noteToDelete.value.id);
+
     // Supprimer la note du store local
     notesStore.removeNote(noteToDelete.value.id);
 
-    // Si un plan est actif, mettre à jour les éléments du plan
-    if (currentPlanId.value) {
-      // Trouver l'élément correspondant dans le store de dessin
-      const elementIndex = drawingStore.elements.findIndex(el =>
-        el.type_forme === 'Note' && el.id === noteToDelete.value?.id
-      );
-
-      if (elementIndex !== -1) {
-        // Créer une liste d'éléments à supprimer
-        const elementsToDelete = [noteToDelete.value.id];
-
-        // Sauvegarder le plan avec l'élément supprimé
-        await drawingStore.saveToPlan(currentPlanId.value, { elementsToDelete });
-
-        notificationStore.success('Note supprimée et plan mis à jour avec succès');
-      } else {
-        notificationStore.success('Note supprimée avec succès');
-      }
-    } else {
-      notificationStore.success('Note supprimée avec succès');
-    }
+    notificationStore.success('Note supprimée avec succès');
   } catch (error) {
     console.error('Erreur lors de la suppression de la note:', error);
     notificationStore.error('Erreur lors de la suppression de la note');
@@ -706,8 +658,6 @@ function addColumn() {
   newColumnColor.value = '#6B7280';
   showNewColumnModal.value = false;
 }
-
-
 
 // Supprimer une colonne
 function removeColumn(columnId: string) {
@@ -777,38 +727,17 @@ async function onDragChange(event: any, columnId: string) {
 
 // Fonction utilitaire pour mettre à jour une note dans le backend
 async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
-  if (!currentPlanId.value) return;
-
   try {
     // Trouver la note dans le store
     const note = notesStore.notes.find(n => n.id === noteId);
     if (!note) return;
 
-    // Trouver l'élément correspondant dans le store de dessin
-    const elementIndex = drawingStore.elements.findIndex(el =>
-      el.type_forme === 'Note' && el.id === noteId
-    );
-
-    if (elementIndex !== -1) {
-      // Mettre à jour les propriétés de l'élément
-      const element = drawingStore.elements[elementIndex];
-      const data = element.data as any;
-
-      // Appliquer les mises à jour
-      Object.keys(updates).forEach(key => {
-        if (key === 'columnId') {
-          data.columnId = updates.columnId;
-        } else if (key === 'order') {
-          data.order = updates.order;
-        }
-      });
-
-      // Mettre à jour la date de modification
-      data.updatedAt = new Date().toISOString();
-
-      // Sauvegarder le plan
-      await drawingStore.saveToPlan(currentPlanId.value);
-    }
+    // Mettre à jour la note dans le backend
+    await noteService.updateNote(noteId, {
+      ...note,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la note dans le backend:', error);
     throw error;
