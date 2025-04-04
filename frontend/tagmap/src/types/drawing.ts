@@ -95,7 +95,10 @@ export interface ShapeType {
 
 // Interface pour les données de notes géolocalisées
 export interface NoteData extends BaseData {
-  location: [number, number];  // [latitude, longitude]
+  location: [number, number] | {
+    type: string;
+    coordinates: [number, number]; // [longitude, latitude] pour GeoJSON
+  };
   description?: string;
   columnId?: string;
   comments?: Array<{

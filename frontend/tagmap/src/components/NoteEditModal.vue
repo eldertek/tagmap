@@ -136,7 +136,7 @@ import PhotoGallery from './PhotoGallery.vue';
 const props = defineProps<{
   note: Note | null;
   isNewNote?: boolean;
-  location?: [number, number];
+  location?: [number, number] | { type: string; coordinates: [number, number] };
 }>();
 
 const emit = defineEmits<{
@@ -166,6 +166,40 @@ const editingNote = ref<any>({
   photos: []
 });
 
+// Fonction utilitaire pour traiter les différents formats de localisation
+function processLocation(location: [number, number] | { type: string; coordinates: [number, number] }): [number, number] {
+  if (Array.isArray(location)) {
+    // Format tableau [lat, lng]
+    return location;
+  } else if (typeof location === 'object' && 'type' in location && 'coordinates' in location) {
+    // Format GeoJSON { type: 'Point', coordinates: [lng, lat] }
+    // Convertir en format [lat, lng] pour le frontend
+    return [location.coordinates[1], location.coordinates[0]];
+  }
+  console.error('[NoteEditModal] Format de localisation non reconnu:', location);
+  return [0, 0]; // Valeur par défaut en cas d'erreur
+}
+
+// Fonction pour la création sécurisée de dates
+function safeDate(dateString: string | undefined): string {
+  if (!dateString) return new Date().toISOString();
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) {
+      console.warn('[NoteEditModal] Date invalide:', dateString);
+      return new Date().toISOString();
+    }
+    
+    return date.toISOString();
+  } catch (error) {
+    console.error('[NoteEditModal] Erreur lors de la création de la date:', error);
+    return new Date().toISOString();
+  }
+}
+
 // Initialiser les données d'édition
 onMounted(() => {
   console.log('[NoteEditModal] onMounted - props:', props);
@@ -173,15 +207,25 @@ onMounted(() => {
   if (props.note) {
     // Édition d'une note existante
     console.log('[NoteEditModal] Édition d\'une note existante:', props.note);
-    editingNote.value = JSON.parse(JSON.stringify(props.note));
+    const noteCopy = JSON.parse(JSON.stringify(props.note));
+    
+    // Assurer que les dates sont valides
+    noteCopy.createdAt = safeDate(noteCopy.createdAt);
+    noteCopy.updatedAt = safeDate(noteCopy.updatedAt);
+    
+    editingNote.value = noteCopy;
   } else if (props.isNewNote && props.location) {
     // Création d'une nouvelle note
     console.log('[NoteEditModal] Création d\'une nouvelle note avec location:', props.location);
+    
+    // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
+    const processedLocation = processLocation(props.location);
+    
     editingNote.value = {
       title: 'Nouvelle note',
       description: '',
-      location: props.location,
-      columnId: '1', // Colonne 'Idées' par défaut (id: 1)
+      location: processedLocation,
+      columnId: notesStore.getDefaultColumn.id || '1', // Utiliser la colonne par défaut
       accessLevel: NoteAccessLevel.PRIVATE,
       style: {
         color: '#3B82F6',
@@ -192,7 +236,9 @@ onMounted(() => {
         radius: 8
       },
       comments: [],
-      photos: []
+      photos: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
   } else {
     console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note avec location');
@@ -249,10 +295,18 @@ function closeModal() {
 // Sauvegarder la note
 async function saveNote() {
   try {
+    // Convertir la localisation au format GeoJSON pour le backend
+    const locationGeoJSON = Array.isArray(editingNote.value.location) 
+      ? {
+          type: 'Point',
+          coordinates: [editingNote.value.location[1], editingNote.value.location[0]] // [lng, lat]
+        }
+      : editingNote.value.location;
+
     const noteData = {
       title: editingNote.value.title,
       description: editingNote.value.description,
-      location: editingNote.value.location,
+      location: locationGeoJSON,
       columnId: editingNote.value.columnId,
       style: editingNote.value.style,
       accessLevel: editingNote.value.accessLevel,
@@ -260,21 +314,36 @@ async function saveNote() {
       photos: editingNote.value.photos || []
     };
 
+    console.log('[NoteEditModal] Données de note à sauvegarder:', noteData);
+
     if (props.note) {
       // Mise à jour d'une note existante
       await noteService.updateNote(props.note.id, noteData);
-      notesStore.updateNote(props.note.id, editingNote.value);
+      
+      // Mettre à jour le store avec les données modifiées
+      // Conserver le format de localisation d'origine pour le store frontend
+      notesStore.updateNote(props.note.id, {
+        ...editingNote.value,
+        updatedAt: new Date().toISOString()
+      });
+      
       notificationStore.success('Note mise à jour avec succès');
     } else if (props.isNewNote && props.location) {
       // Création d'une nouvelle note
       const response = await noteService.createNote(noteData);
       const newNoteId = response.data.id;
+      console.log('[NoteEditModal] Nouvelle note créée avec ID:', newNoteId, 'Réponse:', response.data);
       
       // Mettre à jour le store avec la nouvelle note
+      // Utiliser un format de localisation compatible avec le frontend
+      const storeLocation = Array.isArray(editingNote.value.location)
+        ? editingNote.value.location
+        : [editingNote.value.location.coordinates[1], editingNote.value.location.coordinates[0]];
+        
       notesStore.addNote({
         title: noteData.title,
         description: noteData.description,
-        location: noteData.location,
+        location: storeLocation,
         columnId: noteData.columnId,
         style: noteData.style
       });

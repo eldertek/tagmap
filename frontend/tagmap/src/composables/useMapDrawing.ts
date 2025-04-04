@@ -1178,12 +1178,17 @@ export function useMapDrawing(): MapDrawingReturn {
                   geoNote.updateProperties();
                   
                   // Préparer les données pour l'API
+                  // Format GeoDjango PointField: { "type": "Point", "coordinates": [longitude, latitude] }
                   const noteData = {
                     plan: drawingStore.currentMapId, // Utiliser l'ID du plan courant
                     title: geoNote.properties.name,
                     description: geoNote.properties.description,
-                    location: [e.latlng.lat, e.latlng.lng],
-                    accessLevel: geoNote.properties.accessLevel,
+                    // Convertir en format GeoJSON Point pour GeoDjango
+                    location: {
+                      type: 'Point',
+                      coordinates: [e.latlng.lng, e.latlng.lat] // IMPORTANT: ordre lng, lat (x, y) pour GeoJSON
+                    },
+                    access_level: geoNote.properties.accessLevel,
                     style: geoNote.properties.style,
                     category: geoNote.properties.category
                   };
@@ -1196,8 +1201,18 @@ export function useMapDrawing(): MapDrawingReturn {
                       const response = await noteService.createNote(noteData);
                       console.log('[useMapDrawing] Note sauvegardée avec succès:', response.data);
                       
+                      // Stocker l'ID renvoyé par le backend (important!)
+                      const backendId = response.data.id;
+                      
+                      // IMPORTANT: Conserver l'ID Leaflet original pour référence
+                      const leafletId = (geoNote as any)._leaflet_id;
+                      console.log(`[useMapDrawing] ID Leaflet: ${leafletId}, ID backend: ${backendId}`);
+                      
                       // Mettre à jour l'ID de la note avec celui renvoyé par le backend
-                      (geoNote as any)._dbId = response.data.id;
+                      (geoNote as any)._dbId = backendId;
+                      
+                      // CRUCIAL: Mettre à jour la propriété id pour qu'elle utilise l'ID du backend
+                      geoNote.properties.id = backendId;
                       
                       // Mettre à jour la columnId avec celle renvoyée par le backend
                       if (response.data.column_id) {
@@ -1209,7 +1224,9 @@ export function useMapDrawing(): MapDrawingReturn {
                       window.dispatchEvent(new CustomEvent('note:created', {
                         detail: {
                           note: response.data,
-                          geoNote
+                          geoNote,
+                          leafletId,
+                          backendId
                         }
                       }));
                       

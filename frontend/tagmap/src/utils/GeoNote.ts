@@ -295,12 +295,20 @@ export class GeoNote extends L.Marker {
     // Fermer le popup
     this.closePopup();
 
+    // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
+    const noteId = this.properties.id || (this as any)._leaflet_id;
+    
+    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${this.properties.id}, ID Leaflet: ${(this as any)._leaflet_id}, ID utilisé: ${noteId}`);
+
     // Créer un objet note à partir des propriétés
     const note = {
-      id: (this as any)._leaflet_id,
+      id: noteId,
       title: this.properties.name,
       description: this.properties.description,
-      location: [this.getLatLng().lat, this.getLatLng().lng] as [number, number],
+      location: {
+        type: 'Point',
+        coordinates: [this.getLatLng().lng, this.getLatLng().lat] // [longitude, latitude] pour GeoJSON
+      },
       columnId: this.properties.columnId || '1', // Colonne 'Idées' par défaut
       accessLevel: this.properties.accessLevel || 'company', // Valeur par défaut
       style: this.properties.style || {
@@ -321,7 +329,7 @@ export class GeoNote extends L.Marker {
     console.log('[GeoNote][editNote] Édition de note avec columnId:', note.columnId);
 
     // Émettre un événement pour ouvrir le modal d'édition
-    console.log('[GeoNote] Émission de l\'\u00e9vénement note:edit avec', note);
+    console.log('[GeoNote] Émission de l\'événement note:edit avec', note);
 
     // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
     const event = new CustomEvent('geonote:edit', { detail: { note } });
@@ -446,7 +454,11 @@ export class GeoNote extends L.Marker {
       id: elementId,
       type_forme: 'Note',
       data: {
-        location: [latlng.lat, latlng.lng],
+        // Utiliser le format GeoJSON attendu par GeoDjango
+        location: {
+          type: 'Point',
+          coordinates: [latlng.lng, latlng.lat] // Ordre important: longitude, latitude
+        },
         name: this.properties.name,
         description: this.properties.description,
         columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
@@ -508,12 +520,26 @@ export class GeoNote extends L.Marker {
 
   // Méthode statique pour créer une GeoNote à partir des données du backend
   static fromBackendData(data: NoteData): GeoNote {
-    // Vérifier que les données contiennent une position valide
-    if (!data.location || !Array.isArray(data.location) || data.location.length !== 2) {
+    // Variable pour stocker les coordonnées au format [lat, lng] pour Leaflet
+    let latLng: [number, number];
+    
+    // Traiter différents formats de localisation
+    if (typeof data.location === 'object' && !Array.isArray(data.location) && data.location.type === 'Point') {
+      // Format GeoJSON: { type: 'Point', coordinates: [lng, lat] }
+      const coords = data.location.coordinates;
+      console.log('[GeoNote][fromBackendData] Coordonnées GeoJSON reçues:', coords);
+      
+      // Convertir du format GeoJSON [lng, lat] au format Leaflet [lat, lng]
+      latLng = [coords[1], coords[0]];
+    } else if (Array.isArray(data.location) && data.location.length === 2) {
+      // Format tableau [lat, lng]
+      latLng = data.location as [number, number];
+    } else {
       throw new Error('Les données de la note ne contiennent pas de position valide');
     }
 
     console.log('[GeoNote][fromBackendData] Création d\'une note à partir des données:', data);
+    console.log('[GeoNote][fromBackendData] Position utilisée:', latLng);
 
     // Récupérer le niveau d'accès depuis le style si disponible
     const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || NoteAccessLevel.PRIVATE;
@@ -526,8 +552,8 @@ export class GeoNote extends L.Marker {
     const columnId = data.columnId || '1';
     console.log('[GeoNote][fromBackendData] Création de note avec columnId:', columnId);
 
-    // Créer une nouvelle instance de GeoNote
-    const note = new GeoNote(data.location as L.LatLngExpression, {
+    // Créer une nouvelle instance de GeoNote avec les coordonnées au format Leaflet
+    const note = new GeoNote(latLng, {
       name: data.name,
       description: data.description,
       columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
@@ -559,7 +585,7 @@ export class GeoNote extends L.Marker {
     note.bindPopup(note.createPopupContent());
 
     console.log('[GeoNote][fromBackendData] Note créée:', {
-      location: data.location,
+      location: latLng,
       name: note.properties.name,
       type: note.properties.type,
       style: note.properties.style

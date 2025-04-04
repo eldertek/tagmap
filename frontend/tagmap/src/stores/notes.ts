@@ -45,7 +45,10 @@ export interface Note {
   id: number;
   title: string;
   description: string;
-  location: [number, number];
+  location: [number, number] | {
+    type: string;
+    coordinates: [number, number]; // [longitude, latitude] pour GeoJSON
+  };
   columnId: string;
   order: number; // Added order property to track position within column
   createdAt: string;

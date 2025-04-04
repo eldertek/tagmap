@@ -79,7 +79,7 @@
           :animation="150"
         >
           <template #item="{ element: column }">
-            <div class="w-80 flex-shrink-0">
+            <div class="column-wrapper w-80 flex-shrink-0">
               <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- En-tête de colonne avec poignée de drag -->
                 <div
@@ -116,55 +116,57 @@
                       chosen-class="chosen"
                       drag-class="dragging"
                     >
-                      <template #item="{ element: note }">
-                        <!-- Carte de note -->
-                        <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-                          <div class="p-3 flex items-center justify-between note-drag-handle cursor-move no-select">
-                            <div class="flex items-center">
-                              <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                              </svg>
-                              <h4 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h4>
+                      <template #item="{element: note}">
+                        <div class="note-container">
+                          <!-- Carte de note -->
+                          <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="p-3 flex items-center justify-between note-drag-handle cursor-move no-select">
+                              <div class="flex items-center">
+                                <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                                </svg>
+                                <h4 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h4>
+                              </div>
+                              <div>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                  :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }">
+                                  {{ getAccessLevelLabel(note.accessLevel) }}
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                                :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }">
-                                {{ getAccessLevelLabel(note.accessLevel) }}
-                              </span>
+                            <div class="px-3 py-2">
+                              <p class="text-sm text-gray-500 line-clamp-2">{{ note.description }}</p>
                             </div>
-                          </div>
-                          <div class="px-3 py-2">
-                            <p class="text-sm text-gray-500 line-clamp-2">{{ note.description }}</p>
-                          </div>
-                          <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                            <span class="text-xs text-gray-500">{{ formatDate(note.updatedAt) }}</span>
-                            <div class="flex space-x-1">
-                              <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                              </button>
-                              <button @click="viewOnMap(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Voir sur la carte">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                                </svg>
-                              </button>
-                              <button @click="editNote(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Éditer la note">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button @click="confirmDeleteNote(note)" class="p-1 text-gray-400 hover:text-red-500 focus:outline-none" title="Supprimer la note">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
+                            <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                              <span class="text-xs text-gray-500">{{ note.updatedAt ? formatDate(note.updatedAt) : 'Date inconnue' }}</span>
+                              <div class="flex space-x-1">
+                                <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                </button>
+                                <button @click="viewOnMap(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Voir sur la carte">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                  </svg>
+                                </button>
+                                <button @click="editNote(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Éditer la note">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button @click="confirmDeleteNote(note)" class="p-1 text-gray-400 hover:text-red-500 focus:outline-none" title="Supprimer la note">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </template>
-                      <template #footer v-if="getNotesByColumn(column.id).length === 0">
+                      <template #empty-content>
                         <div class="p-4 text-center text-gray-400 text-sm italic">
                           Aucune note dans cette colonne
                         </div>
@@ -287,7 +289,56 @@ const filters = reactive({
   accessLevel: ''
 });
 
+// Ajouter cette fonction pour formater les dates de manière sécurisée
+function safeFormatDate(dateString: string): string {
+  try {
+    // Vérifier si la date est valide
+    const date = new Date(dateString);
+    
+    // Si la date est invalide, retourner un message d'erreur
+    if (isNaN(date.getTime())) {
+      console.warn('[safeFormatDate] Date invalide:', dateString);
+      return 'Date invalide';
+    }
+    
+    // Formater la date avec Intl.DateTimeFormat
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  } catch (error) {
+    console.error('[safeFormatDate] Erreur lors du formatage de la date:', error);
+    return 'Date invalide';
+  }
+}
 
+// Utiliser cette fonction pour l'extraction de date sécurisée
+function safeDate(dateString: string | undefined): Date | null {
+  if (!dateString) return null;
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) {
+      console.warn('[safeDate] Date invalide:', dateString);
+      return null;
+    }
+    
+    return date;
+  } catch (error) {
+    console.error('[safeDate] Erreur lors de la création de la date:', error);
+    return null;
+  }
+}
+
+// Remplacer la fonction formatDate
+function formatDate(dateString: string): string {
+  return safeFormatDate(dateString);
+}
 
 // Notes filtrées
 const filteredNotes = computed(() => {
@@ -319,7 +370,9 @@ const filteredNotes = computed(() => {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
     filtered = filtered.filter(note => {
-      const noteDate = new Date(note.createdAt);
+      // Utiliser la fonction sécurisée pour éviter les erreurs de dates invalides
+      const noteDate = safeDate(note.createdAt);
+      if (!noteDate) return false;
 
       if (filters.date === 'today') {
         return noteDate >= today;
@@ -364,6 +417,19 @@ function getAccessLevelColor(level: NoteAccessLevel): string {
   }
 }
 
+// Appeler loadInitialData au montage du composant
+onMounted(() => {
+  console.log('[NotesView] Composant monté');
+  loadInitialData()
+    .then(() => {
+      console.log('[NotesView] Données chargées avec succès');
+    })
+    .catch(error => {
+      console.error('[NotesView] Erreur lors du chargement des données:', error);
+      notificationStore.error('Erreur lors du chargement des données');
+    });
+});
+
 // Ajouter cette fonction pour charger les données initiales
 async function loadInitialData() {
   console.log('\n[NotesView][loadInitialData] Début du chargement des données');
@@ -384,8 +450,18 @@ async function loadInitialData() {
     const response = await noteService.getNotes();
     console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
     
+    // Vérifier en détail les notes reçues
+    if (response.data.length > 0) {
+      console.log('[NotesView][loadInitialData] Détails des notes:');
+      response.data.forEach((note: Note, index: number) => {
+        console.log(`Note ${index + 1}: ID=${note.id}, Titre="${note.title}", Colonne=${note.columnId}`);
+      });
+    } else {
+      console.warn('[NotesView][loadInitialData] Aucune note reçue du backend!');
+    }
+    
     // Vérifier que chaque note a bien une colonne
-    const notesWithoutColumn = response.data.filter((note: Note) => !note.column_id);
+    const notesWithoutColumn = response.data.filter((note: Note) => !note.columnId);
     if (notesWithoutColumn.length > 0) {
       console.warn(`[NotesView][loadInitialData] ${notesWithoutColumn.length} notes sans colonne:`, notesWithoutColumn);
       
@@ -393,10 +469,11 @@ async function loadInitialData() {
       if (defaultColumn) {
         console.log(`[NotesView][loadInitialData] Assignation de la colonne par défaut (${defaultColumn.id}) aux notes sans colonne`);
         for (const note of notesWithoutColumn) {
-          note.column_id = defaultColumn.id;
+          note.columnId = defaultColumn.id;
           // Essayer de mettre à jour la note dans le backend
           try {
-            await noteService.updateNote(note.id, { column_id: defaultColumn.id });
+            await noteService.updateNote(note.id, { columnId: defaultColumn.id });
+            console.log(`[NotesView][loadInitialData] Colonne assignée pour la note ${note.id}`);
           } catch (err) {
             console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de colonne à la note ${note.id}:`, err);
           }
@@ -412,6 +489,11 @@ async function loadInitialData() {
     for (const column of notesStore.columns) {
       const notesInColumn = notesStore.getNotesByColumn(column.id);
       console.log(`[NotesView][loadInitialData] Colonne ${column.title} (${column.id}): ${notesInColumn.length} notes`);
+      if (notesInColumn.length > 0) {
+        notesInColumn.forEach((note: Note) => {
+          console.log(`  - Note ID=${note.id}, Titre="${note.title}"`);
+        });
+      }
     }
   } catch (error) {
     console.error('[NotesView][loadInitialData] Erreur:', error);
@@ -420,27 +502,6 @@ async function loadInitialData() {
     loading.value = false;
     console.log('[NotesView][loadInitialData] Chargement terminé');
   }
-}
-
-
-
-// Appeler loadInitialData au montage du composant
-onMounted(async () => {
-  console.log('[NotesView] Composant monté, chargement des données...');
-  await loadInitialData();
-  console.log('[NotesView] Données chargées, colonnes disponibles:', notesStore.columns);
-});
-
-// Formater la date
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
 }
 
 // Aller à la carte pour créer une note
@@ -453,8 +514,8 @@ function viewOnMap(note: Note) {
   router.push({
     path: '/',
     query: {
-      lat: note.location[0].toString(),
-      lng: note.location[1].toString(),
+      lat: Array.isArray(note.location) ? note.location[0].toString() : note.location.coordinates[1].toString(),
+      lng: Array.isArray(note.location) ? note.location[1].toString() : note.location.coordinates[0].toString(),
       noteId: note.id.toString()
     }
   });
@@ -463,8 +524,15 @@ function viewOnMap(note: Note) {
 // Ouvrir la note dans Google Maps avec itinéraire
 function openInGoogleMaps(note: Note) {
   // Récupérer les coordonnées de la note
-  const lat = note.location[0];
-  const lng = note.location[1];
+  let lat: number, lng: number;
+  
+  if (Array.isArray(note.location)) {
+    lat = note.location[0];
+    lng = note.location[1];
+  } else {
+    lat = note.location.coordinates[1]; // Format GeoJSON: latitude est à l'index 1
+    lng = note.location.coordinates[0]; // Format GeoJSON: longitude est à l'index 0
+  }
 
   // Construire l'URL Google Maps pour l'itinéraire
   // L'origine sera la position actuelle de l'utilisateur (laissée vide pour que Google l'utilise automatiquement)
