@@ -199,7 +199,7 @@
       </div>
     </div>
     <!-- Modal de création/édition d'utilisateur -->
-    <div v-if="showUserModal" class="fixed inset-0 z-50 overflow-y-auto">
+    <div v-if="showUserModal" class="fixed inset-0 z-[3001] overflow-y-auto">
       <UserFormModal
         :user="selectedUser"
         :salaries="salaries"

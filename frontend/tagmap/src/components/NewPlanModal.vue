@@ -1,5 +1,5 @@
 <template>
-  <div v-if="modelValue" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] overflow-y-auto">
+  <div v-if="modelValue" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[3001] overflow-y-auto">
     <div class="bg-white w-full h-full md:rounded-lg md:max-w-4xl md:h-auto md:max-h-[90vh] md:my-8 relative overflow-y-auto">
       <div class="flex justify-between items-center mb-4 sticky top-0 bg-white p-4 md:p-6 pb-4 border-b z-10">
         <h2 class="text-xl font-semibold text-gray-900">Créer un nouveau plan</h2>

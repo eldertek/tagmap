@@ -220,7 +220,7 @@
     </div>
 
     <!-- Modal de confirmation de suppression -->
-    <div v-if="showDeleteModal" class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="showDeleteModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-center justify-center min-h-screen w-full">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
         <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-lg md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
@@ -256,7 +256,7 @@
     </div>
 
     <!-- Modal d'édition de note -->
-    <div v-if="showEditModal" class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="showEditModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-center justify-center min-h-screen w-full">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
         <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
@@ -324,7 +324,7 @@
     </div>
 
     <!-- Modal d'ajout de colonne -->
-    <div v-if="showNewColumnModal" class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="showNewColumnModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-center justify-center min-h-screen w-full">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
         <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-lg md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
@@ -374,7 +374,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
-import { useAuthStore } from '../stores/auth';
+
 import draggable from 'vuedraggable';
 
 // Utilisation du type Note importé depuis le store
@@ -382,7 +382,6 @@ import draggable from 'vuedraggable';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
-const authStore = useAuthStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const showEditModal = ref(false);

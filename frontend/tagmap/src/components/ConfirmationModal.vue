@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-50 overflow-y-auto">
+  <div class="fixed inset-0 z-[3001] overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen w-full">
       <div class="fixed inset-0 transition-opacity" aria-hidden="true">
         <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
