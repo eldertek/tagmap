@@ -9,6 +9,7 @@
     <!-- Navigation par onglets -->
     <div class="border-b border-gray-200">
       <nav class="flex -mb-px">
+        <!-- Onglet Outils (toujours visible) -->
         <button
           @click="activeTab = 'tools'"
           :class="[activeTab === 'tools' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
@@ -18,25 +19,37 @@
           </svg>
           <span>Outils</span>
         </button>
+        <!-- Onglet Style (visible uniquement si une forme est sélectionnée et ce n'est pas une Note) -->
         <button
+          v-if="selectedShape && selectedShape.properties?.type !== 'Note'"
           @click="activeTab = 'style'"
           :class="[activeTab === 'style' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
-          :disabled="!selectedShape || selectedShape.properties?.type === 'Note'"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
           </svg>
           <span>Style</span>
         </button>
+        <!-- Onglet Propriétés (visible uniquement si une forme est sélectionnée) -->
         <button
+          v-if="selectedShape"
           @click="activeTab = 'properties'"
           :class="[activeTab === 'properties' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
-          :disabled="!selectedShape"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <span>Propriétés</span>
+        </button>
+        <!-- Onglet Filtres (toujours visible) -->
+        <button
+          @click="activeTab = 'filters'"
+          :class="[activeTab === 'filters' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span>Filtres</span>
         </button>
       </nav>
     </div>
@@ -255,6 +268,89 @@
             Aucune propriété disponible
           </div>
         </div>
+
+        <!-- Onglet Filtres -->
+        <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
+          <!-- Section des niveaux d'accès -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
+            <div class="space-y-1">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.accessLevels.company" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Entreprise uniquement</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.accessLevels.employee" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Salariés</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.accessLevels.visitor" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Visiteurs</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section des catégories d'éléments -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
+            <div class="space-y-1">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.forages" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Forages</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.clients" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Clients</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.entrepots" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.livraisons" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.cultures" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Cultures</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.parcelles" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section des types de formes -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
+            <div class="space-y-1">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Polygon" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Polygones</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Line" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Lignes</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Note" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Notes</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bouton de réinitialisation -->
+          <div class="pt-2">
+            <button @click="resetFilters" class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
+              Réinitialiser
+            </button>
+          </div>
+        </div>
       </div>
       <!-- Section de personnalisation des points d'échantillonnage -->
       <div v-if="selectedShape && localProperties && localProperties.type === 'ElevationLine'"
@@ -322,8 +418,9 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, reactive, watch } from 'vue'
 import type { AccessLevel, ElementCategory } from '@/types/drawing'
+import { useDrawingStore } from '@/stores/drawing'
 
 // Define types
 interface ShapeProperties {
@@ -335,16 +432,12 @@ interface ShapeProperties {
   [key: string]: any;
 }
 
-
-
 interface ShapeType {
   type: string;
   properties: ShapeProperties;
   layer: any;
   options: any;
 }
-
-// Pas d'interface SectionType
 
 // Define props for the component
 const props = defineProps({
@@ -361,6 +454,9 @@ const props = defineProps({
     default: () => []
   }
 })
+
+// Initialize the drawing store
+const drawingStore = useDrawingStore()
 
 const drawingTools = [
   { type: 'Polygon', label: 'Polygone' },
@@ -384,8 +480,6 @@ const getToolIcon = (type: string) => {
   }
 }
 
-// Propriétés pour les notes géolocalisées - à implémenter
-
 // Define reactive variables for the component
 const activeTab = ref('tools') // Onglet actif par défaut
 
@@ -393,8 +487,6 @@ const sectionsCollapsed = ref({
   samplePoints: true,
   circleSections: true
 })
-
-
 
 // Style properties
 const strokeColor = ref('#3B82F6')
@@ -425,8 +517,6 @@ const minMaxPointStyle = ref({
   weight: 2
 })
 
-// Pas de sections de cercles
-
 // Predefined colors
 const predefinedColors = [
   '#3B82F6', // Blue
@@ -444,7 +534,60 @@ const strokeStyles = [
   { value: 'dotted', label: 'Pointillés' }
 ]
 
-// Pas d'options d'alignement de texte
+// Define filter types
+interface AccessLevelFilters {
+  company: boolean;
+  employee: boolean;
+  visitor: boolean;
+  [key: string]: boolean;
+}
+
+interface CategoryFilters {
+  forages: boolean;
+  clients: boolean;
+  entrepots: boolean;
+  livraisons: boolean;
+  cultures: boolean;
+  parcelles: boolean;
+  [key: string]: boolean;
+}
+
+interface ShapeTypeFilters {
+  Polygon: boolean;
+  Line: boolean;
+  ElevationLine: boolean;
+  Note: boolean;
+  [key: string]: boolean;
+}
+
+interface Filters {
+  accessLevels: AccessLevelFilters;
+  categories: CategoryFilters;
+  shapeTypes: ShapeTypeFilters;
+}
+
+// Filters state
+const filters = reactive<Filters>({
+  accessLevels: {
+    company: true,
+    employee: true,
+    visitor: true
+  },
+  categories: {
+    forages: true,
+    clients: true,
+    entrepots: true,
+    livraisons: true,
+    cultures: true,
+    parcelles: true
+  },
+  shapeTypes: {
+    Polygon: true,
+    Line: true,
+    ElevationLine: true,
+    Note: true
+  }
+})
 
 // Computed property to get the properties from the selected shape
 const localProperties = computed(() => {
@@ -513,7 +656,48 @@ const updateMinMaxPointStyle = (): void => {
   emit('style-update', { minMaxPointStyle: minMaxPointStyle.value })
 }
 
-// Pas de méthodes pour les sections de cercles
+// Méthode pour réinitialiser les filtres
+const resetFilters = (): void => {
+  // Réinitialiser tous les filtres à true
+  // Niveaux d'accès
+  filters.accessLevels.company = true;
+  filters.accessLevels.employee = true;
+  filters.accessLevels.visitor = true;
+
+  // Catégories
+  filters.categories.forages = true;
+  filters.categories.clients = true;
+  filters.categories.entrepots = true;
+  filters.categories.livraisons = true;
+  filters.categories.cultures = true;
+  filters.categories.parcelles = true;
+
+  // Types de formes
+  filters.shapeTypes.Polygon = true;
+  filters.shapeTypes.Line = true;
+  filters.shapeTypes.ElevationLine = true;
+  filters.shapeTypes.Note = true;
+
+  // Mettre à jour les filtres dans le store
+  applyFilters();
+}
+
+// Méthode pour appliquer les filtres
+const applyFilters = (): void => {
+  // Mettre à jour les filtres dans le store de dessin
+  drawingStore.updateFilters({
+    accessLevels: { ...filters.accessLevels },
+    categories: { ...filters.categories },
+    shapeTypes: { ...filters.shapeTypes }
+  });
+
+  // Émettre un événement pour indiquer que les filtres ont changé
+  emit('filter-change', {
+    accessLevels: { ...filters.accessLevels },
+    categories: { ...filters.categories },
+    shapeTypes: { ...filters.shapeTypes }
+  });
+}
 
 const formatLength = (value: number): string => {
   return `${Math.round(value)} m`
@@ -531,7 +715,7 @@ const formatSlope = (value: number): string => {
 }
 
 // Define emits
-const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape'])
+const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change'])
 
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
@@ -554,6 +738,68 @@ watchEffect(() => {
     accessLevel.value = props.selectedShape.properties?.accessLevel || 'visitor'
   }
 })
+
+// Initialiser les filtres avec les valeurs du store
+watchEffect(() => {
+  const storeFilters = drawingStore.filters;
+  if (storeFilters) {
+    // Mettre à jour les filtres locaux avec les valeurs du store
+    // Accès directs pour éviter les problèmes de typage
+    if (storeFilters.accessLevels.company !== undefined) {
+      filters.accessLevels.company = storeFilters.accessLevels.company;
+    }
+    if (storeFilters.accessLevels.employee !== undefined) {
+      filters.accessLevels.employee = storeFilters.accessLevels.employee;
+    }
+    if (storeFilters.accessLevels.visitor !== undefined) {
+      filters.accessLevels.visitor = storeFilters.accessLevels.visitor;
+    }
+
+    // Catégories
+    if (storeFilters.categories.forages !== undefined) {
+      filters.categories.forages = storeFilters.categories.forages;
+    }
+    if (storeFilters.categories.clients !== undefined) {
+      filters.categories.clients = storeFilters.categories.clients;
+    }
+    if (storeFilters.categories.entrepots !== undefined) {
+      filters.categories.entrepots = storeFilters.categories.entrepots;
+    }
+    if (storeFilters.categories.livraisons !== undefined) {
+      filters.categories.livraisons = storeFilters.categories.livraisons;
+    }
+    if (storeFilters.categories.cultures !== undefined) {
+      filters.categories.cultures = storeFilters.categories.cultures;
+    }
+    if (storeFilters.categories.parcelles !== undefined) {
+      filters.categories.parcelles = storeFilters.categories.parcelles;
+    }
+
+    // Types de formes
+    if (storeFilters.shapeTypes.Polygon !== undefined) {
+      filters.shapeTypes.Polygon = storeFilters.shapeTypes.Polygon;
+    }
+    if (storeFilters.shapeTypes.Line !== undefined) {
+      filters.shapeTypes.Line = storeFilters.shapeTypes.Line;
+    }
+    if (storeFilters.shapeTypes.ElevationLine !== undefined) {
+      filters.shapeTypes.ElevationLine = storeFilters.shapeTypes.ElevationLine;
+    }
+    if (storeFilters.shapeTypes.Note !== undefined) {
+      filters.shapeTypes.Note = storeFilters.shapeTypes.Note;
+    }
+  }
+});
+
+// Observer les changements dans les filtres et appliquer automatiquement
+// Utiliser watch au lieu de watchEffect pour éviter les problèmes de variables non utilisées
+watch(filters, () => {
+  // Appliquer les filtres automatiquement lorsqu'ils changent
+  // Mais pas lors de l'initialisation
+  if (activeTab.value === 'filters') {
+    applyFilters();
+  }
+}, { deep: true });
 </script>
 <style scoped>
 .h-full {

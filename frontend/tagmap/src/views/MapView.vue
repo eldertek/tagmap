@@ -115,10 +115,10 @@
           <div class="flex-1 relative">
             <div ref="mapContainer" class="absolute inset-0 z-[1000]"></div>
 
-            <!-- Panneau de filtrage (position absolue en haut à droite) -->
-            <div v-if="currentPlan && !isGeneratingSynthesis" class="absolute top-4 right-4 z-[1200]">
+            <!-- Panneau de filtrage supprimé car intégré dans DrawingTools -->
+            <!-- <div v-if="currentPlan && !isGeneratingSynthesis" class="absolute top-4 right-4 z-[1200]">
               <MapFilterPanel @filter-change="handleFilterChange" />
-            </div>
+            </div> -->
           </div>
 
           <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
@@ -143,7 +143,7 @@
             <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape as any"
               :all-layers="featureGroup?.getLayers() || []" @tool-change="setDrawingTool"
               @style-update="updateShapeStyle" @properties-update="updateShapeProperties"
-              @delete-shape="deleteSelectedShape"/>
+              @delete-shape="deleteSelectedShape" @filter-change="handleFilterChange"/>
           </div>
         </div>
         <!-- Interface de synthèse -->
@@ -454,7 +454,7 @@ import 'leaflet-simple-map-screenshoter';
 import DrawingTools from '../components/DrawingTools.vue';
 import MapToolbar from '../components/MapToolbar.vue';
 import NoteEditModal from '../components/NoteEditModal.vue';
-import MapFilterPanel from '../components/MapFilterPanel.vue';
+// import MapFilterPanel from '../components/MapFilterPanel.vue'; // Supprimé car intégré dans DrawingTools
 import { useMapDrawing } from '../composables/useMapDrawing';
 import { useMapState } from '../composables/useMapState';
 import { useIrrigationStore } from '@/stores/irrigation';
