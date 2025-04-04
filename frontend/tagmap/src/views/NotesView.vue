@@ -168,6 +168,15 @@
                               </svg>
                             </button>
                             <button
+                              @click="openInGoogleMaps(note)"
+                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
+                              title="Ouvrir dans Google Maps">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121L12 13.999l2.121 2.121" />
+                              </svg>
+                            </button>
+                            <button
                               @click="editNote(note)"
                               class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
                               title="Modifier">
@@ -464,10 +473,6 @@ function getAccessLevelColor(level: NoteAccessLevel): string {
 
 
 
-// Colonnes triées par ordre
-const sortedColumns = computed(() => {
-  return notesStore.getSortedColumns;
-});
 
 // Charger les notes
 onMounted(async () => {
@@ -515,6 +520,20 @@ function viewOnMap(note: Note) {
   });
 }
 
+// Ouvrir la note dans Google Maps avec itinéraire
+function openInGoogleMaps(note: Note) {
+  // Récupérer les coordonnées de la note
+  const lat = note.location[0];
+  const lng = note.location[1];
+
+  // Construire l'URL Google Maps pour l'itinéraire
+  // L'origine sera la position actuelle de l'utilisateur (laissée vide pour que Google l'utilise automatiquement)
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+  // Ouvrir l'URL dans un nouvel onglet
+  window.open(url, '_blank');
+}
+
 // Éditer une note
 function editNote(note: Note) {
   editingNote.value = JSON.parse(JSON.stringify(note)); // Clone profond
@@ -523,7 +542,7 @@ function editNote(note: Note) {
 }
 
 // Gérer la sauvegarde d'une note depuis le modal
-function handleNoteSave(note: Note) {
+function handleNoteSave() {
   // La note est déjà sauvegardée dans le store par le composant NoteEditModal
   // Nous n'avons qu'à fermer le modal
   showEditModal.value = false;

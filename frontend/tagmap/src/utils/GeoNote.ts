@@ -1,5 +1,6 @@
 import * as L from 'leaflet';
 import { NoteAccessLevel } from '../stores/notes';
+import type { DrawingElementType } from '../types/drawing';
 
 export interface GeoNoteOptions {
   name?: string;
@@ -72,6 +73,8 @@ export class GeoNote extends L.Marker {
   createPopupContent(): HTMLElement {
     const container = document.createElement('div');
     container.className = 'geo-note-popup';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
 
     // Créer l'en-tête
     const header = document.createElement('div');
@@ -118,38 +121,83 @@ export class GeoNote extends L.Marker {
     `;
     badgesContainer.appendChild(accessBadge);
 
-    // Créer le contenu
-    const content = document.createElement('div');
-    content.className = 'geo-note-content';
-    container.appendChild(content);
-
-    // Ajouter la description seulement si elle existe
+    // Créer le contenu seulement si une description existe
     if (this.properties.description && this.properties.description.trim() !== '') {
+      const content = document.createElement('div');
+      content.className = 'geo-note-content';
+      container.appendChild(content);
+
       const description = document.createElement('div');
       description.className = 'geo-note-description';
       description.textContent = this.properties.description;
       content.appendChild(description);
     }
 
-    // Créer le pied de page
-    const footer = document.createElement('div');
-    footer.className = 'geo-note-footer';
-    container.appendChild(footer);
+    // Créer le pied de page avec les boutons directement intégrés
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'geo-note-buttons';
+    buttonsContainer.style.display = 'flex';
+    buttonsContainer.style.width = '100%';
+    buttonsContainer.style.marginTop = 'auto';
+    buttonsContainer.style.borderTop = '1px solid #E5E7EB';
+    container.appendChild(buttonsContainer);
 
     // Ajouter le bouton d'édition
     const editButton = document.createElement('button');
     editButton.className = 'geo-note-edit-button';
+    editButton.style.flex = '1';
+    editButton.style.height = '36px';
+    editButton.style.border = 'none';
+    editButton.style.borderRight = '1px solid #E5E7EB';
+    editButton.style.background = 'transparent';
+    editButton.style.color = '#4B5563';
+    editButton.style.fontSize = '11px';
+    editButton.style.fontWeight = '500';
+    editButton.style.display = 'flex';
+    editButton.style.alignItems = 'center';
+    editButton.style.justifyContent = 'center';
+    editButton.style.cursor = 'pointer';
+    editButton.style.padding = '0';
+    editButton.style.margin = '0';
     editButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 mr-1 inline-block align-text-bottom">
         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
       </svg>
-      Modifier cette note
+      Éditer
     `;
     editButton.onclick = (e) => {
       e.stopPropagation();
       this.editNote();
     };
-    footer.appendChild(editButton);
+    buttonsContainer.appendChild(editButton);
+
+    // Ajouter le bouton pour ouvrir dans Google Maps
+    const openButton = document.createElement('button');
+    openButton.className = 'geo-note-open-button';
+    openButton.style.flex = '1';
+    openButton.style.height = '36px';
+    openButton.style.border = 'none';
+    openButton.style.background = 'transparent';
+    openButton.style.color = '#3B82F6';
+    openButton.style.fontSize = '11px';
+    openButton.style.fontWeight = '500';
+    openButton.style.display = 'flex';
+    openButton.style.alignItems = 'center';
+    openButton.style.justifyContent = 'center';
+    openButton.style.cursor = 'pointer';
+    openButton.style.padding = '0';
+    openButton.style.margin = '0';
+    openButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 mr-1 inline-block align-text-bottom">
+        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+      </svg>
+      Ouvrir
+    `;
+    openButton.onclick = (e) => {
+      e.stopPropagation();
+      this.openInGoogleMaps();
+    };
+    buttonsContainer.appendChild(openButton);
 
     return container;
   }
@@ -247,6 +295,23 @@ export class GeoNote extends L.Marker {
 
     // Également émettre l'événement Leaflet standard (pour compatibilité)
     this.fire('note:edit', { note });
+  }
+
+  // Méthode pour ouvrir Google Maps avec itinéraire
+  openInGoogleMaps(): void {
+    // Fermer le popup
+    this.closePopup();
+
+    // Récupérer les coordonnées de la note
+    const lat = this.getLatLng().lat;
+    const lng = this.getLatLng().lng;
+
+    // Construire l'URL Google Maps pour l'itinéraire
+    // L'origine sera la position actuelle de l'utilisateur (laissée vide pour que Google l'utilise automatiquement)
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+    // Ouvrir l'URL dans un nouvel onglet
+    window.open(url, '_blank');
   }
 
   // Mettre à jour les propriétés
