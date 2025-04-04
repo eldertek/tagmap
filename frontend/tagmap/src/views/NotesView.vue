@@ -75,11 +75,11 @@
         <p class="mt-2 text-sm text-gray-500">Chargement des notes...</p>
       </div>
 
-      <div v-else-if="filteredNotes.length === 0" class="mt-6 p-6 text-center bg-white shadow rounded-lg">
-        <p class="text-sm text-gray-500">Aucune note trouvée</p>
-      </div>
-
       <div v-else class="mt-6 overflow-x-auto pb-4">
+        <div v-if="filteredNotes.length === 0 && columnsForDrag.length === 0" class="p-6 text-center bg-white shadow rounded-lg mb-4">
+          <p class="text-sm text-gray-500">Aucune note ni colonne trouvée</p>
+        </div>
+
         <!-- Colonnes de notes avec drag and drop -->
         <draggable
           v-model="columnsForDrag"
@@ -121,126 +121,81 @@
                   </div>
                 </div>
 
-                <!-- Liste des notes dans cette colonne avec drag and drop -->
-                <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto" :data-column-id="column.id">
-                  <draggable
-                    :list="getNotesByColumn(column.id)"
-                    class="min-h-[100px] draggable-container"
-                    group="notes"
-                    item-key="id"
-                    :animation="150"
-                    ghost-class="ghost-card"
-                    drag-class="dragging"
-                    chosen-class="chosen"
-                    handle=".drag-handle"
-                    @change="(event) => onDragChange(event, column.id)"
-                    :data-column-id="column.id"
-                    :force-fallback="true"
-                  >
-                    <template #header v-if="getNotesByColumn(column.id).length === 0">
-                      <div class="p-4 text-center text-gray-400 text-sm italic">
-                        Aucune note dans cette colonne
-                      </div>
-                    </template>
-                    <template #item="{ element: note }">
-                      <div class="mb-2 p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select overflow-hidden" :data-note-id="note.id">
-                        <!-- En-tête de la note avec poignée de drag -->
-                        <div class="flex items-start justify-between mb-2 drag-handle cursor-move w-full">
-                          <div class="flex items-center flex-grow min-w-0 mr-2">
-                            <div
-                              class="h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center mr-2"
-                              :style="{ backgroundColor: note.style.fillColor + '40', color: note.style.color }"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                <!-- Liste des notes dans cette colonne -->
+                <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto">
+                  <div class="min-h-[100px] draggable-container">
+                    <draggable
+                      :list="getNotesByColumn(column.id)"
+                      class="space-y-2"
+                      group="notes"
+                      item-key="id"
+                      handle=".note-drag-handle"
+                      @change="(event) => onDragChange(event, column.id)"
+                      :animation="150"
+                      ghost-class="ghost-card"
+                      chosen-class="chosen"
+                      drag-class="dragging"
+                    >
+                      <template #item="{ element: note }">
+                        <!-- Carte de note -->
+                        <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
+                          <div class="p-3 flex items-center justify-between note-drag-handle cursor-move no-select">
+                            <div class="flex items-center">
+                              <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
                               </svg>
+                              <h4 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h4>
                             </div>
-                            <h4 class="text-sm font-medium text-gray-900 truncate min-w-0" :title="note.title">{{ note.title }}</h4>
+                            <div>
+                              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }">
+                                {{ getAccessLevelLabel(note.accessLevel) }}
+                              </span>
+                            </div>
                           </div>
-                          <div class="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
-                            <button
-                              @click="viewOnMap(note)"
-                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
-                              title="Voir sur la carte">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                              </svg>
-                            </button>
-                            <button
-                              @click="openInGoogleMaps(note)"
-                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
-                              title="Ouvrir dans Google Maps">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121L12 13.999l2.121 2.121" />
-                              </svg>
-                            </button>
-                            <button
-                              @click="editNote(note)"
-                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
-                              title="Modifier">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              @click="confirmDeleteNote(note)"
-                              class="p-1.5 sm:p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-gray-100"
-                              title="Supprimer">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                          <div class="px-3 py-2">
+                            <p class="text-sm text-gray-500 line-clamp-2">{{ note.description }}</p>
                           </div>
-                        </div>
-
-                        <!-- Description de la note -->
-                        <p class="text-xs text-gray-500 mb-2 line-clamp-2" :title="note.description">{{ note.description }}</p>
-
-                        <!-- Indicateurs de commentaires et photos -->
-                        <div v-if="note.comments?.length || note.photos?.length" class="flex items-center space-x-2 mb-2">
-                          <div v-if="note.comments?.length" class="flex items-center text-xs text-gray-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                            </svg>
-                            {{ note.comments.length }}
-                          </div>
-                          <div v-if="note.photos?.length" class="flex items-center text-xs text-gray-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            {{ note.photos.length }}
+                          <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">{{ formatDate(note.updatedAt) }}</span>
+                            <div class="flex space-x-1">
+                              <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </button>
+                              <button @click="viewOnMap(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Voir sur la carte">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                              </button>
+                              <button @click="editNote(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Éditer la note">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button @click="confirmDeleteNote(note)" class="p-1 text-gray-400 hover:text-red-500 focus:outline-none" title="Supprimer la note">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
-
-                        <!-- Pied de la note -->
-                        <div class="flex justify-between items-center text-xs text-gray-400">
-                          <span>{{ formatDate(note.createdAt) }}</span>
-                          <div class="flex space-x-1">
-                            <span
-                              class="px-2 py-1 rounded-full"
-                              :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }"
-                              :title="accessLevels.find(l => l.id === note.accessLevel)?.description"
-                            >
-                              {{ getAccessLevelLabel(note.accessLevel) }}
-                            </span>
-                            <span class="px-2 py-1 rounded-full" :style="{ backgroundColor: column.color + '20', color: column.color }">
-                              {{ column.title }}
-                            </span>
-                          </div>
+                      </template>
+                      <template #footer v-if="getNotesByColumn(column.id).length === 0">
+                        <div class="p-4 text-center text-gray-400 text-sm italic">
+                          Aucune note dans cette colonne
                         </div>
-                      </div>
-                    </template>
-                  </draggable>
+                      </template>
+                    </draggable>
+                  </div>
                 </div>
               </div>
             </div>
           </template>
         </draggable>
-
-
-        </div>
       </div>
     </div>
 
@@ -334,6 +289,7 @@
         </div>
       </div>
     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -341,7 +297,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
-import { useIrrigationStore } from '../stores/irrigation';
+// import { useIrrigationStore } from '../stores/irrigation'; // Non utilisé pour l'instant
 import { useDrawingStore } from '../stores/drawing';
 import { noteService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
@@ -353,7 +309,7 @@ import draggable from 'vuedraggable';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
-const irrigationStore = useIrrigationStore();
+// L'irrigation store n'est pas utilisé dans ce composant
 const drawingStore = useDrawingStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
@@ -368,13 +324,19 @@ const currentPlanId = ref<number | null>(null);
 
 // Colonnes pour le drag and drop
 const columnsForDrag = computed({
-  get: () => notesStore.getSortedColumns,
+  get: () => {
+    const sortedColumns = notesStore.getSortedColumns;
+    console.log('[NotesView][columnsForDrag] Colonnes triées:', sortedColumns);
+    return sortedColumns;
+  },
   set: (newColumns) => {
-    // Mettre à jour l'ordre des colonnes
-    const columnIds = newColumns.map(col => col.id);
+    console.log('[NotesView][columnsForDrag] Mise à jour de l\'ordre des colonnes:', newColumns);
+    const columnIds = newColumns.map(col => col.id.toString());
     notesStore.reorderColumns(columnIds);
   }
 });
+
+// La colonne par défaut est gérée directement dans le store
 
 // Niveaux d'accès disponibles
 const accessLevels = [
@@ -449,11 +411,11 @@ const filteredNotes = computed(() => {
   return filtered;
 });
 
-// Notes filtrées par colonne et triées par ordre
+// Obtenir les notes d'une colonne
 const getNotesByColumn = computed(() => (columnId: string) => {
-  return filteredNotes.value
-    .filter(note => note.columnId === columnId)
-    .sort((a, b) => a.order - b.order);
+  const notes = notesStore.getNotesByColumn(columnId);
+  console.log(`[NotesView][getNotesByColumn] Notes pour la colonne ${columnId}:`, notes);
+  return notes;
 });
 
 // Obtenir le libellé du niveau d'accès
@@ -477,45 +439,66 @@ function getAccessLevelColor(level: NoteAccessLevel): string {
   }
 }
 
-// Charger les notes depuis le backend
-onMounted(async () => {
+// Ajouter cette fonction pour charger les données initiales
+async function loadInitialData() {
+  console.log('\n[NotesView][loadInitialData] Début du chargement des données');
   try {
     loading.value = true;
 
+    // Charger les colonnes d'abord
+    console.log('[NotesView][loadInitialData] Chargement des colonnes...');
+    await notesStore.loadColumns();
+    console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
+
     // Récupérer les notes depuis le backend
+    console.log('[NotesView][loadInitialData] Chargement des notes...');
     const response = await noteService.getNotes();
-    const notes = response.data.map((note: any) => ({
-      id: note.id,
-      title: note.title,
-      description: note.description,
-      location: note.location,
-      columnId: note.columnId || 'en-cours',
-      accessLevel: note.accessLevel,
-      style: note.style || {
-        color: '#2b6451',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#2b6451',
-        fillOpacity: 0.6,
-        radius: 8
-      },
-      order: note.order || 0,
-      createdAt: note.createdAt,
-      updatedAt: note.updatedAt,
-      comments: note.comments || [],
-      photos: note.photos || []
-    }));
+    console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
 
     // Mettre à jour le store de notes
-    notesStore.notes = notes;
-
-    console.log('[NotesView] Notes chargées:', notes.length);
+    notesStore.notes = response.data;
+    console.log('[NotesView][loadInitialData] Notes chargées dans le store');
   } catch (error) {
-    console.error('Erreur lors du chargement des notes:', error);
-    notificationStore.error('Erreur lors du chargement des notes');
+    console.error('[NotesView][loadInitialData] Erreur:', error);
+    notificationStore.error('Erreur lors du chargement des données');
   } finally {
     loading.value = false;
+    console.log('[NotesView][loadInitialData] Chargement terminé');
   }
+}
+
+// Modifier la fonction addColumn
+async function addColumn() {
+  if (!newColumnName.value.trim()) return;
+
+  try {
+    // Créer la nouvelle colonne
+    const columnData = {
+      title: newColumnName.value.trim(),
+      color: newColumnColor.value,
+      order: notesStore.getSortedColumns.length
+    };
+
+    // Ajouter la colonne via le store (qui utilisera l'API)
+    await notesStore.addColumn(columnData);
+
+    notificationStore.success('Colonne ajoutée avec succès');
+
+    // Réinitialiser le formulaire
+    newColumnName.value = '';
+    newColumnColor.value = '#6B7280';
+    showNewColumnModal.value = false;
+  } catch (error) {
+    console.error('Erreur lors de la création de la colonne:', error);
+    notificationStore.error('Erreur lors de la création de la colonne');
+  }
+}
+
+// Appeler loadInitialData au montage du composant
+onMounted(async () => {
+  console.log('[NotesView] Composant monté, chargement des données...');
+  await loadInitialData();
+  console.log('[NotesView] Données chargées, colonnes disponibles:', notesStore.columns);
 });
 
 // Formater la date
@@ -644,19 +627,6 @@ async function deleteNote() {
     showDeleteModal.value = false;
     noteToDelete.value = null;
   }
-}
-
-// Ajouter une nouvelle colonne
-function addColumn() {
-  if (!newColumnName.value.trim()) return;
-
-  notesStore.addColumn(newColumnName.value.trim(), newColumnColor.value);
-
-  notificationStore.success('Colonne ajoutée avec succès');
-
-  newColumnName.value = '';
-  newColumnColor.value = '#6B7280';
-  showNewColumnModal.value = false;
 }
 
 // Supprimer une colonne

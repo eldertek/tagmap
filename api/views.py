@@ -24,11 +24,11 @@ from .serializers import (
     UserSerializer, SalarieSerializer, ClientSerializer,
     PlanSerializer, FormeGeometriqueSerializer, ConnexionSerializer,
     TexteAnnotationSerializer, PlanDetailSerializer, GeoNoteSerializer,
-    NoteCommentSerializer, NotePhotoSerializer
+    NoteCommentSerializer, NotePhotoSerializer, NoteColumnSerializer
 )
 from plans.models import (
     Plan, FormeGeometrique, Connexion, TexteAnnotation,
-    GeoNote, NoteComment, NotePhoto
+    GeoNote, NoteComment, NotePhoto, NoteColumn
 )
 
 # Configuration
@@ -613,6 +613,47 @@ class TexteAnnotationViewSet(viewsets.ModelViewSet):
             )
         else:  # client
             return TexteAnnotation.objects.filter(plan__createur=user)
+
+class NoteColumnViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des colonnes de notes."""
+    serializer_class = NoteColumnSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        print("\n[NoteColumnViewSet][get_queryset] Récupération des colonnes")
+        queryset = NoteColumn.objects.all().order_by('order')
+        print(f"[NoteColumnViewSet][get_queryset] Nombre de colonnes trouvées: {queryset.count()}")
+        for col in queryset:
+            print(f"- Colonne: {col.id} | {col.title} | {col.color} | ordre: {col.order} | défaut: {col.is_default}")
+        return queryset
+
+    def perform_create(self, serializer):
+        print("\n[NoteColumnViewSet][perform_create] Création d'une nouvelle colonne")
+        print(f"Données validées: {serializer.validated_data}")
+        
+        # Si c'est la première colonne, la définir comme colonne par défaut
+        if not NoteColumn.objects.exists():
+            print("[NoteColumnViewSet][perform_create] Première colonne, définition comme colonne par défaut")
+            serializer.save(is_default=True)
+        else:
+            serializer.save()
+        
+        print(f"[NoteColumnViewSet][perform_create] Colonne créée avec succès: {serializer.instance.id}")
+
+    def perform_update(self, serializer):
+        print("\n[NoteColumnViewSet][perform_update] Mise à jour d'une colonne")
+        print(f"ID de la colonne: {serializer.instance.id}")
+        print(f"Données validées: {serializer.validated_data}")
+        
+        # Mettre à jour l'ordre des colonnes si nécessaire
+        new_order = self.request.data.get('order')
+        if new_order is not None:
+            print(f"[NoteColumnViewSet][perform_update] Nouvel ordre: {new_order}")
+            serializer.save(order=new_order)
+        else:
+            serializer.save()
+        
+        print("[NoteColumnViewSet][perform_update] Mise à jour réussie")
 
 class GeoNoteViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des notes géolocalisées."""

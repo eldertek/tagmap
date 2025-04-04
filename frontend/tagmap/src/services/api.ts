@@ -625,4 +625,95 @@ export const noteService = {
   }
 };
 
+// Service pour les colonnes de notes
+export const columnService = {
+  // Récupérer toutes les colonnes
+  async getColumns() {
+    console.log('\n[columnService][getColumns] Récupération des colonnes');
+    const endMeasure = performanceMonitor.startMeasure('get_columns', 'ColumnService');
+    try {
+      const response = await performanceMonitor.measureAsync(
+        'get_columns_request',
+        () => api.get('/columns/'),
+        'ColumnService'
+      );
+      console.log('[columnService][getColumns] Réponse:', response.data);
+      return response;
+    } catch (error) {
+      console.error('[columnService][getColumns] Erreur:', error);
+      throw error;
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Créer une nouvelle colonne
+  async createColumn(columnData: any) {
+    console.log('\n[columnService][createColumn] Création d\'une colonne:', columnData);
+    const endMeasure = performanceMonitor.startMeasure('create_column', 'ColumnService');
+    try {
+      const response = await performanceMonitor.measureAsync(
+        'create_column_request',
+        () => api.post('/columns/', columnData),
+        'ColumnService'
+      );
+      console.log('[columnService][createColumn] Réponse:', response.data);
+      return response;
+    } catch (error) {
+      console.error('[columnService][createColumn] Erreur:', error);
+      throw error;
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Mettre à jour une colonne
+  async updateColumn(columnId: string, columnData: any) {
+    console.log('\n[columnService][updateColumn] Mise à jour de la colonne:', columnId, columnData);
+    const endMeasure = performanceMonitor.startMeasure('update_column', 'ColumnService');
+    try {
+      const response = await performanceMonitor.measureAsync(
+        'update_column_request',
+        () => api.patch(`/columns/${columnId}/`, columnData),
+        'ColumnService'
+      );
+      console.log('[columnService][updateColumn] Réponse:', response.data);
+      return response;
+    } catch (error) {
+      console.error('[columnService][updateColumn] Erreur:', error);
+      throw error;
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Supprimer une colonne
+  async deleteColumn(columnId: string) {
+    const endMeasure = performanceMonitor.startMeasure('delete_column', 'ColumnService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'delete_column_request',
+        () => api.delete(`/columns/${columnId}/`),
+        'ColumnService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Mettre à jour l'ordre des colonnes
+  async updateColumnsOrder(columnsOrder: string[]) {
+    const endMeasure = performanceMonitor.startMeasure('update_columns_order', 'ColumnService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'update_columns_order_request',
+        () => api.post('/columns/reorder/', { columns: columnsOrder }),
+        'ColumnService'
+      );
+    } finally {
+      endMeasure();
+    }
+  }
+};
+
 export default api;

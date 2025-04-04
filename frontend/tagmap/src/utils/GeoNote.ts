@@ -76,6 +76,15 @@ export class GeoNote extends L.Marker {
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
 
+    // Ajouter un écouteur pour la mise à jour du style
+    window.addEventListener('geonote:updateStyle', ((e: CustomEvent) => {
+      if (e.detail.noteId === (this as any)._leaflet_id) {
+        this.setNoteStyle(e.detail.style);
+        // Mettre à jour le popup pour refléter les changements
+        this.bindPopup(this.createPopupContent());
+      }
+    }) as EventListener);
+
     console.log('[GeoNote][constructor] Note créée:', {
       location: latlng,
       name: this.properties.name,

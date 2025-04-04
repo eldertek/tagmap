@@ -227,6 +227,18 @@ const colors = [
 function updateNoteColor(color: string) {
   editingNote.value.style.color = color;
   editingNote.value.style.fillColor = color;
+  
+  // Émettre un événement personnalisé pour mettre à jour la couleur sur la carte
+  const event = new CustomEvent('geonote:updateStyle', {
+    detail: {
+      noteId: props.note?.id,
+      style: {
+        color: color,
+        fillColor: color
+      }
+    }
+  });
+  window.dispatchEvent(event);
 }
 
 // Fermer le modal

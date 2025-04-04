@@ -36,9 +36,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
     """Middleware pour gérer l'authentification et les redirections."""
     
     def process_request(self, request):
-        print(f"\n[AuthenticationMiddleware] ====== VÉRIFICATION AUTHENTIFICATION ======")
-        print(f"Path: {request.path_info}")
-        print(f"Méthode: {request.method}")
         
         # Liste des chemins qui ne nécessitent pas d'authentification
         public_paths = [
@@ -67,8 +64,6 @@ class AuthenticationMiddleware(MiddlewareMixin):
             return JsonResponse({
                 'detail': 'Authentification requise'
             }, status=401)
-            
-        print("[AuthenticationMiddleware] Accès autorisé")
         return None
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):

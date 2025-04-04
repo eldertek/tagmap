@@ -2,10 +2,17 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from './auth';
-import { noteService } from '@/services/api';
+import { noteService, columnService } from '@/services/api';
 
 export interface NoteColumn {
   id: string;
+  title: string;
+  color: string;
+  order: number;
+  isDefault?: boolean;
+}
+
+export interface NewNoteColumn {
   title: string;
   color: string;
   order: number;
@@ -59,101 +66,8 @@ export interface Note {
 
 export const useNotesStore = defineStore('notes', () => {
   // État
-  const columns = ref<NoteColumn[]>([
-    { id: 'a-faire', title: 'À faire', color: '#F59E0B', order: -1, isDefault: true },
-    { id: 'en-cours', title: 'En cours', color: '#3B82F6', order: 0, isDefault: true },
-    { id: 'termine', title: 'Terminé', color: '#10B981', order: 1, isDefault: true }
-  ]);
-
-  const notes = ref<Note[]>([
-    {
-      id: 1,
-      title: 'Point d\'irrigation principal',
-      description: 'Point de départ du système d\'irrigation',
-      location: [43.6047, 1.4442],
-      columnId: 'en-cours',
-      order: 0,
-      createdAt: '2023-05-15T10:30:00Z',
-      updatedAt: '2023-05-15T10:30:00Z',
-      accessLevel: NoteAccessLevel.COMPANY,
-      style: {
-        color: '#3B82F6',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#3B82F6',
-        fillOpacity: 0.6,
-        radius: 8
-      },
-      comments: [
-        {
-          id: 1,
-          text: 'Vérifier le débit à cet endroit',
-          createdAt: '2023-05-15T11:30:00Z',
-          userId: 1,
-          userName: 'Jean Dupont',
-          userRole: 'ENTREPRISE'
-        },
-        {
-          id: 2,
-          text: 'Débit vérifié, tout est normal',
-          createdAt: '2023-05-16T09:45:00Z',
-          userId: 2,
-          userName: 'Marie Martin',
-          userRole: 'SALARIE'
-        }
-      ],
-      photos: [
-        {
-          id: 1,
-          url: 'https://thumbs.dreamstime.com/b/gros-plan-de-pont-en-b%C3%A9ton-et-canaux-d-irrigation-avec-le-fond-arbre-l-194103331.jpg',
-          createdAt: '2023-05-15T10:35:00Z',
-          caption: 'Vue du point d\'irrigation'
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Zone à problème',
-      description: 'Fuite détectée dans cette zone',
-      location: [43.6057, 1.4452],
-      columnId: 'en-cours',
-      order: 1,
-      createdAt: '2023-05-16T14:20:00Z',
-      updatedAt: '2023-05-16T14:20:00Z',
-      accessLevel: NoteAccessLevel.EMPLOYEE,
-      style: {
-        color: '#EF4444',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#EF4444',
-        fillOpacity: 0.6,
-        radius: 8
-      },
-      comments: [],
-      photos: []
-    },
-    {
-      id: 3,
-      title: 'Vanne de contrôle',
-      description: 'Vanne principale pour le secteur nord',
-      location: [43.6067, 1.4462],
-      columnId: 'termine',
-      order: 0,
-      createdAt: '2023-05-17T09:15:00Z',
-      updatedAt: '2023-05-17T09:15:00Z',
-      accessLevel: NoteAccessLevel.VISITOR,
-      style: {
-        color: '#10B981',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#10B981',
-        fillOpacity: 0.6,
-        radius: 8
-      },
-      comments: [],
-      photos: []
-    }
-  ]);
+  const columns = ref<NoteColumn[]>([]);
+  const notes = ref<Note[]>([]);
 
   // Getters
   const getColumnById = computed(() => (id: string) => {
@@ -225,48 +139,116 @@ export const useNotesStore = defineStore('notes', () => {
   });
 
   // Actions
-  function addColumn(title: string, color: string = '#6B7280') {
-    const maxOrder = columns.value.reduce((max, column) => Math.max(max, column.order), -1);
-    columns.value.push({
-      id: uuidv4(),
-      title,
-      color,
-      order: maxOrder + 1
-    });
-  }
+  async function loadColumns() {
+    console.log('\n[NotesStore][loadColumns] Chargement des colonnes...');
+    try {
+      const response = await columnService.getColumns();
+      console.log('[NotesStore][loadColumns] Réponse de l\'API:', response.data);
+      
+      if (!response.data || response.data.length === 0) {
+        console.log('[NotesStore][loadColumns] Aucune colonne trouvée, création des colonnes par défaut...');
+        // Créer les colonnes par défaut
+        const defaultColumns = [
+          { title: 'À faire', color: '#F59E0B', order: 0, isDefault: true },
+          { title: 'En cours', color: '#3B82F6', order: 1 },
+          { title: 'Terminé', color: '#10B981', order: 2 }
+        ];
 
-  function updateColumn(id: string, data: Partial<NoteColumn>) {
-    const index = columns.value.findIndex(column => column.id === id);
-    if (index !== -1) {
-      columns.value[index] = { ...columns.value[index], ...data };
+        for (const column of defaultColumns) {
+          await addColumn(column);
+        }
+      } else {
+        console.log('[NotesStore][loadColumns] Colonnes trouvées:', response.data);
+        columns.value = response.data;
+      }
+      
+      console.log('[NotesStore][loadColumns] État final des colonnes:', columns.value);
+    } catch (error) {
+      console.error('[NotesStore][loadColumns] Erreur:', error);
+      throw error;
     }
   }
 
-  function removeColumn(id: string) {
-    // Vérifier si la colonne existe et n'est pas une colonne par défaut
-    const column = columns.value.find(col => col.id === id);
-    if (!column || column.isDefault) return;
-
-    // Déplacer les notes de cette colonne vers la colonne par défaut
-    const defaultColumn = getDefaultColumn.value;
-    notes.value.forEach(note => {
-      if (note.columnId === id) {
-        note.columnId = defaultColumn.id;
-      }
-    });
-
-    // Supprimer la colonne
-    columns.value = columns.value.filter(column => column.id !== id);
+  async function addColumn(columnData: NewNoteColumn) {
+    console.log('\n[NotesStore][addColumn] Ajout d\'une nouvelle colonne:', columnData);
+    try {
+      const response = await columnService.createColumn(columnData);
+      console.log('[NotesStore][addColumn] Réponse de l\'API:', response.data);
+      
+      // S'assurer que l'ID est une chaîne de caractères
+      const newColumn = {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+      
+      columns.value.push(newColumn);
+      console.log('[NotesStore][addColumn] État des colonnes après ajout:', columns.value);
+    } catch (error) {
+      console.error('[NotesStore][addColumn] Erreur:', error);
+      throw error;
+    }
   }
 
-  function reorderColumns(newOrder: string[]) {
-    // Mettre à jour l'ordre des colonnes
-    newOrder.forEach((id, index) => {
-      const column = columns.value.find(col => col.id === id);
-      if (column) {
-        column.order = index;
+  async function updateColumn(id: string, data: Partial<NoteColumn>) {
+    console.log('\n[NotesStore][updateColumn] Mise à jour de la colonne:', id, data);
+    try {
+      const response = await columnService.updateColumn(id, data);
+      console.log('[NotesStore][updateColumn] Réponse de l\'API:', response.data);
+      const index = columns.value.findIndex(column => column.id === id);
+      if (index !== -1) {
+        columns.value[index] = response.data;
+        console.log('[NotesStore][updateColumn] État des colonnes après mise à jour:', columns.value);
       }
-    });
+    } catch (error) {
+      console.error('[NotesStore][updateColumn] Erreur:', error);
+      throw error;
+    }
+  }
+
+  async function removeColumn(id: string) {
+    try {
+      // Vérifier si la colonne existe et n'est pas une colonne par défaut
+      const column = columns.value.find(col => col.id === id);
+      if (!column || column.isDefault) return;
+
+      // Supprimer la colonne via l'API
+      await columnService.deleteColumn(id);
+
+      // Déplacer les notes de cette colonne vers la colonne par défaut
+      const defaultColumn = getDefaultColumn.value;
+      if (defaultColumn) {
+        notes.value
+          .filter(note => note.columnId === id)
+          .forEach(note => {
+            note.columnId = defaultColumn.id;
+            noteService.updateNote(note.id, { column_id: defaultColumn.id });
+          });
+      }
+
+      // Supprimer la colonne localement
+      columns.value = columns.value.filter(col => col.id !== id);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la colonne:', error);
+      throw error;
+    }
+  }
+
+  async function reorderColumns(newOrder: string[]) {
+    try {
+      // Mettre à jour l'ordre localement
+      newOrder.forEach((columnId, index) => {
+        const column = columns.value.find(col => col.id === columnId);
+        if (column) {
+          column.order = index;
+        }
+      });
+
+      // Mettre à jour l'ordre sur le serveur
+      await columnService.updateColumnsOrder(newOrder);
+    } catch (error) {
+      console.error('Erreur lors de la réorganisation des colonnes:', error);
+      throw error;
+    }
   }
 
   function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'>) {
@@ -610,6 +592,7 @@ export const useNotesStore = defineStore('notes', () => {
     getAccessibleNotes,
     getAccessibleNotesByColumn,
     getAccessLevelLabel,
+    loadColumns,
     addColumn,
     updateColumn,
     removeColumn,
@@ -619,7 +602,6 @@ export const useNotesStore = defineStore('notes', () => {
     removeNote,
     moveNote,
     reorderNotes,
-    // Nouvelles fonctions pour les commentaires et photos
     addComment,
     removeComment,
     addPhoto,

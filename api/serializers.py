@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.auth import get_user_model
-from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto
+from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto, NoteColumn
 from authentication.models import Utilisateur
 from django.core.files.base import ContentFile
 import base64
@@ -91,13 +91,11 @@ class PlanSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Valide les relations entre entreprise, salarie et visiteur."""
-        # Si un visiteur est spécifié, vérifier qu'il a un salarie
         if 'visiteur' in data and data['visiteur'] and not data.get('salarie'):
             raise serializers.ValidationError({
                 'salarie': 'Un salarie doit être spécifié si un visiteur est assigné.'
             })
 
-        # Si un salarie est spécifié, vérifier qu'il a une entreprise
         if 'salarie' in data and data['salarie'] and not data.get('entreprise'):
             raise serializers.ValidationError({
                 'entreprise': 'Une entreprise doit être spécifiée si un salarie est assigné.'
@@ -106,16 +104,13 @@ class PlanSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        print("[PlanSerializer] Création avec données:", validated_data)
         user = self.context['request'].user
 
-        # Si l'utilisateur est un visiteur, utiliser ses relations
         if user.role == 'VISITEUR':
             validated_data['visiteur'] = user
             validated_data['salarie'] = user.salarie
             validated_data['entreprise'] = user.salarie.entreprise if user.salarie else None
             validated_data['createur'] = user
-        # Si un visiteur est spécifié, il devient le créateur
         elif 'visiteur' in validated_data and validated_data['visiteur']:
             validated_data['createur'] = validated_data['visiteur']
         else:
@@ -124,14 +119,10 @@ class PlanSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        print("[PlanSerializer] Début update avec données:", validated_data)
-
-        # Si un client est assigné, il devient le créateur
         if 'visiteur' in validated_data and validated_data['visiteur']:
             instance.createur = validated_data['visiteur']
 
         instance = super().update(instance, validated_data)
-        print(f"[PlanSerializer] Fin update - salarie_id: {instance.salarie_id}, client_id: {instance.visiteur_id}")
         return instance
 
 class FormeGeometriqueSerializer(serializers.ModelSerializer):
@@ -249,52 +240,24 @@ class NoteCommentSerializer(serializers.ModelSerializer):
         return obj.user.role if obj.user else ''
 
     def validate(self, data):
-        print("\n[NoteCommentSerializer][validate] ====== VALIDATION DES DONNÉES ======")
-        print(f"Données à valider: {data}")
-        
-        # Vérifier que la note existe
         note = data.get('note')
-        if note:
-            print(f"Note trouvée: {note.id}")
-            from plans.models import GeoNote
-            if not GeoNote.objects.filter(id=note.id).exists():
-                print(f"[NoteCommentSerializer][validate] La note {note.id} n'existe pas")
-                raise serializers.ValidationError({
-                    'note': f"La note {note.id} n'existe pas"
-                })
-        else:
-            print("[NoteCommentSerializer][validate] Pas de note spécifiée")
+        if not note:
             raise serializers.ValidationError({
                 'note': "Une note doit être spécifiée"
             })
 
-        # Vérifier que le texte n'est pas vide
         text = data.get('text', '').strip()
         if not text:
-            print("[NoteCommentSerializer][validate] Texte vide")
             raise serializers.ValidationError({
                 'text': "Le texte ne peut pas être vide"
             })
 
-        print("[NoteCommentSerializer][validate] Validation réussie")
         return data
 
     def create(self, validated_data):
-        print("\n[NoteCommentSerializer][create] ====== CRÉATION DU COMMENTAIRE ======")
-        print(f"Données validées: {validated_data}")
-        
-        # Assigner l'utilisateur courant si non spécifié
         if 'user' not in validated_data and self.context.get('request'):
             validated_data['user'] = self.context['request'].user
-            print(f"Utilisateur assigné: {validated_data['user'].username}")
-        
-        try:
-            instance = super().create(validated_data)
-            print(f"[NoteCommentSerializer][create] Commentaire créé avec succès (ID: {instance.id})")
-            return instance
-        except Exception as e:
-            print(f"[NoteCommentSerializer][create] Erreur lors de la création: {str(e)}")
-            raise
+        return super().create(validated_data)
 
 
 class NotePhotoSerializer(serializers.ModelSerializer):
@@ -330,14 +293,40 @@ class NotePhotoSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class NoteColumnSerializer(serializers.ModelSerializer):
+    """Sérialiseur pour les colonnes de notes."""
+    class Meta:
+        model = NoteColumn
+        fields = ['id', 'title', 'color', 'order', 'is_default', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, data):
+        """Valide les données de la colonne."""
+        # Si c'est une mise à jour et que la colonne est par défaut,
+        # empêcher la suppression ou la modification du statut par défaut
+        if self.instance and self.instance.is_default:
+            if 'is_default' in data and not data['is_default']:
+                raise serializers.ValidationError({
+                    'is_default': 'Impossible de modifier le statut par défaut de cette colonne.'
+                })
+        return data
+
 class GeoNoteSerializer(serializers.ModelSerializer):
     comments = NoteCommentSerializer(many=True, read_only=True)
     photos = NotePhotoSerializer(many=True, read_only=True)
+    column_details = NoteColumnSerializer(source='column', read_only=True)
+    column_id = serializers.PrimaryKeyRelatedField(
+        source='column',
+        queryset=NoteColumn.objects.all(),
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = GeoNote
         fields = [
-            'id', 'plan', 'title', 'description', 'location', 'column_id',
+            'id', 'plan', 'title', 'description', 'location',
+            'column', 'column_id', 'column_details',
             'access_level', 'style', 'order', 'created_at', 'updated_at',
             'category', 'comments', 'photos'
         ]
@@ -349,6 +338,21 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'plan': 'Le plan spécifié n\'existe pas.'
             })
+
+        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
+        if 'column' not in data or not data['column']:
+            default_column = NoteColumn.objects.filter(is_default=True).first()
+            if default_column:
+                data['column'] = default_column
+            else:
+                # Créer une colonne par défaut si elle n'existe pas
+                default_column = NoteColumn.objects.create(
+                    title='En cours',
+                    color='#6B7280',
+                    is_default=True,
+                    order=0
+                )
+                data['column'] = default_column
 
         return data
 
@@ -382,7 +386,6 @@ class PlanDetailSerializer(serializers.ModelSerializer):
     connexions = ConnexionSerializer(many=True, read_only=True)
     annotations = TexteAnnotationSerializer(many=True, read_only=True)
 
-    # Nouveaux champs pour les détails enrichis
     entreprise_details = serializers.SerializerMethodField()
     salarie_details = serializers.SerializerMethodField()
     client_details = serializers.SerializerMethodField()
@@ -399,18 +402,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_creation', 'date_modification', 'historique']
 
     def get_entreprise_details(self, obj):
-        """Retourne les détails complets de l'entreprise liée au plan."""
         if obj.entreprise:
-            print(f"[PlanDetailSerializer][get_entreprise_details] Récupération des détails pour l'entreprise: {obj.entreprise.id}")
-            print(f"[PlanDetailSerializer][get_entreprise_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
-
-            # Vérifier si le logo est configuré
-            if hasattr(obj.entreprise, 'logo'):
-                print(f"[PlanDetailSerializer][get_entreprise_details] L'entreprise a un attribut logo: {obj.entreprise.logo}")
-            else:
-                print(f"[PlanDetailSerializer][get_entreprise_details] L'entreprise n'a pas d'attribut logo")
-
-            # Créer un contexte explicite pour le sous-serializer
             if not hasattr(self, '_context_updated'):
                 context = dict(self.context or {})
                 self._context = context
@@ -419,43 +411,23 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             serializer = UserDetailsSerializer(obj.entreprise, context=self._context)
             result = serializer.data
 
-            print(f"[PlanDetailSerializer][get_entreprise_details] Résultat de la sérialisation: {result}")
-            print(f"[PlanDetailSerializer][get_entreprise_details] Champs présents: {result.keys()}")
-            print(f"[PlanDetailSerializer][get_entreprise_details] Logo présent: {'logo' in result}")
-
-            # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
             if 'logo' not in result and hasattr(obj.entreprise, 'logo') and obj.entreprise.logo:
                 try:
                     from django.conf import settings
-
-                    # Simplement retourner l'URL relative du logo
                     if hasattr(obj.entreprise.logo, 'url'):
                         logo_url = obj.entreprise.logo.url
                     else:
                         logo_path = str(obj.entreprise.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
-
-                    print(f"[PlanDetailSerializer][get_entreprise_details] Ajout forcé du logo: {logo_url}")
                     result['logo'] = logo_url
-                except Exception as e:
-                    print(f"[PlanDetailSerializer][get_entreprise_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
+                except Exception:
+                    pass
 
             return result
         return None
 
     def get_salarie_details(self, obj):
-        """Retourne les détails complets du salarie lié au plan."""
         if obj.salarie:
-            print(f"[PlanDetailSerializer][get_salarie_details] Récupération des détails pour le salarie: {obj.salarie.id}")
-            print(f"[PlanDetailSerializer][get_salarie_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
-
-            # Vérifier si le logo est configuré
-            if hasattr(obj.salarie, 'logo'):
-                print(f"[PlanDetailSerializer][get_salarie_details] Le salarie a un attribut logo: {obj.salarie.logo}")
-            else:
-                print(f"[PlanDetailSerializer][get_salarie_details] Le salarie n'a pas d'attribut logo")
-
-            # Créer un contexte explicite pour le sous-serializer
             if not hasattr(self, '_context_updated'):
                 context = dict(self.context or {})
                 self._context = context
@@ -464,43 +436,23 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             serializer = UserDetailsSerializer(obj.salarie, context=self._context)
             result = serializer.data
 
-            print(f"[PlanDetailSerializer][get_salarie_details] Résultat de la sérialisation: {result}")
-            print(f"[PlanDetailSerializer][get_salarie_details] Champs présents: {result.keys()}")
-            print(f"[PlanDetailSerializer][get_salarie_details] Logo présent: {'logo' in result}")
-
-            # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
             if 'logo' not in result and hasattr(obj.salarie, 'logo') and obj.salarie.logo:
                 try:
                     from django.conf import settings
-
-                    # Simplement retourner l'URL relative du logo
                     if hasattr(obj.salarie.logo, 'url'):
                         logo_url = obj.salarie.logo.url
                     else:
                         logo_path = str(obj.salarie.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
-
-                    print(f"[PlanDetailSerializer][get_salarie_details] Ajout forcé du logo: {logo_url}")
                     result['logo'] = logo_url
-                except Exception as e:
-                    print(f"[PlanDetailSerializer][get_salarie_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
+                except Exception:
+                    pass
 
             return result
         return None
 
     def get_client_details(self, obj):
-        """Retourne les détails complets du client (visiteur) lié au plan."""
         if obj.visiteur:
-            print(f"[PlanDetailSerializer][get_client_details] Récupération des détails pour le client: {obj.visiteur.id}")
-            print(f"[PlanDetailSerializer][get_client_details] Contexte: {self.context.keys() if self.context else 'Aucun contexte'}")
-
-            # Vérifier si le logo est configuré
-            if hasattr(obj.visiteur, 'logo'):
-                print(f"[PlanDetailSerializer][get_client_details] Le client a un attribut logo: {obj.visiteur.logo}")
-            else:
-                print(f"[PlanDetailSerializer][get_client_details] Le client n'a pas d'attribut logo")
-
-            # Créer un contexte explicite pour le sous-serializer
             if not hasattr(self, '_context_updated'):
                 context = dict(self.context or {})
                 self._context = context
@@ -509,78 +461,41 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             serializer = UserDetailsSerializer(obj.visiteur, context=self._context)
             result = serializer.data
 
-            print(f"[PlanDetailSerializer][get_client_details] Résultat de la sérialisation: {result}")
-            print(f"[PlanDetailSerializer][get_client_details] Champs présents: {result.keys()}")
-            print(f"[PlanDetailSerializer][get_client_details] Logo présent: {'logo' in result}")
-
-            # Forcer l'inclusion du logo si l'attribut existe mais n'est pas dans le résultat
             if 'logo' not in result and hasattr(obj.visiteur, 'logo') and obj.visiteur.logo:
                 try:
                     from django.conf import settings
-
-                    # Simplement retourner l'URL relative du logo
                     if hasattr(obj.visiteur.logo, 'url'):
                         logo_url = obj.visiteur.logo.url
                     else:
                         logo_path = str(obj.visiteur.logo)
                         logo_url = f"{settings.MEDIA_URL}{logo_path}"
-
-                    print(f"[PlanDetailSerializer][get_client_details] Ajout forcé du logo: {logo_url}")
                     result['logo'] = logo_url
-                except Exception as e:
-                    print(f"[PlanDetailSerializer][get_client_details] Erreur lors de l'ajout forcé du logo: {str(e)}")
+                except Exception:
+                    pass
 
             return result
         return None
 
     def to_representation(self, instance):
-        """
-        Surcharge pour s'assurer que les relations sont renvoyées comme des objets.
-        """
-        print(f"\n[PlanDetailSerializer] Début to_representation pour plan {instance.id}")
-        print(f"- Entreprise: {instance.entreprise_id} ({type(instance.entreprise_id)})")
-        print(f"- Salarie: {instance.salarie_id} ({type(instance.salarie_id)})")
-        print(f"- Visiteur: {instance.visiteur_id} ({type(instance.visiteur_id)})")
-
-        # Utiliser super() pour obtenir la représentation de base
         data = super().to_representation(instance)
 
-        print("\nDonnées sérialisées initiales:")
-        print("- entreprise:", data.get('entreprise'))
-        print("- salarie:", data.get('salarie'))
-        print("- visiteur:", data.get('visiteur'))
-
-        # S'assurer que les relations sont bien sérialisées en objets complets
         if data.get('entreprise') is None and instance.entreprise:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de entreprise: {instance.entreprise}")
             data['entreprise'] = UserDetailsSerializer(instance.entreprise, context=self.context).data
 
         if data.get('salarie') is None and instance.salarie:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de salarie: {instance.salarie}")
             data['salarie'] = UserDetailsSerializer(instance.salarie, context=self.context).data
 
         if data.get('visiteur') is None and instance.visiteur:
-            print(f"[PlanDetailSerializer] Forçage sérialisation de visiteur: {instance.visiteur}")
             data['visiteur'] = UserDetailsSerializer(instance.visiteur, context=self.context).data
-
-        print("\nDonnées sérialisées finales:")
-        print("- entreprise:", data.get('entreprise'))
-        print("- salarie:", data.get('salarie'))
-        print("- visiteur:", data.get('visiteur'))
 
         return data
 
     def validate(self, data):
-        """Valide les relations entre entreprise, salarie et visiteur."""
-        print("\n[PlanDetailSerializer] Validation des données:", data)
-
-        # Si un visiteur est spécifié, vérifier qu'il a un salarie
         if 'visiteur' in data and data['visiteur'] and not data.get('salarie'):
             raise serializers.ValidationError({
                 'salarie': 'Un salarie doit être spécifié si un visiteur est assigné.'
             })
 
-        # Si un salarie est spécifié, vérifier qu'il a une entreprise
         if 'salarie' in data and data['salarie'] and not data.get('entreprise'):
             raise serializers.ValidationError({
                 'entreprise': 'Une entreprise doit être spécifiée si un salarie est assigné.'
@@ -589,13 +504,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         return data
 
     def update(self, instance, validated_data):
-        print("\n[PlanDetailSerializer] Début update avec données:", validated_data)
-        print(f"État initial - entreprise: {instance.entreprise_id}, salarie: {instance.salarie_id}, visiteur: {instance.visiteur_id}")
-
-        instance = super().update(instance, validated_data)
-
-        print(f"État final - entreprise: {instance.entreprise_id}, salarie: {instance.salarie_id}, visiteur: {instance.visiteur_id}")
-        return instance
+        return super().update(instance, validated_data)
 
     def create(self, validated_data):
         validated_data['createur'] = self.context['request'].user

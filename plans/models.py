@@ -228,6 +228,24 @@ class TexteAnnotation(models.Model):
     def __str__(self):
         return f"Annotation sur {self.plan.nom}: {self.texte[:30]}..."
 
+class NoteColumn(models.Model):
+    """
+    Modèle pour les colonnes de notes.
+    """
+    title = models.CharField(max_length=100, verbose_name='Titre')
+    color = models.CharField(max_length=20, default='#6B7280', verbose_name='Couleur')
+    order = models.IntegerField(default=0, verbose_name='Ordre d\'affichage')
+    is_default = models.BooleanField(default=False, verbose_name='Colonne par défaut')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Dernière modification')
+
+    class Meta:
+        verbose_name = 'Colonne de notes'
+        verbose_name_plural = 'Colonnes de notes'
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return self.title
 
 class GeoNote(models.Model):
     """
@@ -248,7 +266,13 @@ class GeoNote(models.Model):
     title = models.CharField(max_length=200, verbose_name='Titre')
     description = models.TextField(blank=True, verbose_name='Description')
     location = models.PointField(srid=4326, verbose_name='Position')
-    column_id = models.CharField(max_length=50, default='en-cours', verbose_name='Colonne')
+    column = models.ForeignKey(
+        NoteColumn,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='notes',
+        verbose_name='Colonne'
+    )
     access_level = models.CharField(
         max_length=20,
         choices=AccessLevel.choices,
@@ -272,11 +296,27 @@ class GeoNote(models.Model):
     class Meta:
         verbose_name = 'Note géolocalisée'
         verbose_name_plural = 'Notes géolocalisées'
-        ordering = ['column_id', 'order', '-updated_at']
+        ordering = ['column', 'order', '-updated_at']
 
     def __str__(self):
         return f"Note '{self.title}' dans {self.plan.nom}"
 
+    def save(self, *args, **kwargs):
+        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
+        if not self.column:
+            default_column = NoteColumn.objects.filter(is_default=True).first()
+            if default_column:
+                self.column = default_column
+            else:
+                # Créer une colonne par défaut si elle n'existe pas
+                default_column = NoteColumn.objects.create(
+                    title='En cours',
+                    color='#6B7280',
+                    is_default=True,
+                    order=0
+                )
+                self.column = default_column
+        super().save(*args, **kwargs)
 
 class NoteComment(models.Model):
     """
