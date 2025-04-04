@@ -18,6 +18,22 @@ export enum NoteAccessLevel {
   VISITOR = 'visitor'
 }
 
+export interface Comment {
+  id: number;
+  text: string;
+  createdAt: string;
+  userId: number;
+  userName: string;
+  userRole: string;
+}
+
+export interface Photo {
+  id: number;
+  url: string;
+  createdAt: string;
+  caption?: string;
+}
+
 export interface Note {
   id: number;
   title: string;
@@ -36,6 +52,8 @@ export interface Note {
     fillOpacity: number;
     radius?: number;
   };
+  comments?: Comment[];
+  photos?: Photo[];
 }
 
 export const useNotesStore = defineStore('notes', () => {
@@ -64,7 +82,33 @@ export const useNotesStore = defineStore('notes', () => {
         fillColor: '#3B82F6',
         fillOpacity: 0.6,
         radius: 8
-      }
+      },
+      comments: [
+        {
+          id: 1,
+          text: 'Vérifier le débit à cet endroit',
+          createdAt: '2023-05-15T11:30:00Z',
+          userId: 1,
+          userName: 'Jean Dupont',
+          userRole: 'ENTREPRISE'
+        },
+        {
+          id: 2,
+          text: 'Débit vérifié, tout est normal',
+          createdAt: '2023-05-16T09:45:00Z',
+          userId: 2,
+          userName: 'Marie Martin',
+          userRole: 'SALARIE'
+        }
+      ],
+      photos: [
+        {
+          id: 1,
+          url: 'https://via.placeholder.com/300x200?text=Photo+irrigation',
+          createdAt: '2023-05-15T10:35:00Z',
+          caption: 'Vue du point d\'irrigation'
+        }
+      ]
     },
     {
       id: 2,
@@ -83,7 +127,9 @@ export const useNotesStore = defineStore('notes', () => {
         fillColor: '#EF4444',
         fillOpacity: 0.6,
         radius: 8
-      }
+      },
+      comments: [],
+      photos: []
     },
     {
       id: 3,
@@ -102,7 +148,9 @@ export const useNotesStore = defineStore('notes', () => {
         fillColor: '#10B981',
         fillOpacity: 0.6,
         radius: 8
-      }
+      },
+      comments: [],
+      photos: []
     }
   ]);
 
@@ -332,6 +380,122 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  // Fonctions pour gérer les commentaires
+  function addComment(noteId: number, text: string) {
+    const noteIndex = notes.value.findIndex(note => note.id === noteId);
+    if (noteIndex === -1) return;
+
+    const authStore = useAuthStore();
+    if (!authStore.user) return;
+
+    // Vérifier si l'utilisateur a le droit d'ajouter un commentaire
+    // Seuls les utilisateurs de l'entreprise peuvent commenter
+    if (!authStore.isEntreprise && !authStore.isAdmin) return;
+
+    const note = notes.value[noteIndex];
+
+    // Initialiser le tableau de commentaires s'il n'existe pas
+    if (!note.comments) {
+      note.comments = [];
+    }
+
+    // Créer un nouvel ID pour le commentaire
+    const commentId = note.comments.length > 0
+      ? Math.max(...note.comments.map(c => c.id)) + 1
+      : 1;
+
+    // Ajouter le commentaire
+    const newComment: Comment = {
+      id: commentId,
+      text,
+      createdAt: new Date().toISOString(),
+      userId: authStore.user.id,
+      userName: authStore.user.username,
+      userRole: authStore.user.user_type
+    };
+
+    note.comments.push(newComment);
+    note.updatedAt = new Date().toISOString();
+
+    // Mettre à jour la note
+    notes.value[noteIndex] = { ...note };
+
+    return commentId;
+  }
+
+  function removeComment(noteId: number, commentId: number) {
+    const noteIndex = notes.value.findIndex(note => note.id === noteId);
+    if (noteIndex === -1 || !notes.value[noteIndex].comments) return;
+
+    const note = notes.value[noteIndex];
+    note.comments = note.comments!.filter(comment => comment.id !== commentId);
+    note.updatedAt = new Date().toISOString();
+
+    // Mettre à jour la note
+    notes.value[noteIndex] = { ...note };
+  }
+
+  // Fonctions pour gérer les photos
+  function addPhoto(noteId: number, photoData: { url: string, caption?: string }) {
+    const noteIndex = notes.value.findIndex(note => note.id === noteId);
+    if (noteIndex === -1) return;
+
+    const note = notes.value[noteIndex];
+
+    // Initialiser le tableau de photos s'il n'existe pas
+    if (!note.photos) {
+      note.photos = [];
+    }
+
+    // Créer un nouvel ID pour la photo
+    const photoId = note.photos.length > 0
+      ? Math.max(...note.photos.map(p => p.id)) + 1
+      : 1;
+
+    // Ajouter la photo
+    const newPhoto: Photo = {
+      id: photoId,
+      url: photoData.url,
+      caption: photoData.caption,
+      createdAt: new Date().toISOString()
+    };
+
+    note.photos.push(newPhoto);
+    note.updatedAt = new Date().toISOString();
+
+    // Mettre à jour la note
+    notes.value[noteIndex] = { ...note };
+
+    return photoId;
+  }
+
+  function removePhoto(noteId: number, photoId: number) {
+    const noteIndex = notes.value.findIndex(note => note.id === noteId);
+    if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
+
+    const note = notes.value[noteIndex];
+    note.photos = note.photos!.filter(photo => photo.id !== photoId);
+    note.updatedAt = new Date().toISOString();
+
+    // Mettre à jour la note
+    notes.value[noteIndex] = { ...note };
+  }
+
+  function updatePhotoCaption(noteId: number, photoId: number, caption: string) {
+    const noteIndex = notes.value.findIndex(note => note.id === noteId);
+    if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
+
+    const note = notes.value[noteIndex];
+    const photoIndex = note.photos!.findIndex(photo => photo.id === photoId);
+    if (photoIndex === -1) return;
+
+    note.photos![photoIndex].caption = caption;
+    note.updatedAt = new Date().toISOString();
+
+    // Mettre à jour la note
+    notes.value[noteIndex] = { ...note };
+  }
+
   return {
     columns,
     notes,
@@ -352,6 +516,12 @@ export const useNotesStore = defineStore('notes', () => {
     updateNote,
     removeNote,
     moveNote,
-    reorderNotes
+    reorderNotes,
+    // Nouvelles fonctions pour les commentaires et photos
+    addComment,
+    removeComment,
+    addPhoto,
+    removePhoto,
+    updatePhotoCaption
   };
 });

@@ -178,8 +178,8 @@ export const useIrrigationStore = defineStore('irrigation', {
           planData = {
             ...planData,
             visiteur: authStore.user.id,
-            salarie: authStore.user.salarie,
-            entreprise: authStore.user.entreprise
+            salarie_id: authStore.user.enterprise_id,
+            entreprise_id: authStore.user.enterprise_id
           };
         }
 

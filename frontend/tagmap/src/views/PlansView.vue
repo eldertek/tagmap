@@ -692,7 +692,7 @@ async function loadPlans() {
 async function loadAllEntreprises() {
   try {
     console.log('Chargement des entreprises...');
-    entreprises.value = await authStore.fetchEntreprises() as unknown as Entreprise[];
+    entreprises.value = await authStore.fetchEnterprises() as unknown as Entreprise[];
     console.log('Entreprises chargées:', entreprises.value);
   } catch (error) {
     console.error('Erreur lors du chargement des entreprises:', error);

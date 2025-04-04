@@ -72,7 +72,7 @@
                       <div class="h-24 w-24 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center">
                         <img 
                           v-if="logoPreview || authStore.user?.logo" 
-                          :src="logoPreview || authStore.user?.logo" 
+                          :src="logoPreview || authStore.user?.logo || ''" 
                           class="h-full w-full object-cover" 
                           alt="Logo utilisateur"
                         />

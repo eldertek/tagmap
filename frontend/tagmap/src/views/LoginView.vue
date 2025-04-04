@@ -204,8 +204,8 @@ onMounted(async () => {
       console.log('Session restored, redirecting to home')
       router.push('/')
     }
-  } catch (error) {
-    console.error('Error during initialization:', error)
+  } catch (err) {
+    console.error('Error during initialization:', err)
     // En cas d'erreur, on reste sur la page de login
     error.value = null
   }
