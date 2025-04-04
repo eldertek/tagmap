@@ -1,7 +1,9 @@
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from rest_framework import viewsets, permissions
-from api.models import GeoNote, NoteColumn
+from api.views import ROLE_ADMIN, ROLE_DEALER, ROLE_USINE
+from plans.models import GeoNote, NoteColumn
+from api.serializers import GeoNoteSerializer
 
 class GeoNoteViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des notes géolocalisées."""

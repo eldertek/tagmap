@@ -130,15 +130,17 @@
                               <div>
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
                                   :style="{ backgroundColor: getAccessLevelColor(note.accessLevel) + '20', color: getAccessLevelColor(note.accessLevel) }">
-                                  {{ getAccessLevelLabel(note.accessLevel) }}
+                                  {{ getAccessLevelLabel(note.accessLevel) || 'Non défini' }}
                                 </span>
                               </div>
                             </div>
                             <div class="px-3 py-2">
-                              <p class="text-sm text-gray-500 line-clamp-2">{{ note.description }}</p>
+                              <p class="text-sm text-gray-500 line-clamp-2">{{ note.description || 'Aucune description' }}</p>
                             </div>
                             <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                              <span class="text-xs text-gray-500">{{ note.updatedAt ? formatDate(note.updatedAt) : 'Date inconnue' }}</span>
+                              <span class="text-xs text-gray-500">
+                                {{ note.updatedAt ? formatDate(note.updatedAt) : (note.createdAt ? formatDate(note.createdAt) : 'Date non définie') }}
+                              </span>
                               <div class="flex space-x-1">
                                 <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,18 +292,19 @@ const filters = reactive({
 });
 
 // Ajouter cette fonction pour formater les dates de manière sécurisée
-function safeFormatDate(dateString: string): string {
+function safeFormatDate(dateString: string | undefined | null): string {
+  if (!dateString) {
+    return 'Date non définie';
+  }
+
   try {
-    // Vérifier si la date est valide
     const date = new Date(dateString);
     
-    // Si la date est invalide, retourner un message d'erreur
     if (isNaN(date.getTime())) {
       console.warn('[safeFormatDate] Date invalide:', dateString);
       return 'Date invalide';
     }
     
-    // Formater la date avec Intl.DateTimeFormat
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -336,7 +339,7 @@ function safeDate(dateString: string | undefined): Date | null {
 }
 
 // Remplacer la fonction formatDate
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | undefined | null): string {
   return safeFormatDate(dateString);
 }
 
