@@ -3083,18 +3083,19 @@ function updateMapDisplay() {
 
     if (accessLevel) {
       // Logique hiérarchique:
-      // - Si l'utilisateur a sélectionné 'company', il voit tout (company, employee, visitor)
-      // - Si l'utilisateur a sélectionné 'employee', il voit employee et company
-      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement visitor
+      // - Si l'utilisateur a sélectionné 'company', il voit tout (entreprise, salariés, visiteurs)
+      // - Si l'utilisateur a sélectionné 'employee', il voit les éléments pour salariés et visiteurs
+      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement les éléments pour visiteurs
 
+      // Vérification hiérarchique des niveaux d'accès
       if (selectedLevel === 'company') {
-        // Niveau entreprise: accès à tout
+        // Niveau entreprise: accès à tout (entreprise, salariés, visiteurs)
         accessLevelVisible = true;
       } else if (selectedLevel === 'employee') {
-        // Niveau salariés: accès aux éléments pour salariés et entreprise
-        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'company');
+        // Niveau salariés: accès aux éléments pour salariés et visiteurs
+        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'visitor');
       } else if (selectedLevel === 'visitor') {
-        // Niveau visiteurs: accès aux éléments pour visiteurs uniquement
+        // Niveau visiteurs: accès uniquement aux éléments pour visiteurs
         accessLevelVisible = (accessLevel === 'visitor');
       }
     } else {
@@ -3246,18 +3247,19 @@ function updateMapDisplay() {
 
     if (accessLevel) {
       // Logique hiérarchique:
-      // - Si l'utilisateur a sélectionné 'company', il voit tout (company, employee, visitor)
-      // - Si l'utilisateur a sélectionné 'employee', il voit employee et company
-      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement visitor
+      // - Si l'utilisateur a sélectionné 'company', il voit tout (entreprise, salariés, visiteurs)
+      // - Si l'utilisateur a sélectionné 'employee', il voit les éléments pour salariés et visiteurs
+      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement les éléments pour visiteurs
 
+      // Vérification hiérarchique des niveaux d'accès
       if (selectedLevel === 'company') {
-        // Niveau entreprise: accès à tout
+        // Niveau entreprise: accès à tout (entreprise, salariés, visiteurs)
         accessLevelVisible = true;
       } else if (selectedLevel === 'employee') {
-        // Niveau salariés: accès aux éléments pour salariés et entreprise
-        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'company');
+        // Niveau salariés: accès aux éléments pour salariés et visiteurs
+        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'visitor');
       } else if (selectedLevel === 'visitor') {
-        // Niveau visiteurs: accès aux éléments pour visiteurs uniquement
+        // Niveau visiteurs: accès uniquement aux éléments pour visiteurs
         accessLevelVisible = (accessLevel === 'visitor');
       }
     } else {

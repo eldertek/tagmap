@@ -28,8 +28,6 @@ export class ElevationLine extends Line {
   private elevationData: { distance: number; elevation: number }[] = [];
   private elevationProfile: L.Polyline | null = null;
   private elevationMarker: L.CircleMarker | null = null;
-  private samplePoints: L.CircleMarker[] = [];
-  private sampleTooltips: L.Tooltip[] = [];
   private isZooming: boolean = false;
   private simpleLine: L.Polyline | null = null;
   private isDestroyed: boolean = false;  // Nouveau flag pour suivre l'état de destruction
@@ -41,24 +39,6 @@ export class ElevationLine extends Line {
   private static SAMPLE_DISTANCE = 100; // Distance en mètres entre chaque point
   private static MIN_SAMPLES = 10;    // Nombre minimum de points
   private static MAX_SAMPLES = 50;    // Nombre maximum de points
-
-  // Styles par défaut pour les points d'échantillonnage
-  private samplePointStyle = {
-    radius: 4,
-    color: '#FF4500',
-    fillColor: '#FF4500',
-    fillOpacity: 0.6,
-    weight: 2,
-    opacity: 0.8
-  };
-
-  // Styles pour les points min/max
-  private minMaxPointStyle = {
-    radius: 6,
-    weight: 3,
-    opacity: 1,
-    fillOpacity: 1
-  };
 
   constructor(
     latlngs: L.LatLngExpression[] | L.LatLngExpression[][],
@@ -87,9 +67,7 @@ export class ElevationLine extends Line {
       minElevation: 0,
       elevationGain: 0,
       elevationLoss: 0,
-      dataSource: 'pending', // 'api', 'simulation' ou 'error'
-      samplePointStyle: this.samplePointStyle,
-      minMaxPointStyle: this.minMaxPointStyle
+      dataSource: 'pending' // 'api', 'simulation' ou 'error'
     }));
 
     // Écouter les événements après l'initialisation complète
@@ -143,7 +121,6 @@ export class ElevationLine extends Line {
     }
     
     try {
-      this.clearSamplePoints();
       if (this.elevationMarker) {
         this.elevationMarker.remove();
       }
@@ -155,6 +132,12 @@ export class ElevationLine extends Line {
 
       const latlngs = this.getLatLngs() as L.LatLng[];
       if (latlngs && latlngs.length > 0 && this._map && !this.isDestroyed) {
+        // Vérifier si la carte est toujours valide
+        if (!this._map.getContainer()) {
+          console.debug('[ElevationLine] Carte non valide pendant l\'animation de zoom');
+          return;
+        }
+
         if (!this.simpleLine) {
           this.simpleLine = L.polyline(latlngs, {
             color: '#FF4500',
@@ -162,7 +145,12 @@ export class ElevationLine extends Line {
             opacity: 0.6,
             smoothFactor: 1,
             interactive: false
-          }).addTo(this._map);
+          });
+          
+          // Vérifier si la carte est toujours valide avant d'ajouter la ligne
+          if (this._map && this._map.getContainer()) {
+            this.simpleLine.addTo(this._map);
+          }
         } else {
           this.simpleLine.setLatLngs(latlngs);
         }
@@ -172,7 +160,7 @@ export class ElevationLine extends Line {
           (this.simpleLine as any)._path.style.transform = '';
 
           this.zoomAnimationTimeout = setTimeout(() => {
-            if (this.isDestroyed || !this._map) {
+            if (this.isDestroyed || !this._map || !this._map.getContainer()) {
               this.cleanup();
               return;
             }
@@ -189,7 +177,6 @@ export class ElevationLine extends Line {
 
               if (this._map && this._map.hasLayer(this) && !this.isDestroyed) {
                 this.redraw();
-                this.showSamplePoints();
               }
             } catch (error) {
               console.warn('[ElevationLine] Erreur lors de la restauration après animation:', error);
@@ -201,7 +188,7 @@ export class ElevationLine extends Line {
     } catch (error) {
       console.debug('[ElevationLine] Animation de zoom ignorée:', error);
       this.zoomAnimationTimeout = setTimeout(() => {
-        if (this.isDestroyed || !this._map) {
+        if (this.isDestroyed || !this._map || !this._map.getContainer()) {
           this.cleanup();
           return;
         }
@@ -212,7 +199,6 @@ export class ElevationLine extends Line {
           }
           if (this._map && this._map.hasLayer(this) && !this.isDestroyed) {
             this.redraw();
-            this.showSamplePoints();
           }
         } catch (e) {
           console.error('[ElevationLine] Erreur lors de la restauration après animation:', e);
@@ -230,7 +216,6 @@ export class ElevationLine extends Line {
       this.isZooming = true;
 
       try {
-        this.clearSamplePoints();
         if (this.elevationMarker) {
           this.elevationMarker.remove();
         }
@@ -284,7 +269,6 @@ export class ElevationLine extends Line {
           try {
             if (this._map && this._map.hasLayer(this) && !this.isDestroyed) {
               this.redraw();
-              this.showSamplePoints();
             }
           } catch (error) {
             console.warn('[ElevationLine] Erreur lors du redraw après zoom:', error);
@@ -302,7 +286,6 @@ export class ElevationLine extends Line {
   private cleanup(): void {
     performanceMonitor.measure('ElevationLine.cleanup', () => {
       this.isZooming = false;
-      this.clearSamplePoints();
       this.hideElevationMarker();
       
       if (this.zoomAnimationTimeout) {
@@ -490,284 +473,13 @@ export class ElevationLine extends Line {
         elevationLoss: loss,
         maxSlope: maxSlope,
         averageSlope: slopeCount > 0 ? totalSlope / slopeCount : 0,
-        elevationData: this.elevationData, // Ajouter explicitement les données d'élévation
+        elevationData: this.elevationData,
         dataSource: this.properties.dataSource,
-        length: this.getLength() // Ajouter la longueur totale
+        length: this.getLength()
       };
 
       console.log('[ElevationLine][calculateElevationStatistics] Propriétés mises à jour:', this.properties);
     });
-  }
-
-  /**
-   * Affiche les points d'échantillonnage sur la ligne
-   */
-  private showSamplePoints(): void {
-    performanceMonitor.measure('ElevationLine.showSamplePoints', () => {
-      // Nettoyer les points existants
-      this.clearSamplePoints();
-
-      if (!this.elevationData.length) return;
-
-      // Trouver les valeurs min et max
-      const elevations = this.elevationData.map(d => d.elevation);
-      const maxElevation = Math.max(...elevations);
-      const minElevation = Math.min(...elevations);
-
-      // Créer un point pour chaque échantillon
-      this.elevationData.forEach((data) => {
-        const point = this.getPointAtDistance(data.distance);
-        if (!point) return;
-
-        // Déterminer si c'est un point min ou max
-        const isMin = data.elevation === minElevation;
-        const isMax = data.elevation === maxElevation;
-        
-        // Appliquer le style approprié
-        let style = { ...this.samplePointStyle };
-        if (isMin) {
-          style = {
-            ...style,
-            ...this.minMaxPointStyle,
-            color: '#DC2626', // Rouge pour le minimum
-            fillColor: '#DC2626'
-          };
-        } else if (isMax) {
-          style = {
-            ...style,
-            ...this.minMaxPointStyle,
-            color: '#059669', // Vert pour le maximum
-            fillColor: '#059669'
-          };
-        }
-
-        // Créer le marqueur
-        const marker = L.circleMarker(point, style);
-
-        // Créer le tooltip
-        const tooltip = L.tooltip({
-          permanent: false,
-          direction: 'top',
-          className: 'elevation-tooltip',
-          offset: [0, -10]
-        });
-
-        // Configurer le contenu du tooltip avec indication min/max
-        let tooltipContent = `
-          Distance: ${this.formatDistance(data.distance)}<br>
-          Altitude: ${this.formatElevation(data.elevation)}
-        `;
-        if (isMin) tooltipContent += '<br><strong>Point le plus bas</strong>';
-        if (isMax) tooltipContent += '<br><strong>Point le plus haut</strong>';
-        tooltip.setContent(tooltipContent);
-
-        // Ajouter les événements de survol
-        marker.on('mouseover', () => {
-          marker.setStyle({
-            ...style,
-            radius: style.radius + 2,
-            fillOpacity: 1
-          });
-          marker.bindTooltip(tooltip).openTooltip();
-        });
-
-        marker.on('mouseout', () => {
-          marker.setStyle(style);
-          marker.closeTooltip();
-        });
-
-        // Ajouter à la carte
-        if (this._map) {
-          marker.addTo(this._map);
-          this.samplePoints.push(marker);
-          this.sampleTooltips.push(tooltip);
-        }
-      });
-    });
-  }
-
-  /**
-   * Nettoie les points d'échantillonnage
-   */
-  private clearSamplePoints(): void {
-    performanceMonitor.measure('ElevationLine.clearSamplePoints', () => {
-      this.samplePoints.forEach(point => point.remove());
-      this.samplePoints = [];
-      this.sampleTooltips.forEach(tooltip => tooltip.remove());
-      this.sampleTooltips = [];
-    });
-  }
-
-  /**
-   * Formate une distance pour l'affichage
-   */
-  private formatDistance(distance: number): string {
-    return performanceMonitor.measure('ElevationLine.formatDistance', () => 
-      distance >= 1000 
-        ? `${(distance / 1000).toFixed(2)} km`
-        : `${distance.toFixed(0)} m`
-    );
-  }
-
-  /**
-   * Formate une élévation pour l'affichage
-   */
-  private formatElevation(elevation: number): string {
-    return performanceMonitor.measure('ElevationLine.formatElevation', () => 
-      `${elevation.toFixed(0)} m`
-    );
-  }
-
-  /**
-   * Surcharge de onAdd pour afficher les points d'échantillonnage
-   */
-  override onAdd(map: L.Map): this {
-    return performanceMonitor.measure('ElevationLine.onAdd', () => {
-      super.onAdd(map);
-      this.showSamplePoints();
-      return this;
-    });
-  }
-
-  /**
-   * Surcharge de onRemove pour nettoyer les points d'échantillonnage et la ligne simple
-   */
-  override onRemove(map: L.Map): this {
-    this.isDestroyed = true;
-    this.cleanupEventListeners();
-    this.cleanup();
-    return super.onRemove(map);
-  }
-
-  /**
-   * Met à jour le profil d'élévation
-   */
-  async updateElevationProfile(): Promise<void> {
-    return performanceMonitor.measure('ElevationLine.updateElevationProfile', async () => {
-      try {
-        // Check if we already have elevation data and dataSource is 'restored'
-        if (this.properties.elevationData && this.properties.dataSource === 'restored') {
-          // Use the stored data
-          this.elevationData = this.properties.elevationData;
-          this.calculateElevationStatistics();
-          
-          // Vérifier que la carte est toujours valide avant d'afficher les points
-          if (this._map && this._map.hasLayer(this)) {
-            this.showSamplePoints();
-          }
-          
-          this.fire('elevation:updated', {
-            shape: this,
-            elevationData: this.elevationData,
-            properties: this.properties
-          });
-          return;
-        }
-
-        // If no stored data or not restored, fetch new data
-        await this.fetchElevationData();
-        this.updateProperties();
-        
-        // Vérifier que la carte est toujours valide avant d'afficher les points
-        if (this._map && this._map.hasLayer(this)) {
-          this.showSamplePoints();
-        }
-        
-        this.fire('elevation:updated', {
-          shape: this,
-          elevationData: this.elevationData,
-          properties: this.properties
-        });
-      } catch (error) {
-        console.error('[ElevationLine] Erreur lors de la mise à jour du profil d\'élévation:', error);
-        // Assurer que les propriétés restent cohérentes même en cas d'erreur
-        this.properties.dataSource = 'error';
-      }
-    });
-  }
-
-  /**
-   * Surcharge de updateProperties pour gérer correctement les données d'élévation
-   */
-  override updateProperties(): void {
-    performanceMonitor.measure('ElevationLine.updateProperties', () => {
-      // Appeler d'abord la méthode parente pour les propriétés de base
-      super.updateProperties();
-
-      // Ne mettre à jour les statistiques d'élévation que si nous avons des données
-      if (this.elevationData && this.elevationData.length > 0) {
-        const elevations = this.elevationData.map(d => d.elevation);
-        const maxElevation = Math.max(...elevations);
-        const minElevation = Math.min(...elevations);
-        let gain = 0;
-        let loss = 0;
-        let maxSlope = 0;
-        let totalSlope = 0;
-        let slopeCount = 0;
-
-        for (let i = 1; i < this.elevationData.length; i++) {
-          const prevPoint = this.elevationData[i - 1];
-          const currPoint = this.elevationData[i];
-          
-          // Calcul du dénivelé
-          const elevationDiff = currPoint.elevation - prevPoint.elevation;
-          if (elevationDiff > 0) {
-            gain += elevationDiff;
-          } else {
-            loss += Math.abs(elevationDiff);
-          }
-
-          // Calcul de la pente
-          const distanceDiff = currPoint.distance - prevPoint.distance;
-          if (distanceDiff > 0) {
-            const slope = (elevationDiff / distanceDiff) * 100;
-            maxSlope = Math.max(maxSlope, Math.abs(slope));
-            totalSlope += Math.abs(slope);
-            slopeCount++;
-          }
-        }
-
-        // Sauvegarder les coordonnées exactes
-        const latLngs = this.getLatLngs() as L.LatLng[];
-        const coordinates = latLngs.map(ll => ({
-          lat: ll.lat,
-          lng: ll.lng
-        }));
-
-        // Mettre à jour les propriétés avec les nouvelles statistiques
-        this.properties = {
-          ...this.properties,
-          type: 'ElevationLine',
-          coordinates: coordinates,
-          elevationData: this.elevationData.map(d => ({
-            distance: d.distance,
-            elevation: d.elevation
-          })),
-          maxElevation,
-          minElevation,
-          elevationGain: gain,
-          elevationLoss: loss,
-          maxSlope,
-          averageSlope: slopeCount > 0 ? totalSlope / slopeCount : 0,
-          dataSource: this.properties.dataSource || 'api'
-        };
-
-        // Émettre un événement pour notifier les changements
-        this.fire('properties:updated', {
-          shape: this,
-          properties: this.properties
-        });
-      }
-    });
-  }
-
-  /**
-   * Retourne le tableau des données d'élévation sous forme de {distance, elevation}.
-   */
-  getElevationData(): { distance: number; elevation: number }[] {
-    return performanceMonitor.measure('ElevationLine.getElevationData', () => 
-      this.elevationData
-    );
   }
 
   /**
@@ -900,28 +612,6 @@ export class ElevationLine extends Line {
     });
   }
 
-  // Méthode pour mettre à jour les styles des points
-  setSamplePointStyle(style: Partial<typeof ElevationLine.prototype.samplePointStyle>): void {
-    performanceMonitor.measure('ElevationLine.setSamplePointStyle', () => {
-      this.samplePointStyle = { ...this.samplePointStyle, ...style };
-      this.properties.samplePointStyle = this.samplePointStyle;
-      if (this._map) {
-        this.showSamplePoints(); // Rafraîchir les points avec le nouveau style
-      }
-    });
-  }
-
-  // Méthode pour mettre à jour les styles des points min/max
-  setMinMaxPointStyle(style: Partial<typeof ElevationLine.prototype.minMaxPointStyle>): void {
-    performanceMonitor.measure('ElevationLine.setMinMaxPointStyle', () => {
-      this.minMaxPointStyle = { ...this.minMaxPointStyle, ...style };
-      this.properties.minMaxPointStyle = this.minMaxPointStyle;
-      if (this._map) {
-        this.showSamplePoints(); // Rafraîchir les points avec le nouveau style
-      }
-    });
-  }
-
   /**
    * Définit le nom de la ligne d'élévation
    */
@@ -945,6 +635,171 @@ export class ElevationLine extends Line {
   getName(): string {
     return performanceMonitor.measure('ElevationLine.getName', () => 
       this.properties?.style?.name || ''
+    );
+  }
+
+  private formatDistance(distance: number): string {
+    return performanceMonitor.measure('ElevationLine.formatDistance', () => 
+      distance >= 1000 
+        ? `${(distance / 1000).toFixed(2)} km`
+        : `${distance.toFixed(0)} m`
+    );
+  }
+
+  private formatElevation(elevation: number): string {
+    return performanceMonitor.measure('ElevationLine.formatElevation', () => 
+      `${elevation.toFixed(0)} m`
+    );
+  }
+
+  /**
+   * Surcharge de onAdd pour afficher les points d'échantillonnage
+   */
+  override onAdd(map: L.Map): this {
+    return performanceMonitor.measure('ElevationLine.onAdd', () => {
+      super.onAdd(map);
+      return this;
+    });
+  }
+
+  /**
+   * Surcharge de onRemove pour nettoyer les points d'échantillonnage et la ligne simple
+   */
+  override onRemove(map: L.Map): this {
+    this.isDestroyed = true;
+    this.cleanupEventListeners();
+    this.cleanup();
+    return super.onRemove(map);
+  }
+
+  /**
+   * Met à jour le profil d'élévation
+   */
+  async updateElevationProfile(): Promise<void> {
+    return performanceMonitor.measure('ElevationLine.updateElevationProfile', async () => {
+      try {
+        // Check if we already have elevation data and dataSource is 'restored'
+        if (this.properties.elevationData && this.properties.dataSource === 'restored') {
+          // Use the stored data
+          this.elevationData = this.properties.elevationData;
+          this.calculateElevationStatistics();
+          
+          // Vérifier que la carte est toujours valide avant d'afficher les points
+          if (this._map && this._map.hasLayer(this)) {
+            this.redraw();
+          }
+          
+          this.fire('elevation:updated', {
+            shape: this,
+            elevationData: this.elevationData,
+            properties: this.properties
+          });
+          return;
+        }
+
+        // If no stored data or not restored, fetch new data
+        await this.fetchElevationData();
+        this.updateProperties();
+        
+        // Vérifier que la carte est toujours valide avant d'afficher les points
+        if (this._map && this._map.hasLayer(this)) {
+          this.redraw();
+        }
+        
+        this.fire('elevation:updated', {
+          shape: this,
+          elevationData: this.elevationData,
+          properties: this.properties
+        });
+      } catch (error) {
+        console.error('[ElevationLine] Erreur lors de la mise à jour du profil d\'élévation:', error);
+        // Assurer que les propriétés restent cohérentes même en cas d'erreur
+        this.properties.dataSource = 'error';
+      }
+    });
+  }
+
+  /**
+   * Surcharge de updateProperties pour gérer correctement les données d'élévation
+   */
+  override updateProperties(): void {
+    performanceMonitor.measure('ElevationLine.updateProperties', () => {
+      // Appeler d'abord la méthode parente pour les propriétés de base
+      super.updateProperties();
+
+      // Ne mettre à jour les statistiques d'élévation que si nous avons des données
+      if (this.elevationData && this.elevationData.length > 0) {
+        const elevations = this.elevationData.map(d => d.elevation);
+        const maxElevation = Math.max(...elevations);
+        const minElevation = Math.min(...elevations);
+        let gain = 0;
+        let loss = 0;
+        let maxSlope = 0;
+        let totalSlope = 0;
+        let slopeCount = 0;
+
+        for (let i = 1; i < this.elevationData.length; i++) {
+          const prevPoint = this.elevationData[i - 1];
+          const currPoint = this.elevationData[i];
+          
+          // Calcul du dénivelé
+          const elevationDiff = currPoint.elevation - prevPoint.elevation;
+          if (elevationDiff > 0) {
+            gain += elevationDiff;
+          } else {
+            loss += Math.abs(elevationDiff);
+          }
+
+          // Calcul de la pente
+          const distanceDiff = currPoint.distance - prevPoint.distance;
+          if (distanceDiff > 0) {
+            const slope = (elevationDiff / distanceDiff) * 100;
+            maxSlope = Math.max(maxSlope, Math.abs(slope));
+            totalSlope += Math.abs(slope);
+            slopeCount++;
+          }
+        }
+
+        // Sauvegarder les coordonnées exactes
+        const latLngs = this.getLatLngs() as L.LatLng[];
+        const coordinates = latLngs.map(ll => ({
+          lat: ll.lat,
+          lng: ll.lng
+        }));
+
+        // Mettre à jour les propriétés avec les nouvelles statistiques
+        this.properties = {
+          ...this.properties,
+          type: 'ElevationLine',
+          coordinates: coordinates,
+          elevationData: this.elevationData.map(d => ({
+            distance: d.distance,
+            elevation: d.elevation
+          })),
+          maxElevation,
+          minElevation,
+          elevationGain: gain,
+          elevationLoss: loss,
+          maxSlope,
+          averageSlope: slopeCount > 0 ? totalSlope / slopeCount : 0,
+          dataSource: this.properties.dataSource || 'api'
+        };
+
+        // Émettre un événement pour notifier les changements
+        this.fire('properties:updated', {
+          shape: this,
+          properties: this.properties
+        });
+      }
+    });
+  }
+
+  /**
+   * Retourne le tableau des données d'élévation sous forme de {distance, elevation}.
+   */
+  getElevationData(): { distance: number; elevation: number }[] {
+    return performanceMonitor.measure('ElevationLine.getElevationData', () => 
+      this.elevationData
     );
   }
 }

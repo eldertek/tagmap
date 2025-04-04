@@ -276,12 +276,12 @@
                 @change="updateAccessLevelFilter(selectedAccessLevel)"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
                 <option value="company">Entreprise (accès à tout)</option>
-                <option value="employee">Salariés (accès niveau salariés et entreprise)</option>
+                <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
                 <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
               </select>
               <div class="mt-2 text-xs text-gray-500">
                 <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
-                <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et entreprise</p>
+                <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
                 <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
               </div>
             </div>
@@ -637,12 +637,12 @@ const updateAccessLevelFilter = (level: string) => {
 
   // Mettre à jour les filtres en fonction du niveau sélectionné
   if (level === 'company') {
-    // Niveau entreprise: accès à tout
+    // Niveau entreprise: accès à tout (entreprise, salariés, visiteurs)
     filters.accessLevels.company = true;
     filters.accessLevels.employee = false;
     filters.accessLevels.visitor = false;
   } else if (level === 'employee') {
-    // Niveau salariés: accès aux éléments pour salariés et entreprise
+    // Niveau salariés: accès aux éléments pour salariés et visiteurs
     filters.accessLevels.company = false;
     filters.accessLevels.employee = true;
     filters.accessLevels.visitor = false;
