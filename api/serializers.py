@@ -248,11 +248,53 @@ class NoteCommentSerializer(serializers.ModelSerializer):
     def get_user_role(self, obj):
         return obj.user.role if obj.user else ''
 
+    def validate(self, data):
+        print("\n[NoteCommentSerializer][validate] ====== VALIDATION DES DONNÉES ======")
+        print(f"Données à valider: {data}")
+        
+        # Vérifier que la note existe
+        note = data.get('note')
+        if note:
+            print(f"Note trouvée: {note.id}")
+            from plans.models import GeoNote
+            if not GeoNote.objects.filter(id=note.id).exists():
+                print(f"[NoteCommentSerializer][validate] La note {note.id} n'existe pas")
+                raise serializers.ValidationError({
+                    'note': f"La note {note.id} n'existe pas"
+                })
+        else:
+            print("[NoteCommentSerializer][validate] Pas de note spécifiée")
+            raise serializers.ValidationError({
+                'note': "Une note doit être spécifiée"
+            })
+
+        # Vérifier que le texte n'est pas vide
+        text = data.get('text', '').strip()
+        if not text:
+            print("[NoteCommentSerializer][validate] Texte vide")
+            raise serializers.ValidationError({
+                'text': "Le texte ne peut pas être vide"
+            })
+
+        print("[NoteCommentSerializer][validate] Validation réussie")
+        return data
+
     def create(self, validated_data):
+        print("\n[NoteCommentSerializer][create] ====== CRÉATION DU COMMENTAIRE ======")
+        print(f"Données validées: {validated_data}")
+        
         # Assigner l'utilisateur courant si non spécifié
         if 'user' not in validated_data and self.context.get('request'):
             validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+            print(f"Utilisateur assigné: {validated_data['user'].username}")
+        
+        try:
+            instance = super().create(validated_data)
+            print(f"[NoteCommentSerializer][create] Commentaire créé avec succès (ID: {instance.id})")
+            return instance
+        except Exception as e:
+            print(f"[NoteCommentSerializer][create] Erreur lors de la création: {str(e)}")
+            raise
 
 
 class NotePhotoSerializer(serializers.ModelSerializer):

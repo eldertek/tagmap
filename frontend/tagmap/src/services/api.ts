@@ -548,14 +548,8 @@ export const noteService = {
   },
 
   async addComment(noteId: number, text: string) {
-    // Vérifier d'abord si la note existe
-    try {
-      await api.get(`/notes/${noteId}/`);
-      return await api.post('/note-comments/', { note: noteId, text });
-    } catch (error) {
-      console.error(`Erreur lors de la vérification de la note ${noteId}:`, error);
-      throw error;
-    }
+    // La vérification de l'existence de la note est gérée par le backend
+    return await api.post('/note-comments/', { note: noteId, text });
   },
 
   async deleteComment(commentId: number) {

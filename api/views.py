@@ -700,50 +700,65 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
     serializer_class = NoteCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
+    def create(self, request, *args, **kwargs):
         """
-        Ne retourne que les commentaires des notes accessibles à l'utilisateur
+        Surcharge de la création pour ajouter des logs
         """
-        user = self.request.user
-        if user.role == ROLE_ADMIN:
-            return NoteComment.objects.all()
-        elif user.role in [ROLE_USINE, ROLE_DEALER]:
-            # Entreprises et salaries peuvent voir tous les commentaires des notes auxquelles ils ont accès
-            note_ids = GeoNote.objects.filter(
-                Q(plan__entreprise=user) |
-                Q(plan__salarie=user) |
-                Q(plan__salarie__entreprise=user) |
-                Q(plan__visiteur__salarie=user) |
-                Q(plan__visiteur__salarie__entreprise=user)
-            ).values_list('id', flat=True)
-            return NoteComment.objects.filter(note_id__in=note_ids)
-        else:  # visiteur
-            # Les visiteurs ne peuvent voir que les commentaires des notes de leurs plans
-            note_ids = GeoNote.objects.filter(plan__visiteur=user).values_list('id', flat=True)
-            return NoteComment.objects.filter(note_id__in=note_ids)
+        print("\n[NoteCommentViewSet][create] ====== DÉBUT CRÉATION COMMENTAIRE ======")
+        print(f"Données reçues: {request.data}")
+        print(f"Utilisateur: {request.user.username} (role: {request.user.role})")
+        
+        serializer = self.get_serializer(data=request.data)
+        print(f"Serializer valide: {serializer.is_valid()}")
+        if not serializer.is_valid():
+            print(f"Erreurs de validation: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            self.perform_create(serializer)
+            print("[NoteCommentViewSet][create] Commentaire créé avec succès")
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            print(f"[NoteCommentViewSet][create] Erreur lors de la création: {str(e)}")
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def perform_create(self, serializer):
         """
         Assigne l'utilisateur courant au commentaire et vérifie les permissions
         """
+        print("\n[NoteCommentViewSet][perform_create] ====== VÉRIFICATION PERMISSIONS ======")
         note = serializer.validated_data['note']
         user = self.request.user
+        print(f"Note ID: {note.id}")
+        print(f"Utilisateur: {user.username} (role: {user.role})")
 
         # Seuls les entreprises et les admins peuvent ajouter des commentaires
         if user.role not in [ROLE_ADMIN, ROLE_USINE]:
+            print(f"[NoteCommentViewSet][perform_create] Permission refusée - rôle incorrect: {user.role}")
             raise PermissionDenied('Seules les entreprises peuvent ajouter des commentaires')
 
         # Vérifier que l'utilisateur a accès à la note
-        if not GeoNote.objects.filter(
+        note_access = GeoNote.objects.filter(
             id=note.id
         ).filter(
             Q(plan__entreprise=user) |
             Q(plan__salarie__entreprise=user) |
             Q(plan__visiteur__salarie__entreprise=user)
-        ).exists():
+        ).exists()
+
+        print(f"[NoteCommentViewSet][perform_create] Accès à la note: {note_access}")
+
+        if not note_access:
+            print("[NoteCommentViewSet][perform_create] Permission refusée - pas d'accès à la note")
             raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
+        print("[NoteCommentViewSet][perform_create] Sauvegarde du commentaire...")
         serializer.save(user=user)
+        print("[NoteCommentViewSet][perform_create] Commentaire sauvegardé avec succès")
 
 
 class NotePhotoViewSet(viewsets.ModelViewSet):
