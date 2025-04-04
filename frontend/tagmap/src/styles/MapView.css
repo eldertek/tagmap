@@ -104,59 +104,73 @@
   min-width: 220px;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Supprimer les styles par défaut de Leaflet pour les popups */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
 }
 
 .geo-note-header {
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
-  border-radius: 6px 6px 0 0;
 }
 
 .geo-note-title {
   font-weight: 600;
   font-size: 14px;
   color: #111827;
-  margin-bottom: 8px;
-  line-height: 1.4;
+  margin-bottom: 6px;
+  line-height: 1.3;
 }
 
 .geo-note-badges {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .geo-note-badge {
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
   color: white;
 }
 
 .geo-note-badge svg {
-  width: 12px;
-  height: 12px;
-  margin-right: 4px;
+  width: 10px;
+  height: 10px;
+  margin-right: 3px;
 }
 
 .geo-note-content {
-  padding: 12px 16px;
+  padding: 8px 12px;
 }
 
 .geo-note-description {
-  font-size: 13px;
+  font-size: 12px;
   color: #4b5563;
-  line-height: 1.5;
-  margin-bottom: 12px;
+  line-height: 1.4;
+  margin-bottom: 8px;
   white-space: pre-wrap;
 }
 
 .geo-note-footer {
-  padding: 8px 16px 12px;
+  padding: 0 12px 10px;
   display: flex;
   justify-content: center;
 }
@@ -169,13 +183,12 @@
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 8px 16px;
-  font-size: 14px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
   width: 100%;
-  max-width: 200px;
 }
 
 .geo-note-edit-button:hover {
@@ -183,9 +196,9 @@
 }
 
 .geo-note-edit-button svg {
-  width: 16px;
-  height: 16px;
-  margin-right: 6px;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
 }
 
 /* Styles responsifs pour mobile */

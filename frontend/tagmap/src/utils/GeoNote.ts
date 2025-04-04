@@ -100,7 +100,7 @@ export class GeoNote extends L.Marker {
         <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5z" />
         <path d="M11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
-      ${this.properties.columnId}
+      ${this.getColumnLabel(this.properties.columnId)}
     `;
     badgesContainer.appendChild(columnBadge);
 
@@ -154,13 +154,22 @@ export class GeoNote extends L.Marker {
     return container;
   }
 
-  // Obtenir la couleur de la colonne (à remplacer par une intégration avec le store)
+  // Obtenir la couleur et le nom de la colonne (à remplacer par une intégration avec le store)
   getColumnColor(columnId: string): string {
     const colors: Record<string, string> = {
       'en-cours': '#3B82F6',
       'termine': '#10B981'
     };
     return colors[columnId] || '#6B7280';
+  }
+
+  // Obtenir le nom de la colonne
+  getColumnLabel(columnId: string): string {
+    const labels: Record<string, string> = {
+      'en-cours': 'En cours',
+      'termine': 'Terminé'
+    };
+    return labels[columnId] || columnId;
   }
 
   // Obtenir le libellé du niveau d'accès

@@ -31,8 +31,17 @@
     </div>
     <!-- Sections collapsables pour les formes sélectionnées -->
     <div v-if="selectedShape && localProperties" class="flex-1 overflow-y-auto">
-      <!-- Style - Section collapsable -->
-      <div class="p-3 border-b border-gray-200">
+      <!-- Message spécifique pour les notes -->
+      <div v-if="selectedShape && selectedShape.properties?.type === 'Note'" class="p-4 text-center">
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-blue-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-sm text-blue-700 font-medium">Les notes géolocalisées se modifient directement sur la carte.</p>
+        </div>
+      </div>
+      <!-- Style - Section collapsable (masquée pour les notes) -->
+      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 border-b border-gray-200">
         <button class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
           @click="toggleSection('style')">
           <span>Style</span>
@@ -42,7 +51,7 @@
           </svg>
         </button>
       </div>
-      <div v-show="!sectionsCollapsed.style" class="p-3">
+      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" v-show="!sectionsCollapsed.style" class="p-3">
         <!-- Couleurs prédéfinies - compact -->
         <div class="grid grid-cols-6 gap-2 mb-4">
           <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
@@ -103,8 +112,8 @@
 
         </div>
       </div>
-      <!-- Propriétés - Section collapsable -->
-      <div class="p-3 border-t border-gray-200 mt-2">
+      <!-- Propriétés - Section collapsable (masquée pour les notes) -->
+      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 border-t border-gray-200 mt-2">
         <button class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
           @click="toggleSection('properties')">
           <span>Propriétés</span>
@@ -189,15 +198,15 @@
                 </div>
               </template>
 
-              <!-- Note géolocalisée -->
-              <template v-else-if="localProperties.type === 'Note'">
+              <!-- Note géolocalisée - Masquée car gérée par la condition v-if au niveau supérieur -->
+              <!-- <template v-else-if="localProperties.type === 'Note'">
                 <div class="space-y-1">
                   <div class="flex justify-between items-center">
                     <span class="text-sm font-semibold text-gray-700">Type :</span>
                     <span class="text-sm font-medium text-gray-500">Note géolocalisée</span>
                   </div>
                 </div>
-              </template>
+              </template> -->
             </div>
           </div>
           <div v-else class="text-center text-sm text-gray-500">
