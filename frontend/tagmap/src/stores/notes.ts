@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from './auth';
-import { noteService, columnService } from '@/services/api';
+import { noteService } from '@/services/api';
 
 export interface NoteColumn {
   id: string;
@@ -140,63 +139,47 @@ export const useNotesStore = defineStore('notes', () => {
 
   // Actions
   async function loadColumns() {
-    console.log('\n[NotesStore][loadColumns] Chargement des colonnes...');
+    console.log('\n[NotesStore][loadColumns] Initialisation des colonnes fixes...');
     try {
-      const response = await columnService.getColumns();
-      console.log('[NotesStore][loadColumns] Réponse de l\'API:', response.data);
-      
-      if (!response.data || response.data.length === 0) {
-        console.log('[NotesStore][loadColumns] Aucune colonne trouvée, création des colonnes par défaut...');
-        // Créer les colonnes par défaut
-        const defaultColumns = [
-          { title: 'À faire', color: '#F59E0B', order: 0, isDefault: true },
-          { title: 'En cours', color: '#3B82F6', order: 1 },
-          { title: 'Terminé', color: '#10B981', order: 2 }
-        ];
+      // Colonnes fixes prédéfinies
+      const fixedColumns: NoteColumn[] = [
+        { id: '1', title: 'Idées', color: '#8B5CF6', order: 0, isDefault: false },
+        { id: '2', title: 'À faire', color: '#F59E0B', order: 1, isDefault: true },
+        { id: '3', title: 'En cours', color: '#3B82F6', order: 2, isDefault: false },
+        { id: '4', title: 'Terminées', color: '#10B981', order: 3, isDefault: false },
+        { id: '5', title: 'Autres', color: '#6B7280', order: 4, isDefault: false }
+      ];
 
-        for (const column of defaultColumns) {
-          await addColumn(column);
-        }
-      } else {
-        console.log('[NotesStore][loadColumns] Colonnes trouvées:', response.data);
-        columns.value = response.data;
-      }
-      
-      console.log('[NotesStore][loadColumns] État final des colonnes:', columns.value);
+      // Assigner directement les colonnes fixes
+      columns.value = fixedColumns;
+
+      console.log('[NotesStore][loadColumns] Colonnes fixes initialisées:', columns.value);
     } catch (error) {
       console.error('[NotesStore][loadColumns] Erreur:', error);
       throw error;
     }
   }
 
-  async function addColumn(columnData: NewNoteColumn) {
-    console.log('\n[NotesStore][addColumn] Ajout d\'une nouvelle colonne:', columnData);
-    try {
-      const response = await columnService.createColumn(columnData);
-      console.log('[NotesStore][addColumn] Réponse de l\'API:', response.data);
-      
-      // S'assurer que l'ID est une chaîne de caractères
-      const newColumn = {
-        ...response.data,
-        id: response.data.id.toString()
-      };
-      
-      columns.value.push(newColumn);
-      console.log('[NotesStore][addColumn] État des colonnes après ajout:', columns.value);
-    } catch (error) {
-      console.error('[NotesStore][addColumn] Erreur:', error);
-      throw error;
-    }
+  // Les fonctions de gestion des colonnes sont simplifiées car nous utilisons des colonnes fixes
+
+  // Cette fonction est conservée pour compatibilité mais ne fait rien
+  async function addColumn(_columnData: NewNoteColumn) {
+    console.log('\n[NotesStore][addColumn] Fonction désactivée - Utilisation de colonnes fixes');
+    // Ne fait rien car nous utilisons des colonnes fixes
+    return;
   }
 
+  // Cette fonction est conservée pour compatibilité mais ne modifie que localement
   async function updateColumn(id: string, data: Partial<NoteColumn>) {
-    console.log('\n[NotesStore][updateColumn] Mise à jour de la colonne:', id, data);
+    console.log('\n[NotesStore][updateColumn] Mise à jour locale de la colonne:', id, data);
     try {
-      const response = await columnService.updateColumn(id, data);
-      console.log('[NotesStore][updateColumn] Réponse de l\'API:', response.data);
       const index = columns.value.findIndex(column => column.id === id);
       if (index !== -1) {
-        columns.value[index] = response.data;
+        // Mise à jour locale uniquement
+        columns.value[index] = {
+          ...columns.value[index],
+          ...data
+        };
         console.log('[NotesStore][updateColumn] État des colonnes après mise à jour:', columns.value);
       }
     } catch (error) {
@@ -205,35 +188,16 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  async function removeColumn(id: string) {
-    try {
-      // Vérifier si la colonne existe et n'est pas une colonne par défaut
-      const column = columns.value.find(col => col.id === id);
-      if (!column || column.isDefault) return;
-
-      // Supprimer la colonne via l'API
-      await columnService.deleteColumn(id);
-
-      // Déplacer les notes de cette colonne vers la colonne par défaut
-      const defaultColumn = getDefaultColumn.value;
-      if (defaultColumn) {
-        notes.value
-          .filter(note => note.columnId === id)
-          .forEach(note => {
-            note.columnId = defaultColumn.id;
-            noteService.updateNote(note.id, { column_id: defaultColumn.id });
-          });
-      }
-
-      // Supprimer la colonne localement
-      columns.value = columns.value.filter(col => col.id !== id);
-    } catch (error) {
-      console.error('Erreur lors de la suppression de la colonne:', error);
-      throw error;
-    }
+  // Cette fonction est conservée pour compatibilité mais ne fait rien
+  async function removeColumn(_id: string) {
+    console.log('\n[NotesStore][removeColumn] Fonction désactivée - Utilisation de colonnes fixes');
+    // Ne fait rien car nous utilisons des colonnes fixes
+    return;
   }
 
+  // Cette fonction est conservée pour compatibilité mais ne modifie que localement
   async function reorderColumns(newOrder: string[]) {
+    console.log('\n[NotesStore][reorderColumns] Réorganisation locale des colonnes');
     try {
       // Mettre à jour l'ordre localement
       newOrder.forEach((columnId, index) => {
@@ -242,11 +206,9 @@ export const useNotesStore = defineStore('notes', () => {
           column.order = index;
         }
       });
-
-      // Mettre à jour l'ordre sur le serveur
-      await columnService.updateColumnsOrder(newOrder);
+      console.log('[NotesStore][reorderColumns] Nouvel ordre des colonnes:', columns.value);
     } catch (error) {
-      console.error('Erreur lors de la réorganisation des colonnes:', error);
+      console.error('[NotesStore][reorderColumns] Erreur:', error);
       throw error;
     }
   }

@@ -18,9 +18,9 @@
         </div>
       </div>
 
-      <!-- Filtres de recherche et bouton d'ajout de colonne -->
+      <!-- Filtres de recherche -->
       <div class="mt-6 bg-white shadow rounded-lg p-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label for="search" class="block text-sm font-medium text-gray-700">Recherche</label>
             <input
@@ -54,17 +54,6 @@
               <option value="">Tous les niveaux</option>
               <option v-for="level in accessLevels" :key="level.id" :value="level.id">{{ level.title }}</option>
             </select>
-          </div>
-          <div class="flex items-end">
-            <button
-              @click="showNewColumnModal = true"
-              class="w-full inline-flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-            >
-              <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Ajouter une colonne
-            </button>
           </div>
         </div>
       </div>
@@ -105,19 +94,10 @@
                       {{ column.title }}
                     </h3>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center">
                     <span class="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">
                       {{ getNotesByColumn(column.id).length }}
                     </span>
-                    <button
-                      v-if="!column.isDefault"
-                      @click="removeColumn(column.id)"
-                      class="text-gray-400 hover:text-red-500 focus:outline-none"
-                      title="Supprimer la colonne">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
                 </div>
 
@@ -245,50 +225,7 @@
       @save="handleNoteSave"
     />
 
-    <!-- Modal d'ajout de colonne -->
-    <div v-if="showNewColumnModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-center justify-center min-h-screen w-full">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-lg md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
-          <form @submit.prevent="addColumn" class="h-full md:h-auto flex flex-col">
-            <div class="p-4 md:p-6 flex-1 overflow-y-auto">
-              <div class="flex justify-between items-center mb-4 border-b pb-4">
-                <h3 class="text-xl font-semibold text-gray-900">Ajouter une nouvelle colonne</h3>
-                <button type="button" @click="showNewColumnModal = false" class="text-gray-400 hover:text-gray-500">
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div class="mb-4">
-                <label for="columnName" class="block text-sm font-medium text-gray-700">Nom de la colonne</label>
-                <input type="text" id="columnName" v-model="newColumnName" required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Couleur</label>
-                <div class="mt-1 flex space-x-2">
-                  <div v-for="color in colors" :key="color"
-                    class="w-8 h-8 rounded-full cursor-pointer border-2"
-                    :class="{ 'border-gray-400': newColumnColor !== color, 'border-black': newColumnColor === color }"
-                    :style="{ backgroundColor: color }"
-                    @click="newColumnColor = color">
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="p-4 md:px-6 border-t bg-gray-50 flex flex-col-reverse sm:flex-row-reverse sm:justify-end gap-3">
-              <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:w-auto sm:text-sm">
-                Ajouter
-              </button>
-              <button @click="showNewColumnModal = false" type="button" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:w-auto sm:text-sm">
-                Annuler
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
@@ -314,11 +251,8 @@ const drawingStore = useDrawingStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const showEditModal = ref(false);
-const showNewColumnModal = ref(false);
 const noteToDelete = ref<Note | null>(null);
 const editingNote = ref<Note | null>(null);
-const newColumnName = ref('');
-const newColumnColor = ref('#6B7280');
 const activeTab = ref('info'); // Onglet actif dans le modal d'édition
 const currentPlanId = ref<number | null>(null);
 
@@ -353,16 +287,7 @@ const filters = reactive({
   accessLevel: ''
 });
 
-// Couleurs disponibles pour les notes
-const colors = [
-  '#3B82F6', // Bleu
-  '#10B981', // Vert
-  '#F59E0B', // Jaune
-  '#EF4444', // Rouge
-  '#8B5CF6', // Violet
-  '#EC4899', // Rose
-  '#6B7280', // Gris
-];
+
 
 // Notes filtrées
 const filteredNotes = computed(() => {
@@ -467,32 +392,7 @@ async function loadInitialData() {
   }
 }
 
-// Modifier la fonction addColumn
-async function addColumn() {
-  if (!newColumnName.value.trim()) return;
 
-  try {
-    // Créer la nouvelle colonne
-    const columnData = {
-      title: newColumnName.value.trim(),
-      color: newColumnColor.value,
-      order: notesStore.getSortedColumns.length
-    };
-
-    // Ajouter la colonne via le store (qui utilisera l'API)
-    await notesStore.addColumn(columnData);
-
-    notificationStore.success('Colonne ajoutée avec succès');
-
-    // Réinitialiser le formulaire
-    newColumnName.value = '';
-    newColumnColor.value = '#6B7280';
-    showNewColumnModal.value = false;
-  } catch (error) {
-    console.error('Erreur lors de la création de la colonne:', error);
-    notificationStore.error('Erreur lors de la création de la colonne');
-  }
-}
 
 // Appeler loadInitialData au montage du composant
 onMounted(async () => {
@@ -629,12 +529,7 @@ async function deleteNote() {
   }
 }
 
-// Supprimer une colonne
-function removeColumn(columnId: string) {
-  notesStore.removeColumn(columnId);
 
-  notificationStore.success('Colonne supprimée avec succès');
-}
 
 // Gérer la fin du drag and drop des colonnes
 function onColumnDragEnd() {
