@@ -1,5 +1,5 @@
 <template>
-  <div class="map-filter-panel bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden">
+  <div class="map-filter-panel bg-white shadow-lg rounded-lg border border-gray-200 overflow-hidden" @click="deselectCurrentShape">
     <!-- En-tête avec titre et bouton de réduction -->
     <div class="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
       <h3 class="text-sm font-medium text-gray-700 flex items-center">
@@ -118,6 +118,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { useMapDrawing } from '@/composables/useMapDrawing';
 import type { ElementCategory, AccessLevel } from '@/types/drawing';
 
 // Définir les props
@@ -134,6 +135,7 @@ const emit = defineEmits(['filter-change']);
 // État local
 const collapsed = ref(props.initialCollapsed);
 const authStore = useAuthStore();
+const { selectedShape, clearActiveControlPoints } = useMapDrawing();
 
 // Computed properties pour les rôles d'utilisateur
 const isAdmin = computed(() => authStore.isAdmin);
@@ -187,6 +189,19 @@ const filters = reactive<Filters>({
 // Méthodes
 function toggleCollapsed() {
   collapsed.value = !collapsed.value;
+  deselectCurrentShape();
+}
+
+// Fonction pour désélectionner la forme actuelle
+function deselectCurrentShape() {
+  console.log('[MapFilterPanel][deselectCurrentShape] Désélection de la forme actuelle');
+  if (selectedShape.value) {
+    // Désélectionner la forme actuelle
+    selectedShape.value = null;
+    // Nettoyer les points de contrôle
+    clearActiveControlPoints();
+    console.log('[MapFilterPanel][deselectCurrentShape] Forme désélectionnée et points de contrôle nettoyés');
+  }
 }
 
 function resetFilters() {

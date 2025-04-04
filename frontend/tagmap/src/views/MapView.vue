@@ -915,6 +915,20 @@ onMounted(async () => {
       setDrawingTool('');
     }) as EventListener);
 
+    // Écouter les événements de réactivation des catégories
+    window.addEventListener('categoriesReactivated', ((e: CustomEvent) => {
+      console.log('[MapView][categoriesReactivated] Événement reçu:', e.detail);
+      // Forcer une mise à jour de l'affichage pour s'assurer que les catégories sont correctement restaurées
+      updateMapDisplay();
+    }) as EventListener);
+
+    // Écouter les événements de réactivation des types de formes
+    window.addEventListener('shapeTypesReactivated', ((e: CustomEvent) => {
+      console.log('[MapView][shapeTypesReactivated] Événement reçu:', e.detail);
+      // Forcer une mise à jour de l'affichage pour s'assurer que les types de formes sont correctement restaurés
+      updateMapDisplay();
+    }) as EventListener);
+
     // Écouter l'événement d'édition de note (via Leaflet)
     const handleNoteEdit = (e: any) => {
       console.log('[MapView] Édition de note via Leaflet', e);
@@ -1209,7 +1223,7 @@ async function refreshMapWithPlan(planId: number) {
 
             // Traiter chaque type d'élément en parallèle
             const batchSize = 10; // Nombre d'éléments à traiter par lot
-            const creationPromises = Object.entries(elementsByType).map(async ([type, elements]) => {
+            const creationPromises = Object.entries(elementsByType).map(async ([_, elements]) => {
               // Diviser les éléments en lots
               for (let i = 0; i < elements.length; i += batchSize) {
                 const batch = elements.slice(i, i + batchSize);
@@ -1599,12 +1613,43 @@ onUnmounted(() => {
     featureGroup.value.off('note:edit');
   }
 
-  // Nettoyer l'écouteur d'événements global
+  // Nettoyer les écouteurs d'événements globaux
   window.removeEventListener('geonote:edit', (() => {}) as EventListener);
+  window.removeEventListener('categoriesReactivated', (() => {}) as EventListener);
+  window.removeEventListener('shapeTypesReactivated', (() => {}) as EventListener);
+  window.removeEventListener('shape:created', (() => {}) as EventListener);
+  window.removeEventListener('map-set-location', (() => {}) as EventListener);
 });
 // Fonction pour mettre à jour les propriétés d'une forme
 function updateShapeProperties(properties: any) {
+  console.log('[MapView][updateShapeProperties] Mise à jour des propriétés:', properties);
+
+  // Mettre à jour les propriétés de la forme
   updatePropertiesFromDestruct(properties);
+
+  // Si la catégorie est mise à jour, mettre à jour l'élément correspondant dans le store
+  if (properties.category && selectedLeafletShape.value && selectedLeafletShape.value._dbId) {
+    const dbId = selectedLeafletShape.value._dbId;
+    const storeElement = drawingStore.elements.find(e => e.id === dbId);
+
+    if (storeElement) {
+      console.log(`[MapView][updateShapeProperties] Mise à jour de la catégorie dans le store: ${properties.category} pour l'élément ${dbId}`);
+
+      // Mettre à jour la catégorie directement sur l'élément du store
+      // Utiliser une assertion de type pour éviter les erreurs TypeScript
+      const anyElement = storeElement as any;
+      if (!anyElement.data) {
+        anyElement.data = {};
+      }
+
+      // Mettre à jour la catégorie dans le store
+      anyElement.data.category = properties.category;
+
+      // Marquer les changements comme non sauvegardés
+      // Utiliser la méthode appropriée du store
+      drawingStore.$patch({ unsavedChanges: true });
+    }
+  }
 }
 // Fonction pour formater la date de dernière sauvegarde
 function formatLastSaved(date: string): string {
@@ -2559,7 +2604,7 @@ async function generateSynthesis() {
             }
             else if (properties.type === 'CircleWithSections') {
               // Calculer la hauteur nécessaire pour les propriétés générales
-              const baseHeight = 60;
+              // const baseHeight = 60; // Variable non utilisée
 
               // Propriétés générales du cercle
               addProperty('Rayon', formatMeasure(properties.radius), propX, propY, propWidth);
@@ -3019,8 +3064,38 @@ function updateMapDisplay() {
     // Vérifier directement les propriétés de la couche pour déterminer si elle doit être visible
     const properties = layer.properties || {};
     const type = properties.type || layer.type_forme || '';
-    // Conserver la catégorie existante ou utiliser 'default' comme valeur par défaut
-    const category = properties.category || 'default';
+
+    // Récupérer la catégorie depuis les propriétés
+    let category = properties.category;
+
+    // Si la couche a un ID de base de données, toujours vérifier le store pour la catégorie la plus à jour
+    if (layer._dbId) {
+      // Chercher l'élément correspondant dans le store
+      const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
+      if (storeElement) {
+        // Accéder à la catégorie de manière sécurisée
+        const data = storeElement.data as any;
+        if (data && data.category) {
+          // Si la catégorie dans le store est différente de celle dans les propriétés, utiliser celle du store
+          if (category !== data.category) {
+            console.log(`[MapView][updateMapDisplay] Catégorie différente détectée - Propriétés: ${category}, Store: ${data.category} pour la couche ${layer._dbId}`);
+            category = data.category;
+          }
+
+          // Toujours mettre à jour la catégorie dans les propriétés de la couche pour s'assurer qu'elle est synchronisée
+          if (!layer.properties) {
+            layer.properties = {};
+          }
+          layer.properties.category = category;
+        }
+      }
+    }
+
+    // Utiliser 'default' comme valeur par défaut si aucune catégorie n'est trouvée
+    if (!category) {
+      category = 'default';
+    }
+
     const accessLevel = properties.accessLevel || 'visitor';
 
     console.log(`[MapView][updateMapDisplay] Couche ${leafletId} (dbId: ${layer._dbId}): type=${type}, category=${category}, accessLevel=${accessLevel}`);
@@ -3127,14 +3202,23 @@ function updateMapDisplay() {
     if (isVisible) {
       // La couche doit être visible
       if (!featureGroup.value.hasLayer(layer)) {
+        // S'assurer que la catégorie est correctement définie avant d'ajouter la couche
+        if (category && category !== 'default' && (!layer.properties || !layer.properties.category)) {
+          if (!layer.properties) {
+            layer.properties = {};
+          }
+          layer.properties.category = category;
+          console.log(`[MapView][updateMapDisplay] Catégorie définie avant ajout: ${category} pour la couche ${layer._dbId}`);
+        }
+
         // La couche n'est pas encore visible, l'ajouter
         featureGroup.value.addLayer(layer);
         visibleCount++;
-        console.log(`[MapView][updateMapDisplay] Affichage de la couche ${layer._dbId} (${type})`);
+        console.log(`[MapView][updateMapDisplay] Affichage de la couche ${layer._dbId} (${type}) avec catégorie ${layer.properties?.category || 'non définie'}`);
       } else {
         // La couche est déjà visible
         visibleCount++;
-        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà visible`);
+        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà visible avec catégorie ${layer.properties?.category || 'non définie'}`);
       }
     } else {
       // La couche doit être masquée
@@ -3178,16 +3262,67 @@ function updateMapDisplay() {
     // Vérifier les propriétés de la couche
     const properties = layer.properties || {};
     const type = properties.type || layer.type_forme || '';
-    // Conserver la catégorie existante ou utiliser 'default' comme valeur par défaut
-    // Ne pas forcer 'forages' pour éviter de perdre la catégorie d'origine
-    const category = properties.category || 'default';
+
+    // Récupérer la catégorie depuis le store en priorité, puis depuis les propriétés
+    let category = null;
+
+    // Si la forme a un ID de base de données, chercher dans le store
+    if (layer._dbId) {
+      // Chercher l'élément correspondant dans le store
+      const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
+      if (storeElement) {
+        // Accéder à la catégorie de manière sécurisée avec une assertion de type
+        const data = storeElement.data as any;
+        if (data && data.category) {
+          category = data.category;
+          console.log(`[MapView][updateMapDisplay] Catégorie récupérée depuis le store: ${category} pour la couche ${layer._dbId}`);
+        }
+      }
+    }
+
+    // Si aucune catégorie n'a été trouvée dans le store, utiliser celle des propriétés
+    if (!category && properties.category) {
+      category = properties.category;
+      console.log(`[MapView][updateMapDisplay] Catégorie récupérée depuis les propriétés: ${category} pour la couche ${leafletId}`);
+    }
+
+    // Utiliser 'default' comme valeur par défaut si aucune catégorie n'est trouvée
+    if (!category) {
+      category = 'default';
+    }
+
     const accessLevel = properties.accessLevel || 'visitor';
 
     // S'assurer que les propriétés de base sont définies
     if (!layer.properties) {
       layer.properties = {};
     }
-    // Ne pas écraser la catégorie existante
+
+    // Toujours mettre à jour la catégorie dans les propriétés de la couche
+    if (category && category !== 'default') {
+      // Mettre à jour la catégorie dans les propriétés de la couche
+      layer.properties.category = category;
+      console.log(`[MapView][updateMapDisplay] Catégorie définie/restaurée: ${category} pour la couche ${layer._dbId}`);
+
+      // Mettre à jour la catégorie dans le store si nécessaire
+      if (layer._dbId) {
+        const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
+        if (storeElement) {
+          const anyElement = storeElement as any;
+          if (!anyElement.data) {
+            anyElement.data = {};
+          }
+
+          // Mettre à jour la catégorie dans le store si elle est différente
+          if (anyElement.data.category !== category) {
+            console.log(`[MapView][updateMapDisplay] Mise à jour de la catégorie dans le store: ${category} pour l'élément ${layer._dbId}`);
+            anyElement.data.category = category;
+            drawingStore.$patch({ unsavedChanges: true });
+          }
+        }
+      }
+    }
+
     if (!layer.properties.accessLevel) {
       layer.properties.accessLevel = 'visitor';
     }
@@ -3276,10 +3411,39 @@ function updateMapDisplay() {
     console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
 
     if (isVisible) {
+      // S'assurer que la catégorie est correctement définie avant d'ajouter la couche
+      if (category && category !== 'default') {
+        if (!layer.properties) {
+          layer.properties = {};
+        }
+
+        // Toujours mettre à jour la catégorie dans les propriétés de la couche
+        layer.properties.category = category;
+        console.log(`[MapView][updateMapDisplay] Catégorie définie avant restauration: ${category} pour la couche ${leafletId}`);
+
+        // Mettre à jour la catégorie dans le store si nécessaire
+        if (layer._dbId) {
+          const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
+          if (storeElement) {
+            const anyElement = storeElement as any;
+            if (!anyElement.data) {
+              anyElement.data = {};
+            }
+
+            // Mettre à jour la catégorie dans le store si elle est différente
+            if (anyElement.data.category !== category) {
+              console.log(`[MapView][updateMapDisplay] Mise à jour de la catégorie dans le store avant restauration: ${category} pour l'élément ${layer._dbId}`);
+              anyElement.data.category = category;
+              drawingStore.$patch({ unsavedChanges: true });
+            }
+          }
+        }
+      }
+
       // La couche doit être visible mais ne l'est pas encore
       featureGroup.value.addLayer(layer);
       visibleCount++;
-      console.log(`[MapView][updateMapDisplay] Restauration de la couche ${leafletId} (${type}) - Filtres respectés`);
+      console.log(`[MapView][updateMapDisplay] Restauration de la couche ${leafletId} (${type}) avec catégorie ${layer.properties?.category || 'non définie'} - Filtres respectés`);
     } else {
       console.log(`[MapView][updateMapDisplay] La couche ${leafletId} (${type}) reste masquée - Filtres non respectés`);
     }

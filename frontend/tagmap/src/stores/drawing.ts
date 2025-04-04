@@ -698,6 +698,31 @@ export const useDrawingStore = defineStore('drawing', {
           avant: oldCategories,
           après: this.filters.categories
         });
+
+        // Vérifier si des catégories ont été activées ou désactivées
+        const changedCategories = Object.keys(filters.categories).filter(key =>
+          oldCategories[key] !== this.filters.categories[key]
+        );
+
+        if (changedCategories.length > 0) {
+          console.log(`[DrawingStore][updateFilters] Catégories modifiées: ${changedCategories.join(', ')}`);
+
+          // Si des catégories ont été réactivées, s'assurer que les éléments conservent leur catégorie d'origine
+          const reactivatedCategories = changedCategories.filter(key =>
+            oldCategories[key] === false && this.filters.categories[key] === true
+          );
+
+          if (reactivatedCategories.length > 0) {
+            console.log(`[DrawingStore][updateFilters] Catégories réactivées: ${reactivatedCategories.join(', ')}`);
+
+            // Émettre un événement spécifique pour la réactivation des catégories
+            window.dispatchEvent(new CustomEvent('categoriesReactivated', {
+              detail: {
+                categories: reactivatedCategories
+              }
+            }));
+          }
+        }
       }
 
       // Mettre à jour les types de formes si fournis
@@ -712,6 +737,31 @@ export const useDrawingStore = defineStore('drawing', {
           avant: oldShapeTypes,
           après: this.filters.shapeTypes
         });
+
+        // Vérifier si des types de formes ont été activés ou désactivés
+        const changedShapeTypes = Object.keys(filters.shapeTypes).filter(key =>
+          oldShapeTypes[key] !== this.filters.shapeTypes[key]
+        );
+
+        if (changedShapeTypes.length > 0) {
+          console.log(`[DrawingStore][updateFilters] Types de formes modifiés: ${changedShapeTypes.join(', ')}`);
+
+          // Si des types de formes ont été réactivés, s'assurer que les éléments conservent leur type d'origine
+          const reactivatedShapeTypes = changedShapeTypes.filter(key =>
+            oldShapeTypes[key] === false && this.filters.shapeTypes[key] === true
+          );
+
+          if (reactivatedShapeTypes.length > 0) {
+            console.log(`[DrawingStore][updateFilters] Types de formes réactivés: ${reactivatedShapeTypes.join(', ')}`);
+
+            // Émettre un événement spécifique pour la réactivation des types de formes
+            window.dispatchEvent(new CustomEvent('shapeTypesReactivated', {
+              detail: {
+                shapeTypes: reactivatedShapeTypes
+              }
+            }));
+          }
+        }
       }
 
       console.log('[DrawingStore][updateFilters] Filtres mis à jour:', JSON.stringify(this.filters, null, 2));

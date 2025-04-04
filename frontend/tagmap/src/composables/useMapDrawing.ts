@@ -17,6 +17,7 @@ import intersect from '@turf/intersect';
 import centroid from '@turf/centroid';
 import circle from '@turf/circle';
 import { featureCollection } from '@turf/helpers';
+import { useDrawingStore } from '../stores/drawing';
 // import { performanceMonitor } from '@/utils/usePerformanceMonitor'; // Supprimé car non utilisé
 
 // Interfaces supprimées car non utilisées
@@ -1315,7 +1316,8 @@ export function useMapDrawing(): MapDrawingReturn {
       beforeName: selectedShape.value.name,
       beforePropertiesName: selectedShape.value.properties?.name,
       beforeCategory: selectedShape.value.properties?.category,
-      nameIsDirectProperty: 'name' in selectedShape.value
+      nameIsDirectProperty: 'name' in selectedShape.value,
+      dbId: selectedShape.value._dbId
     });
 
     // Mettre à jour les propriétés de la forme
@@ -1337,14 +1339,6 @@ export function useMapDrawing(): MapDrawingReturn {
       selectedShape.value.properties.accessLevel = 'visitor';
     }
 
-    // Assurer que les propriétés de filtrage existent
-    if (!selectedShape.value.properties.category) {
-      selectedShape.value.properties.category = 'default';
-    }
-    if (!selectedShape.value.properties.accessLevel) {
-      selectedShape.value.properties.accessLevel = 'visitor';
-    }
-
     // Assurer que _dbId existe pour le filtrage
     if (!selectedShape.value._dbId) {
       selectedShape.value._dbId = Date.now() + Math.floor(Math.random() * 1000);
@@ -1358,6 +1352,9 @@ export function useMapDrawing(): MapDrawingReturn {
     // Sauvegarder la catégorie existante avant la mise à jour
     const existingCategory = selectedShape.value.properties.category;
     console.log(`[useMapDrawing] Catégorie existante: ${existingCategory}`);
+
+    // Vérifier si la catégorie est mise à jour
+    const isCategoryUpdated = 'category' in properties && properties.category !== existingCategory;
 
     // Appliquer les nouvelles propriétés
     Object.keys(properties).forEach(key => {
@@ -1387,10 +1384,44 @@ export function useMapDrawing(): MapDrawingReturn {
     }
 
     // S'assurer que la catégorie est préservée si elle n'a pas été explicitement mise à jour
-    if (existingCategory && !('category' in properties)) {
+    if (existingCategory && !isCategoryUpdated) {
       console.log(`[useMapDrawing] Restauration de la catégorie originale: ${existingCategory}`);
       selectedShape.value.properties.category = existingCategory;
     }
+
+    // Si la forme a un ID de base de données et que la catégorie a été mise à jour,
+    // mettre à jour la catégorie dans le store
+    if (selectedShape.value._dbId && isCategoryUpdated) {
+      const drawingStore = useDrawingStore();
+      const storeElement = drawingStore.elements.find((e: any) => e.id === selectedShape.value._dbId);
+
+      if (storeElement) {
+        console.log(`[useMapDrawing] Mise à jour de la catégorie dans le store: ${selectedShape.value.properties.category} pour l'élément ${selectedShape.value._dbId}`);
+
+        // Utiliser une assertion de type pour éviter les erreurs TypeScript
+        const anyElement = storeElement as any;
+        if (!anyElement.data) {
+          anyElement.data = {};
+        }
+
+        // Mettre à jour la catégorie dans le store
+        anyElement.data.category = selectedShape.value.properties.category;
+
+        // Marquer les changements comme non sauvegardés
+        drawingStore.$patch({ unsavedChanges: true });
+      }
+    }
+
+    // Émettre un événement pour indiquer que les propriétés ont été mises à jour
+    // Cela permettra à d'autres composants de réagir aux changements
+    const shapeEvent = new CustomEvent('shape:propertiesUpdated', {
+      detail: {
+        shape: selectedShape.value,
+        properties: selectedShape.value.properties,
+        categoryUpdated: isCategoryUpdated
+      }
+    });
+    window.dispatchEvent(shapeEvent);
 
     console.log('[useMapDrawing] Updated shape properties', {
       after: selectedShape.value.properties,
@@ -1426,14 +1457,7 @@ export function useMapDrawing(): MapDrawingReturn {
       }
     }
 
-    // Émettre un événement pour indiquer que les propriétés ont été mises à jour
-    const shapeEvent = new CustomEvent('shape:propertiesUpdated', {
-      detail: {
-        shape: selectedShape.value,
-        properties: selectedShape.value.properties
-      }
-    });
-    window.dispatchEvent(shapeEvent);
+    // L'événement est déjà émis plus haut dans la fonction
   };
   const forceShapeUpdate = (layer: L.Layer) => {
     console.log('[forceShapeUpdate] Début', {

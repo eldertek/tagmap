@@ -43,7 +43,7 @@
         </button>
         <!-- Onglet Filtres (toujours visible) -->
         <button
-          @click="activeTab = 'filters'"
+          @click="switchToFiltersTab"
           :class="[activeTab === 'filters' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -273,7 +273,7 @@
             <div>
               <select
                 v-model="selectedAccessLevel"
-                @change="updateAccessLevelFilter(selectedAccessLevel)"
+                @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
                 <option value="company">Entreprise (accès à tout)</option>
                 <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
@@ -500,6 +500,12 @@ watch(activeTab, (newTab, oldTab) => {
       categories: { ...filters.categories },
       shapeTypes: { ...filters.shapeTypes }
     }, null, 2));
+
+    // Désélectionner la forme actuelle lorsqu'on passe à l'onglet filtres
+    if (props.selectedShape) {
+      console.log('[DrawingTools][watch activeTab] Désélection de la forme actuelle lors du passage à l\'onglet filtres');
+      emit('tool-change', ''); // Désélectionne l'outil actuel
+    }
 
     // Appliquer les filtres immédiatement lors du passage à l'onglet filtres
     setTimeout(() => {
@@ -868,6 +874,18 @@ const formatArea = (value: number): string => {
 
 const formatSlope = (value: number): string => {
   return `${value.toFixed(1)}%`
+}
+
+// Fonction pour passer à l'onglet filtres et désélectionner la forme actuelle
+const switchToFiltersTab = () => {
+  // Désélectionner la forme actuelle si nécessaire
+  if (props.selectedShape) {
+    console.log('[DrawingTools][switchToFiltersTab] Désélection de la forme actuelle');
+    emit('tool-change', ''); // Désélectionne l'outil actuel
+  }
+
+  // Passer à l'onglet filtres
+  activeTab.value = 'filters';
 }
 
 // Define emits
