@@ -3613,8 +3613,36 @@ function handleNoteSave(note: any) {
       console.log('[handleNoteSave] Note mise à jour:', {
         name: noteLayer.properties.name,
         category: noteLayer.properties.category,
-        accessLevel: noteLayer.properties.accessLevel
+        accessLevel: noteLayer.properties.accessLevel,
+        columnId: noteLayer.properties.columnId // Ajouter le columnId dans les logs
       });
+
+      // Ajouter la note au store de notes si elle n'existe pas déjà
+      const existingNote = notesStore.notes.find(n => n.id === note.id);
+      if (!existingNote) {
+        // Créer une nouvelle note dans le store
+        // Utiliser as any pour contourner le problème de typage avec accessLevel
+        notesStore.addNote({
+          title: note.title,
+          description: note.description,
+          location: [note.location[0], note.location[1]],
+          columnId: note.columnId || '1', // Utiliser la colonne 'Idées' par défaut
+          style: note.style,
+          accessLevel: note.accessLevel
+        } as any);
+        console.log('[handleNoteSave] Note ajoutée au store avec columnId:', note.columnId || '1');
+      } else {
+        // Mettre à jour la note existante
+        notesStore.updateNote(note.id, {
+          title: note.title,
+          description: note.description,
+          columnId: note.columnId,
+          accessLevel: note.accessLevel,
+          style: note.style,
+          updatedAt: new Date().toISOString()
+        });
+        console.log('[handleNoteSave] Note mise à jour dans le store avec columnId:', note.columnId);
+      }
     }
   }
 

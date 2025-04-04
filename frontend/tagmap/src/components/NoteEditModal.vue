@@ -181,7 +181,7 @@ onMounted(() => {
       title: 'Nouvelle note',
       description: '',
       location: props.location,
-      columnId: notesStore.getDefaultColumn.id,
+      columnId: '1', // Colonne 'Idées' par défaut (id: 1)
       accessLevel: NoteAccessLevel.PRIVATE,
       style: {
         color: '#3B82F6',

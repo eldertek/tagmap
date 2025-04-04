@@ -339,20 +339,20 @@ class GeoNoteSerializer(serializers.ModelSerializer):
                 'plan': 'Le plan spécifié n\'existe pas.'
             })
 
-        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
+        # Si aucune colonne n'est spécifiée, utiliser la colonne "Idées"
         if 'column' not in data or not data['column']:
-            default_column = NoteColumn.objects.filter(is_default=True).first()
-            if default_column:
-                data['column'] = default_column
+            ideas_column = NoteColumn.objects.filter(title='Idées').first()
+            if ideas_column:
+                data['column'] = ideas_column
             else:
-                # Créer une colonne par défaut si elle n'existe pas
-                default_column = NoteColumn.objects.create(
-                    title='En cours',
-                    color='#6B7280',
-                    is_default=True,
-                    order=0
+                # Créer la colonne "Idées" si elle n'existe pas
+                ideas_column = NoteColumn.objects.create(
+                    title='Idées',
+                    color='#8B5CF6',
+                    order=0,
+                    is_default=False
                 )
-                data['column'] = default_column
+                data['column'] = ideas_column
 
         return data
 

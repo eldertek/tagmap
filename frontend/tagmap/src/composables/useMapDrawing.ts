@@ -1163,7 +1163,8 @@ export function useMapDrawing(): MapDrawingReturn {
                 const geoNote = new GeoNote(e.latlng, {
                   color: '#3B82F6',
                   name: 'Note géolocalisée',
-                  description: ''
+                  description: '',
+                  columnId: '1' // Associer automatiquement à la colonne 'Idées'
                 });
                 featureGroup.value.addLayer(geoNote);
                 selectedShape.value = geoNote;
@@ -1171,6 +1172,14 @@ export function useMapDrawing(): MapDrawingReturn {
                 geoNote.updateProperties();
                 // Ouvrir le popup pour édition immédiate
                 geoNote.openPopup();
+                // Émettre un événement pour sauvegarder la note dans le backend
+                window.dispatchEvent(new CustomEvent('shape:created', {
+                  detail: {
+                    shape: geoNote,
+                    type: 'Note',
+                    properties: geoNote.properties
+                  }
+                }));
                 // Désactiver le mode note après l'ajout
                 map.value.off('click', onClick);
                 setDrawingTool('');

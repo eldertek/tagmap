@@ -302,20 +302,20 @@ class GeoNote(models.Model):
         return f"Note '{self.title}' dans {self.plan.nom}"
 
     def save(self, *args, **kwargs):
-        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
+        # Si aucune colonne n'est spécifiée, utiliser la colonne "Idées"
         if not self.column:
-            default_column = NoteColumn.objects.filter(is_default=True).first()
-            if default_column:
-                self.column = default_column
+            ideas_column = NoteColumn.objects.filter(title='Idées').first()
+            if ideas_column:
+                self.column = ideas_column
             else:
-                # Créer une colonne par défaut si elle n'existe pas
-                default_column = NoteColumn.objects.create(
-                    title='En cours',
-                    color='#6B7280',
-                    is_default=True,
-                    order=0
+                # Créer la colonne "Idées" si elle n'existe pas
+                ideas_column = NoteColumn.objects.create(
+                    title='Idées',
+                    color='#8B5CF6',
+                    order=0,
+                    is_default=False
                 )
-                self.column = default_column
+                self.column = ideas_column
         super().save(*args, **kwargs)
 
 class NoteComment(models.Model):

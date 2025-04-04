@@ -53,7 +53,7 @@ export class GeoNote extends L.Marker {
       type: 'Note',
       name: options.name || 'Note géolocalisée',
       description: options.description || '',
-      columnId: options.columnId || 'en-cours', // Colonne par défaut
+      columnId: options.columnId || '1', // Colonne 'Idées' par défaut
       accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
       category: options.category || 'forages', // Catégorie par défaut
       style: {
@@ -69,6 +69,8 @@ export class GeoNote extends L.Marker {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    console.log('[GeoNote][constructor] Note créée avec columnId:', this.properties.columnId);
 
     // Ajouter un popup pour afficher la description
     this.bindPopup(this.createPopupContent());
@@ -226,22 +228,28 @@ export class GeoNote extends L.Marker {
     return container;
   }
 
-  // Obtenir la couleur et le nom de la colonne (à remplacer par une intégration avec le store)
+  // Obtenir la couleur de la colonne en fonction de son ID
   getColumnColor(columnId: string): string {
     const colors: Record<string, string> = {
-      'en-cours': '#2b6451',
-      'termine': '#10B981'
+      '1': '#8B5CF6', // Idées
+      '2': '#F59E0B', // À faire
+      '3': '#3B82F6', // En cours
+      '4': '#10B981', // Terminées
+      '5': '#6B7280'  // Autres
     };
     return colors[columnId] || '#6B7280';
   }
 
-  // Obtenir le nom de la colonne
+  // Obtenir le nom de la colonne en fonction de son ID
   getColumnLabel(columnId: string): string {
     const labels: Record<string, string> = {
-      'en-cours': 'En cours',
-      'termine': 'Terminé'
+      '1': 'Idées',
+      '2': 'À faire',
+      '3': 'En cours',
+      '4': 'Terminées',
+      '5': 'Autres'
     };
-    return labels[columnId] || columnId;
+    return labels[columnId] || 'Colonne ' + columnId;
   }
 
   // Obtenir le libellé du niveau d'accès
@@ -293,7 +301,7 @@ export class GeoNote extends L.Marker {
       title: this.properties.name,
       description: this.properties.description,
       location: [this.getLatLng().lat, this.getLatLng().lng] as [number, number],
-      columnId: this.properties.columnId || 'en-cours', // Valeur par défaut
+      columnId: this.properties.columnId || '1', // Colonne 'Idées' par défaut
       accessLevel: this.properties.accessLevel || 'company', // Valeur par défaut
       style: this.properties.style || {
         color: '#2b6451',
@@ -306,9 +314,11 @@ export class GeoNote extends L.Marker {
       order: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      comments: [],
-      photos: []
+      comments: this.properties.comments || [],
+      photos: this.properties.photos || []
     };
+
+    console.log('[GeoNote][editNote] Édition de note avec columnId:', note.columnId);
 
     // Émettre un événement pour ouvrir le modal d'édition
     console.log('[GeoNote] Émission de l\'\u00e9vénement note:edit avec', note);
@@ -427,6 +437,10 @@ export class GeoNote extends L.Marker {
       accessLevel: this.properties.accessLevel // Stocker aussi le niveau d'accès directement
     };
 
+    // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
+    const columnId = this.properties.columnId || '1';
+    console.log('[GeoNote][toBackendFormat] Sauvegarde de note avec columnId:', columnId);
+
     // Créer l'objet de données pour le backend
     return {
       id: elementId,
@@ -435,7 +449,7 @@ export class GeoNote extends L.Marker {
         location: [latlng.lat, latlng.lng],
         name: this.properties.name,
         description: this.properties.description,
-        columnId: this.properties.columnId,
+        columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
         accessLevel: this.properties.accessLevel,
         category: this.properties.category || 'forages',
         style: styleWithAccessLevel,
@@ -459,12 +473,16 @@ export class GeoNote extends L.Marker {
       radius: (data.style as any).radius || 12
     } : this.properties.style;
 
+    // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
+    const columnId = data.columnId || this.properties.columnId || '1';
+    console.log('[GeoNote][updateFromBackendData] Mise à jour de note avec columnId:', columnId);
+
     // Mettre à jour les propriétés
     this.properties = {
       ...this.properties,
       name: data.name || this.properties.name,
       description: data.description || this.properties.description,
-      columnId: data.columnId || this.properties.columnId,
+      columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
       accessLevel: data.accessLevel || this.properties.accessLevel,
       category: data.category || this.properties.category || 'forages',
       style: style,
@@ -504,11 +522,15 @@ export class GeoNote extends L.Marker {
     // Forcer la mise à jour du niveau d'accès dans les données
     data.accessLevel = accessLevel;
 
+    // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
+    const columnId = data.columnId || '1';
+    console.log('[GeoNote][fromBackendData] Création de note avec columnId:', columnId);
+
     // Créer une nouvelle instance de GeoNote
     const note = new GeoNote(data.location as L.LatLngExpression, {
       name: data.name,
       description: data.description,
-      columnId: data.columnId,
+      columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
       accessLevel: accessLevel as NoteAccessLevel,
       category: data.category || 'forages',
       color: data.style?.color,
