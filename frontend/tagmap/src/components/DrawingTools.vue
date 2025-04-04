@@ -6,31 +6,66 @@
       <h3 class="text-sm font-semibold text-gray-700">Outils de dessin</h3>
     </div>
 
-    <!-- Outils de dessin - version compacte avec icônes -->
-    <div class="p-2 border-b border-gray-200">
-      <div class="grid grid-cols-4 gap-1.5">
-        <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
-          class="flex items-center justify-center p-2 rounded-md border"
-          :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
-          @click="$emit('tool-change', currentTool === tool.type ? '' : tool.type)" :title="tool.label">
-          <span class="icon" v-html="getToolIcon(tool.type)"></span>
+    <!-- Navigation par onglets -->
+    <div class="border-b border-gray-200">
+      <nav class="flex -mb-px">
+        <button
+          @click="activeTab = 'tools'"
+          :class="[activeTab === 'tools' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span>Outils</span>
+        </button>
+        <button
+          @click="activeTab = 'style'"
+          :class="[activeTab === 'style' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
+          :disabled="!selectedShape || selectedShape.properties?.type === 'Note'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          <span>Style</span>
+        </button>
+        <button
+          @click="activeTab = 'properties'"
+          :class="[activeTab === 'properties' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
+          :disabled="!selectedShape"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <span>Propriétés</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Contenu des onglets -->
+    <div class="flex-1 overflow-y-auto">
+      <!-- Onglet Outils -->
+      <div v-if="activeTab === 'tools'" class="p-3">
+        <!-- Outils de dessin - version compacte avec icônes -->
+        <div class="grid grid-cols-4 gap-1.5 mb-4">
+          <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
+            class="flex items-center justify-center p-2 rounded-md border"
+            :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
+            @click="$emit('tool-change', currentTool === tool.type ? '' : tool.type)" :title="tool.label">
+            <span class="icon" v-html="getToolIcon(tool.type)"></span>
+          </button>
+        </div>
+        <!-- Bouton de suppression -->
+        <button v-if="selectedShape"
+          class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
+          :class="{ 'bg-red-100': currentTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span class="text-sm">Supprimer</span>
         </button>
       </div>
-      <!-- Bouton de suppression -->
-      <button v-if="selectedShape"
-        class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
-        :class="{ 'bg-red-100': currentTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        <span class="text-sm">Supprimer</span>
-      </button>
 
-
-    </div>
-    <!-- Sections collapsables pour les formes sélectionnées -->
-    <div v-if="selectedShape && localProperties" class="flex-1 overflow-y-auto">
       <!-- Message spécifique pour les notes -->
       <div v-if="selectedShape && selectedShape.properties?.type === 'Note'" class="p-4 text-center">
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
@@ -40,25 +75,16 @@
           <p class="text-sm text-blue-700 font-medium">Les notes géolocalisées se modifient directement sur la carte.</p>
         </div>
       </div>
-      <!-- Style - Section collapsable (masquée pour les notes) -->
-      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 border-b border-gray-200">
-        <button class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
-          @click="toggleSection('style')">
-          <span>Style</span>
-          <svg class="w-4 h-4" :class="{ 'rotate-180': !sectionsCollapsed.style }" fill="none" stroke="currentColor"
-            viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-      </div>
-      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" v-show="!sectionsCollapsed.style" class="p-3">
+
+      <!-- Onglet Style -->
+      <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3">
         <!-- Couleurs prédéfinies - compact -->
         <div class="grid grid-cols-6 gap-2 mb-4">
           <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
             :style="{ backgroundColor: color }" @click="selectPresetColor(color)" :title="color"></button>
         </div>
         <!-- Contrôles de style pour les formes standards (non TextRectangle) -->
-        <div v-if="localProperties.type !== 'TextRectangle'" class="space-y-4">
+        <div v-if="localProperties?.type !== 'TextRectangle'" class="space-y-4">
           <div class="flex items-center gap-4">
             <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
             <div class="flex items-center gap-2">
@@ -88,7 +114,7 @@
           </div>
         </div>
         <!-- Options spécifiques au TextRectangle -->
-        <div v-if="localProperties.type === 'TextRectangle'" class="space-y-4">
+        <div v-if="localProperties?.type === 'TextRectangle'" class="space-y-4">
           <!-- Contour du rectangle avec texte -->
           <div class="flex items-center gap-4">
             <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
@@ -109,20 +135,10 @@
                 @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
             </div>
           </div>
-
         </div>
       </div>
-      <!-- Propriétés - Section collapsable (masquée pour les notes) -->
-      <div v-if="selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 border-t border-gray-200 mt-2">
-        <button class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
-          @click="toggleSection('properties')">
-          <span>Propriétés</span>
-          <svg class="w-4 h-4" :class="{ 'rotate-180': !sectionsCollapsed.properties }" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        <div v-show="!sectionsCollapsed.properties" class="p-3">
+      <!-- Onglet Propriétés -->
+      <div v-if="activeTab === 'properties' && selectedShape" class="p-3">
           <div v-if="localProperties">
             <!-- Champ pour nommer la forme -->
             <div class="mb-4">
@@ -130,6 +146,32 @@
               <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
                 placeholder="Donnez un nom à cette forme"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
+            </div>
+
+            <!-- Catégorie de la forme -->
+            <div class="mb-4">
+              <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+              <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                <option value="forages">Forages</option>
+                <option value="clients">Clients</option>
+                <option value="entrepots">Entrepôts</option>
+                <option value="livraisons">Lieux de livraison</option>
+                <option value="cultures">Cultures</option>
+                <option value="parcelles">Noms des parcelles</option>
+                <option value="default">Autre</option>
+              </select>
+            </div>
+
+            <!-- Niveau d'accès -->
+            <div class="mb-4">
+              <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
+              <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                <option value="company">Entreprise uniquement</option>
+                <option value="employee">Entreprise et salariés</option>
+                <option value="visitor">Tous (visiteurs inclus)</option>
+              </select>
             </div>
 
             <!-- Tableau compact des propriétés pour tous les types -->
@@ -278,18 +320,22 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 <script setup lang="ts">
 import { ref, computed, watchEffect } from 'vue'
+import type { AccessLevel, ElementCategory } from '@/types/drawing'
 
 // Define types
 interface ShapeProperties {
   type: string;
   name?: string;
   style?: any;
+  category?: ElementCategory;
+  accessLevel?: AccessLevel;
   [key: string]: any;
 }
+
+
 
 interface ShapeType {
   type: string;
@@ -341,9 +387,9 @@ const getToolIcon = (type: string) => {
 // Propriétés pour les notes géolocalisées - à implémenter
 
 // Define reactive variables for the component
+const activeTab = ref('tools') // Onglet actif par défaut
+
 const sectionsCollapsed = ref({
-  style: true,
-  properties: true,
   samplePoints: true,
   circleSections: true
 })
@@ -360,6 +406,8 @@ const showFillOptions = ref(true)
 
 // Propriétés de la forme
 const shapeName = ref('')
+const shapeCategory = ref<ElementCategory>('default')
+const accessLevel = ref<AccessLevel>('visitor')
 
 // Sample point styles
 const samplePointStyle = ref({
@@ -405,7 +453,7 @@ const localProperties = computed(() => {
 })
 
 // Define types for method parameters
-type SectionKey = 'style' | 'properties' | 'samplePoints' | 'circleSections';
+type SectionKey = 'samplePoints' | 'circleSections';
 type StyleProps = { [key: string]: any };
 
 // Methods
@@ -433,6 +481,22 @@ const updateShapeName = (): void => {
 
   // Mettre à jour le nom de la forme
   emit('properties-update', { name: shapeName.value })
+}
+
+// Méthode pour mettre à jour la catégorie de la forme
+const updateShapeCategory = (): void => {
+  if (!props.selectedShape) return
+
+  // Mettre à jour la catégorie de la forme
+  emit('properties-update', { category: shapeCategory.value })
+}
+
+// Méthode pour mettre à jour le niveau d'accès de la forme
+const updateAccessLevel = (): void => {
+  if (!props.selectedShape) return
+
+  // Mettre à jour le niveau d'accès de la forme
+  emit('properties-update', { accessLevel: accessLevel.value })
 }
 
 const updateSamplePointStyle = (): void => {
@@ -482,6 +546,12 @@ watchEffect(() => {
 
     // Mettre à jour le nom de la forme
     shapeName.value = props.selectedShape.properties?.name || ''
+
+    // Mettre à jour la catégorie de la forme
+    shapeCategory.value = props.selectedShape.properties?.category || 'default'
+
+    // Mettre à jour le niveau d'accès de la forme
+    accessLevel.value = props.selectedShape.properties?.accessLevel || 'visitor'
   }
 })
 </script>

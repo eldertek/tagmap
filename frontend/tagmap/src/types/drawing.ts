@@ -24,10 +24,18 @@ export interface Bounds {
   southWest: [number, number];
   northEast: [number, number];
 }
+// Type pour les niveaux d'accès
+export type AccessLevel = 'company' | 'employee' | 'visitor';
+
+// Type pour les catégories d'éléments
+export type ElementCategory = 'forages' | 'clients' | 'entrepots' | 'livraisons' | 'cultures' | 'parcelles' | string;
+
 export interface BaseData {
   style: Style;
   rotation?: number;
   name?: string;
+  category?: ElementCategory;
+  accessLevel?: AccessLevel;
 }
 export interface CircleData extends BaseData {
   center: [number, number];  // [longitude, latitude]

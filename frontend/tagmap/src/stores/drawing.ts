@@ -2,13 +2,14 @@ import { defineStore } from 'pinia';
 import api from '@/services/api';
 import type {
   DrawingElement,
-  ShapeData,
   RectangleData,
   PolygonData,
   ElevationLineData,
   LineData,
   DrawingElementType,
-  CircleData
+  CircleData,
+  AccessLevel,
+  ElementCategory
 } from '@/types/drawing';
 import L from 'leaflet';
 import { Polygon } from '@/utils/Polygon';
@@ -22,7 +23,8 @@ interface NoteData {
   location: [number, number];
   title: string;
   description: string;
-  visibility: 'private' | 'enterprise' | 'employee' | 'visitor';
+  accessLevel: AccessLevel;
+  category?: ElementCategory;
   attachments: string[];
   style: {
     color: string;
@@ -34,6 +36,21 @@ interface NoteData {
   };
 }
 
+// Interface pour les filtres de la carte
+interface MapFilters {
+  accessLevels: {
+    company: boolean;
+    employee: boolean;
+    visitor: boolean;
+  };
+  categories: {
+    [key: string]: boolean;
+  };
+  shapeTypes: {
+    [key: string]: boolean;
+  };
+}
+
 interface DrawingState {
   currentMapId: number | null;
   elements: DrawingElement[];
@@ -42,6 +59,7 @@ interface DrawingState {
   loading: boolean;
   error: string | null;
   currentTool: string;
+  filters: MapFilters;
   currentStyle: {
     strokeStyle?: string;
     strokeWidth?: number;
@@ -386,6 +404,27 @@ export const useDrawingStore = defineStore('drawing', {
     loading: false,
     error: null,
     currentTool: '',
+    filters: {
+      accessLevels: {
+        company: true,
+        employee: true,
+        visitor: true
+      },
+      categories: {
+        forages: true,
+        clients: true,
+        entrepots: true,
+        livraisons: true,
+        cultures: true,
+        parcelles: true
+      },
+      shapeTypes: {
+        Polygon: true,
+        Line: true,
+        ElevationLine: true,
+        Note: true
+      }
+    },
     currentStyle: {
       strokeStyle: 'solid',
       strokeWidth: 2,
@@ -402,7 +441,39 @@ export const useDrawingStore = defineStore('drawing', {
     getSelectedElement: (state) => state.selectedElement,
     getCurrentTool: (state) => state.currentTool,
     getCurrentStyle: (state) => state.currentStyle,
-    getLastUsedType: (state) => state.lastUsedType
+    getLastUsedType: (state) => state.lastUsedType,
+    getFilters: (state) => state.filters,
+    // Getter pour obtenir les éléments filtrés selon les critères actuels
+    getFilteredElements: (state) => {
+      return state.elements.filter(element => {
+        // Vérifier si le type de forme est activé dans les filtres
+        if (!state.filters.shapeTypes[element.type_forme]) {
+          return false;
+        }
+
+        // Vérifier si la catégorie est activée dans les filtres
+        // Utiliser une catégorie par défaut si non spécifiée
+        const category = (element.data as any)?.category || 'default';
+        if (!state.filters.categories[category]) {
+          return false;
+        }
+
+        // Vérifier si le niveau d'accès est activé dans les filtres
+        // Utiliser 'visitor' comme niveau d'accès par défaut
+        const accessLevel = (element.data as any)?.accessLevel || 'visitor';
+        if (accessLevel === 'company' && !state.filters.accessLevels.company) {
+          return false;
+        }
+        if (accessLevel === 'employee' && !state.filters.accessLevels.employee) {
+          return false;
+        }
+        if (accessLevel === 'visitor' && !state.filters.accessLevels.visitor) {
+          return false;
+        }
+
+        return true;
+      });
+    }
   },
   actions: {
     setCurrentPlan(planId: number | null) {
@@ -423,6 +494,28 @@ export const useDrawingStore = defineStore('drawing', {
         strokeColor: '#2563EB',
         fillColor: '#3B82F6',
         fillOpacity: 0.2
+      };
+      // Réinitialiser les filtres
+      this.filters = {
+        accessLevels: {
+          company: true,
+          employee: true,
+          visitor: true
+        },
+        categories: {
+          forages: true,
+          clients: true,
+          entrepots: true,
+          livraisons: true,
+          cultures: true,
+          parcelles: true
+        },
+        shapeTypes: {
+          Polygon: true,
+          Line: true,
+          ElevationLine: true,
+          Note: true
+        }
       };
     },
     clearCurrentPlan() {
@@ -517,6 +610,37 @@ export const useDrawingStore = defineStore('drawing', {
 
       // Sinon, mettre à jour uniquement les propriétés fournies
       this.currentStyle = { ...this.currentStyle, ...style };
+    },
+
+    // Mettre à jour les filtres de la carte
+    updateFilters(filters: {
+      accessLevels?: { company?: boolean; employee?: boolean; visitor?: boolean };
+      categories?: { [key: string]: boolean };
+      shapeTypes?: { [key: string]: boolean };
+    }) {
+      // Mettre à jour les niveaux d'accès si fournis
+      if (filters.accessLevels) {
+        this.filters.accessLevels = {
+          ...this.filters.accessLevels,
+          ...filters.accessLevels
+        };
+      }
+
+      // Mettre à jour les catégories si fournies
+      if (filters.categories) {
+        this.filters.categories = {
+          ...this.filters.categories,
+          ...filters.categories
+        };
+      }
+
+      // Mettre à jour les types de formes si fournis
+      if (filters.shapeTypes) {
+        this.filters.shapeTypes = {
+          ...this.filters.shapeTypes,
+          ...filters.shapeTypes
+        };
+      }
     },
     async loadPlanElements(planId: number) {
       const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');

@@ -114,6 +114,11 @@
           <!-- Conteneur de la carte -->
           <div class="flex-1 relative">
             <div ref="mapContainer" class="absolute inset-0 z-[1000]"></div>
+
+            <!-- Panneau de filtrage (position absolue en haut à droite) -->
+            <div v-if="currentPlan && !isGeneratingSynthesis" class="absolute top-4 right-4 z-[1200]">
+              <MapFilterPanel @filter-change="handleFilterChange" />
+            </div>
           </div>
 
           <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
@@ -449,6 +454,7 @@ import 'leaflet-simple-map-screenshoter';
 import DrawingTools from '../components/DrawingTools.vue';
 import MapToolbar from '../components/MapToolbar.vue';
 import NoteEditModal from '../components/NoteEditModal.vue';
+import MapFilterPanel from '../components/MapFilterPanel.vue';
 import { useMapDrawing } from '../composables/useMapDrawing';
 import { useMapState } from '../composables/useMapState';
 import { useIrrigationStore } from '@/stores/irrigation';
@@ -930,6 +936,12 @@ watch(() => drawingStore.hasUnsavedChanges, (newValue) => {
     irrigationStore.markUnsavedChanges();
   }
 });
+
+// Surveiller les changements dans les filtres ou les éléments
+watch(() => drawingStore.getFilteredElements, () => {
+  console.log('[MapView][watch drawingStore.getFilteredElements] Mise à jour de l\'affichage');
+  updateMapDisplay();
+}, { deep: true });
 // Surveiller l'initialisation de la carte
 watch(map, async (newMap) => {
   console.log('\n[MapView][watch map] Nouvelle carte:', !!newMap);
@@ -2722,6 +2734,47 @@ async function selectSalarie(salarie: ExtendedUserDetails) {
 function closeNoteEditModal() {
   showNoteEditModal.value = false;
   editingMapNote.value = null;
+}
+
+// Fonction pour gérer les changements de filtres
+function handleFilterChange(filters: {
+  accessLevels: { company: boolean; employee: boolean; visitor: boolean };
+  categories: { [key: string]: boolean };
+  shapeTypes: { [key: string]: boolean };
+}) {
+  // Mettre à jour les filtres dans le store de dessin
+  drawingStore.updateFilters(filters);
+
+  // Mettre à jour l'affichage de la carte
+  updateMapDisplay();
+}
+
+// Fonction pour mettre à jour l'affichage de la carte en fonction des filtres
+function updateMapDisplay() {
+  if (!featureGroup.value) return;
+
+  // Obtenir les éléments filtrés
+  const filteredElements = drawingStore.getFilteredElements;
+
+  // Obtenir tous les éléments actuellement affichés
+  const currentLayers = featureGroup.value.getLayers();
+
+  // Parcourir les couches actuelles et les masquer/afficher selon les filtres
+  currentLayers.forEach((layer: any) => {
+    const layerId = layer._leaflet_id;
+    const element = drawingStore.elements.find(e => e.id === layerId);
+
+    // Si l'élément est dans les éléments filtrés, l'afficher, sinon le masquer
+    if (element && filteredElements.includes(element)) {
+      if (!featureGroup.value.hasLayer(layer)) {
+        featureGroup.value.addLayer(layer);
+      }
+    } else {
+      if (featureGroup.value.hasLayer(layer)) {
+        featureGroup.value.removeLayer(layer);
+      }
+    }
+  });
 }
 
 function handleNoteSave(note: any) {
