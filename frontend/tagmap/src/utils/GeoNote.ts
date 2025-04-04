@@ -1,5 +1,6 @@
 import * as L from 'leaflet';
 import { NoteAccessLevel } from '../stores/notes';
+import mapPinIcon from '../assets/map-pin.svg';
 
 export interface GeoNoteOptions {
   name?: string;
@@ -13,7 +14,7 @@ export interface GeoNoteOptions {
   fillOpacity?: number;
 }
 
-export class GeoNote extends L.CircleMarker {
+export class GeoNote extends L.Marker {
   properties: {
     type: string;
     name: string;
@@ -24,14 +25,23 @@ export class GeoNote extends L.CircleMarker {
   };
 
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
-    // Options par défaut pour un point GPS
-    const defaultOptions: L.CircleMarkerOptions = {
-      radius: options.radius || 12, // Rayon légèrement plus grand pour l'icône
-      color: options.color || '#3B82F6',
-      weight: options.weight || 0, // Pas de bordure visible car gérée par le CSS
-      fillColor: options.fillColor || '#3B82F6',
-      fillOpacity: options.fillOpacity || 0, // Opacité à 0 car l'apparence est gérée par le CSS
-      className: 'geo-note-marker'
+    // Créer une icône personnalisée pour le marqueur
+    const color = options.color || '#3B82F6';
+    const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
+
+    const icon = L.divIcon({
+      html: iconHtml,
+      className: '',
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36]
+    });
+
+    // Options par défaut pour un marqueur
+    const defaultOptions: L.MarkerOptions = {
+      icon: icon,
+      draggable: false,
+      autoPan: true
     };
 
     super(latlng, defaultOptions);
@@ -189,26 +199,40 @@ export class GeoNote extends L.CircleMarker {
   // Mettre à jour les propriétés
   updateProperties(): void {
     // Mettre à jour les propriétés de style
+    // Pour un marqueur, nous stockons la couleur dans les propriétés
+    const iconElement = this.getElement()?.querySelector('.geo-note-marker');
+    const color = iconElement ?
+      window.getComputedStyle(iconElement).color :
+      '#3B82F6';
+
     this.properties.style = {
-      color: this.options.color,
-      weight: this.options.weight,
-      fillColor: this.options.fillColor,
-      fillOpacity: this.options.fillOpacity,
-      radius: this.options.radius
+      color: color,
+      fillColor: color,
+      weight: 2,
+      fillOpacity: 0.8,
+      radius: 12
     };
   }
 
   // Méthode pour mettre à jour le style
   setNoteStyle(style: Partial<L.CircleMarkerOptions>): void {
-    // Mettre à jour les options
-    if (style.color) this.options.color = style.color;
-    if (style.weight) this.options.weight = style.weight;
-    if (style.fillColor) this.options.fillColor = style.fillColor;
-    if (style.fillOpacity !== undefined) this.options.fillOpacity = style.fillOpacity;
-    if (style.radius) this.options.radius = style.radius;
+    // Mettre à jour les propriétés de style
+    if (style.color || style.fillColor) {
+      const color = style.color || style.fillColor || '#3B82F6';
+      const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
 
-    // Appliquer les changements
-    this.setStyle(this.options);
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: '',
+        iconSize: [24, 36],
+        iconAnchor: [12, 36],
+        popupAnchor: [0, -36]
+      });
+
+      this.setIcon(icon);
+    }
+
+    // Mettre à jour les propriétés
     this.updateProperties();
   }
 }
