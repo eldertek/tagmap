@@ -26,11 +26,12 @@ export class GeoNote extends L.CircleMarker {
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Options par défaut pour un point GPS
     const defaultOptions: L.CircleMarkerOptions = {
-      radius: options.radius || 8,
+      radius: options.radius || 12, // Rayon légèrement plus grand pour l'icône
       color: options.color || '#3B82F6',
-      weight: options.weight || 2,
+      weight: options.weight || 0, // Pas de bordure visible car gérée par le CSS
       fillColor: options.fillColor || '#3B82F6',
-      fillOpacity: options.fillOpacity || 0.6
+      fillOpacity: options.fillOpacity || 0, // Opacité à 0 car l'apparence est gérée par le CSS
+      className: 'geo-note-marker'
     };
 
     super(latlng, defaultOptions);
@@ -148,94 +149,41 @@ export class GeoNote extends L.CircleMarker {
 
   // Méthode pour éditer la note
   editNote(): void {
-    // Créer un formulaire d'édition
-    const form = document.createElement('form');
-    form.className = 'geo-note-edit-form';
+    // Fermer le popup
+    this.closePopup();
 
-    const titleLabel = document.createElement('label');
-    titleLabel.textContent = 'Titre:';
-    form.appendChild(titleLabel);
-
-    const titleInput = document.createElement('input');
-    titleInput.type = 'text';
-    titleInput.value = this.properties.name;
-    form.appendChild(titleInput);
-
-    const descriptionLabel = document.createElement('label');
-    descriptionLabel.textContent = 'Description:';
-    form.appendChild(descriptionLabel);
-
-    const descriptionInput = document.createElement('textarea');
-    descriptionInput.value = this.properties.description;
-    form.appendChild(descriptionInput);
-
-    // Ajouter un sélecteur de colonne
-    const columnLabel = document.createElement('label');
-    columnLabel.textContent = 'État:';
-    form.appendChild(columnLabel);
-
-    const columnSelect = document.createElement('select');
-    // Ajouter les options de colonne (à remplacer par une intégration avec le store)
-    const columns = [
-      { id: 'en-cours', title: 'En cours' },
-      { id: 'termine', title: 'Terminé' }
-    ];
-    columns.forEach(column => {
-      const option = document.createElement('option');
-      option.value = column.id;
-      option.textContent = column.title;
-      option.selected = column.id === this.properties.columnId;
-      columnSelect.appendChild(option);
-    });
-    form.appendChild(columnSelect);
-
-    // Ajouter un sélecteur de niveau d'accès
-    const accessLabel = document.createElement('label');
-    accessLabel.textContent = 'Niveau d\'accès:';
-    form.appendChild(accessLabel);
-
-    const accessSelect = document.createElement('select');
-    // Ajouter les options de niveau d'accès
-    const accessLevels = [
-      { id: NoteAccessLevel.PRIVATE, title: 'Privé' },
-      { id: NoteAccessLevel.COMPANY, title: 'Entreprise' },
-      { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés' },
-      { id: NoteAccessLevel.VISITOR, title: 'Visiteurs' }
-    ];
-    accessLevels.forEach(level => {
-      const option = document.createElement('option');
-      option.value = level.id;
-      option.textContent = level.title;
-      option.selected = level.id === this.properties.accessLevel;
-      accessSelect.appendChild(option);
-    });
-    form.appendChild(accessSelect);
-
-    const saveButton = document.createElement('button');
-    saveButton.type = 'button';
-    saveButton.textContent = 'Enregistrer';
-    saveButton.onclick = () => {
-      this.properties.name = titleInput.value;
-      this.properties.description = descriptionInput.value;
-      this.properties.columnId = columnSelect.value;
-      this.properties.accessLevel = accessSelect.value as NoteAccessLevel;
-      this.updateProperties();
-      this.closePopup();
-      this.bindPopup(this.createPopupContent());
-      this.openPopup();
-
-      // Émettre un événement pour informer de la mise à jour
-      this.fire('note:updated', {
-        id: (this as any)._leaflet_id,
-        properties: this.properties
-      });
+    // Créer un objet note à partir des propriétés
+    const note = {
+      id: (this as any)._leaflet_id,
+      title: this.properties.name,
+      description: this.properties.description,
+      location: [this.getLatLng().lat, this.getLatLng().lng] as [number, number],
+      columnId: this.properties.columnId || 'en-cours', // Valeur par défaut
+      accessLevel: this.properties.accessLevel || 'company', // Valeur par défaut
+      style: this.properties.style || {
+        color: '#3B82F6',
+        weight: 2,
+        opacity: 1,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.6,
+        radius: 8
+      },
+      order: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      comments: [],
+      photos: []
     };
-    form.appendChild(saveButton);
 
-    // Remplacer le contenu du popup
-    this.unbindPopup();
-    this.bindPopup(form);
-    this.openPopup();
+    // Émettre un événement pour ouvrir le modal d'édition
+    console.log('[GeoNote] Émission de l\'\u00e9vénement note:edit avec', note);
+
+    // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
+    const event = new CustomEvent('geonote:edit', { detail: { note } });
+    window.dispatchEvent(event);
+
+    // Également émettre l'événement Leaflet standard (pour compatibilité)
+    this.fire('note:edit', { note });
   }
 
   // Mettre à jour les propriétés

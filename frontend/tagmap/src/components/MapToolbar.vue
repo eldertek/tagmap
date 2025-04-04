@@ -324,7 +324,7 @@ const closeMobileMenu = () => {
   z-index: 1000;
   overflow: visible;
   flex-shrink: 0;
-  min-height: 49px;
+  min-height: var(--mobile-toolbar-height);
   position: relative;
   top: 0;
 }
@@ -425,11 +425,11 @@ const closeMobileMenu = () => {
 }
 .mobile-menu {
   position: fixed;
-  top: 65px;
+  top: calc(var(--header-height) + var(--mobile-toolbar-height));
   left: 0;
   right: 0;
   margin: 0;
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;

@@ -1160,11 +1160,11 @@ export function useMapDrawing(): MapDrawingReturn {
                 if (!map.value || !featureGroup.value) return;
                 // Créer une nouvelle note géolocalisée
                 const geoNote = new GeoNote(e.latlng, {
-                  radius: 8,
+                  radius: 12,
                   color: '#3B82F6',
-                  weight: 2,
+                  weight: 0,
                   fillColor: '#3B82F6',
-                  fillOpacity: 0.6,
+                  fillOpacity: 0,
                   name: 'Note géolocalisée',
                   description: 'Double-cliquez pour éditer'
                 });

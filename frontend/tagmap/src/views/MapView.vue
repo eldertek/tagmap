@@ -76,7 +76,7 @@
       <div v-show="currentPlan" class="map-parent">
         <!-- Utiliser Teleport pour déplacer la MapToolbar après la barre de navigation -->
         <Teleport to="body">
-          <div v-if="currentPlan && !isGeneratingSynthesis" class="fixed top-16 left-0 right-0 z-[1500]">
+          <div v-if="currentPlan && !isGeneratingSynthesis" class="fixed left-0 right-0 z-[1500]" :style="{ top: 'var(--header-height)' }">
             <MapToolbar
               :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
               :plan-name="currentPlan?.nom" :plan-description="currentPlan?.description" :save-status="saveStatus"
@@ -98,12 +98,16 @@
           <div
             v-if="currentPlan && !isGeneratingSynthesis"
             @click="toggleDrawingTools"
-            class="md:hidden fixed bottom-0 left-0 right-0 z-[2500] bg-white py-2 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between">
+            class="md:hidden fixed left-0 right-0 z-[2500] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between"
+            style="height: var(--mobile-bottom-toolbar-height); bottom: 0;">
 
-            <div class="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-              </svg>
+            <div class="flex items-center w-full justify-center">
+              <div class="flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+                <span class="text-sm text-gray-500 font-medium">Outils de dessin</span>
+              </div>
             </div>
           </div>
 
@@ -116,7 +120,8 @@
           <div v-if="currentPlan && !isGeneratingSynthesis"
             :class="[showDrawingTools ? 'translate-y-0' : 'translate-y-full md:translate-y-0',
                     'w-full md:w-64 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
-                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none overflow-y-auto']">
+                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none overflow-y-auto']"
+            :style="{ 'bottom': 'var(--mobile-bottom-toolbar-height)' }">
             <!-- Poignée de fermeture pour le panneau mobile (style tiroir) -->
             <div class="md:hidden w-full flex justify-between items-center px-4 py-2 border-b border-gray-200">
               <div class="flex items-center">
@@ -425,6 +430,16 @@
       </Teleport>
     </div>
   </div>
+
+  <!-- Modal d'édition de note -->
+  <NoteEditModal
+    v-if="showNoteEditModal"
+    :note="editingMapNote"
+    :is-new-note="!editingMapNote?.id"
+    :location="editingMapNote?.location"
+    @close="closeNoteEditModal"
+    @save="handleNoteSave"
+  />
 </template>
 <script setup lang="ts">
 import { onMounted, ref, watch, onBeforeUnmount, onUnmounted, computed, nextTick } from 'vue';
@@ -433,10 +448,13 @@ import * as L from 'leaflet';
 import 'leaflet-simple-map-screenshoter';
 import DrawingTools from '../components/DrawingTools.vue';
 import MapToolbar from '../components/MapToolbar.vue';
+import NoteEditModal from '../components/NoteEditModal.vue';
 import { useMapDrawing } from '../composables/useMapDrawing';
 import { useMapState } from '../composables/useMapState';
 import { useIrrigationStore } from '@/stores/irrigation';
 import { useDrawingStore } from '@/stores/drawing';
+import { useNotesStore } from '@/stores/notes';
+import { useNotificationStore } from '@/stores/notification';
 import { performanceMonitor } from '@/utils/usePerformanceMonitor';
 import type { Plan } from '@/stores/irrigation';
 import type { DrawingElement, ShapeType, CircleData, RectangleData, LineData, PolygonData, DrawingElementType, ElevationLineData } from '@/types/drawing';
@@ -485,6 +503,8 @@ const mapContainer = ref<HTMLElement | null>(null);
 const showDrawingTools = ref(false);
 const irrigationStore = useIrrigationStore();
 const drawingStore = useDrawingStore();
+const notesStore = useNotesStore();
+const notificationStore = useNotificationStore();
 const shapes = ref<any[]>([]);
 const {
   currentTool,
@@ -506,7 +526,9 @@ const {
 // Ajout des refs pour les modals
 const showNewPlanModal = ref(false);
 const showLoadPlanModal = ref(false);
+const showNoteEditModal = ref(false);
 const currentPlan = ref<ExtendedPlan | null>(null);
+const editingMapNote = ref<any>(null);
 // État pour la sauvegarde
 const saving = ref(false);
 const saveStatus = ref<'saving' | 'success' | null>(null);
@@ -799,6 +821,99 @@ onMounted(async () => {
       // Désélectionner l'outil de dessin après la création
       setDrawingTool('');
     }) as EventListener);
+
+    // Écouter l'événement d'édition de note (via Leaflet)
+    const handleNoteEdit = (e: any) => {
+      console.log('[MapView] Édition de note via Leaflet', e);
+      console.log('[MapView] Type de e:', typeof e, 'Contenu de e:', JSON.stringify(e));
+
+      // Vérifier si e.note existe
+      if (!e || !e.note) {
+        console.error('[MapView] Erreur: e.note est undefined ou null', e);
+        return;
+      }
+
+      const note = e.note;
+      console.log('[MapView] Note à éditer:', note);
+
+      // Convertir la note Leaflet en note compatible avec le store
+      editingMapNote.value = {
+        id: note.id,
+        title: note.title || note.name,
+        description: note.description,
+        location: note.location,
+        columnId: note.columnId || notesStore.getDefaultColumn.id,
+        accessLevel: note.accessLevel,
+        style: note.style || {
+          color: '#3B82F6',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.6,
+          radius: 8
+        },
+        order: 0,
+        createdAt: note.createdAt || new Date().toISOString(),
+        updatedAt: note.updatedAt || new Date().toISOString(),
+        comments: note.comments || [],
+        photos: note.photos || []
+      };
+
+      console.log('[MapView] editingMapNote.value après conversion:', editingMapNote.value);
+
+      // Ouvrir le modal d'édition
+      showNoteEditModal.value = true;
+      console.log('[MapView] showNoteEditModal.value:', showNoteEditModal.value);
+    };
+
+    // Écouter l'événement d'édition de note (via événement global)
+    const handleGlobalNoteEdit = (event: CustomEvent) => {
+      console.log('[MapView] Édition de note via événement global', event);
+
+      if (!event.detail || !event.detail.note) {
+        console.error('[MapView] Erreur: event.detail.note est undefined ou null', event);
+        return;
+      }
+
+      const note = event.detail.note;
+      console.log('[MapView] Note à éditer (global):', note);
+
+      // Convertir la note en note compatible avec le store
+      editingMapNote.value = {
+        id: note.id,
+        title: note.title || note.name,
+        description: note.description,
+        location: note.location,
+        columnId: note.columnId || notesStore.getDefaultColumn.id,
+        accessLevel: note.accessLevel,
+        style: note.style || {
+          color: '#3B82F6',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.6,
+          radius: 8
+        },
+        order: 0,
+        createdAt: note.createdAt || new Date().toISOString(),
+        updatedAt: note.updatedAt || new Date().toISOString(),
+        comments: note.comments || [],
+        photos: note.photos || []
+      };
+
+      // Ouvrir le modal d'édition
+      showNoteEditModal.value = true;
+    };
+
+    // Ajouter l'écouteur global
+    window.addEventListener('geonote:edit', handleGlobalNoteEdit as EventListener);
+
+    if (featureGroup.value) {
+      // Supprimer l'écouteur existant s'il y en a un
+      featureGroup.value.off('note:edit');
+      // Ajouter le nouvel écouteur
+      featureGroup.value.on('note:edit', handleNoteEdit);
+    }
   } catch (error) {
     console.error('Error during component mount:', error);
     currentPlan.value = null;
@@ -1329,6 +1444,14 @@ onUnmounted(() => {
   }
   irrigationStore.clearCurrentPlan();
   drawingStore.clearCurrentPlan();
+
+  // Nettoyer l'écouteur d'événements de note:edit
+  if (featureGroup.value) {
+    featureGroup.value.off('note:edit');
+  }
+
+  // Nettoyer l'écouteur d'événements global
+  window.removeEventListener('geonote:edit', (() => {}) as EventListener);
 });
 // Fonction pour mettre à jour les propriétés d'une forme
 function updateShapeProperties(properties: any) {
@@ -2593,6 +2716,44 @@ async function selectSalarie(salarie: ExtendedUserDetails) {
     isLoadingClients.value = false;
     console.log('[MapView][selectSalarie] ====== FIN SÉLECTION SALARIE ======\n');
   }
+}
+
+// Fonctions pour gérer l'édition des notes
+function closeNoteEditModal() {
+  showNoteEditModal.value = false;
+  editingMapNote.value = null;
+}
+
+function handleNoteSave(note: any) {
+  // Si c'est une note existante, mettre à jour la couche Leaflet
+  if (featureGroup.value) {
+    const layers = featureGroup.value.getLayers();
+    const noteLayer = layers.find((layer: any) => layer._leaflet_id === note.id);
+
+    if (noteLayer) {
+      // Mettre à jour les propriétés de la note
+      noteLayer.properties.name = note.title;
+      noteLayer.properties.description = note.description;
+      noteLayer.properties.columnId = note.columnId;
+      noteLayer.properties.accessLevel = note.accessLevel;
+
+      // Mettre à jour le style
+      noteLayer.setNoteStyle({
+        color: note.style.color,
+        fillColor: note.style.fillColor,
+        weight: note.style.weight,
+        fillOpacity: note.style.fillOpacity,
+        radius: note.style.radius
+      });
+
+      // Mettre à jour le popup
+      noteLayer.closePopup();
+      noteLayer.unbindPopup();
+      noteLayer.bindPopup(noteLayer.createPopupContent());
+    }
+  }
+
+  notificationStore.success('Note enregistrée avec succès');
 }
 
 // Fonction pour sélectionner un client

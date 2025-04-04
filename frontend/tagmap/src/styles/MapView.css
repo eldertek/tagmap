@@ -83,6 +83,48 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
+/* Style pour les marqueurs de notes géolocalisées */
+.geo-note-marker {
+  position: relative;
+  z-index: 500;
+  transition: all 0.2s ease;
+}
+
+/* Créer un marqueur de carte avec une épingle */
+.geo-note-marker::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  border-radius: 50% 50% 50% 0;
+  transform-origin: center;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+  border: 2px solid white;
+}
+
+.geo-note-marker::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.geo-note-marker:hover {
+  transform: scale(1.1);
+  z-index: 600;
+}
+
 /* Styles responsifs pour mobile */
 @media (max-width: 768px) {
   .marker-pin {

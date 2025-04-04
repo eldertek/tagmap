@@ -533,10 +533,15 @@ body {
   }
 }
 
-/* Sur mobile, on permet le scroll */
+/* Sur mobile, on permet le scroll mais on garde une structure fixe */
 @media (max-width: 767px) {
   body, #app {
-    @apply min-h-screen overflow-auto;
+    @apply min-h-screen overflow-hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
   }
 }
 
@@ -636,6 +641,7 @@ body {
 :root {
   --header-height: 64px; /* 4rem = 64px */
   --mobile-toolbar-height: 50px; /* Hauteur de la barre d'outils mobile */
+  --mobile-bottom-toolbar-height: 48px; /* Hauteur de la barre d'outils en bas sur mobile */
 }
 
 /* Ajuster la hauteur de main */

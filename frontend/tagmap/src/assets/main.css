@@ -38,6 +38,28 @@
   .map-container {
     @apply flex-1 relative;
   }
+
+  /* Styles spécifiques pour la carte sur mobile */
+  @media (max-width: 767px) {
+    .map-parent {
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      right: 0;
+      bottom: var(--mobile-bottom-toolbar-height);
+      z-index: 1000;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-content {
+      height: 100%;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+  }
 }
 
 .text-container {

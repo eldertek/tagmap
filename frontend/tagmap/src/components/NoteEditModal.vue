@@ -1,0 +1,266 @@
+<template>
+  <div class="fixed z-[9999] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen w-full">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+      <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
+        <form @submit.prevent="saveNote" class="h-full md:h-auto flex flex-col">
+          <div class="p-4 md:p-6 flex-1 overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-4">
+              <h3 class="text-xl font-semibold text-gray-900">{{ note?.id ? 'Modifier la note' : 'Nouvelle note' }}</h3>
+              <button type="button" @click="closeModal" class="text-gray-400 hover:text-gray-500">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Onglets pour naviguer entre les sections -->
+            <div class="mb-4 border-b border-gray-200">
+              <nav class="flex space-x-4" aria-label="Tabs">
+                <button
+                  type="button"
+                  @click="activeTab = 'info'"
+                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
+                  :class="activeTab === 'info' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                >
+                  Informations
+                </button>
+                <button
+                  type="button"
+                  @click="activeTab = 'comments'"
+                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
+                  :class="activeTab === 'comments' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                >
+                  Commentaires
+                  <span v-if="note?.comments?.length" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
+                    {{ note.comments.length }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  @click="activeTab = 'photos'"
+                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
+                  :class="activeTab === 'photos' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                >
+                  Photos
+                  <span v-if="note?.photos?.length" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
+                    {{ note.photos.length }}
+                  </span>
+                </button>
+              </nav>
+            </div>
+
+            <!-- Onglet Informations -->
+            <div v-if="activeTab === 'info'">
+              <div class="mb-4">
+                <label for="title" class="block text-sm font-medium text-gray-700">Titre</label>
+                <input type="text" id="title" v-model="editingNote.title" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+              </div>
+              <div class="mb-4">
+                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea id="description" v-model="editingNote.description" rows="3"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
+              </div>
+              <div class="mb-4">
+                <label for="column" class="block text-sm font-medium text-gray-700">État</label>
+                <select id="column" v-model="editingNote.columnId"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option v-for="column in sortedColumns" :key="column.id" :value="column.id">
+                    {{ column.title }}
+                  </option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label for="accessLevel" class="block text-sm font-medium text-gray-700">Niveau d'accès</label>
+                <select id="accessLevel" v-model="editingNote.accessLevel"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option v-for="level in accessLevels" :key="level.id" :value="level.id">
+                    {{ level.title }} - {{ level.description }}
+                  </option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Couleur</label>
+                <div class="mt-1 flex space-x-2">
+                  <div v-for="color in colors" :key="color"
+                    class="w-8 h-8 rounded-full cursor-pointer border-2"
+                    :class="{ 'border-gray-400': editingNote.style.color !== color, 'border-black': editingNote.style.color === color }"
+                    :style="{ backgroundColor: color }"
+                    @click="updateNoteColor(color)">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Onglet Commentaires -->
+            <div v-else-if="activeTab === 'comments'" class="mt-4">
+              <CommentThread
+                v-if="note"
+                :noteId="note.id"
+                :comments="note.comments || []"
+              />
+            </div>
+
+            <!-- Onglet Photos -->
+            <div v-else-if="activeTab === 'photos'" class="mt-4">
+              <PhotoGallery
+                v-if="note"
+                :noteId="note.id"
+                :photos="note.photos || []"
+              />
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm">
+              Enregistrer
+            </button>
+            <button @click="closeModal" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+              Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
+import { useNotificationStore } from '../stores/notification';
+import CommentThread from './CommentThread.vue';
+import PhotoGallery from './PhotoGallery.vue';
+
+const props = defineProps<{
+  note: Note | null;
+  isNewNote?: boolean;
+  location?: [number, number];
+}>();
+
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'save', note: Note): void;
+}>();
+
+const notesStore = useNotesStore();
+const notificationStore = useNotificationStore();
+const activeTab = ref('info');
+
+// Créer une copie de la note pour l'édition
+const editingNote = ref<any>({
+  title: '',
+  description: '',
+  columnId: '',
+  accessLevel: NoteAccessLevel.PRIVATE,
+  style: {
+    color: '#3B82F6',
+    weight: 2,
+    opacity: 1,
+    fillColor: '#3B82F6',
+    fillOpacity: 0.6,
+    radius: 8
+  },
+  comments: [],
+  photos: []
+});
+
+// Initialiser les données d'édition
+onMounted(() => {
+  console.log('[NoteEditModal] onMounted - props:', props);
+
+  if (props.note) {
+    // Édition d'une note existante
+    console.log('[NoteEditModal] Édition d\'une note existante:', props.note);
+    editingNote.value = JSON.parse(JSON.stringify(props.note));
+  } else if (props.isNewNote && props.location) {
+    // Création d'une nouvelle note
+    console.log('[NoteEditModal] Création d\'une nouvelle note avec location:', props.location);
+    editingNote.value = {
+      title: 'Nouvelle note',
+      description: '',
+      location: props.location,
+      columnId: notesStore.getDefaultColumn.id,
+      accessLevel: NoteAccessLevel.PRIVATE,
+      style: {
+        color: '#3B82F6',
+        weight: 2,
+        opacity: 1,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.6,
+        radius: 8
+      },
+      comments: [],
+      photos: []
+    };
+  } else {
+    console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note avec location');
+  }
+
+  console.log('[NoteEditModal] editingNote.value après initialisation:', editingNote.value);
+});
+
+// Colonnes triées
+const sortedColumns = computed(() => notesStore.getSortedColumns);
+
+// Niveaux d'accès
+const accessLevels = [
+  { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
+  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise uniquement' },
+  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et les salariés' },
+  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous' }
+];
+
+// Couleurs disponibles
+const colors = [
+  '#3B82F6', // Bleu
+  '#10B981', // Vert
+  '#F59E0B', // Orange
+  '#EF4444', // Rouge
+  '#8B5CF6', // Violet
+  '#EC4899', // Rose
+  '#6B7280'  // Gris
+];
+
+// Mettre à jour la couleur de la note
+function updateNoteColor(color: string) {
+  editingNote.value.style.color = color;
+  editingNote.value.style.fillColor = color;
+}
+
+// Fermer le modal
+function closeModal() {
+  emit('close');
+}
+
+// Sauvegarder la note
+function saveNote() {
+  if (props.note) {
+    // Mise à jour d'une note existante
+    notesStore.updateNote(props.note.id, editingNote.value);
+    notificationStore.success('Note mise à jour avec succès');
+  } else if (props.isNewNote && props.location) {
+    // Création d'une nouvelle note
+    // Nous devons utiliser 'as any' car le type de la fonction addNote n'inclut pas accessLevel
+    // mais la fonction l'accepte quand même
+    const newNoteId = notesStore.addNote({
+      title: editingNote.value.title,
+      description: editingNote.value.description,
+      location: props.location,
+      columnId: editingNote.value.columnId,
+      style: editingNote.value.style,
+      accessLevel: editingNote.value.accessLevel
+    } as any);
+
+    notificationStore.success('Note créée avec succès');
+
+    // Récupérer la note complète après création
+    const newNote = notesStore.notes.find(n => n.id === newNoteId);
+    if (newNote) {
+      emit('save', newNote);
+    }
+  }
+
+  emit('close');
+}
+</script>

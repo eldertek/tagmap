@@ -104,7 +104,7 @@ export const useNotesStore = defineStore('notes', () => {
       photos: [
         {
           id: 1,
-          url: 'https://via.placeholder.com/300x200?text=Photo+irrigation',
+          url: 'https://thumbs.dreamstime.com/b/gros-plan-de-pont-en-b%C3%A9ton-et-canaux-d-irrigation-avec-le-fond-arbre-l-194103331.jpg',
           createdAt: '2023-05-15T10:35:00Z',
           caption: 'Vue du point d\'irrigation'
         }

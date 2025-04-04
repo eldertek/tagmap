@@ -143,12 +143,12 @@
                       </div>
                     </template>
                     <template #item="{ element: note }">
-                      <div class="mb-2 p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select" :data-note-id="note.id">
+                      <div class="mb-2 p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 no-select overflow-hidden" :data-note-id="note.id">
                         <!-- En-tête de la note avec poignée de drag -->
-                        <div class="flex items-start justify-between mb-2 drag-handle cursor-move">
-                          <div class="flex items-center">
+                        <div class="flex items-start justify-between mb-2 drag-handle cursor-move w-full">
+                          <div class="flex items-center flex-grow min-w-0 mr-2">
                             <div
-                              class="h-8 w-8 rounded-full flex items-center justify-center mr-2"
+                              class="h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center mr-2"
                               :style="{ backgroundColor: note.style.fillColor + '40', color: note.style.color }"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -156,12 +156,12 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
                             </div>
-                            <h4 class="text-sm font-medium text-gray-900 truncate max-w-[180px]" :title="note.title">{{ note.title }}</h4>
+                            <h4 class="text-sm font-medium text-gray-900 truncate min-w-0" :title="note.title">{{ note.title }}</h4>
                           </div>
-                          <div class="flex space-x-1">
+                          <div class="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
                             <button
                               @click="viewOnMap(note)"
-                              class="text-gray-400 hover:text-primary-600"
+                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
                               title="Voir sur la carte">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -169,7 +169,7 @@
                             </button>
                             <button
                               @click="editNote(note)"
-                              class="text-gray-400 hover:text-primary-600"
+                              class="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-gray-100"
                               title="Modifier">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -177,7 +177,7 @@
                             </button>
                             <button
                               @click="confirmDeleteNote(note)"
-                              class="text-gray-400 hover:text-red-600"
+                              class="p-1.5 sm:p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-gray-100"
                               title="Supprimer">
                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -188,6 +188,22 @@
 
                         <!-- Description de la note -->
                         <p class="text-xs text-gray-500 mb-2 line-clamp-2" :title="note.description">{{ note.description }}</p>
+
+                        <!-- Indicateurs de commentaires et photos -->
+                        <div v-if="note.comments?.length || note.photos?.length" class="flex items-center space-x-2 mb-2">
+                          <div v-if="note.comments?.length" class="flex items-center text-xs text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            {{ note.comments.length }}
+                          </div>
+                          <div v-if="note.photos?.length" class="flex items-center text-xs text-gray-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {{ note.photos.length }}
+                          </div>
+                        </div>
 
                         <!-- Pied de la note -->
                         <div class="flex justify-between items-center text-xs text-gray-400">
@@ -256,72 +272,14 @@
     </div>
 
     <!-- Modal d'édition de note -->
-    <div v-if="showEditModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-center justify-center min-h-screen w-full">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
-          <form @submit.prevent="saveNote" class="h-full md:h-auto flex flex-col">
-            <div class="p-4 md:p-6 flex-1 overflow-y-auto">
-              <div class="flex justify-between items-center mb-4 border-b pb-4">
-                <h3 class="text-xl font-semibold text-gray-900">{{ editingNote?.id ? 'Modifier la note' : 'Nouvelle note' }}</h3>
-                <button type="button" @click="showEditModal = false" class="text-gray-400 hover:text-gray-500">
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div class="mb-4">
-                <label for="title" class="block text-sm font-medium text-gray-700">Titre</label>
-                <input type="text" id="title" :value="editingNote?.title || ''" @input="updateNoteField('title', $event)" required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-              </div>
-              <div class="mb-4">
-                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" :value="editingNote?.description || ''" @input="updateNoteField('description', $event)" rows="3"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
-              </div>
-              <div class="mb-4">
-                <label for="column" class="block text-sm font-medium text-gray-700">État</label>
-                <select id="column" :value="editingNote?.columnId || ''" @change="updateNoteField('columnId', $event)"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                  <option v-for="column in sortedColumns" :key="column.id" :value="column.id">
-                    {{ column.title }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label for="accessLevel" class="block text-sm font-medium text-gray-700">Niveau d'accès</label>
-                <select id="accessLevel" :value="editingNote?.accessLevel || ''" @change="updateNoteField('accessLevel', $event)"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                  <option v-for="level in accessLevels" :key="level.id" :value="level.id">
-                    {{ level.title }} - {{ level.description }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Couleur</label>
-                <div class="mt-1 flex space-x-2">
-                  <div v-for="color in colors" :key="color"
-                    class="w-8 h-8 rounded-full cursor-pointer border-2"
-                    :class="{ 'border-gray-400': !(editingNote && editingNote.style && editingNote.style.color === color), 'border-black': editingNote && editingNote.style && editingNote.style.color === color }"
-                    :style="{ backgroundColor: color }"
-                    @click="if (editingNote && editingNote.style) { editingNote.style.color = color; editingNote.style.fillColor = color; }">
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-              <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm">
-                Enregistrer
-              </button>
-              <button @click="showEditModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                Annuler
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <NoteEditModal
+      v-if="showEditModal"
+      :note="editingNote"
+      :is-new-note="!editingNote?.id"
+      :location="editingNote?.location"
+      @close="showEditModal = false"
+      @save="handleNoteSave"
+    />
 
     <!-- Modal d'ajout de colonne -->
     <div v-if="showNewColumnModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -374,6 +332,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
+import NoteEditModal from '../components/NoteEditModal.vue';
 
 import draggable from 'vuedraggable';
 
@@ -390,6 +349,7 @@ const noteToDelete = ref<Note | null>(null);
 const editingNote = ref<Note | null>(null);
 const newColumnName = ref('');
 const newColumnColor = ref('#6B7280');
+const activeTab = ref('info'); // Onglet actif dans le modal d'édition
 
 // Colonnes pour le drag and drop
 const columnsForDrag = computed({
@@ -558,30 +518,14 @@ function viewOnMap(note: Note) {
 // Éditer une note
 function editNote(note: Note) {
   editingNote.value = JSON.parse(JSON.stringify(note)); // Clone profond
+  activeTab.value = 'info'; // Réinitialiser l'onglet actif
   showEditModal.value = true;
 }
 
-// Mettre à jour un champ de la note en cours d'édition
-function updateNoteField(field: string, event: Event) {
-  if (!editingNote.value) return;
-
-  const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-
-  if (field === 'title' || field === 'description' || field === 'columnId') {
-    editingNote.value[field] = target.value;
-  } else if (field === 'accessLevel') {
-    editingNote.value.accessLevel = target.value as NoteAccessLevel;
-  }
-}
-
-// Sauvegarder une note
-function saveNote() {
-  if (!editingNote.value) return;
-
-  notesStore.updateNote(editingNote.value.id, editingNote.value);
-
-  notificationStore.success('Note mise à jour avec succès');
-
+// Gérer la sauvegarde d'une note depuis le modal
+function handleNoteSave(note: Note) {
+  // La note est déjà sauvegardée dans le store par le composant NoteEditModal
+  // Nous n'avons qu'à fermer le modal
   showEditModal.value = false;
 }
 
