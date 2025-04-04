@@ -1322,6 +1322,20 @@ export function useMapDrawing(): MapDrawingReturn {
       selectedShape.value.properties = {};
     }
 
+    // S'assurer que le type est préservé
+    const currentType = selectedShape.value.properties.type;
+    console.log(`[useMapDrawing] Type actuel de la forme: ${currentType}`);
+
+    // S'assurer que la catégorie est définie comme 'forages' par défaut
+    if (!selectedShape.value.properties.category) {
+      selectedShape.value.properties.category = 'forages';
+    }
+
+    // S'assurer que le niveau d'accès est défini comme 'visitor' par défaut
+    if (!selectedShape.value.properties.accessLevel) {
+      selectedShape.value.properties.accessLevel = 'visitor';
+    }
+
     // Assurer que les propriétés de filtrage existent
     if (!selectedShape.value.properties.category) {
       selectedShape.value.properties.category = 'default';
@@ -1336,9 +1350,19 @@ export function useMapDrawing(): MapDrawingReturn {
       console.log(`[useMapDrawing] Assigned temporary dbId: ${selectedShape.value._dbId}`);
     }
 
+    // Sauvegarder le type actuel avant de mettre à jour les propriétés
+    const originalType = selectedShape.value.properties.type;
+    console.log(`[useMapDrawing] Type original avant mise à jour: ${originalType}`);
+
     // Appliquer les nouvelles propriétés
     Object.keys(properties).forEach(key => {
-      selectedShape.value.properties[key] = properties[key];
+      // Ne pas écraser le type si la forme en a déjà un
+      if (key === 'type' && originalType) {
+        console.log(`[useMapDrawing] Préservation du type original: ${originalType}`);
+        // Ne rien faire, on garde le type original
+      } else {
+        selectedShape.value.properties[key] = properties[key];
+      }
 
       // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
       if (key === 'name') {
@@ -1346,6 +1370,11 @@ export function useMapDrawing(): MapDrawingReturn {
         (selectedShape.value as any).name = properties[key];
       }
     });
+
+    // S'assurer que le type est toujours préservé après la mise à jour
+    if (originalType) {
+      selectedShape.value.properties.type = originalType;
+    }
 
     console.log('[useMapDrawing] Updated shape properties', {
       after: selectedShape.value.properties,
@@ -1656,7 +1685,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // Points milieux (bleu)
     const midPointMarkers = midPointPositions.map((midPoint, index) => {
-      const midPointMarker = createControlPoint(midPoint, '#2563EB');
+      const midPointMarker = createControlPoint(midPoint, '#2b6451');
       activeControlPoints.push(midPointMarker);
 
       // Ajouter les mesures aux points milieux
@@ -2032,7 +2061,7 @@ export function useMapDrawing(): MapDrawingReturn {
           (p1.lng + p2.lng) / 2
         );
 
-        const midPointMarker = createControlPoint(midPoint, '#2563EB') as ControlPoint;
+        const midPointMarker = createControlPoint(midPoint, '#2b6451');
         activeControlPoints.push(midPointMarker);
 
         // Ajouter les mesures
@@ -2334,7 +2363,7 @@ export function useMapDrawing(): MapDrawingReturn {
       }
       // Créer maintenant tous les markers
       midPoints.forEach((midPoint, i) => {
-        const midPointMarker = createControlPoint(midPoint, '#2563EB');
+        const midPointMarker = createControlPoint(midPoint, '#2b6451');
         activeControlPoints.push(midPointMarker);
         // Ajouter les mesures aux points milieux
         addMeasureEvents(midPointMarker, layer, () => {
@@ -3064,7 +3093,8 @@ export function useMapDrawing(): MapDrawingReturn {
       layer.properties = {};
     }
     if (!layer.properties.category) {
-      layer.properties.category = 'default';
+      // Utiliser 'forages' comme catégorie par défaut pour assurer la compatibilité avec les filtres
+      layer.properties.category = 'forages';
     }
     if (!layer.properties.accessLevel) {
       layer.properties.accessLevel = 'visitor';

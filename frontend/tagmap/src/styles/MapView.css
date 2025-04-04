@@ -179,7 +179,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #3b82f6;
+  background-color: #2b6451;
   color: white;
   border: none;
   border-radius: 4px;
@@ -192,7 +192,7 @@
 }
 
 .geo-note-edit-button:hover {
-  background-color: #2563eb;
+  background-color: #1d4738;
 }
 
 .geo-note-edit-button svg {
@@ -414,7 +414,7 @@
 
 /* Style pour les points de contrôle actifs */
 .leaflet-pm-draggable.active {
-  background-color: #3B82F6 !important;
+  background-color: #2b6451 !important;
   border-color: white !important;
 }
 
@@ -555,7 +555,7 @@
   margin-top: -16px !important;
   cursor: pointer !important;
   background: white !important;
-  border: 2px solid #3388ff !important;
+  border: 2px solid #2b6451 !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
@@ -582,7 +582,7 @@
 .rotation-control svg {
   width: 24px !important;
   height: 24px !important;
-  color: #3388ff !important;
+  color: #2b6451 !important;
   transition: transform 0.2s ease !important;
   pointer-events: none !important;
 }
@@ -692,7 +692,7 @@
   height: 20px;
   border-radius: 50%;
   background: white;
-  border: 2px solid #3B82F6;
+  border: 2px solid #2b6451;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   position: relative;
 }
@@ -705,7 +705,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #3B82F6;
+  background: #2b6451;
   transform: translate(-50%, -50%);
 }
 
@@ -785,7 +785,7 @@
 .text-container[contenteditable="true"] {
   cursor: text;
   user-select: text;
-  outline: 2px solid #3B82F6;
+  outline: 2px solid #2b6451;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
@@ -796,14 +796,14 @@
 
 .leaflet-text-rectangle .leaflet-path-transform-handle {
   background-color: white;
-  border: 2px solid #3B82F6;
+  border: 2px solid #2b6451;
   width: 10px;
   height: 10px;
   cursor: pointer;
 }
 
 .leaflet-text-rectangle .leaflet-path-transform-rotation {
-  background-color: #3B82F6;
+  background-color: #2b6451;
   border: 2px solid white;
   width: 12px;
   height: 12px;
@@ -863,7 +863,7 @@
 
 .leaflet-text-rectangle-editor {
   background-color: white;
-  border: 2px solid #3388ff;
+  border: 2px solid #2b6451;
   border-radius: 4px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
   font-family: 'Arial', sans-serif;

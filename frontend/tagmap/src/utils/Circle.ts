@@ -75,10 +75,10 @@ export class Circle extends L.Circle {
         },
         style: {
           ...existingStyle,
-          color: this.options.color || '#3388ff',
+          color: this.options.color || '#2b6451',
           weight: this.options.weight || 3,
           opacity: this.options.opacity || 1,
-          fillColor: this.options.fillColor || '#3388ff',
+          fillColor: this.options.fillColor || '#2b6451',
           fillOpacity: this.options.fillOpacity || 0.2,
           dashArray: (this.options as any)?.dashArray || '',
           name: existingName

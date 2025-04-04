@@ -122,10 +122,10 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     const data: PolygonData = {
       points: [[latLng.lng, latLng.lat]],
       style: {
-        color: shape.properties.style?.color || '#3388ff',
+        color: shape.properties.style?.color || '#2b6451',
         weight: shape.properties.style?.weight || 3,
         opacity: shape.properties.style?.opacity || 1,
-        fillColor: shape.properties.style?.fillColor || '#3388ff',
+        fillColor: shape.properties.style?.fillColor || '#2b6451',
         fillOpacity: shape.properties.style?.fillOpacity || 0.2,
         name: shape.properties.style?.name || ''
       }
@@ -139,7 +139,7 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     const data = {
       points: latLngsElevation.map((ll: L.LatLng) => [ll.lng, ll.lat]),
       style: {
-        color: shape.properties.style?.color || '#FF4500',
+        color: shape.properties.style?.color || '#2b6451',
         weight: shape.properties.style?.weight || 4,
         opacity: shape.properties.style?.opacity || 0.8,
         name: shape.properties.style?.name || ''
@@ -161,10 +161,10 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     const data: PolygonData = {
       points: latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]),
       style: {
-        color: shape.properties.style?.color || '#3388ff',
+        color: shape.properties.style?.color || '#2b6451',
         weight: shape.properties.style?.weight || 3,
         opacity: shape.properties.style?.opacity || 1,
-        fillColor: shape.properties.style?.fillColor || '#3388ff',
+        fillColor: shape.properties.style?.fillColor || '#2b6451',
         fillOpacity: shape.properties.style?.fillOpacity || 0.2,
         name: shape.properties.style?.name || ''
       },
@@ -179,7 +179,7 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     const data: LineData = {
       points: latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]),
       style: {
-        color: shape.properties.style?.color || '#3388ff',
+        color: shape.properties.style?.color || '#2b6451',
         weight: shape.properties.style?.weight || 3,
         opacity: shape.properties.style?.opacity || 1,
         name: shape.properties.style?.name || ''
@@ -208,10 +208,10 @@ function convertStoredElementToShape(element: DrawingElement): any {
       );
 
       const polygon = new Polygon([points], {
-        color: data.style?.color || '#3388ff',
+        color: data.style?.color || '#2b6451',
         weight: data.style?.weight || 3,
         opacity: data.style?.opacity || 1,
-        fillColor: data.style?.fillColor || '#3388ff',
+        fillColor: data.style?.fillColor || '#2b6451',
         fillOpacity: data.style?.fillOpacity || 0.2,
         dashArray: data.style?.dashArray || '',
         name: data.style?.name || ''
@@ -234,7 +234,7 @@ function convertStoredElementToShape(element: DrawingElement): any {
       );
 
       const elevationLine = new ElevationLine(points, {
-        color: data.style?.color || '#FF4500',
+        color: data.style?.color || '#2b6451',
         weight: data.style?.weight || 4,
         opacity: data.style?.opacity || 0.8,
         name: data.style?.name || ''
@@ -312,10 +312,10 @@ function convertStoredElementToShape(element: DrawingElement): any {
       );
 
       const rectangle = new Rectangle(bounds, {
-        color: data.style?.color || '#3388ff',
+        color: data.style?.color || '#2b6451',
         weight: data.style?.weight || 3,
         opacity: data.style?.opacity || 1,
-        fillColor: data.style?.fillColor || '#3388ff',
+        fillColor: data.style?.fillColor || '#2b6451',
         fillOpacity: data.style?.fillOpacity || 0.2,
         dashArray: data.style?.dashArray || '',
         name: data.style?.name || '',
@@ -355,10 +355,10 @@ function convertStoredElementToShape(element: DrawingElement): any {
       const circle = L.circle(
         [data.center[1], data.center[0]],
         {
-          color: data.style?.color || '#3388ff',
+          color: data.style?.color || '#2b6451',
           weight: data.style?.weight || 3,
           opacity: data.style?.opacity || 1,
-          fillColor: data.style?.fillColor || '#3388ff',
+          fillColor: data.style?.fillColor || '#2b6451',
           fillOpacity: data.style?.fillOpacity || 0.2,
           dashArray: data.style?.dashArray || '',
           radius: data.radius
@@ -679,12 +679,10 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.accessLevels,
           ...filters.accessLevels
         };
+
         console.log('[DrawingStore][updateFilters] Niveaux d\'accès mis à jour:', {
           avant: oldAccessLevels,
-          après: this.filters.accessLevels,
-          diff: Object.keys(this.filters.accessLevels).filter(key =>
-            oldAccessLevels[key as keyof typeof oldAccessLevels] !== this.filters.accessLevels[key as keyof typeof this.filters.accessLevels]
-          )
+          après: this.filters.accessLevels
         });
       }
 
@@ -695,12 +693,10 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.categories,
           ...filters.categories
         };
+
         console.log('[DrawingStore][updateFilters] Catégories mises à jour:', {
           avant: oldCategories,
-          après: this.filters.categories,
-          diff: filters.categories ? Object.keys(filters.categories).filter(key =>
-            filters.categories && oldCategories[key] !== filters.categories[key]
-          ) : []
+          après: this.filters.categories
         });
       }
 
@@ -711,16 +707,22 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.shapeTypes,
           ...filters.shapeTypes
         };
+
         console.log('[DrawingStore][updateFilters] Types de formes mis à jour:', {
           avant: oldShapeTypes,
-          après: this.filters.shapeTypes,
-          diff: filters.shapeTypes ? Object.keys(filters.shapeTypes).filter(key =>
-            filters.shapeTypes && oldShapeTypes[key] !== filters.shapeTypes[key]
-          ) : []
+          après: this.filters.shapeTypes
         });
       }
 
       console.log('[DrawingStore][updateFilters] Filtres mis à jour:', JSON.stringify(this.filters, null, 2));
+
+      // Émettre un événement pour indiquer que les filtres ont changé
+      console.log('[DrawingStore][updateFilters] Émission de l\'event filtersChanged');
+      window.dispatchEvent(new CustomEvent('filtersChanged', {
+        detail: {
+          filters: this.filters
+        }
+      }));
     },
     async loadPlanElements(planId: number) {
       const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');

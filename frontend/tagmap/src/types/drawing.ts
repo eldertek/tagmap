@@ -75,7 +75,7 @@ export interface ElevationLineData extends BaseData {
   maxSlope?: number;
 }
 export interface ShapeType {
-  type: "unknown" | "Rectangle" | "Circle" | "Polygon" | "Line" | "Note";
+  type: string; // Accepte n'importe quelle chaîne de caractères pour le type
   properties: {
     type?: string;
     style?: any;

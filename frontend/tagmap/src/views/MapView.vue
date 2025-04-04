@@ -594,6 +594,39 @@ const selectedShape = computed((): ShapeType | null => {
   // Get the raw properties object and ensure we're capturing all properties
   const rawProperties = selectedLeafletShape.value.properties || {};
 
+  // Déterminer le type de forme en fonction de l'instance
+  let shapeType = 'unknown';
+  if (rawProperties.type) {
+    // Si le type est déjà défini dans les propriétés, l'utiliser
+    shapeType = rawProperties.type;
+  } else if (selectedLeafletShape.value instanceof L.Circle) {
+    shapeType = 'Circle';
+  } else if (selectedLeafletShape.value instanceof Rectangle) {
+    shapeType = 'Rectangle';
+  } else if (selectedLeafletShape.value instanceof L.Rectangle) {
+    shapeType = 'Rectangle';
+  } else if (selectedLeafletShape.value instanceof Polygon) {
+    shapeType = 'Polygon';
+  } else if (selectedLeafletShape.value instanceof L.Polygon) {
+    shapeType = 'Polygon';
+  } else if (selectedLeafletShape.value instanceof ElevationLine) {
+    shapeType = 'ElevationLine';
+  } else if (selectedLeafletShape.value instanceof Line) {
+    shapeType = 'Line';
+  } else if (selectedLeafletShape.value instanceof L.Polyline && !(selectedLeafletShape.value instanceof L.Polygon)) {
+    shapeType = 'Line';
+  }
+
+  console.log(`[MapView][selectedShape] Type de forme détecté: ${shapeType}`);
+
+  // S'assurer que le type est défini dans les propriétés
+  if (!rawProperties.type) {
+    if (!selectedLeafletShape.value.properties) {
+      selectedLeafletShape.value.properties = {};
+    }
+    selectedLeafletShape.value.properties.type = shapeType;
+  }
+
   // Check multiple places for the name
   let shapeName = undefined;
 
@@ -659,9 +692,19 @@ const selectedShape = computed((): ShapeType | null => {
     }
   }
 
+  // S'assurer que la catégorie est définie
+  if (!selectedLeafletShape.value.properties.category) {
+    selectedLeafletShape.value.properties.category = 'forages';
+  }
+
+  // S'assurer que le niveau d'accès est défini
+  if (!selectedLeafletShape.value.properties.accessLevel) {
+    selectedLeafletShape.value.properties.accessLevel = 'visitor';
+  }
+
   // Log detailed information about the properties
   console.log('[MapView][selectedShape] Preparing properties for DrawingTools:', {
-    type: rawProperties.type,
+    type: shapeType,
     name: rawProperties.name,
     foundName: shapeName,
     hasNameProperty: 'name' in rawProperties,
@@ -675,15 +718,22 @@ const selectedShape = computed((): ShapeType | null => {
   // Create a fresh copy of the properties with explicit name handling
   const properties = {
     ...rawProperties,
+    // Ensure type is explicitly included
+    type: shapeType,
     // Ensure name is explicitly included if it exists anywhere
-    name: shapeName || selectedLeafletShape.value.name || rawProperties.name || undefined
+    name: shapeName || selectedLeafletShape.value.name || rawProperties.name || undefined,
+    // Ensure category is explicitly included
+    category: selectedLeafletShape.value.properties.category || 'forages',
+    // Ensure accessLevel is explicitly included
+    accessLevel: selectedLeafletShape.value.properties.accessLevel || 'visitor'
   };
 
   // Create the shape object to pass to DrawingTools
   const shape = {
-    type: properties.type || 'unknown',
+    type: shapeType,
     properties,
-    layer: selectedLeafletShape.value
+    layer: selectedLeafletShape.value,
+    options: selectedLeafletShape.value.options || {}
   };
 
   console.log('[MapView][selectedShape] Final shape object for DrawingTools:', {
@@ -797,6 +847,36 @@ onMounted(async () => {
           });
         }
       }) as EventListener);
+
+      // Ajouter des écouteurs d'événements au featureGroup pour suivre les couches
+      if (featureGroup.value) {
+        // Écouteur pour les couches ajoutées
+        featureGroup.value.on('layeradd', (e: any) => {
+          const layer = e.layer;
+          if (layer && layer._leaflet_id) {
+            // Vérifier si la couche existe déjà dans shapes.value
+            const existingShapeIndex = shapes.value.findIndex(shape =>
+              shape.layer && shape.layer._leaflet_id === layer._leaflet_id
+            );
+
+            // Si la couche n'existe pas dans shapes.value, l'ajouter
+            if (existingShapeIndex === -1) {
+              console.log(`[MapView][featureGroup.layeradd] Ajout de la couche ${layer._leaflet_id} à shapes.value`);
+              shapes.value.push({ layer, id: layer._dbId || layer._leaflet_id });
+            }
+          }
+        });
+
+        // Écouteur pour les couches supprimées
+        featureGroup.value.on('layerremove', (e: any) => {
+          const layer = e.layer;
+          if (layer && layer._leaflet_id) {
+            // Ne pas supprimer la couche de shapes.value, car nous voulons pouvoir la restaurer
+            // lorsque les filtres sont modifiés
+            console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value`);
+          }
+        });
+      }
     }
 
     // Charger le dernier plan consulté immédiatement
@@ -959,11 +1039,34 @@ watch(() => drawingStore.filters, (newFilters, oldFilters) => {
       categoriesChanged,
       shapeTypesChanged
     });
-  }
 
-  console.log('[MapView][watch drawingStore.filters] Mise à jour de l\'affichage suite au changement de filtres');
-  updateMapDisplay();
+    // Ne mettre à jour l'affichage que si les filtres ont réellement changé
+    if (accessLevelsChanged || categoriesChanged || shapeTypesChanged) {
+      console.log('[MapView][watch drawingStore.filters] Mise à jour de l\'affichage suite au changement de filtres');
+      updateMapDisplay();
+    } else {
+      console.log('[MapView][watch drawingStore.filters] Aucun changement réel, pas de mise à jour');
+    }
+  } else {
+    console.log('[MapView][watch drawingStore.filters] Mise à jour de l\'affichage suite au changement de filtres');
+    updateMapDisplay();
+  }
 }, { deep: true });
+
+// Écouter l'événement filtersChanged
+const handleFiltersChanged = (event: any) => {
+  console.log('[MapView][filtersChanged] Événement reçu:', event.detail);
+  updateMapDisplay();
+};
+
+onMounted(() => {
+  window.addEventListener('filtersChanged', handleFiltersChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('filtersChanged', handleFiltersChanged);
+  console.log('[MapView][filtersChanged] Événement désactivé');
+});
 
 // Surveiller les changements dans les éléments filtrés
 watch(() => drawingStore.getFilteredElements, (newElements, oldElements) => {
@@ -1343,10 +1446,10 @@ async function savePlan() {
 
       // Extraire le style commun
       const commonStyle = {
-        color: (layer.options as L.PathOptions).color || '#3388ff',
+        color: (layer.options as L.PathOptions).color || '#2b6451',
         weight: (layer.options as L.PathOptions).weight || 3,
         opacity: (layer.options as L.PathOptions).opacity || 1,
-        fillColor: (layer.options as L.PathOptions).fillColor || '#3388ff',
+        fillColor: (layer.options as L.PathOptions).fillColor || '#2b6451',
         fillOpacity: (layer.options as L.PathOptions).fillOpacity || 0.2,
         dashArray: (layer.options as L.PathOptions).dashArray || ''
       };
@@ -2785,7 +2888,7 @@ function handleFilterChange(filters: {
     shapeTypes: { ...drawingStore.filters.shapeTypes }
   }, null, 2));
 
-  // Mettre à jour les filtres dans le store de dessin
+  // Toujours mettre à jour les filtres dans le store
   console.log('[MapView][handleFilterChange] Mise à jour des filtres dans le store');
   drawingStore.updateFilters(filters);
 
@@ -2798,6 +2901,12 @@ function handleFilterChange(filters: {
   // Mettre à jour l'affichage de la carte
   console.log('[MapView][handleFilterChange] Mise à jour de l\'affichage de la carte');
   updateMapDisplay();
+
+  // Forcer une mise à jour supplémentaire après un court délai
+  setTimeout(() => {
+    console.log('[MapView][handleFilterChange] Mise à jour forcée de l\'affichage');
+    updateMapDisplay();
+  }, 100);
 
   console.log('[MapView][handleFilterChange] Traitement des filtres terminé');
 }
@@ -2841,9 +2950,20 @@ function updateMapDisplay() {
     _leaflet_id: layer._leaflet_id,
     _dbId: layer._dbId,
     hasProperties: !!layer.properties,
-    propertyType: layer.properties ? layer.properties.type : null
+    propertyType: layer.properties ? layer.properties.type : null,
+    category: layer.properties ? layer.properties.category : null
   }));
   console.log('[MapView][updateMapDisplay] Détails des couches:', JSON.stringify(layersLog, null, 2));
+
+  // Afficher l'état des filtres pour débogage
+  console.log('[MapView][updateMapDisplay] État des filtres pour les catégories:', {
+    forages: drawingStore.filters.categories.forages,
+    clients: drawingStore.filters.categories.clients,
+    entrepots: drawingStore.filters.categories.entrepots,
+    livraisons: drawingStore.filters.categories.livraisons,
+    cultures: drawingStore.filters.categories.cultures,
+    parcelles: drawingStore.filters.categories.parcelles
+  });
 
   // Créer un mapping entre les éléments du store et les couches Leaflet
   const layerMapping = new Map();
@@ -2876,6 +2996,8 @@ function updateMapDisplay() {
   let hiddenCount = 0;
   let noDbIdCount = 0;
 
+  // ÉTAPE 1: Traiter les couches actuellement dans le featureGroup
+  // et masquer celles qui ne correspondent pas aux filtres
   currentLayers.forEach((layer: any) => {
     // Vérifier si la couche a un ID de base de données
     const dbId = layer._dbId;
@@ -2901,51 +3023,273 @@ function updateMapDisplay() {
     const accessLevel = properties.accessLevel || 'visitor';
 
     console.log(`[MapView][updateMapDisplay] Couche ${leafletId} (dbId: ${layer._dbId}): type=${type}, category=${category}, accessLevel=${accessLevel}`);
+    console.log(`[MapView][updateMapDisplay] Filtres actuels:`, JSON.stringify(drawingStore.filters));
 
     // Vérifier si le type, la catégorie et le niveau d'accès sont activés dans les filtres
-    let typeVisible = true; // Par défaut, visible si le type n'est pas spécifié
+    let typeVisible = false; // Par défaut, non visible
     if (type) {
-      typeVisible = type in drawingStore.filters.shapeTypes ?
-        drawingStore.filters.shapeTypes[type as keyof typeof drawingStore.filters.shapeTypes] : true;
+      // Vérifier explicitement si le type est activé dans les filtres
+      typeVisible = type in drawingStore.filters.shapeTypes &&
+        drawingStore.filters.shapeTypes[type as keyof typeof drawingStore.filters.shapeTypes] === true;
+    } else {
+      // Si le type n'est pas spécifié, on vérifie si le type 'Polygon' est activé (cas par défaut)
+      typeVisible = drawingStore.filters.shapeTypes.Polygon === true;
     }
 
-    let categoryVisible = true; // Par défaut, visible si la catégorie n'est pas spécifiée
+    let categoryVisible = false; // Par défaut, non visible
     if (category) {
-      categoryVisible = category in drawingStore.filters.categories ?
-        drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] : true;
+      // Vérifier explicitement si la catégorie est activée dans les filtres
+      if (category in drawingStore.filters.categories) {
+        categoryVisible = drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] === true;
+        console.log(`[MapView][updateMapDisplay] Vérification de la catégorie ${category}: ${categoryVisible}`);
+      } else {
+        // Si la catégorie n'existe pas dans les filtres, on utilise 'forages' comme catégorie par défaut
+        categoryVisible = drawingStore.filters.categories.forages === true;
+        console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée dans les filtres, utilisation de 'forages': ${categoryVisible}`);
+      }
+    } else {
+      // Si la catégorie n'est pas spécifiée, on vérifie si la catégorie 'forages' est activée
+      categoryVisible = drawingStore.filters.categories.forages === true;
+      console.log(`[MapView][updateMapDisplay] Catégorie non spécifiée, utilisation de 'forages': ${categoryVisible}`);
     }
 
-    // Gérer le niveau d'accès
-    let accessLevelVisible = true; // Par défaut, visible si le niveau d'accès n'est pas spécifié
+    // Forcer la mise à jour de la catégorie dans les propriétés de la couche
+    if (layer.properties && !layer.properties.category) {
+      layer.properties.category = 'forages';
+      console.log(`[MapView][updateMapDisplay] Ajout de la catégorie 'forages' à la couche ${leafletId}`);
+    }
+
+    // Gérer le niveau d'accès avec logique hiérarchique
+    let accessLevelVisible = false; // Par défaut, non visible
+
+    // Déterminer le niveau d'accès de l'utilisateur en fonction des filtres activés
+    const userAccessLevel = {
+      company: drawingStore.filters.accessLevels.company === true,
+      employee: drawingStore.filters.accessLevels.employee === true,
+      visitor: drawingStore.filters.accessLevels.visitor === true
+    };
+
+    // Déterminer le niveau d'accès sélectionné par l'utilisateur
+    let selectedLevel = 'visitor'; // Par défaut
+    if (userAccessLevel.company) {
+      selectedLevel = 'company';
+    } else if (userAccessLevel.employee) {
+      selectedLevel = 'employee';
+    } else if (userAccessLevel.visitor) {
+      selectedLevel = 'visitor';
+    }
+
+    console.log(`[MapView][updateMapDisplay] Niveau d'accès sélectionné par l'utilisateur: ${selectedLevel}`);
+
     if (accessLevel) {
-      if (accessLevel === 'company') {
-        accessLevelVisible = drawingStore.filters.accessLevels.company;
-      } else if (accessLevel === 'employee') {
-        accessLevelVisible = drawingStore.filters.accessLevels.employee;
-      } else if (accessLevel === 'visitor') {
-        accessLevelVisible = drawingStore.filters.accessLevels.visitor;
+      // Logique hiérarchique:
+      // - Si l'utilisateur a sélectionné 'company', il voit tout (company, employee, visitor)
+      // - Si l'utilisateur a sélectionné 'employee', il voit employee et company
+      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement visitor
+
+      if (selectedLevel === 'company') {
+        // Niveau entreprise: accès à tout
+        accessLevelVisible = true;
+      } else if (selectedLevel === 'employee') {
+        // Niveau salariés: accès aux éléments pour salariés et entreprise
+        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'company');
+      } else if (selectedLevel === 'visitor') {
+        // Niveau visiteurs: accès aux éléments pour visiteurs uniquement
+        accessLevelVisible = (accessLevel === 'visitor');
+      }
+    } else {
+      // Si le niveau d'accès n'est pas spécifié, on considère que c'est 'visitor' (accès pour tous)
+      if (selectedLevel === 'company') {
+        accessLevelVisible = true;
+      } else if (selectedLevel === 'employee') {
+        accessLevelVisible = true; // Considéré comme niveau 'visitor' par défaut
+      } else {
+        accessLevelVisible = true;
       }
     }
 
+    console.log(`[MapView][updateMapDisplay] Niveau d'accès de la couche: ${accessLevel}, visible: ${accessLevelVisible}`);
+
+
+    // Vérifier si la couche doit être visible selon les filtres
+    const isVisible = typeVisible && categoryVisible && accessLevelVisible;
+    console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
+    console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
+    console.log(`[MapView][updateMapDisplay] Filtres actuels:`, JSON.stringify({
+      accessLevels: drawingStore.filters.accessLevels,
+      categories: drawingStore.filters.categories,
+      shapeTypes: drawingStore.filters.shapeTypes
+    }, null, 2));
+
+    // Forcer la mise à jour de la catégorie dans les propriétés de la couche
+    if (layer.properties && !layer.properties.category) {
+      layer.properties.category = 'forages';
+      console.log(`[MapView][updateMapDisplay] Ajout de la catégorie 'forages' à la couche ${leafletId}`);
+    }
+
+    // Afficher ou masquer la couche selon les filtres
+    if (isVisible) {
+      // La couche doit être visible
+      if (!featureGroup.value.hasLayer(layer)) {
+        // La couche n'est pas encore visible, l'ajouter
+        featureGroup.value.addLayer(layer);
+        visibleCount++;
+        console.log(`[MapView][updateMapDisplay] Affichage de la couche ${layer._dbId} (${type})`);
+      } else {
+        // La couche est déjà visible
+        visibleCount++;
+        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà visible`);
+      }
+    } else {
+      // La couche doit être masquée
+      if (featureGroup.value.hasLayer(layer)) {
+        // La couche est visible, la masquer
+        featureGroup.value.removeLayer(layer);
+        hiddenCount++;
+        console.log(`[MapView][updateMapDisplay] Masquage de la couche ${layer._dbId} (${type}) - Filtres non respectés`);
+      } else {
+        // La couche est déjà masquée
+        hiddenCount++;
+        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà masquée`);
+      }
+    }
+  });
+
+  // ÉTAPE 2: Parcourir toutes les formes stockées dans shapes.value
+  // pour restaurer celles qui ont été filtrées mais qui devraient maintenant être visibles
+  console.log('[MapView][updateMapDisplay] Début de la restauration des couches filtrées');
+  console.log('[MapView][updateMapDisplay] Nombre de formes dans shapes.value:', shapes.value.length);
+
+  // Parcourir toutes les formes dans shapes.value
+  shapes.value.forEach(shape => {
+    if (!shape.layer) {
+      console.log('[MapView][updateMapDisplay] Forme sans couche, ignorée');
+      return;
+    }
+
+    const layer = shape.layer;
+    const leafletId = layer._leaflet_id;
+    const dbId = layer._dbId;
+
+    console.log(`[MapView][updateMapDisplay] Traitement de la forme ${leafletId} (dbId: ${dbId})`);
+
+    // Vérifier si la couche est déjà dans le featureGroup
+    if (featureGroup.value.hasLayer(layer)) {
+      console.log(`[MapView][updateMapDisplay] La couche ${leafletId} est déjà dans le featureGroup, ignorée`);
+      return;
+    }
+
+    // Vérifier les propriétés de la couche
+    const properties = layer.properties || {};
+    const type = properties.type || layer.type_forme || '';
+    const category = properties.category || 'forages'; // Utiliser 'forages' comme catégorie par défaut
+    const accessLevel = properties.accessLevel || 'visitor';
+
+    // S'assurer que la catégorie est définie
+    if (!layer.properties) {
+      layer.properties = {};
+    }
+    if (!layer.properties.category) {
+      layer.properties.category = 'forages';
+    }
+    if (!layer.properties.accessLevel) {
+      layer.properties.accessLevel = 'visitor';
+    }
+
+    console.log(`[MapView][updateMapDisplay] Propriétés de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
+
+    // Vérifier si le type est visible selon les filtres
+    let typeVisible = false;
+    if (type) {
+      typeVisible = type in drawingStore.filters.shapeTypes &&
+        drawingStore.filters.shapeTypes[type as keyof typeof drawingStore.filters.shapeTypes] === true;
+    } else {
+      typeVisible = drawingStore.filters.shapeTypes.Polygon === true;
+    }
+
+    // Vérifier si la catégorie est visible selon les filtres
+    let categoryVisible = false;
+    if (category) {
+      if (category in drawingStore.filters.categories) {
+        categoryVisible = drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] === true;
+        console.log(`[MapView][updateMapDisplay] Vérification de la catégorie ${category}: ${categoryVisible}`);
+      } else {
+        categoryVisible = drawingStore.filters.categories.forages === true;
+        console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée, utilisation de 'forages': ${categoryVisible}`);
+      }
+    } else {
+      categoryVisible = drawingStore.filters.categories.forages === true;
+      console.log(`[MapView][updateMapDisplay] Pas de catégorie, utilisation de 'forages': ${categoryVisible}`);
+    }
+
+    // Vérifier si le niveau d'accès est visible selon les filtres avec logique hiérarchique
+    let accessLevelVisible = false;
+
+    // Déterminer le niveau d'accès de l'utilisateur en fonction des filtres activés
+    const userAccessLevel = {
+      company: drawingStore.filters.accessLevels.company === true,
+      employee: drawingStore.filters.accessLevels.employee === true,
+      visitor: drawingStore.filters.accessLevels.visitor === true
+    };
+
+    // Déterminer le niveau d'accès sélectionné par l'utilisateur
+    let selectedLevel = 'visitor'; // Par défaut
+    if (userAccessLevel.company) {
+      selectedLevel = 'company';
+    } else if (userAccessLevel.employee) {
+      selectedLevel = 'employee';
+    } else if (userAccessLevel.visitor) {
+      selectedLevel = 'visitor';
+    }
+
+    console.log(`[MapView][updateMapDisplay] Niveau d'accès sélectionné par l'utilisateur (2ème étape): ${selectedLevel}`);
+
+    if (accessLevel) {
+      // Logique hiérarchique:
+      // - Si l'utilisateur a sélectionné 'company', il voit tout (company, employee, visitor)
+      // - Si l'utilisateur a sélectionné 'employee', il voit employee et company
+      // - Si l'utilisateur a sélectionné 'visitor', il voit uniquement visitor
+
+      if (selectedLevel === 'company') {
+        // Niveau entreprise: accès à tout
+        accessLevelVisible = true;
+      } else if (selectedLevel === 'employee') {
+        // Niveau salariés: accès aux éléments pour salariés et entreprise
+        accessLevelVisible = (accessLevel === 'employee' || accessLevel === 'company');
+      } else if (selectedLevel === 'visitor') {
+        // Niveau visiteurs: accès aux éléments pour visiteurs uniquement
+        accessLevelVisible = (accessLevel === 'visitor');
+      }
+    } else {
+      // Si le niveau d'accès n'est pas spécifié, on considère que c'est 'visitor' (accès pour tous)
+      if (selectedLevel === 'company') {
+        accessLevelVisible = true;
+      } else if (selectedLevel === 'employee') {
+        accessLevelVisible = true; // Considéré comme niveau 'visitor' par défaut
+      } else {
+        accessLevelVisible = true;
+      }
+    }
+
+    console.log(`[MapView][updateMapDisplay] Niveau d'accès de la couche (2ème étape): ${accessLevel}, visible: ${accessLevelVisible}`);
+
+
+    // Vérifier si la couche doit être visible selon les filtres
     const isVisible = typeVisible && categoryVisible && accessLevelVisible;
     console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
 
-    if (isVisible && !featureGroup.value.hasLayer(layer)) {
+    if (isVisible) {
+      // La couche doit être visible mais ne l'est pas encore
       featureGroup.value.addLayer(layer);
       visibleCount++;
-      console.log(`[MapView][updateMapDisplay] Affichage de la couche ${layer._dbId} (${type})`);
-    } else if (!isVisible && featureGroup.value.hasLayer(layer)) {
-      featureGroup.value.removeLayer(layer);
-      hiddenCount++;
-      console.log(`[MapView][updateMapDisplay] Masquage de la couche ${layer._dbId} (${type}) - Filtres non respectés`);
-    } else if (isVisible && featureGroup.value.hasLayer(layer)) {
-      visibleCount++;
-      console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà visible`);
+      console.log(`[MapView][updateMapDisplay] Restauration de la couche ${leafletId} (${type}) - Filtres respectés`);
     } else {
-      hiddenCount++;
-      console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà masquée`);
+      console.log(`[MapView][updateMapDisplay] La couche ${leafletId} (${type}) reste masquée - Filtres non respectés`);
     }
   });
+
+  // Vérifier si des formes ont été restaurées
+  console.log(`[MapView][updateMapDisplay] Restauration terminée: ${visibleCount} couches visibles au total`);
 
   console.log(`[MapView][updateMapDisplay] Statistiques: ${visibleCount} couches visibles, ${hiddenCount} couches masquées, ${noDbIdCount} couches sans dbId`);
 

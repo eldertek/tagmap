@@ -90,7 +90,7 @@ export class Line extends L.Polyline {
           },
           style: {
             ...this.options,
-            color: this.options.color || '#3388ff',
+            color: this.options.color || '#2b6451',
             weight: this.options.weight || 3,
             opacity: this.options.opacity || 1,
             dashArray: (this.options as any)?.dashArray || '',

@@ -169,6 +169,9 @@
             <!-- Niveau d'accès -->
             <div class="mb-4">
               <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
+              <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
+                Définit qui peut voir cet élément sur la carte.
+              </div>
               <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
                 <option value="company">Entreprise uniquement</option>
@@ -261,22 +264,26 @@
 
         <!-- Onglet Filtres -->
         <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
-          <!-- Section des niveaux d'accès -->
+          <!-- Section des niveaux d'accès avec liste déroulante -->
           <div class="space-y-2">
             <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
-            <div class="space-y-1">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.accessLevels.company" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Entreprise uniquement</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.accessLevels.employee" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Salariés</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.accessLevels.visitor" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Visiteurs</span>
-              </label>
+            <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
+              Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
+            </div>
+            <div>
+              <select
+                v-model="selectedAccessLevel"
+                @change="updateAccessLevelFilter(selectedAccessLevel)"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
+                <option value="company">Entreprise (accès à tout)</option>
+                <option value="employee">Salariés (accès niveau salariés et entreprise)</option>
+                <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
+              </select>
+              <div class="mt-2 text-xs text-gray-500">
+                <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
+                <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et entreprise</p>
+                <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
+              </div>
             </div>
           </div>
 
@@ -408,7 +415,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, watchEffect, reactive, watch } from 'vue'
+import { ref, computed, watchEffect, reactive, watch, onMounted } from 'vue'
 import type { AccessLevel, ElementCategory } from '@/types/drawing'
 import { useDrawingStore } from '@/stores/drawing'
 
@@ -493,6 +500,11 @@ watch(activeTab, (newTab, oldTab) => {
       categories: { ...filters.categories },
       shapeTypes: { ...filters.shapeTypes }
     }, null, 2));
+
+    // Appliquer les filtres immédiatement lors du passage à l'onglet filtres
+    setTimeout(() => {
+      applyFilters();
+    }, 0);
   }
 
   // If we're leaving the filters tab, apply any pending changes
@@ -513,10 +525,10 @@ const sectionsCollapsed = ref({
 })
 
 // Style properties
-const strokeColor = ref('#3B82F6')
+const strokeColor = ref('#2b6451')
 const strokeWidth = ref(2)
 const strokeStyle = ref('solid')
-const fillColor = ref('#3B82F6')
+const fillColor = ref('#2b6451')
 const fillOpacity = ref(0.2)
 const showFillOptions = ref(true)
 
@@ -528,7 +540,7 @@ const accessLevel = ref<AccessLevel>('visitor')
 // Sample point styles
 const samplePointStyle = ref({
   radius: 4,
-  color: '#3B82F6',
+  color: '#2b6451',
   fillOpacity: 0.6,
   weight: 2
 })
@@ -543,12 +555,12 @@ const minMaxPointStyle = ref({
 
 // Predefined colors
 const predefinedColors = [
-  '#3B82F6', // Blue
-  '#10B981', // Green
-  '#F59E0B', // Yellow
-  '#EF4444', // Red
-  '#8B5CF6', // Purple
-  '#EC4899'  // Pink
+  '#2b6451', // Vert principal
+  '#10B981', // Vert
+  '#F59E0B', // Jaune
+  '#EF4444', // Rouge
+  '#8B5CF6', // Violet
+  '#EC4899'  // Rose
 ]
 
 // Stroke styles
@@ -590,12 +602,15 @@ interface Filters {
   shapeTypes: ShapeTypeFilters;
 }
 
+// Niveau d'accès sélectionné pour le filtrage
+const selectedAccessLevel = ref('company'); // Par défaut, niveau entreprise (accès à tout)
+
 // Filters state
 const filters = reactive<Filters>({
   accessLevels: {
     company: true,
-    employee: true,
-    visitor: true
+    employee: false,
+    visitor: false
   },
   categories: {
     forages: true,
@@ -612,6 +627,35 @@ const filters = reactive<Filters>({
     Note: true
   }
 });
+
+// Méthode pour mettre à jour le niveau d'accès sélectionné
+const updateAccessLevelFilter = (level: string) => {
+  console.log(`[DrawingTools][updateAccessLevelFilter] Changement du niveau d'accès: ${level}`);
+
+  // Mettre à jour le niveau sélectionné
+  selectedAccessLevel.value = level;
+
+  // Mettre à jour les filtres en fonction du niveau sélectionné
+  if (level === 'company') {
+    // Niveau entreprise: accès à tout
+    filters.accessLevels.company = true;
+    filters.accessLevels.employee = false;
+    filters.accessLevels.visitor = false;
+  } else if (level === 'employee') {
+    // Niveau salariés: accès aux éléments pour salariés et entreprise
+    filters.accessLevels.company = false;
+    filters.accessLevels.employee = true;
+    filters.accessLevels.visitor = false;
+  } else if (level === 'visitor') {
+    // Niveau visiteurs: accès aux éléments pour visiteurs uniquement
+    filters.accessLevels.company = false;
+    filters.accessLevels.employee = false;
+    filters.accessLevels.visitor = true;
+  }
+
+  // Appliquer les filtres
+  applyFilters();
+};
 
 // Log des filtres initiaux
 console.log('[DrawingTools] Initialisation des filtres:', JSON.stringify({
@@ -765,6 +809,9 @@ const resetFilters = (): void => {
   console.log('[DrawingTools][resetFilters] Émission de l\'event filter-change');
   emit('filter-change', resetedFilters);
 
+  // Forcer la mise à jour de l'affichage
+  console.log('[DrawingTools][resetFilters] Mise à jour forcée de l\'affichage');
+
   console.log('[DrawingTools][resetFilters] Filtres réinitialisés avec succès');
 }
 
@@ -781,7 +828,7 @@ const applyFilters = (): void => {
     shapeTypes: shapeTypesCopy
   }, null, 2));
 
-  // Mettre à jour les filtres dans le store de dessin
+  // Toujours mettre à jour les filtres dans le store
   const filtersToUpdate = {
     accessLevels: accessLevelsCopy,
     categories: categoriesCopy,
@@ -794,6 +841,16 @@ const applyFilters = (): void => {
   // Émettre un événement pour indiquer que les filtres ont changé
   console.log('[DrawingTools][applyFilters] Émission de l\'event filter-change');
   emit('filter-change', filtersToUpdate);
+
+  // Forcer la mise à jour de l'affichage
+  setTimeout(() => {
+    console.log('[DrawingTools][applyFilters] Mise à jour forcée de l\'affichage');
+    window.dispatchEvent(new CustomEvent('filtersChanged', {
+      detail: {
+        filters: filtersToUpdate
+      }
+    }));
+  }, 0);
 
   console.log('[DrawingTools][applyFilters] Filtres appliqués avec succès');
 }
@@ -819,95 +876,89 @@ const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'd
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
   if (props.selectedShape) {
+    console.log('[DrawingTools][watchEffect] Mise à jour des propriétés pour la forme sélectionnée:', {
+      type: props.selectedShape.type,
+      properties: props.selectedShape.properties,
+      options: props.selectedShape.options,
+      layer: props.selectedShape.layer?._leaflet_id
+    });
+
+    // Récupérer le style de la forme sélectionnée
     const style = props.selectedShape.options || {}
-    strokeColor.value = style.color || '#3B82F6'
+
+    // Mettre à jour les propriétés de style générales
+    strokeColor.value = style.color || '#2b6451'
     strokeWidth.value = style.weight || 3
     strokeStyle.value = style.dashArray ? 'dashed' : 'solid'
-    fillColor.value = style.fillColor || '#3B82F6'
+    fillColor.value = style.fillColor || '#2b6451'
     fillOpacity.value = style.fillOpacity || 0.2
-    showFillOptions.value = props.selectedShape.properties?.type !== 'Line'
+
+    // Déterminer si les options de remplissage doivent être affichées en fonction du type de forme
+    const shapeType = props.selectedShape.type || props.selectedShape.properties?.type || '';
+    showFillOptions.value = shapeType !== 'Line';
+
+    console.log('[DrawingTools][watchEffect] Type de forme détecté:', shapeType);
 
     // Mettre à jour le nom de la forme
     shapeName.value = props.selectedShape.properties?.name || ''
 
     // Mettre à jour la catégorie de la forme
-    shapeCategory.value = props.selectedShape.properties?.category || 'default'
+    shapeCategory.value = props.selectedShape.properties?.category || 'forages' // Utiliser 'forages' comme valeur par défaut
 
     // Mettre à jour le niveau d'accès de la forme
     accessLevel.value = props.selectedShape.properties?.accessLevel || 'visitor'
+
+    // Mettre à jour les propriétés spécifiques au type de forme
+    if (shapeType === 'ElevationLine') {
+      // Propriétés spécifiques aux lignes d'élévation
+      if (props.selectedShape.properties?.samplePointStyle) {
+        samplePointStyle.value = { ...props.selectedShape.properties.samplePointStyle };
+      }
+      if (props.selectedShape.properties?.minMaxPointStyle) {
+        minMaxPointStyle.value = { ...props.selectedShape.properties.minMaxPointStyle };
+      }
+    }
+
+    console.log('[DrawingTools][watchEffect] Propriétés mises à jour avec succès');
   }
 })
 
-// Initialiser les filtres avec les valeurs du store
-watchEffect(() => {
-  console.log('[DrawingTools][watchEffect filters] Initialisation des filtres depuis le store');
+// Initialiser les filtres avec les valeurs du store seulement au montage du composant
+onMounted(() => {
+  console.log('[DrawingTools][onMounted] Initialisation des filtres depuis le store');
   const storeFilters = drawingStore.filters;
 
-  console.log('[DrawingTools][watchEffect filters] Filtres du store:', JSON.stringify({
+  console.log('[DrawingTools][onMounted] Filtres du store:', JSON.stringify({
     accessLevels: { ...storeFilters.accessLevels },
     categories: { ...storeFilters.categories },
     shapeTypes: { ...storeFilters.shapeTypes }
   }, null, 2));
 
-  console.log('[DrawingTools][watchEffect filters] Filtres locaux avant mise à jour:', JSON.stringify({
+  // Initialiser les filtres locaux avec les valeurs du store
+  // Accès directs pour éviter les problèmes de typage
+  filters.accessLevels.company = storeFilters.accessLevels.company;
+  filters.accessLevels.employee = storeFilters.accessLevels.employee;
+  filters.accessLevels.visitor = storeFilters.accessLevels.visitor;
+
+  // Catégories
+  filters.categories.forages = storeFilters.categories.forages;
+  filters.categories.clients = storeFilters.categories.clients;
+  filters.categories.entrepots = storeFilters.categories.entrepots;
+  filters.categories.livraisons = storeFilters.categories.livraisons;
+  filters.categories.cultures = storeFilters.categories.cultures;
+  filters.categories.parcelles = storeFilters.categories.parcelles;
+
+  // Types de formes
+  filters.shapeTypes.Polygon = storeFilters.shapeTypes.Polygon;
+  filters.shapeTypes.Line = storeFilters.shapeTypes.Line;
+  filters.shapeTypes.ElevationLine = storeFilters.shapeTypes.ElevationLine;
+  filters.shapeTypes.Note = storeFilters.shapeTypes.Note;
+
+  console.log('[DrawingTools][onMounted] Filtres locaux après initialisation:', JSON.stringify({
     accessLevels: { ...filters.accessLevels },
     categories: { ...filters.categories },
     shapeTypes: { ...filters.shapeTypes }
   }, null, 2));
-
-  if (storeFilters) {
-    // Mettre à jour les filtres locaux avec les valeurs du store
-    // Accès directs pour éviter les problèmes de typage
-    if (storeFilters.accessLevels.company !== undefined) {
-      filters.accessLevels.company = storeFilters.accessLevels.company;
-    }
-    if (storeFilters.accessLevels.employee !== undefined) {
-      filters.accessLevels.employee = storeFilters.accessLevels.employee;
-    }
-    if (storeFilters.accessLevels.visitor !== undefined) {
-      filters.accessLevels.visitor = storeFilters.accessLevels.visitor;
-    }
-
-    // Catégories
-    if (storeFilters.categories.forages !== undefined) {
-      filters.categories.forages = storeFilters.categories.forages;
-    }
-    if (storeFilters.categories.clients !== undefined) {
-      filters.categories.clients = storeFilters.categories.clients;
-    }
-    if (storeFilters.categories.entrepots !== undefined) {
-      filters.categories.entrepots = storeFilters.categories.entrepots;
-    }
-    if (storeFilters.categories.livraisons !== undefined) {
-      filters.categories.livraisons = storeFilters.categories.livraisons;
-    }
-    if (storeFilters.categories.cultures !== undefined) {
-      filters.categories.cultures = storeFilters.categories.cultures;
-    }
-    if (storeFilters.categories.parcelles !== undefined) {
-      filters.categories.parcelles = storeFilters.categories.parcelles;
-    }
-
-    // Types de formes
-    if (storeFilters.shapeTypes.Polygon !== undefined) {
-      filters.shapeTypes.Polygon = storeFilters.shapeTypes.Polygon;
-    }
-    if (storeFilters.shapeTypes.Line !== undefined) {
-      filters.shapeTypes.Line = storeFilters.shapeTypes.Line;
-    }
-    if (storeFilters.shapeTypes.ElevationLine !== undefined) {
-      filters.shapeTypes.ElevationLine = storeFilters.shapeTypes.ElevationLine;
-    }
-    if (storeFilters.shapeTypes.Note !== undefined) {
-      filters.shapeTypes.Note = storeFilters.shapeTypes.Note;
-    }
-
-    console.log('[DrawingTools][watchEffect filters] Filtres locaux après mise à jour:', JSON.stringify({
-      accessLevels: { ...filters.accessLevels },
-      categories: { ...filters.categories },
-      shapeTypes: { ...filters.shapeTypes }
-    }, null, 2));
-  }
 });
 
 // Observer les changements dans les filtres et appliquer automatiquement
@@ -943,16 +994,21 @@ watch(filters, (newFilters, oldFilters) => {
     newFilters.shapeTypes[key as keyof typeof newFilters.shapeTypes]
   );
 
+  // Vérifier s'il y a des changements réels dans les filtres
+  const hasChanges = accessLevelsDiff.length > 0 || categoriesDiff.length > 0 || shapeTypesDiff.length > 0;
+
   console.log('[DrawingTools][watch filters] Différences détectées:', {
     accessLevelsDiff,
     categoriesDiff,
-    shapeTypesDiff
+    shapeTypesDiff,
+    hasChanges
   });
 
-  // Appliquer les filtres automatiquement lorsqu'ils changent
-  // Mais pas lors de l'initialisation
+  // Appliquer les filtres automatiquement lorsque l'onglet filtres est actif
   if (activeTab.value === 'filters') {
     console.log('[DrawingTools][watch filters] Onglet filtres actif, application des filtres');
+
+    // Appliquer les filtres immédiatement
     applyFilters();
   } else {
     console.log('[DrawingTools][watch filters] Onglet filtres non actif, pas d\'application automatique');
@@ -1045,7 +1101,7 @@ watch(filters, (newFilters, oldFilters) => {
 .tool-button.active {
   background-color: #e0f2fe;
   border-color: #7dd3fc;
-  color: #0284c7;
+  color: #2b6451;
 }
 
 .delete-button {
@@ -1230,7 +1286,7 @@ watch(filters, (newFilters, oldFilters) => {
 .align-button.active,
 .style-button.active {
   background-color: #e0f2fe;
-  color: #0284c7;
+  color: #2b6451;
 }
 
 .properties-grid {

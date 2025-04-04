@@ -27,10 +27,10 @@ export class Polygon extends L.Polygon {
     this.properties = performanceMonitor.measure('Polygon.constructor.initProperties', () => ({
       type: 'Polygon',
       style: {
-        color: options.color || '#3388ff',
+        color: options.color || '#2b6451',
         weight: options.weight || 3,
         opacity: options.opacity || 1,
-        fillColor: options.fillColor || '#3388ff',
+        fillColor: options.fillColor || '#2b6451',
         fillOpacity: options.fillOpacity || 0.2,
         dashArray: options.dashArray || '',
         name: options.name || ''
@@ -87,10 +87,10 @@ export class Polygon extends L.Polygon {
           vertices: latLngs.length,
           style: {
             ...this.options,
-            color: this.options.color || '#3388ff',
+            color: this.options.color || '#2b6451',
             weight: this.options.weight || 3,
             opacity: this.options.opacity || 1,
-            fillColor: this.options.fillColor || '#3388ff',
+            fillColor: this.options.fillColor || '#2b6451',
             fillOpacity: this.options.fillOpacity || 0.2,
             dashArray: (this.options as any)?.dashArray || '',
             name: existingName

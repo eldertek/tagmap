@@ -25,7 +25,7 @@ export class GeoNote extends L.Marker {
 
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Créer une icône personnalisée pour le marqueur
-    const color = options.color || '#3B82F6';
+    const color = options.color || '#2b6451';
     const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
 
     const icon = L.divIcon({
@@ -53,9 +53,9 @@ export class GeoNote extends L.Marker {
       columnId: options.columnId || 'en-cours', // Colonne par défaut
       accessLevel: options.accessLevel || NoteAccessLevel.PRIVATE, // Niveau d'accès par défaut
       style: {
-        color: options.color || '#3B82F6',
+        color: options.color || '#2b6451',
         weight: options.weight || 2,
-        fillColor: options.fillColor || '#3B82F6',
+        fillColor: options.fillColor || '#2b6451',
         fillOpacity: options.fillOpacity !== undefined ? options.fillOpacity : 0.8,
         radius: options.radius || 12
       }
@@ -157,7 +157,7 @@ export class GeoNote extends L.Marker {
   // Obtenir la couleur et le nom de la colonne (à remplacer par une intégration avec le store)
   getColumnColor(columnId: string): string {
     const colors: Record<string, string> = {
-      'en-cours': '#3B82F6',
+      'en-cours': '#2b6451',
       'termine': '#10B981'
     };
     return colors[columnId] || '#6B7280';
@@ -224,10 +224,10 @@ export class GeoNote extends L.Marker {
       columnId: this.properties.columnId || 'en-cours', // Valeur par défaut
       accessLevel: this.properties.accessLevel || 'company', // Valeur par défaut
       style: this.properties.style || {
-        color: '#3B82F6',
+        color: '#2b6451',
         weight: 2,
         opacity: 1,
-        fillColor: '#3B82F6',
+        fillColor: '#2b6451',
         fillOpacity: 0.6,
         radius: 8
       },
@@ -256,7 +256,7 @@ export class GeoNote extends L.Marker {
     const iconElement = this.getElement()?.querySelector('.geo-note-marker');
     const color = iconElement ?
       window.getComputedStyle(iconElement).color :
-      '#3B82F6';
+      '#2b6451';
 
     this.properties.style = {
       color: color,
@@ -271,7 +271,7 @@ export class GeoNote extends L.Marker {
   setNoteStyle(style: Partial<L.CircleMarkerOptions>): void {
     // Mettre à jour les propriétés de style
     if (style.color || style.fillColor) {
-      const color = style.color || style.fillColor || '#3B82F6';
+      const color = style.color || style.fillColor || '#2b6451';
       const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
 
       const icon = L.divIcon({
