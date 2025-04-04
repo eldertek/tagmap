@@ -292,27 +292,27 @@
             <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
             <div class="space-y-1">
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.forages" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Forages</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.clients" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Clients</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.entrepots" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.livraisons" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.cultures" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Cultures</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.parcelles" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
               </label>
             </div>
@@ -323,19 +323,19 @@
             <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
             <div class="space-y-1">
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Polygon" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Polygones</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Line" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Lignes</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
               </label>
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Note" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">Notes</span>
               </label>
             </div>
@@ -343,7 +343,7 @@
 
           <!-- Bouton de réinitialisation -->
           <div class="pt-2">
-            <button @click="resetFilters" class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
+            <button @click="resetFiltersAndDeselect" class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
               Réinitialiser
             </button>
           </div>
@@ -663,6 +663,20 @@ const updateAccessLevelFilter = (level: string) => {
   applyFilters();
 };
 
+// Méthode pour mettre à jour le niveau d'accès et désélectionner la forme actuelle
+const updateAccessLevelFilterAndDeselect = (level: string) => {
+  console.log(`[DrawingTools][updateAccessLevelFilterAndDeselect] Changement du niveau d'accès: ${level}`);
+
+  // Désélectionner la forme actuelle si nécessaire
+  if (props.selectedShape) {
+    console.log('[DrawingTools][updateAccessLevelFilterAndDeselect] Désélection de la forme actuelle');
+    emit('tool-change', ''); // Désélectionne l'outil actuel
+  }
+
+  // Appeler la fonction de mise à jour standard
+  updateAccessLevelFilter(level);
+};
+
 // Log des filtres initiaux
 console.log('[DrawingTools] Initialisation des filtres:', JSON.stringify({
   local: {
@@ -821,6 +835,19 @@ const resetFilters = (): void => {
   console.log('[DrawingTools][resetFilters] Filtres réinitialisés avec succès');
 }
 
+// Méthode pour réinitialiser les filtres et désélectionner la forme actuelle
+const resetFiltersAndDeselect = (): void => {
+  console.log('[DrawingTools][resetFiltersAndDeselect] Début de la réinitialisation des filtres avec désélection');
+
+  // Désélectionner la forme actuelle si nécessaire
+  deselectCurrentShape();
+
+  // Réinitialiser les filtres
+  resetFilters();
+
+  console.log('[DrawingTools][resetFiltersAndDeselect] Filtres réinitialisés et forme désélectionnée avec succès');
+}
+
 // Méthode pour appliquer les filtres
 const applyFilters = (): void => {
   // Créer des copies des filtres pour les logs et les mises à jour
@@ -876,13 +903,19 @@ const formatSlope = (value: number): string => {
   return `${value.toFixed(1)}%`
 }
 
-// Fonction pour passer à l'onglet filtres et désélectionner la forme actuelle
-const switchToFiltersTab = () => {
+// Fonction pour désélectionner la forme actuelle
+const deselectCurrentShape = () => {
   // Désélectionner la forme actuelle si nécessaire
   if (props.selectedShape) {
-    console.log('[DrawingTools][switchToFiltersTab] Désélection de la forme actuelle');
+    console.log('[DrawingTools][deselectCurrentShape] Désélection de la forme actuelle');
     emit('tool-change', ''); // Désélectionne l'outil actuel
   }
+};
+
+// Fonction pour passer à l'onglet filtres et désélectionner la forme actuelle
+const switchToFiltersTab = () => {
+  // Désélectionner la forme actuelle
+  deselectCurrentShape();
 
   // Passer à l'onglet filtres
   activeTab.value = 'filters';

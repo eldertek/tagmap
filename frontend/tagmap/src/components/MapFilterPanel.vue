@@ -25,15 +25,15 @@
         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
         <div class="space-y-1">
           <label v-if="isAdmin || isEntreprise" class="flex items-center">
-            <input type="checkbox" v-model="filters.accessLevels.company" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.accessLevels.company" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Entreprise uniquement</span>
           </label>
           <label v-if="isAdmin || isEntreprise || isSalarie" class="flex items-center">
-            <input type="checkbox" v-model="filters.accessLevels.employee" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.accessLevels.employee" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Salariés</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.accessLevels.visitor" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.accessLevels.visitor" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Visiteurs</span>
           </label>
         </div>
@@ -44,34 +44,34 @@
         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
         <div class="space-y-1">
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.forages" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Forages</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.clients" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Clients</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.entrepots" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.livraisons" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.cultures" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Cultures</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.parcelles" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
           </label>
           <!-- Catégories personnalisées -->
           <template v-for="categoryKey in Object.keys(filters.categories)" :key="categoryKey">
             <div v-if="!defaultCategories.includes(categoryKey)">
               <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories[categoryKey as keyof CategoryFilters]" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <input type="checkbox" v-model="filters.categories[categoryKey as keyof CategoryFilters]" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">{{ formatCategoryName(categoryKey) }}</span>
               </label>
             </div>
@@ -84,19 +84,19 @@
         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
         <div class="space-y-1">
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.shapeTypes.Polygon" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Polygones</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.shapeTypes.Line" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Lignes</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
           </label>
           <label class="flex items-center">
-            <input type="checkbox" v-model="filters.shapeTypes.Note" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+            <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
             <span class="ml-2 text-sm text-gray-700">Notes</span>
           </label>
         </div>
@@ -104,7 +104,7 @@
 
       <!-- Boutons d'action -->
       <div class="flex justify-between pt-2">
-        <button @click="resetFilters" class="text-sm text-gray-600 hover:text-gray-800">
+        <button @click="resetFiltersAndDeselect" class="text-sm text-gray-600 hover:text-gray-800">
           Réinitialiser
         </button>
         <button @click="applyFilters" class="px-3 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700">
@@ -220,6 +220,17 @@ function resetFilters() {
 
   // Émettre l'événement de changement
   applyFilters();
+}
+
+// Fonction pour réinitialiser les filtres et désélectionner la forme actuelle
+function resetFiltersAndDeselect() {
+  console.log('[MapFilterPanel][resetFiltersAndDeselect] Réinitialisation des filtres et désélection de la forme');
+
+  // Désélectionner la forme actuelle
+  deselectCurrentShape();
+
+  // Réinitialiser les filtres
+  resetFilters();
 }
 
 function applyFilters() {
