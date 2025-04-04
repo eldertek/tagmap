@@ -445,39 +445,82 @@ export const useDrawingStore = defineStore('drawing', {
     getFilters: (state) => state.filters,
     // Getter pour obtenir les éléments filtrés selon les critères actuels
     getFilteredElements: (state) => {
+      // Si aucun élément dans le store, retourner un tableau vide
+      if (state.elements.length === 0) {
+        console.log('[DrawingStore][getFilteredElements] Aucun élément dans le store, retour d\'un tableau vide');
+        return [];
+      }
+
+      console.log('[DrawingStore][getFilteredElements] Début du filtrage avec', {
+        totalElements: state.elements.length,
+        filters: JSON.stringify({
+          accessLevels: state.filters.accessLevels,
+          categories: state.filters.categories,
+          shapeTypes: state.filters.shapeTypes
+        })
+      });
+
+      // Afficher tous les éléments du store pour débogage
+      console.log('[DrawingStore][getFilteredElements] Éléments dans le store:',
+        state.elements.map(e => ({
+          id: e.id,
+          type_forme: e.type_forme,
+          data: e.data ? JSON.stringify(e.data) : null
+        }))
+      );
+
       const filteredElements = state.elements.filter(element => {
+        // Informations de base sur l'élément pour le débogage
+        console.log(`[DrawingStore][getFilteredElements] Vérification de l'élément ${element.id} (${element.type_forme})`);
+
+        // Extraire les propriétés pour le filtrage
+
         // Vérifier si le type de forme est activé dans les filtres
-        if (!state.filters.shapeTypes[element.type_forme]) {
+        const typeVisible = element.type_forme in state.filters.shapeTypes ?
+          state.filters.shapeTypes[element.type_forme] : true;
+
+        if (!typeVisible) {
+          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par type: ${element.type_forme} (non visible)`);
           return false;
         }
 
         // Vérifier si la catégorie est activée dans les filtres
         // Utiliser une catégorie par défaut si non spécifiée
         const category = (element.data as any)?.category || 'default';
-        if (!state.filters.categories[category]) {
+        const categoryVisible = category in state.filters.categories ?
+          state.filters.categories[category] : true;
+
+        if (!categoryVisible) {
+          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par catégorie: ${category} (non visible)`);
           return false;
         }
 
         // Vérifier si le niveau d'accès est activé dans les filtres
         // Utiliser 'visitor' comme niveau d'accès par défaut
         const accessLevel = (element.data as any)?.accessLevel || 'visitor';
-        if (accessLevel === 'company' && !state.filters.accessLevels.company) {
-          return false;
+        let accessLevelVisible = true; // Par défaut visible
+
+        if (accessLevel === 'company') {
+          accessLevelVisible = state.filters.accessLevels.company;
+        } else if (accessLevel === 'employee') {
+          accessLevelVisible = state.filters.accessLevels.employee;
+        } else if (accessLevel === 'visitor') {
+          accessLevelVisible = state.filters.accessLevels.visitor;
         }
-        if (accessLevel === 'employee' && !state.filters.accessLevels.employee) {
-          return false;
-        }
-        if (accessLevel === 'visitor' && !state.filters.accessLevels.visitor) {
+
+        if (!accessLevelVisible) {
+          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par niveau d'accès: ${accessLevel} (non visible)`);
           return false;
         }
 
+        console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} visible: type=${element.type_forme}, catégorie=${category}, accès=${accessLevel}`);
         return true;
       });
 
-      console.log('[DrawingStore][getFilteredElements] Filtrage:', {
+      console.log('[DrawingStore][getFilteredElements] Résultat du filtrage:', {
         total: state.elements.length,
         filtered: filteredElements.length,
-        filters: state.filters
+        filteredIds: filteredElements.map(e => e.id)
       });
 
       return filteredElements;
@@ -626,33 +669,58 @@ export const useDrawingStore = defineStore('drawing', {
       categories?: { [key: string]: boolean };
       shapeTypes?: { [key: string]: boolean };
     }) {
-      console.log('[DrawingStore][updateFilters] Mise à jour des filtres:', filters);
+      console.log('[DrawingStore][updateFilters] Mise à jour des filtres:', JSON.stringify(filters, null, 2));
+      console.log('[DrawingStore][updateFilters] Filtres avant mise à jour:', JSON.stringify(this.filters, null, 2));
 
       // Mettre à jour les niveaux d'accès si fournis
       if (filters.accessLevels) {
+        const oldAccessLevels = { ...this.filters.accessLevels };
         this.filters.accessLevels = {
           ...this.filters.accessLevels,
           ...filters.accessLevels
         };
+        console.log('[DrawingStore][updateFilters] Niveaux d\'accès mis à jour:', {
+          avant: oldAccessLevels,
+          après: this.filters.accessLevels,
+          diff: Object.keys(this.filters.accessLevels).filter(key =>
+            oldAccessLevels[key as keyof typeof oldAccessLevels] !== this.filters.accessLevels[key as keyof typeof this.filters.accessLevels]
+          )
+        });
       }
 
       // Mettre à jour les catégories si fournies
       if (filters.categories) {
+        const oldCategories = { ...this.filters.categories };
         this.filters.categories = {
           ...this.filters.categories,
           ...filters.categories
         };
+        console.log('[DrawingStore][updateFilters] Catégories mises à jour:', {
+          avant: oldCategories,
+          après: this.filters.categories,
+          diff: filters.categories ? Object.keys(filters.categories).filter(key =>
+            filters.categories && oldCategories[key] !== filters.categories[key]
+          ) : []
+        });
       }
 
       // Mettre à jour les types de formes si fournis
       if (filters.shapeTypes) {
+        const oldShapeTypes = { ...this.filters.shapeTypes };
         this.filters.shapeTypes = {
           ...this.filters.shapeTypes,
           ...filters.shapeTypes
         };
+        console.log('[DrawingStore][updateFilters] Types de formes mis à jour:', {
+          avant: oldShapeTypes,
+          après: this.filters.shapeTypes,
+          diff: filters.shapeTypes ? Object.keys(filters.shapeTypes).filter(key =>
+            filters.shapeTypes && oldShapeTypes[key] !== filters.shapeTypes[key]
+          ) : []
+        });
       }
 
-      console.log('[DrawingStore][updateFilters] Filtres mis à jour:', this.filters);
+      console.log('[DrawingStore][updateFilters] Filtres mis à jour:', JSON.stringify(this.filters, null, 2));
     },
     async loadPlanElements(planId: number) {
       const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');

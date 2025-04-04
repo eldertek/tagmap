@@ -1318,18 +1318,34 @@ export function useMapDrawing(): MapDrawingReturn {
     });
 
     // Mettre à jour les propriétés de la forme
-    if (selectedShape.value.properties) {
-      // Appliquer les nouvelles propriétés
-      Object.keys(properties).forEach(key => {
-        selectedShape.value.properties[key] = properties[key];
-
-        // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
-        if (key === 'name') {
-          console.log(`[useMapDrawing] Setting name "${properties[key]}" directly on layer`);
-          (selectedShape.value as any).name = properties[key];
-        }
-      });
+    if (!selectedShape.value.properties) {
+      selectedShape.value.properties = {};
     }
+
+    // Assurer que les propriétés de filtrage existent
+    if (!selectedShape.value.properties.category) {
+      selectedShape.value.properties.category = 'default';
+    }
+    if (!selectedShape.value.properties.accessLevel) {
+      selectedShape.value.properties.accessLevel = 'visitor';
+    }
+
+    // Assurer que _dbId existe pour le filtrage
+    if (!selectedShape.value._dbId) {
+      selectedShape.value._dbId = Date.now() + Math.floor(Math.random() * 1000);
+      console.log(`[useMapDrawing] Assigned temporary dbId: ${selectedShape.value._dbId}`);
+    }
+
+    // Appliquer les nouvelles propriétés
+    Object.keys(properties).forEach(key => {
+      selectedShape.value.properties[key] = properties[key];
+
+      // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
+      if (key === 'name') {
+        console.log(`[useMapDrawing] Setting name "${properties[key]}" directly on layer`);
+        (selectedShape.value as any).name = properties[key];
+      }
+    });
 
     console.log('[useMapDrawing] Updated shape properties', {
       after: selectedShape.value.properties,
@@ -3042,6 +3058,21 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // Calculer et initialiser les propriétés
     layer.properties = calculateShapeProperties(layer, shapeType);
+
+    // Ajouter des propriétés pour le filtrage
+    if (!layer.properties) {
+      layer.properties = {};
+    }
+    if (!layer.properties.category) {
+      layer.properties.category = 'default';
+    }
+    if (!layer.properties.accessLevel) {
+      layer.properties.accessLevel = 'visitor';
+    }
+
+    // Assigner un ID temporaire pour le filtrage
+    layer._dbId = Date.now() + Math.floor(Math.random() * 1000);
+
     selectedShape.value = layer;
 
     console.log('[useMapDrawing] Input layer:', {
@@ -3053,7 +3084,8 @@ export function useMapDrawing(): MapDrawingReturn {
         Polyline: layer instanceof L.Polyline
       },
       options: layer.options,
-      properties: layer.properties
+      properties: layer.properties,
+      _dbId: layer._dbId
     });
 
     // Émettre un événement pour notifier la création
