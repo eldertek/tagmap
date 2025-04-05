@@ -32,7 +32,14 @@ export class GeoNote extends L.Marker {
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Créer une icône personnalisée pour le marqueur
     const color = options.color || '#2b6451';
-    const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
+    const iconHtml = `
+      <div class="geo-note-marker">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" width="24" height="24">
+          <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+          <circle cx="12" cy="10" r="3" fill="white" />
+        </svg>
+      </div>
+    `;
 
     const icon = L.divIcon({
       html: iconHtml,
@@ -83,7 +90,16 @@ export class GeoNote extends L.Marker {
 
     // Ajouter un écouteur pour la mise à jour du style
     window.addEventListener('geonote:updateStyle', ((e: CustomEvent) => {
-      if (e.detail.noteId === (this as any)._leaflet_id) {
+      const leafletId = (this as any)._leaflet_id;
+      const backendId = this.properties.id;
+      const eventNoteId = e.detail.noteId;
+      
+      console.log('[GeoNote][updateStyle] Événement reçu pour noteId:', eventNoteId, 
+                  'Comparaison avec - ID Leaflet:', leafletId, 'ID backend:', backendId);
+      
+      // Vérifier si l'ID dans l'événement correspond soit à l'ID Leaflet, soit à l'ID backend
+      if (eventNoteId === leafletId || (backendId && eventNoteId === backendId)) {
+        console.log('[GeoNote][updateStyle] Correspondance trouvée, mise à jour du style:', e.detail.style);
         this.setNoteStyle(e.detail.style);
         // Mettre à jour le popup pour refléter les changements
         this.bindPopup(this.createPopupContent());
@@ -386,8 +402,8 @@ export class GeoNote extends L.Marker {
 
     this.properties.style = {
       color: color,
-      fillColor: color,
       weight: 2,
+      fillColor: color,
       fillOpacity: 0.8,
       radius: existingRadius
     };
@@ -395,36 +411,51 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour mettre à jour le style
   setNoteStyle(style: any): void {
-    // Mettre à jour les propriétés de style
-    if (style.color || style.fillColor) {
-      const color = style.color || style.fillColor || '#2b6451';
-      const iconHtml = `<div class="geo-note-marker" style="color: ${color};"></div>`;
+    console.log('[GeoNote][setNoteStyle] Mise à jour du style:', style);
+    
+    // S'assurer que nous avons des valeurs pour color et fillColor
+    const color = style.color || style.fillColor || '#2b6451';
+    const fillColor = style.fillColor || style.color || '#2b6451';
+    
+    console.log('[GeoNote][setNoteStyle] Nouvelles couleurs - stroke:', color, 'fill:', fillColor);
+      
+    // Créer une nouvelle icône avec le SVG coloré
+    const iconHtml = `
+      <div class="geo-note-marker">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fillColor}" width="24" height="24">
+          <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+          <circle cx="12" cy="10" r="3" fill="white" />
+        </svg>
+      </div>
+    `;
+    console.log('[GeoNote][setNoteStyle] Nouvel HTML d\'icône:', iconHtml);
 
-      const icon = L.divIcon({
-        html: iconHtml,
-        className: '',
-        iconSize: [24, 36],
-        iconAnchor: [12, 36],
-        popupAnchor: [0, -36]
-      });
+    const icon = L.divIcon({
+      html: iconHtml,
+      className: '',
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36]
+    });
 
-      this.setIcon(icon);
-    }
+    this.setIcon(icon);
+    console.log('[GeoNote][setNoteStyle] Nouvelle icône appliquée');
 
     // S'assurer que le style dans les propriétés est à jour
     if (this.properties && this.properties.style) {
       this.properties.style = {
         ...this.properties.style,
-        color: style.color || this.properties.style.color,
-        weight: style.weight || this.properties.style.weight,
-        fillColor: style.fillColor || this.properties.style.fillColor,
-        fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity,
-        radius: style.radius || (this.properties.style as any).radius || 12
+        color: color,
+        weight: style.weight || this.properties.style.weight || 2,
+        fillColor: fillColor,
+        fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity || 0.8,
+        radius: style.radius || (this.properties.style as any)?.radius || 12
       };
+      console.log('[GeoNote][setNoteStyle] Style mis à jour dans les propriétés:', this.properties.style);
     }
 
-    // Mettre à jour les propriétés
-    this.updateProperties();
+    // Mettre à jour le popup pour refléter les changements
+    this.bindPopup(this.createPopupContent());
   }
 
   // Convertir la note en format compatible avec le backend

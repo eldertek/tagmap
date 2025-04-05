@@ -273,20 +273,32 @@ const colors = [
 
 // Mettre à jour la couleur de la note
 function updateNoteColor(color: string) {
+  console.log('[NoteEditModal] Mise à jour de la couleur:', color);
+  
+  // Mettre à jour les propriétés de style dans l'objet d'édition
   editingNote.value.style.color = color;
   editingNote.value.style.fillColor = color;
-
-  // Émettre un événement personnalisé pour mettre à jour la couleur sur la carte
-  const event = new CustomEvent('geonote:updateStyle', {
-    detail: {
-      noteId: props.note?.id,
-      style: {
-        color: color,
-        fillColor: color
+  
+  // Pour les notes existantes, mettre à jour immédiatement l'apparence sur la carte
+  if (props.note && !props.isNewNote) {
+    // Utiliser _leaflet_id si disponible, sinon utiliser l'ID backend
+    const noteId = (props.note as any)._leaflet_id || props.note.id;
+    
+    console.log('[NoteEditModal] Mise à jour de la couleur sur la carte, noteId:', noteId, 'color:', color);
+    
+    const event = new CustomEvent('geonote:updateStyle', {
+      detail: {
+        noteId: noteId,
+        style: {
+          color: color,
+          fillColor: color
+        }
       }
-    }
-  });
-  window.dispatchEvent(event);
+    });
+    window.dispatchEvent(event);
+  } else {
+    console.log('[NoteEditModal] Nouvelle note, la couleur sera appliquée lors de la création');
+  }
 }
 
 // Fermer le modal
@@ -336,6 +348,16 @@ async function saveNote() {
         updatedAt: new Date().toISOString()
       });
 
+      // Émettre un événement pour mettre à jour le style sur la carte
+      const noteId = (props.note as any)._leaflet_id || props.note.id;
+      const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
+        detail: {
+          noteId: noteId,
+          style: editingNote.value.style
+        }
+      });
+      window.dispatchEvent(updateStyleEvent);
+
       notificationStore.success('Note mise à jour avec succès');
     } else {
       // Création d'une nouvelle note
@@ -368,6 +390,9 @@ async function saveNote() {
 
       console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);
       notesStore.addNote(storeNote);
+
+      // Pour les nouvelles notes, l'événement de style sera géré lors de l'ajout à la carte
+      // via l'événement 'note:add' ou similaire
 
       notificationStore.success('Note créée avec succès');
     }
