@@ -1831,8 +1831,19 @@ const handleAdjustView = () => {
 // Fonction pour supprimer la forme sélectionnée
 const deleteSelectedShape = () => {
   if (selectedLeafletShape.value && featureGroup.value) {
+    const layerId = selectedLeafletShape.value._leaflet_id;
+    const dbId = selectedLeafletShape.value._dbId;
+    
     setDrawingTool('');  // Ceci va nettoyer les points de contrôle
     featureGroup.value.removeLayer(selectedLeafletShape.value as L.Layer);
+    
+    // Supprimer également la forme du tableau shapes.value
+    shapes.value = shapes.value.filter(shape => 
+      shape.layer && shape.layer._leaflet_id !== layerId
+    );
+    
+    console.log(`[MapView][deleteSelectedShape] Forme ${layerId} (dbId: ${dbId}) supprimée du featureGroup et de shapes.value`);
+    
     selectedLeafletShape.value = null;
   }
 };
