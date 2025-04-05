@@ -247,10 +247,10 @@ class GeoNote(models.Model):
         ('visitor', 'Visiteurs')
     ]
 
-    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name='notes')
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name='notes', null=True, blank=True)
     title = models.CharField(max_length=255, db_index=True)
     description = models.TextField(blank=True)
-    location = models.PointField(srid=4326)
+    location = models.PointField(srid=4326, null=True, blank=True)
     column = models.CharField(max_length=2, choices=COLUMN_CHOICES, default='1', db_index=True)
     access_level = models.CharField(max_length=10, choices=ACCESS_LEVELS, default='private', db_index=True)
     style = models.JSONField(default=dict)

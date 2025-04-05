@@ -630,6 +630,7 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
             # Une entreprise peut voir les notes où elle est assignée directement
             # ou liées à ses salaries et leurs visiteurs
             return GeoNote.objects.filter(
+                Q(plan__isnull=True) |  # Notes sans plan
                 Q(plan__entreprise=user) |
                 Q(plan__salarie__entreprise=user) |
                 Q(plan__visiteur__salarie__entreprise=user)
@@ -637,20 +638,30 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         elif user.role == ROLE_DEALER:
             # Un salarie peut voir ses notes et celles de ses visiteurs
             return GeoNote.objects.filter(
+                Q(plan__isnull=True) |  # Notes sans plan
                 Q(plan__salarie=user) |
                 Q(plan__visiteur__salarie=user)
             )
         else:  # visiteur
-            return GeoNote.objects.filter(plan__visiteur=user)
+            return GeoNote.objects.filter(
+                Q(plan__isnull=True) |  # Notes sans plan
+                Q(plan__visiteur=user)
+            )
 
     def perform_create(self, serializer):
         """
         Vérifie que l'utilisateur a le droit de créer une note sur ce plan
         """
-        plan = serializer.validated_data['plan']
+        plan = serializer.validated_data.get('plan')
         user = self.request.user
 
-        # Vérifier les permissions
+        # Si c'est une note simple sans plan, on peut créer directement
+        if plan is None:
+            print(f"[GeoNoteViewSet][perform_create] Création d'une note simple sans plan par {user.username}")
+            serializer.save()
+            return
+
+        # Vérifier les permissions pour un plan existant
         if plan.createur != user and user.role not in [ROLE_ADMIN, ROLE_DEALER]:
             raise PermissionDenied('Vous n\'avez pas la permission de modifier ce plan')
 

@@ -9,12 +9,38 @@
           </p>
         </div>
         <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <button
-            @click="goToMap"
-            class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:w-auto"
-          >
-            Créer une note
-          </button>
+          <div class="relative" ref="dropdownRef">
+            <button
+              @click="toggleDropdown"
+              class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:w-auto"
+            >
+              Créer
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <!-- Menu déroulant -->
+            <div 
+              v-if="showDropdown" 
+              class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
+            >
+              <div class="py-1">
+                <button
+                  @click="createSimpleNote"
+                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Note simple
+                </button>
+                <button
+                  @click="goToMap"
+                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  Note géolocalisée
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -142,17 +168,35 @@
                                 {{ note.updatedAt ? formatDate(note.updatedAt) : (note.createdAt ? formatDate(note.createdAt) : 'Date non définie') }}
                               </span>
                               <div class="flex space-x-1">
-                                <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
+                                <!-- Indicateur de note géolocalisée ou non -->
+                                <span v-if="note.location" class="text-xs text-primary-500 flex items-center mr-1" title="Note géolocalisée">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                   </svg>
-                                </button>
-                                <button @click="viewOnMap(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Voir sur la carte">
+                                </span>
+                                <span v-else class="text-xs text-gray-400 flex items-center mr-1" title="Note simple">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
-                                </button>
+                                </span>
+
+                                <!-- Boutons d'interaction avec la carte, uniquement pour les notes géolocalisées -->
+                                <template v-if="note.location">
+                                  <button @click="openInGoogleMaps(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Ouvrir dans Google Maps">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                  </button>
+                                  <button @click="viewOnMap(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Voir sur la carte">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                    </svg>
+                                  </button>
+                                </template>
+
+                                <!-- Boutons d'édition et de suppression pour toutes les notes -->
                                 <button @click="editNote(note)" class="p-1 text-gray-400 hover:text-primary-500 focus:outline-none" title="Éditer la note">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -234,7 +278,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
@@ -592,6 +636,11 @@ function goToMap() {
 
 // Voir la note sur la carte
 function viewOnMap(note: Note) {
+  if (!note.location) {
+    notificationStore.warning('Cette note n\'est pas géolocalisée');
+    return;
+  }
+
   router.push({
     path: '/',
     query: {
@@ -604,6 +653,11 @@ function viewOnMap(note: Note) {
 
 // Ouvrir la note dans Google Maps avec itinéraire
 function openInGoogleMaps(note: Note) {
+  if (!note.location) {
+    notificationStore.warning('Cette note n\'est pas géolocalisée');
+    return;
+  }
+
   // Récupérer les coordonnées de la note
   let lat: number, lng: number;
   
@@ -818,6 +872,62 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
     throw error;
   }
 }
+
+// Créer une note simple (non géolocalisée)
+function createSimpleNote() {
+  // Créer une note vide
+  editingNote.value = {
+    id: '' as unknown as number, // L'ID sera généré par le backend
+    title: 'Nouvelle note',
+    description: '',
+    location: null as any, // Forcer le type pour permettre null
+    columnId: notesStore.getDefaultColumn.id,
+    accessLevel: NoteAccessLevel.PRIVATE,
+    style: {
+      color: '#3B82F6',
+      weight: 2,
+      opacity: 1,
+      fillColor: '#3B82F6',
+      fillOpacity: 0.6,
+      radius: 8
+    },
+    order: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    comments: [],
+    photos: []
+  };
+
+  // Afficher le modal d'édition
+  showEditModal.value = true;
+  activeTab.value = 'info';
+}
+
+// Gestion du menu déroulant
+const dropdownRef = ref<HTMLElement | null>(null);
+const showDropdown = ref(false);
+
+// Fonction pour basculer l'affichage du menu déroulant
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value;
+}
+
+// Fermer le menu déroulant lors d'un clic à l'extérieur
+function handleClickOutside(event: MouseEvent) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    showDropdown.value = false;
+  }
+}
+
+// Ajouter les écouteurs d'événements
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+// Supprimer les écouteurs d'événements lors du démontage
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style scoped>

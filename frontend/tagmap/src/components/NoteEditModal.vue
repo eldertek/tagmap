@@ -62,6 +62,19 @@
                 <textarea id="description" v-model="editingNote.description" rows="3"
                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
               </div>
+
+              <!-- Indicateur de géolocalisation -->
+              <div class="mb-4 p-2 rounded bg-gray-50 flex items-center" v-if="editingNote.location">
+                <div class="text-primary-600 mr-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="text-sm text-gray-600">
+                  Note géolocalisée
+                </div>
+              </div>
+
               <div class="mb-4">
                 <label for="column" class="block text-sm font-medium text-gray-700">État</label>
                 <select id="column" v-model="editingNote.columnId"
@@ -136,7 +149,7 @@ import PhotoGallery from './PhotoGallery.vue';
 const props = defineProps<{
   note: Note | null;
   isNewNote?: boolean;
-  location?: [number, number] | { type: string; coordinates: [number, number] };
+  location?: [number, number] | { type: string; coordinates: [number, number] } | null;
 }>();
 
 const emit = defineEmits<{
@@ -214,17 +227,14 @@ onMounted(() => {
     noteCopy.updatedAt = safeDate(noteCopy.updatedAt);
 
     editingNote.value = noteCopy;
-  } else if (props.isNewNote && props.location) {
+  } else if (props.isNewNote) {
     // Création d'une nouvelle note
-    console.log('[NoteEditModal] Création d\'une nouvelle note avec location:', props.location);
+    console.log('[NoteEditModal] Création d\'une nouvelle note');
 
-    // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
-    const processedLocation = processLocation(props.location);
-
+    // Note de base
     editingNote.value = {
       title: 'Nouvelle note',
       description: '',
-      location: processedLocation,
       columnId: notesStore.getDefaultColumn.id || '1', // Utiliser la colonne par défaut
       accessLevel: NoteAccessLevel.PRIVATE, // Définir explicitement le niveau d'accès par défaut
       style: {
@@ -241,9 +251,17 @@ onMounted(() => {
       updatedAt: new Date().toISOString()
     };
 
+    // Si une localisation est fournie, l'ajouter à la note
+    if (props.location) {
+      console.log('[NoteEditModal] Ajout de la localisation:', props.location);
+      // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
+      const processedLocation = processLocation(props.location);
+      editingNote.value.location = processedLocation;
+    }
+
     console.log('[NoteEditModal] Niveau d\'accès initial:', editingNote.value.accessLevel);
   } else {
-    console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note avec location');
+    console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note');
   }
 
   console.log('[NoteEditModal] editingNote.value après initialisation:', editingNote.value);
@@ -280,7 +298,7 @@ function updateNoteColor(color: string) {
   editingNote.value.style.fillColor = color;
   
   // Pour les notes existantes, mettre à jour immédiatement l'apparence sur la carte
-  if (props.note && !props.isNewNote) {
+  if (props.note && !props.isNewNote && editingNote.value.location) {
     // Utiliser _leaflet_id si disponible, sinon utiliser l'ID backend
     const noteId = (props.note as any)._leaflet_id || props.note.id;
     
@@ -297,7 +315,7 @@ function updateNoteColor(color: string) {
     });
     window.dispatchEvent(event);
   } else {
-    console.log('[NoteEditModal] Nouvelle note, la couleur sera appliquée lors de la création');
+    console.log('[NoteEditModal] Nouvelle note ou non géolocalisée, la couleur sera appliquée lors de la création');
   }
 }
 
@@ -309,18 +327,10 @@ function closeModal() {
 // Sauvegarder la note
 async function saveNote() {
   try {
-    // Convertir la localisation au format GeoJSON pour le backend
-    const locationGeoJSON = Array.isArray(editingNote.value.location)
-      ? {
-          type: 'Point',
-          coordinates: [editingNote.value.location[1], editingNote.value.location[0]] // [lng, lat]
-        }
-      : editingNote.value.location;
-
-    const noteData = {
+    // Préparer les données pour l'envoi
+    const noteData: any = {
       title: editingNote.value.title,
       description: editingNote.value.description,
-      location: locationGeoJSON,
       columnId: editingNote.value.columnId,
       style: editingNote.value.style,
       access_level: editingNote.value.accessLevel, // Utiliser access_level pour le backend
@@ -328,16 +338,24 @@ async function saveNote() {
       photos: editingNote.value.photos || []
     };
 
+    // Ajouter la localisation seulement si elle existe
+    if (editingNote.value.location) {
+      // Convertir la localisation au format GeoJSON pour le backend
+      noteData.location = Array.isArray(editingNote.value.location)
+        ? {
+            type: 'Point',
+            coordinates: [editingNote.value.location[1], editingNote.value.location[0]] // [lng, lat]
+          }
+        : editingNote.value.location;
+    }
+
     console.log('[NoteEditModal] Données de note à sauvegarder:', noteData);
     console.log('[NoteEditModal] Niveau d\'accès:', editingNote.value.accessLevel);
 
     let savedNote;
     if (props.note?.id) {
       // Mise à jour d'une note existante
-      const response = await noteService.updateNote(props.note.id, {
-        ...noteData,
-        access_level: editingNote.value.accessLevel // Utiliser access_level pour le backend
-      });
+      const response = await noteService.updateNote(props.note.id, noteData);
       savedNote = response.data;
 
       // Mettre à jour le store avec les données modifiées
@@ -349,22 +367,21 @@ async function saveNote() {
       });
 
       // Émettre un événement pour mettre à jour le style sur la carte
-      const noteId = (props.note as any)._leaflet_id || props.note.id;
-      const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
-        detail: {
-          noteId: noteId,
-          style: editingNote.value.style
-        }
-      });
-      window.dispatchEvent(updateStyleEvent);
+      if (editingNote.value.location) {
+        const noteId = (props.note as any)._leaflet_id || props.note.id;
+        const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
+          detail: {
+            noteId: noteId,
+            style: editingNote.value.style
+          }
+        });
+        window.dispatchEvent(updateStyleEvent);
+      }
 
       notificationStore.success('Note mise à jour avec succès');
     } else {
       // Création d'une nouvelle note
-      const response = await noteService.createNote({
-        ...noteData,
-        access_level: editingNote.value.accessLevel // Utiliser access_level pour le backend
-      });
+      const response = await noteService.createNote(noteData);
       savedNote = response.data;
 
       // Vérifier que le backend a fourni un ID
@@ -390,9 +407,6 @@ async function saveNote() {
 
       console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);
       notesStore.addNote(storeNote);
-
-      // Pour les nouvelles notes, l'événement de style sera géré lors de l'ajout à la carte
-      // via l'événement 'note:add' ou similaire
 
       notificationStore.success('Note créée avec succès');
     }

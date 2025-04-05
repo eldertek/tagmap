@@ -322,6 +322,7 @@ class GeoNoteSerializer(serializers.ModelSerializer):
     photos = NotePhotoSerializer(many=True, read_only=True)
     column_details = NoteColumnSerializer(source='column', read_only=True)
     column_id = serializers.CharField(write_only=True, required=False)
+    is_geolocated = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = GeoNote
@@ -329,15 +330,22 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             'id', 'plan', 'title', 'description', 'location',
             'column', 'column_id', 'column_details',
             'access_level', 'style', 'order', 'created_at', 'updated_at',
-            'category', 'comments', 'photos'
+            'category', 'comments', 'photos', 'is_geolocated'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'plan': {'required': False, 'allow_null': True},
+        }
+
+    def get_is_geolocated(self, obj):
+        """Retourne True si la note possède une location, False sinon."""
+        return obj.location is not None
 
     def validate(self, data):
         print(f"\n[GeoNoteSerializer][validate] Validation des données de note: {data}")
         
-        # Vérifier que le plan existe
-        if 'plan' in data and not Plan.objects.filter(id=data['plan'].id).exists():
+        # Vérifier que le plan existe s'il est fourni
+        if 'plan' in data and data['plan'] is not None and not Plan.objects.filter(id=data['plan'].id).exists():
             raise serializers.ValidationError({
                 'plan': 'Le plan spécifié n\'existe pas.'
             })

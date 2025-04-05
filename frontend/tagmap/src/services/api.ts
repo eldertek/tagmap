@@ -548,9 +548,19 @@ export const noteService = {
   async createNote(noteData: any) {
     const endMeasure = performanceMonitor.startMeasure('create_note', 'NoteService');
     try {
+      // Si la note n'a pas de localisation, on laisse le champ undefined pour que le backend le gère
+      const postData = {
+        ...noteData
+      };
+      
+      // Ne pas envoyer une location vide au backend, celui-ci s'attend à un GeoJSON valide
+      if (postData.location && Object.keys(postData.location).length === 0) {
+        delete postData.location;
+      }
+      
       return await performanceMonitor.measureAsync(
         'create_note_request',
-        () => api.post('/notes/', noteData),
+        () => api.post('/notes/', postData),
         'NoteService'
       );
     } finally {
@@ -567,6 +577,11 @@ export const noteService = {
       const updateData = {
         ...noteData
       };
+
+      // Ne pas envoyer une location vide au backend si elle est présente
+      if (updateData.location && Object.keys(updateData.location).length === 0) {
+        delete updateData.location;
+      }
 
       // Gérer la conversion de l'ID de la colonne
       if (noteData.column !== undefined) {
