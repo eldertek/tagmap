@@ -216,7 +216,26 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'>) {
+  // Fonction utilitaire pour convertir le niveau d'accès du format backend vers le format frontend
+  function convertAccessLevel(backendLevel: string | undefined): NoteAccessLevel {
+    if (!backendLevel) return NoteAccessLevel.PRIVATE;
+    
+    switch (backendLevel.toLowerCase()) {
+      case 'private':
+        return NoteAccessLevel.PRIVATE;
+      case 'company':
+        return NoteAccessLevel.COMPANY;
+      case 'employee':
+        return NoteAccessLevel.EMPLOYEE;
+      case 'visitor':
+        return NoteAccessLevel.VISITOR;
+      default:
+        console.warn(`[NotesStore] Niveau d'accès inconnu: ${backendLevel}, utilisation de PRIVATE par défaut`);
+        return NoteAccessLevel.PRIVATE;
+    }
+  }
+
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string }) {
     const newId = notes.value.length > 0
       ? Math.max(...notes.value.map(n => n.id)) + 1
       : 1;
@@ -229,8 +248,10 @@ export const useNotesStore = defineStore('notes', () => {
       ? Math.max(...notesInColumn.map(n => n.order)) + 1
       : 0;
 
-    // Default access level is PRIVATE if not specified
-    const accessLevel = (note as any).accessLevel || NoteAccessLevel.PRIVATE;
+    // Convertir le niveau d'accès du format backend
+    const accessLevel = convertAccessLevel((note as any).access_level);
+
+    console.log('[NotesStore][addNote] Ajout d\'une note avec niveau d\'accès:', accessLevel);
 
     notes.value.push({
       ...note,
@@ -246,18 +267,23 @@ export const useNotesStore = defineStore('notes', () => {
     return newId;
   }
 
-  function updateNote(id: number, data: Partial<Note>) {
+  function updateNote(id: number, data: Partial<Note> & { access_level?: string }) {
     const index = notes.value.findIndex(note => note.id === id);
     if (index !== -1) {
+      // Convertir le niveau d'accès du format backend
+      const accessLevel = convertAccessLevel(data.access_level);
+
       // Create a new note object with updated properties
       const updatedNote = {
         ...notes.value[index],
         ...data,
+        accessLevel,
         updatedAt: new Date().toISOString()
       };
 
       // Replace the note in the array to ensure reactivity
       notes.value[index] = updatedNote;
+      console.log('[NotesStore][updateNote] Note mise à jour avec niveau d\'accès:', updatedNote.accessLevel);
     }
   }
 

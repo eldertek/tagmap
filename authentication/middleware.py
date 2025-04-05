@@ -8,27 +8,19 @@ from django.http import JsonResponse
 
 def get_user_jwt(request):
     """Récupère l'utilisateur à partir du token JWT."""
-    print(f"\n[get_user_jwt] ====== VÉRIFICATION TOKEN JWT ======")
-    print(f"Path: {request.path}")
-    print(f"Headers d'autorisation: {request.META.get('HTTP_AUTHORIZATION', 'Non fourni')}")
-    
     user = None
     auth_header = request.META.get('HTTP_AUTHORIZATION', '').split()
     
     if len(auth_header) == 2 and auth_header[0].lower() == 'bearer':
         try:
             jwt_token = auth_header[1]
-            print("[get_user_jwt] Token JWT trouvé, décodage...")
             jwt_payload = jwt.decode(
                 jwt_token,
                 settings.SECRET_KEY,
                 algorithms=['HS256']
             )
-            print(f"[get_user_jwt] Payload décodé: {jwt_payload}")
             user = JWTAuthentication().get_user(jwt_payload)
-            print(f"[get_user_jwt] Utilisateur récupéré: {user.username if user else 'Aucun'}")
         except (jwt.InvalidTokenError, jwt.ExpiredSignatureError) as e:
-            print(f"[get_user_jwt] ERREUR de token JWT: {str(e)}")
             pass
     return user
 

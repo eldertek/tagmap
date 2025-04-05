@@ -291,6 +291,40 @@ const filters = reactive({
   accessLevel: ''
 });
 
+// Interface pour les notes reçues du backend
+interface BackendNote {
+  id: number;
+  title: string;
+  description: string;
+  location: any; // Le type exact dépend du format GeoJSON
+  columnId?: string;
+  column_id?: string;
+  access_level: string;
+  style: any;
+  comments: any[];
+  photos: any[];
+  order: number;
+  created_at: string;
+  updated_at: string;
+  column?: any;
+}
+
+// Interface pour les notes transformées
+interface TransformedNote {
+  id: number;
+  title: string;
+  description: string;
+  location: any;
+  columnId: string; // Assuré d'avoir une valeur après transformation
+  access_level: string;
+  style: any;
+  comments: any[];
+  photos: any[];
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Ajouter cette fonction pour formater les dates de manière sécurisée
 function safeFormatDate(dateString: string | undefined | null): string {
   if (!dateString) {
@@ -400,12 +434,31 @@ const getNotesByColumn = computed(() => (columnId: string) => {
 });
 
 // Obtenir le libellé du niveau d'accès
-function getAccessLevelLabel(level: NoteAccessLevel): string {
-  return notesStore.getAccessLevelLabel(level);
+function getAccessLevelLabel(level: NoteAccessLevel | undefined): string {
+  if (level === undefined || level === null) {
+    return 'Non défini';
+  }
+  
+  switch (level) {
+    case NoteAccessLevel.PRIVATE:
+      return 'Privé';
+    case NoteAccessLevel.COMPANY:
+      return 'Entreprise';
+    case NoteAccessLevel.EMPLOYEE:
+      return 'Salariés';
+    case NoteAccessLevel.VISITOR:
+      return 'Visiteurs';
+    default:
+      return 'Non défini';
+  }
 }
 
 // Obtenir la couleur du niveau d'accès
-function getAccessLevelColor(level: NoteAccessLevel): string {
+function getAccessLevelColor(level: NoteAccessLevel | undefined): string {
+  if (level === undefined || level === null) {
+    return '#9CA3AF'; // Gris par défaut
+  }
+
   switch (level) {
     case NoteAccessLevel.PRIVATE:
       return '#9CA3AF'; // Gris
@@ -444,10 +497,6 @@ async function loadInitialData() {
     await notesStore.loadColumns();
     console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
     
-    // Vérifier si une colonne par défaut existe
-    const defaultColumn = notesStore.columns.find(col => col.isDefault);
-    console.log(`[NotesView][loadInitialData] Colonne par défaut: ${defaultColumn ? defaultColumn.title : 'aucune'}`);
-
     // Récupérer les notes depuis le backend
     console.log('[NotesView][loadInitialData] Chargement des notes...');
     const response = await noteService.getNotes();
@@ -456,36 +505,73 @@ async function loadInitialData() {
     // Vérifier en détail les notes reçues
     if (response.data.length > 0) {
       console.log('[NotesView][loadInitialData] Détails des notes:');
-      response.data.forEach((note: Note, index: number) => {
-        console.log(`Note ${index + 1}: ID=${note.id}, Titre="${note.title}", Colonne=${note.columnId}`);
+      response.data.forEach((note: BackendNote, index: number) => {
+        console.log(`Note ${index + 1}:`, {
+          id: note.id,
+          title: note.title,
+          columnId: note.columnId || note.column_id,
+          access_level: note.access_level,
+          column: note.column
+        });
       });
     } else {
       console.warn('[NotesView][loadInitialData] Aucune note reçue du backend!');
     }
     
-    // Vérifier que chaque note a bien une colonne
-    const notesWithoutColumn = response.data.filter((note: Note) => !note.columnId);
-    if (notesWithoutColumn.length > 0) {
-      console.warn(`[NotesView][loadInitialData] ${notesWithoutColumn.length} notes sans colonne:`, notesWithoutColumn);
+    // Vérifier les notes avec des colonnes invalides
+    const validColumnIds = notesStore.columns.map(col => col.id);
+    const notesWithInvalidColumn = response.data.filter((note: BackendNote) => {
+      const noteColumnId = (note.columnId || note.column_id || '').toString();
+      return noteColumnId === '' || !validColumnIds.includes(noteColumnId);
+    });
+
+    if (notesWithInvalidColumn.length > 0) {
+      console.warn(`[NotesView][loadInitialData] ${notesWithInvalidColumn.length} notes avec des colonnes invalides:`, notesWithInvalidColumn);
       
-      // Assigner la colonne par défaut aux notes sans colonne
-      if (defaultColumn) {
-        console.log(`[NotesView][loadInitialData] Assignation de la colonne par défaut (${defaultColumn.id}) aux notes sans colonne`);
-        for (const note of notesWithoutColumn) {
-          note.columnId = defaultColumn.id;
-          // Essayer de mettre à jour la note dans le backend
-          try {
-            await noteService.updateNote(note.id, { columnId: defaultColumn.id });
-            console.log(`[NotesView][loadInitialData] Colonne assignée pour la note ${note.id}`);
-          } catch (err) {
-            console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de colonne à la note ${note.id}:`, err);
-          }
+      // Assigner ces notes à la colonne "Idées" (id: '1')
+      console.log('[NotesView][loadInitialData] Assignation des notes à la colonne Idées (1)');
+      
+      for (const note of notesWithInvalidColumn) {
+        try {
+          // Mettre à jour la note dans le backend
+          await noteService.updateNote(note.id, { columnId: '1' });
+          console.log(`[NotesView][loadInitialData] Note ${note.id} assignée à la colonne Idées`);
+          
+          // Mettre à jour la colonne dans les données locales
+          note.columnId = '1';
+          note.column_id = '1';
+        } catch (err) {
+          console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de la note ${note.id} à la colonne Idées:`, err);
         }
       }
     }
 
+    // Transformer les notes pour le store
+    const transformedNotes = response.data.map((note: BackendNote): TransformedNote => ({
+      id: note.id,
+      title: note.title,
+      description: note.description,
+      location: note.location,
+      columnId: note.columnId || note.column_id || '1', // Forcer la colonne Idées si aucune colonne valide
+      access_level: note.access_level,
+      style: note.style || {},
+      comments: note.comments || [],
+      photos: note.photos || [],
+      order: note.order || 0,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at
+    }));
+
     // Mettre à jour le store de notes
-    notesStore.notes = response.data;
+    transformedNotes.forEach((note: TransformedNote) => {
+      const existingNote = notesStore.notes.find(n => n.id === note.id);
+      if (existingNote) {
+        notesStore.updateNote(note.id, note);
+      } else {
+        notesStore.addNote(note);
+      }
+    });
+
     console.log('[NotesView][loadInitialData] Notes chargées dans le store');
     
     // Vérifier la répartition des notes par colonne
@@ -494,7 +580,7 @@ async function loadInitialData() {
       console.log(`[NotesView][loadInitialData] Colonne ${column.title} (${column.id}): ${notesInColumn.length} notes`);
       if (notesInColumn.length > 0) {
         notesInColumn.forEach((note: Note) => {
-          console.log(`  - Note ID=${note.id}, Titre="${note.title}"`);
+          console.log(`  - Note ID=${note.id}, Titre="${note.title}", Niveau d'accès=${note.accessLevel}, Colonne=${note.columnId}`);
         });
       }
     }

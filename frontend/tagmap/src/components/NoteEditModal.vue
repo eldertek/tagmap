@@ -183,16 +183,16 @@ function processLocation(location: [number, number] | { type: string; coordinate
 // Fonction pour la création sécurisée de dates
 function safeDate(dateString: string | undefined): string {
   if (!dateString) return new Date().toISOString();
-  
+
   try {
     const date = new Date(dateString);
-    
+
     // Vérifier si la date est valide
     if (isNaN(date.getTime())) {
       console.warn('[NoteEditModal] Date invalide:', dateString);
       return new Date().toISOString();
     }
-    
+
     return date.toISOString();
   } catch (error) {
     console.error('[NoteEditModal] Erreur lors de la création de la date:', error);
@@ -208,25 +208,25 @@ onMounted(() => {
     // Édition d'une note existante
     console.log('[NoteEditModal] Édition d\'une note existante:', props.note);
     const noteCopy = JSON.parse(JSON.stringify(props.note));
-    
+
     // Assurer que les dates sont valides
     noteCopy.createdAt = safeDate(noteCopy.createdAt);
     noteCopy.updatedAt = safeDate(noteCopy.updatedAt);
-    
+
     editingNote.value = noteCopy;
   } else if (props.isNewNote && props.location) {
     // Création d'une nouvelle note
     console.log('[NoteEditModal] Création d\'une nouvelle note avec location:', props.location);
-    
+
     // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
     const processedLocation = processLocation(props.location);
-    
+
     editingNote.value = {
       title: 'Nouvelle note',
       description: '',
       location: processedLocation,
       columnId: notesStore.getDefaultColumn.id || '1', // Utiliser la colonne par défaut
-      accessLevel: NoteAccessLevel.PRIVATE,
+      accessLevel: NoteAccessLevel.PRIVATE, // Définir explicitement le niveau d'accès par défaut
       style: {
         color: '#3B82F6',
         weight: 2,
@@ -240,6 +240,8 @@ onMounted(() => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    console.log('[NoteEditModal] Niveau d\'accès initial:', editingNote.value.accessLevel);
   } else {
     console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note avec location');
   }
@@ -273,7 +275,7 @@ const colors = [
 function updateNoteColor(color: string) {
   editingNote.value.style.color = color;
   editingNote.value.style.fillColor = color;
-  
+
   // Émettre un événement personnalisé pour mettre à jour la couleur sur la carte
   const event = new CustomEvent('geonote:updateStyle', {
     detail: {
@@ -296,7 +298,7 @@ function closeModal() {
 async function saveNote() {
   try {
     // Convertir la localisation au format GeoJSON pour le backend
-    const locationGeoJSON = Array.isArray(editingNote.value.location) 
+    const locationGeoJSON = Array.isArray(editingNote.value.location)
       ? {
           type: 'Point',
           coordinates: [editingNote.value.location[1], editingNote.value.location[0]] // [lng, lat]
@@ -309,57 +311,67 @@ async function saveNote() {
       location: locationGeoJSON,
       columnId: editingNote.value.columnId,
       style: editingNote.value.style,
-      accessLevel: editingNote.value.accessLevel,
+      access_level: editingNote.value.accessLevel, // Utiliser access_level pour le backend
       comments: editingNote.value.comments || [],
       photos: editingNote.value.photos || []
     };
 
     console.log('[NoteEditModal] Données de note à sauvegarder:', noteData);
+    console.log('[NoteEditModal] Niveau d\'accès:', editingNote.value.accessLevel);
 
-    if (props.note) {
+    let savedNote;
+    if (props.note?.id) {
       // Mise à jour d'une note existante
-      await noteService.updateNote(props.note.id, noteData);
-      
+      const response = await noteService.updateNote(props.note.id, {
+        ...noteData,
+        access_level: editingNote.value.accessLevel // Utiliser access_level pour le backend
+      });
+      savedNote = response.data;
+
       // Mettre à jour le store avec les données modifiées
-      // Conserver le format de localisation d'origine pour le store frontend
       notesStore.updateNote(props.note.id, {
         ...editingNote.value,
+        ...savedNote,
+        accessLevel: editingNote.value.accessLevel,
         updatedAt: new Date().toISOString()
       });
-      
+
       notificationStore.success('Note mise à jour avec succès');
-    } else if (props.isNewNote && props.location) {
+    } else {
       // Création d'une nouvelle note
-      const response = await noteService.createNote(noteData);
-      const newNoteId = response.data.id;
-      console.log('[NoteEditModal] Nouvelle note créée avec ID:', newNoteId, 'Réponse:', response.data);
-      
-      // Mettre à jour le store avec la nouvelle note
-      // Utiliser un format de localisation compatible avec le frontend
-      const storeLocation = Array.isArray(editingNote.value.location)
-        ? editingNote.value.location
-        : [editingNote.value.location.coordinates[1], editingNote.value.location.coordinates[0]];
-        
-      notesStore.addNote({
-        title: noteData.title,
-        description: noteData.description,
-        location: storeLocation,
-        columnId: noteData.columnId,
-        style: noteData.style
+      const response = await noteService.createNote({
+        ...noteData,
+        access_level: editingNote.value.accessLevel // Utiliser access_level pour le backend
       });
+      savedNote = response.data;
+
+      // Mettre à jour le store avec la nouvelle note
+      const defaultColumn = notesStore.getDefaultColumn;
+      const storeNote = {
+        ...noteData,
+        id: savedNote.id,
+        columnId: noteData.columnId || defaultColumn.id,
+        accessLevel: editingNote.value.accessLevel,
+        style: noteData.style || {
+          color: '#3B82F6',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.2
+        }
+      };
+
+      console.log('[NoteEditModal] Note à ajouter au store:', storeNote);
+      notesStore.addNote(storeNote);
 
       notificationStore.success('Note créée avec succès');
-
-      // Récupérer la note complète après création
-      const newNote = notesStore.notes.find(n => n.id === newNoteId);
-      if (newNote) {
-        emit('save', newNote);
-      }
     }
 
+    // Émettre l'événement save avec la note sauvegardée
+    emit('save', savedNote);
     emit('close');
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde de la note:', error);
+    console.error('[NoteEditModal] Erreur lors de la sauvegarde de la note:', error);
     notificationStore.error('Erreur lors de la sauvegarde de la note');
   }
 }
