@@ -585,11 +585,11 @@ export const noteService = {
 
       // Gérer la conversion de l'ID de la colonne
       if (noteData.column !== undefined) {
-        // S'assurer que column est une chaîne
-        updateData.column = noteData.column.toString();
+        // S'assurer que column est envoyée telle quelle (sans conversion)
+        updateData.column = noteData.column;
       } else if (noteData.columnId !== undefined) {
         // Si columnId est fourni mais pas column, utiliser columnId
-        updateData.column = noteData.columnId.toString();
+        updateData.column = noteData.columnId;
       }
 
       // Supprimer les champs redondants

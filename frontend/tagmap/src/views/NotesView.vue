@@ -100,22 +100,19 @@
           v-model="columnsForDrag"
           class="flex space-x-4 min-w-max"
           item-key="id"
-          handle=".column-drag-handle"
-          @end="onColumnDragEnd"
+          :handle="null"
+          :sort="false"
           :animation="150"
         >
           <template #item="{ element: column }">
             <div class="column-wrapper w-80 flex-shrink-0">
               <div class="bg-white rounded-lg shadow overflow-hidden">
-                <!-- En-tête de colonne avec poignée de drag -->
+                <!-- En-tête de colonne (sans poignée de drag) -->
                 <div
-                  class="p-3 flex items-center justify-between column-drag-handle cursor-move no-select"
+                  class="p-3 flex items-center justify-between no-select"
                   :style="{ backgroundColor: column.color + '20', borderBottom: '2px solid ' + column.color }"
                 >
                   <div class="flex items-center">
-                    <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                    </svg>
                     <h3 class="text-sm font-semibold" :style="{ color: column.color }">
                       {{ column.title }}
                     </h3>
@@ -771,12 +768,6 @@ async function deleteNote() {
   }
 }
 
-// Gérer la fin du drag and drop des colonnes
-function onColumnDragEnd() {
-  // L'ordre est déjà mis à jour via le v-model de draggable
-  notificationStore.success('Ordre des colonnes mis à jour');
-}
-
 // Gérer les changements lors du drag and drop
 async function onDragChange(event: any, columnId: string) {
   console.log('[NotesView][onDragChange] Événement:', event);
@@ -848,7 +839,7 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
       if (column) {
         // Utiliser l'ID de la colonne du backend qui est stocké dans column.id
         console.log(`[NotesView][updateNoteInBackend] Mise à jour de la colonne: ${column.id} (${column.title})`);
-        updateData.column = parseInt(column.id, 10);
+        updateData.column = column.id; // Ne pas convertir en entier, laisser sous forme de chaîne
         delete updateData.columnId;
         delete updateData.column_id;
       } else {

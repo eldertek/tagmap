@@ -351,16 +351,22 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             })
 
         # Gérer la colonne
-        column_id = data.pop('column_id', None) or '1'  # Par défaut, colonne "Idées" (id: 1)
-        if not column_id in ['1', '2', '3', '4', '5']:
-            raise serializers.ValidationError({
-                'column_id': 'ID de colonne invalide. Doit être entre 1 et 5.'
-            })
+        # Priorité 1: utiliser 'column' s'il est déjà défini dans data
+        # Priorité 2: utiliser 'column_id' s'il est fourni
+        # Priorité 3: utiliser '1' (Idées) comme valeur par défaut pour les nouvelles notes
+        if 'column' not in data:
+            column_id = data.pop('column_id', None)
+            if column_id:
+                if column_id not in ['1', '2', '3', '4', '5']:
+                    raise serializers.ValidationError({
+                        'column_id': 'ID de colonne invalide. Doit être entre 1 et 5.'
+                    })
+                data['column'] = column_id
+            elif not self.instance:  # Seulement pour les nouvelles notes
+                data['column'] = '1'  # Colonne "Idées" par défaut
         
-        # Assigner la colonne
-        data['column'] = column_id
-        
-        print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
+        if 'column' in data:
+            print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
         return data
         
     def create(self, validated_data):
