@@ -313,9 +313,14 @@ watchEffect(() => {
             </div>
           </div>
 
-          <!-- Barre de recherche uniquement sur la carte -->
-          <div v-if="$route.path === '/'" class="hidden md:block flex-1 mx-8">
-            <SearchBar @select-location="handleLocationSelect" />
+          <!-- Barre de recherche -->
+          <div v-if="$route.path === '/'" class="flex-1 mx-2">
+            <div class="hidden md:block">
+              <SearchBar @select-location="handleLocationSelect" />
+            </div>
+            <div class="md:hidden">
+              <SearchBar @select-location="handleLocationSelect" class="max-w-full" />
+            </div>
           </div>
           <div v-else class="flex-1"></div>
 
@@ -500,10 +505,6 @@ watchEffect(() => {
             >
               {{ item.name }}
             </router-link>
-          </div>
-          <!-- Barre de recherche mobile uniquement sur la carte -->
-          <div v-if="$route.path === '/'" class="px-4 py-3 border-t border-gray-200">
-            <SearchBar @select-location="handleLocationSelect" />
           </div>
         </div>
       </nav>
