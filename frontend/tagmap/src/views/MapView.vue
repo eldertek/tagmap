@@ -122,7 +122,7 @@
           <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
           <div v-if="currentPlan && !isGeneratingSynthesis"
             :class="[showDrawingTools ? 'translate-y-0' : 'translate-y-full md:translate-y-0',
-                    'w-full md:w-64 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
+                    'w-full md:w-64 bg-white border-t md:border-t-0 border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
                     'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none overflow-y-auto']"
             :style="{ 'bottom': 'var(--mobile-bottom-toolbar-height)' }">
             <!-- Poignée de fermeture pour le panneau mobile (style tiroir) -->
@@ -3858,6 +3858,7 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
   height: 100%;
   min-height: 0;
   overflow: visible;
+  display: flex; /* Assurer que les enfants s'alignent correctement */
 }
 
 .leaflet-container {

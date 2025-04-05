@@ -44,6 +44,7 @@
 /* Ajuster le z-index du conteneur de la carte */
 .leaflet-container {
   z-index: 1;
+  border: none !important;
 }
 
 /* Ajuster le z-index des contrôles de la carte */
