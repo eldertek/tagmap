@@ -1,14 +1,11 @@
 <template>
   <!-- Fond en léger dégradé + structure scrollable -->
-  <div class="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 sm:px-6 lg:px-8 overflow-auto relative">
+  <div class="min-h-screen overflow-auto relative bg-cover bg-center bg-no-repeat py-12 sm:px-6 lg:px-8" :style="{ backgroundImage: `url(${backgroundImage})` }">
     <!-- Conteneur principal avec scroll -->
     <div class="container mx-auto">
       <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <!-- Logo avec animation au survol -->
-        <img src="@/assets/logo.svg" alt="TagMap Logo"
-          class="mx-auto h-40 w-auto transition-transform duration-300 hover:scale-110" />
         <!-- Titre et sous-titre centrés -->
-        <h2 class="mt-2 text-center text-3xl font-bold text-gray-800">
+        <h2 class="text-center text-3xl font-bold text-gray-800">
           TagMap
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
@@ -194,6 +191,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import backgroundImage from '@/assets/background.svg'
+
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)

@@ -916,6 +916,12 @@ onMounted(async () => {
       setDrawingTool('');
     }) as EventListener);
 
+    // Écouter l'événement de sauvegarde automatique du plan lors de la création d'une note géolocalisée
+    window.addEventListener('geonote:savePlan', (() => {
+      console.log('[MapView] Événement geonote:savePlan reçu - Sauvegarde automatique du plan');
+      savePlan();
+    }) as EventListener);
+
     // Écouter les événements de réactivation des catégories
     window.addEventListener('categoriesReactivated', ((e: CustomEvent) => {
       console.log('[MapView][categoriesReactivated] Événement reçu:', e.detail);
@@ -1165,6 +1171,14 @@ function toggleDrawingTools() {
 // Fonction pour nettoyer la carte
 function clearMap() {
   if (featureGroup.value) {
+    // Réinitialiser l'état de sauvegarde du plan pour toutes les notes géolocalisées
+    featureGroup.value.eachLayer((layer: any) => {
+      if (layer.properties?.type === 'Note' && typeof layer.resetPlanSaveState === 'function') {
+        layer.resetPlanSaveState();
+      }
+    });
+
+    // Supprimer toutes les couches
     featureGroup.value.clearLayers();
   }
   shapes.value = [];
@@ -1710,6 +1724,16 @@ async function savePlan() {
     }
 
     saveStatus.value = 'success';
+
+    // Réinitialiser l'état de sauvegarde du plan pour toutes les notes géolocalisées
+    if (featureGroup.value) {
+      featureGroup.value.eachLayer((layer: any) => {
+        if (layer.properties?.type === 'Note' && typeof layer.resetPlanSaveState === 'function') {
+          layer.resetPlanSaveState();
+        }
+      });
+    }
+
     setTimeout(() => {
       saveStatus.value = null;
     }, 3000);

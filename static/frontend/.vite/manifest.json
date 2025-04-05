@@ -17,7 +17,8 @@
       "assets/index.css"
     ],
     "assets": [
-      "assets/logo.svg"
+      "assets/logo.svg",
+      "assets/background.svg"
     ]
   },
   "node_modules/canvg/lib/index.es.js": {
@@ -44,6 +45,10 @@
   "src/assets/logo.svg": {
     "file": "assets/logo.svg",
     "src": "src/assets/logo.svg"
+  },
+  "src/assets/background.svg": {
+    "file": "assets/background.svg",
+    "src": "src/assets/background.svg"
   },
   "src/views/ForgotPasswordView.vue": {
     "file": "assets/ForgotPasswordView.js",

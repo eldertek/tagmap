@@ -26,6 +26,9 @@ export class GeoNote extends L.Marker {
     [key: string]: any;
   };
 
+  // Propriété pour suivre si la note a été sauvegardée avec le plan
+  private _planSaved: boolean = false;
+
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Créer une icône personnalisée pour le marqueur
     const color = options.color || '#2b6451';
@@ -297,7 +300,7 @@ export class GeoNote extends L.Marker {
 
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
     const noteId = this.properties.id || (this as any)._leaflet_id;
-    
+
     console.log(`[GeoNote][editNote] Édition de note - ID backend: ${this.properties.id}, ID Leaflet: ${(this as any)._leaflet_id}, ID utilisé: ${noteId}`);
 
     // Créer un objet note à partir des propriétés
@@ -522,13 +525,13 @@ export class GeoNote extends L.Marker {
   static fromBackendData(data: NoteData): GeoNote {
     // Variable pour stocker les coordonnées au format [lat, lng] pour Leaflet
     let latLng: [number, number];
-    
+
     // Traiter différents formats de localisation
     if (typeof data.location === 'object' && !Array.isArray(data.location) && data.location.type === 'Point') {
       // Format GeoJSON: { type: 'Point', coordinates: [lng, lat] }
       const coords = data.location.coordinates;
       console.log('[GeoNote][fromBackendData] Coordonnées GeoJSON reçues:', coords);
-      
+
       // Convertir du format GeoJSON [lng, lat] au format Leaflet [lat, lng]
       latLng = [coords[1], coords[0]];
     } else if (Array.isArray(data.location) && data.location.length === 2) {
@@ -593,5 +596,25 @@ export class GeoNote extends L.Marker {
 
     // Retourner la note créée
     return note;
+  }
+
+  // Méthode pour déclencher la sauvegarde du plan
+  triggerPlanSave(): void {
+    // Éviter les sauvegardes multiples
+    if (this._planSaved) return;
+
+    console.log('[GeoNote][triggerPlanSave] Déclenchement de la sauvegarde automatique du plan');
+
+    // Émettre un événement pour déclencher la sauvegarde du plan
+    const event = new CustomEvent('geonote:savePlan');
+    window.dispatchEvent(event);
+
+    // Marquer la note comme sauvegardée avec le plan
+    this._planSaved = true;
+  }
+
+  // Méthode pour réinitialiser l'état de sauvegarde du plan
+  resetPlanSaveState(): void {
+    this._planSaved = false;
   }
 }

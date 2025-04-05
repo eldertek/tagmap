@@ -1159,11 +1159,11 @@ export function useMapDrawing(): MapDrawingReturn {
             if (map.value) {
               const onClick = async (e: L.LeafletMouseEvent) => {
                 if (!map.value || !featureGroup.value) return;
-                
+
                 try {
                   // Initialiser le store de dessin
                   const drawingStore = useDrawingStore();
-                  
+
                   // Créer une nouvelle note géolocalisée
                   const geoNote = new GeoNote(e.latlng, {
                     color: '#3B82F6',
@@ -1173,10 +1173,10 @@ export function useMapDrawing(): MapDrawingReturn {
                   });
                   featureGroup.value.addLayer(geoNote);
                   selectedShape.value = geoNote;
-                  
+
                   // Mettre à jour les propriétés
                   geoNote.updateProperties();
-                  
+
                   // Préparer les données pour l'API
                   // Format GeoDjango PointField: { "type": "Point", "coordinates": [longitude, latitude] }
                   const noteData = {
@@ -1192,34 +1192,34 @@ export function useMapDrawing(): MapDrawingReturn {
                     style: geoNote.properties.style,
                     category: geoNote.properties.category
                   };
-                  
+
                   console.log('[useMapDrawing] Sauvegarde de la note géolocalisée dans le backend:', noteData);
-                  
+
                   // Sauvegarder la note dans le backend
                   import('../services/api').then(async ({ noteService }) => {
                     try {
                       const response = await noteService.createNote(noteData);
                       console.log('[useMapDrawing] Note sauvegardée avec succès:', response.data);
-                      
+
                       // Stocker l'ID renvoyé par le backend (important!)
                       const backendId = response.data.id;
-                      
+
                       // IMPORTANT: Conserver l'ID Leaflet original pour référence
                       const leafletId = (geoNote as any)._leaflet_id;
                       console.log(`[useMapDrawing] ID Leaflet: ${leafletId}, ID backend: ${backendId}`);
-                      
+
                       // Mettre à jour l'ID de la note avec celui renvoyé par le backend
                       (geoNote as any)._dbId = backendId;
-                      
+
                       // CRUCIAL: Mettre à jour la propriété id pour qu'elle utilise l'ID du backend
                       geoNote.properties.id = backendId;
-                      
+
                       // Mettre à jour la columnId avec celle renvoyée par le backend
                       if (response.data.column_id) {
                         geoNote.properties.columnId = response.data.column_id;
                         console.log('[useMapDrawing] colonne mise à jour avec:', response.data.column_id);
                       }
-                      
+
                       // Émettre un événement pour informer de la création réussie
                       window.dispatchEvent(new CustomEvent('note:created', {
                         detail: {
@@ -1229,9 +1229,12 @@ export function useMapDrawing(): MapDrawingReturn {
                           backendId
                         }
                       }));
-                      
+
                       // Ouvrir le popup pour édition immédiate
                       geoNote.openPopup();
+
+                      // Déclencher la sauvegarde automatique du plan
+                      geoNote.triggerPlanSave();
                     } catch (error) {
                       console.error('[useMapDrawing] Erreur lors de la sauvegarde de la note:', error);
                       // Afficher un message d'erreur ou annuler l'opération
@@ -1241,7 +1244,7 @@ export function useMapDrawing(): MapDrawingReturn {
                       });
                     }
                   });
-                  
+
                   // Désactiver le mode note après l'ajout
                   map.value.off('click', onClick);
                   setDrawingTool('');
