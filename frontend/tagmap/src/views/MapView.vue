@@ -95,9 +95,9 @@
           <!-- Barre d'outils compacte sur mobile -->
           <div
             v-if="currentPlan && !isGeneratingSynthesis"
-            @click="toggleDrawingTools"
-            class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between"
-            style="height: var(--mobile-bottom-toolbar-height); bottom: 0;">
+            class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between cursor-pointer"
+            style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
+            @click="toggleDrawingTools">
 
             <div class="flex items-center w-full justify-center">
               <div class="flex items-center space-x-2">
@@ -123,15 +123,14 @@
           <div v-if="currentPlan && !isGeneratingSynthesis"
             :class="[showDrawingTools ? 'translate-y-0' : 'translate-y-full md:translate-y-0',
                     'w-full md:w-64 bg-white border-t md:border-t-0 border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
-                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none overflow-y-auto']"
+                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none']"
             :style="{ 'bottom': 'var(--mobile-bottom-toolbar-height)' }">
             <!-- Poignée de fermeture pour le panneau mobile (style tiroir) -->
-            <div class="md:hidden w-full flex justify-between items-center px-4 py-2 border-b border-gray-200">
+            <div class="md:hidden w-full flex justify-between items-center px-4 py-2 border-b border-gray-200 cursor-pointer" @click="toggleDrawingTools">
               <div class="flex items-center">
-                <div @click="toggleDrawingTools" class="w-10 h-1.5 bg-gray-300 rounded-full cursor-pointer mr-3"></div>
+                <div class="w-10 h-1.5 bg-gray-300 rounded-full mr-3"></div>
               </div>
               <button
-                @click="toggleDrawingTools"
                 class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

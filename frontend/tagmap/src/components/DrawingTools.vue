@@ -1,6 +1,6 @@
 <!-- DrawingTools.vue -->
 <template>
-  <div class="h-full flex flex-col bg-white overflow-y-auto">
+  <div class="h-full flex flex-col bg-white">
     <!-- Header avec titre (masqué sur mobile car déjà dans le panneau parent) -->
     <div class="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center md:flex hidden">
       <h3 class="text-sm font-semibold text-gray-700">Outils de dessin</h3>
