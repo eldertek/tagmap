@@ -30,17 +30,6 @@
           </svg>
           <span>Style</span>
         </button>
-        <!-- Onglet Propriétés (visible uniquement si une forme est sélectionnée) -->
-        <button
-          v-if="selectedShape"
-          @click="activeTab = 'properties'"
-          :class="[activeTab === 'properties' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <span>Propriétés</span>
-        </button>
         <!-- Onglet Filtres (toujours visible) -->
         <button
           @click="switchToFiltersTab"
@@ -77,6 +66,116 @@
           </svg>
           <span class="text-sm">Supprimer</span>
         </button>
+
+        <!-- Séparateur -->
+        <div v-if="selectedShape && localProperties" class="my-4 border-t border-gray-200"></div>
+
+        <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
+        <div v-if="selectedShape && localProperties" class="mt-4">
+          <!-- Champ pour nommer la forme -->
+          <div class="mb-4">
+            <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
+            <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
+              placeholder="Donnez un nom à cette forme"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
+          </div>
+
+          <!-- Catégorie de la forme -->
+          <div class="mb-4">
+            <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+            <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+              <option value="forages">Forages</option>
+              <option value="clients">Clients</option>
+              <option value="entrepots">Entrepôts</option>
+              <option value="livraisons">Lieux de livraison</option>
+              <option value="cultures">Cultures</option>
+              <option value="parcelles">Noms des parcelles</option>
+              <option value="default">Autre</option>
+            </select>
+          </div>
+
+          <!-- Niveau d'accès -->
+          <div class="mb-4">
+            <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
+            <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
+              Définit qui peut voir cet élément sur la carte.
+            </div>
+            <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+              <option value="company">Entreprise uniquement</option>
+              <option value="employee">Entreprise et salariés</option>
+              <option value="visitor">Tous (visiteurs inclus)</option>
+            </select>
+          </div>
+
+          <!-- Tableau compact des propriétés pour tous les types -->
+          <div class="grid grid-cols-1 gap-4">
+            <!-- Polygone -->
+            <template v-if="localProperties.type === 'Polygon'">
+              <div class="space-y-1">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700">Surface :</span>
+                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0)
+                    }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
+                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0)
+                    }}</span>
+                </div>
+              </div>
+            </template>
+
+
+            <!-- Ligne -->
+            <template v-else-if="localProperties.type === 'Line'">
+              <span class="text-sm font-semibold text-gray-700">Longueur :</span>
+              <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.length || 0) }}</span>
+            </template>
+            <!-- ElevationLine -->
+            <template v-else-if="localProperties.type === 'ElevationLine'">
+              <!-- Propriétés sur une seule colonne -->
+              <div class="flex flex-col space-y-2 w-full">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
+                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0)
+                    }}</span>
+                </div>
+
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
+                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain
+                    || 0) }}</span>
+                </div>
+
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
+                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss
+                    || 0) }}</span>
+                </div>
+
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
+                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope ||
+                    0) }}</span>
+                </div>
+
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
+                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0)
+                    }}</span>
+                </div>
+              </div>
+
+              <!-- Graphique du profil sur toute la largeur -->
+              <div ref="elevationProfileContainer"
+                class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4">
+                <canvas ref="elevationCanvas"></canvas>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
 
       <!-- Onglet Style -->
@@ -140,127 +239,6 @@
           </div>
         </div>
       </div>
-      <!-- Onglet Propriétés -->
-      <div v-if="activeTab === 'properties' && selectedShape" class="p-3">
-          <div v-if="localProperties">
-            <!-- Champ pour nommer la forme -->
-            <div class="mb-4">
-              <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
-              <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
-                placeholder="Donnez un nom à cette forme"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
-            </div>
-
-            <!-- Catégorie de la forme -->
-            <div class="mb-4">
-              <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-              <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                <option value="forages">Forages</option>
-                <option value="clients">Clients</option>
-                <option value="entrepots">Entrepôts</option>
-                <option value="livraisons">Lieux de livraison</option>
-                <option value="cultures">Cultures</option>
-                <option value="parcelles">Noms des parcelles</option>
-                <option value="default">Autre</option>
-              </select>
-            </div>
-
-            <!-- Niveau d'accès -->
-            <div class="mb-4">
-              <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
-              <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
-                Définit qui peut voir cet élément sur la carte.
-              </div>
-              <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                <option value="company">Entreprise uniquement</option>
-                <option value="employee">Entreprise et salariés</option>
-                <option value="visitor">Tous (visiteurs inclus)</option>
-              </select>
-            </div>
-
-            <!-- Tableau compact des propriétés pour tous les types -->
-            <div class="grid grid-cols-1 gap-4">
-              <!-- Polygone -->
-              <template v-if="localProperties.type === 'Polygon'">
-                <div class="space-y-1">
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700">Surface :</span>
-                    <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0)
-                      }}</span>
-                  </div>
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
-                    <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0)
-                      }}</span>
-                  </div>
-                </div>
-              </template>
-
-
-              <!-- Ligne -->
-              <template v-else-if="localProperties.type === 'Line'">
-                <span class="text-sm font-semibold text-gray-700">Longueur :</span>
-                <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.length || 0) }}</span>
-              </template>
-              <!-- ElevationLine -->
-              <template v-else-if="localProperties.type === 'ElevationLine'">
-                <!-- Propriétés sur une seule colonne -->
-                <div class="flex flex-col space-y-2 w-full">
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
-                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0)
-                      }}</span>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
-                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain
-                      || 0) }}</span>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
-                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss
-                      || 0) }}</span>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
-                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope ||
-                      0) }}</span>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
-                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0)
-                      }}</span>
-                  </div>
-                </div>
-
-                <!-- Graphique du profil sur toute la largeur -->
-                <div ref="elevationProfileContainer"
-                  class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4">
-                  <canvas ref="elevationCanvas"></canvas>
-                </div>
-              </template>
-
-              <!-- Note géolocalisée - Masquée car gérée par la condition v-if au niveau supérieur -->
-              <!-- <template v-else-if="localProperties.type === 'Note'">
-                <div class="space-y-1">
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm font-semibold text-gray-700">Type :</span>
-                    <span class="text-sm font-medium text-gray-500">Note géolocalisée</span>
-                  </div>
-                </div>
-              </template> -->
-            </div>
-          </div>
-          <div v-else class="text-center text-sm text-gray-500">
-            Aucune propriété disponible
-          </div>
-        </div>
 
         <!-- Onglet Filtres -->
         <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
