@@ -3848,8 +3848,7 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
   width: 100%;
   overflow: visible;
   position: relative;
-  padding-top: 49px;
-  /* Hauteur de la MapToolbar */
+  padding-top: 0; /* Suppression du padding-top */
 }
 
 .map-content {
@@ -3865,6 +3864,21 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
   width: 100% !important;
   height: 100% !important;
   z-index: 1000 !important;
+}
+
+/* Ajustements pour mobile */
+@media (max-width: 768px) {
+  .map-parent {
+    height: 100% !important;
+    width: 100% !important;
+    padding-top: 0 !important; /* S'assurer qu'il n'y a pas de padding sur mobile */
+  }
+
+  .map-content {
+    flex-direction: column !important;
+    height: 100% !important;
+    padding-bottom: var(--mobile-bottom-toolbar-height) !important; /* Utiliser la variable CSS */
+  }
 }
 </style>
 F
