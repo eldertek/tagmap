@@ -17,8 +17,8 @@
       "assets/index.css"
     ],
     "assets": [
-      "assets/logo.svg",
-      "assets/background.svg"
+      "assets/background.svg",
+      "assets/logo.svg"
     ]
   },
   "node_modules/canvg/lib/index.es.js": {
@@ -42,13 +42,13 @@
     "src": "node_modules/html2canvas/dist/html2canvas.esm.js",
     "isDynamicEntry": true
   },
-  "src/assets/logo.svg": {
-    "file": "assets/logo.svg",
-    "src": "src/assets/logo.svg"
-  },
   "src/assets/background.svg": {
     "file": "assets/background.svg",
     "src": "src/assets/background.svg"
+  },
+  "src/assets/logo.svg": {
+    "file": "assets/logo.svg",
+    "src": "src/assets/logo.svg"
   },
   "src/views/ForgotPasswordView.vue": {
     "file": "assets/ForgotPasswordView.js",
