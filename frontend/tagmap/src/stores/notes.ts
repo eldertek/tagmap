@@ -144,7 +144,7 @@ export const useNotesStore = defineStore('notes', () => {
   async function loadColumns() {
     console.log('\n[NotesStore][loadColumns] Initialisation des colonnes fixes...');
     try {
-      // Colonnes fixes prédéfinies
+      // Colonnes fixes prédéfinies avec les IDs du backend
       const fixedColumns: NoteColumn[] = [
         { id: '1', title: 'Idées', color: '#8B5CF6', order: 0, isDefault: false },
         { id: '2', title: 'À faire', color: '#F59E0B', order: 1, isDefault: true },
@@ -235,10 +235,11 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string }) {
-    const newId = notes.value.length > 0
-      ? Math.max(...notes.value.map(n => n.id)) + 1
-      : 1;
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number }) {
+    if (!note.id) {
+      console.error('[NotesStore][addNote] Erreur: ID du backend manquant');
+      throw new Error('L\'ID du backend est requis pour ajouter une note');
+    }
 
     const now = new Date().toISOString();
 
@@ -251,11 +252,11 @@ export const useNotesStore = defineStore('notes', () => {
     // Convertir le niveau d'accès du format backend
     const accessLevel = convertAccessLevel((note as any).access_level);
 
-    console.log('[NotesStore][addNote] Ajout d\'une note avec niveau d\'accès:', accessLevel);
+    console.log('[NotesStore][addNote] Ajout d\'une note avec ID backend:', note.id, 'et niveau d\'accès:', accessLevel);
 
     notes.value.push({
       ...note,
-      id: newId,
+      id: note.id,
       order,
       accessLevel,
       createdAt: now,
@@ -264,7 +265,7 @@ export const useNotesStore = defineStore('notes', () => {
       photos: []     // Initialiser un tableau vide pour les photos
     });
 
-    return newId;
+    return note.id;
   }
 
   function updateNote(id: number, data: Partial<Note> & { access_level?: string }) {
@@ -288,7 +289,13 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   function removeNote(id: number) {
-    notes.value = notes.value.filter(note => note.id !== id);
+    const noteIndex = notes.value.findIndex(note => note.id === id);
+    if (noteIndex !== -1) {
+      console.log('[NotesStore][removeNote] Suppression de la note avec ID:', id);
+      notes.value = notes.value.filter(note => note.id !== id);
+    } else {
+      console.warn('[NotesStore][removeNote] Tentative de suppression d\'une note inexistante avec ID:', id);
+    }
   }
 
   function moveNote(noteId: number, targetColumnId: string) {

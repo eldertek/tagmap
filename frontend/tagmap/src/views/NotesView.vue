@@ -509,7 +509,7 @@ async function loadInitialData() {
         console.log(`Note ${index + 1}:`, {
           id: note.id,
           title: note.title,
-          columnId: note.columnId || note.column_id,
+          columnId: note.column || note.column_id,
           access_level: note.access_level,
           column: note.column
         });
@@ -520,39 +520,33 @@ async function loadInitialData() {
     
     // Vérifier les notes avec des colonnes invalides
     const validColumnIds = notesStore.columns.map(col => col.id);
-    const notesWithInvalidColumn = response.data.filter((note: BackendNote) => {
-      const noteColumnId = (note.columnId || note.column_id || '').toString();
+    const notesWithInvalidColumns = response.data.filter((note: BackendNote) => {
+      const noteColumnId = (note.column || note.column_id || '').toString();
       return noteColumnId === '' || !validColumnIds.includes(noteColumnId);
     });
 
-    if (notesWithInvalidColumn.length > 0) {
-      console.warn(`[NotesView][loadInitialData] ${notesWithInvalidColumn.length} notes avec des colonnes invalides:`, notesWithInvalidColumn);
+    if (notesWithInvalidColumns.length > 0) {
+      console.warn(`[NotesView][loadInitialData] ${notesWithInvalidColumns.length} notes avec des colonnes invalides:`, notesWithInvalidColumns);
       
-      // Assigner ces notes à la colonne "Idées" (id: '1')
-      console.log('[NotesView][loadInitialData] Assignation des notes à la colonne Idées (1)');
+      // Assigner les notes à la colonne "À faire" par défaut
+      console.log('[NotesView][loadInitialData] Assignation des notes à la colonne À faire (2)');
       
-      for (const note of notesWithInvalidColumn) {
+      for (const note of notesWithInvalidColumns) {
         try {
-          // Mettre à jour la note dans le backend
-          await noteService.updateNote(note.id, { columnId: '1' });
-          console.log(`[NotesView][loadInitialData] Note ${note.id} assignée à la colonne Idées`);
-          
-          // Mettre à jour la colonne dans les données locales
-          note.columnId = '1';
-          note.column_id = '1';
-        } catch (err) {
-          console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de la note ${note.id} à la colonne Idées:`, err);
+          await noteService.updateNote(note.id, { column: '2' });
+        } catch (error) {
+          console.error(`[NotesView][loadInitialData] Erreur lors de l'assignation de la note ${note.id} à la colonne À faire:`, error);
         }
       }
     }
 
     // Transformer les notes pour le store
     const transformedNotes = response.data.map((note: BackendNote): TransformedNote => ({
-      id: note.id,
+      id: note.id, // Utiliser l'ID exact du backend
       title: note.title,
       description: note.description,
       location: note.location,
-      columnId: note.columnId || note.column_id || '1', // Forcer la colonne Idées si aucune colonne valide
+      columnId: (note.column || note.column_id || '2').toString(), // Utiliser la colonne À faire par défaut
       access_level: note.access_level,
       style: note.style || {},
       comments: note.comments || [],
@@ -562,14 +556,12 @@ async function loadInitialData() {
       updatedAt: note.updated_at
     }));
 
+    // Vider le store avant d'ajouter les nouvelles notes
+    notesStore.notes.length = 0;
+
     // Mettre à jour le store de notes
     transformedNotes.forEach((note: TransformedNote) => {
-      const existingNote = notesStore.notes.find(n => n.id === note.id);
-      if (existingNote) {
-        notesStore.updateNote(note.id, note);
-      } else {
-        notesStore.addNote(note);
-      }
+      notesStore.addNote(note);
     });
 
     console.log('[NotesView][loadInitialData] Notes chargées dans le store');
@@ -701,11 +693,20 @@ async function deleteNote() {
 
   try {
     // Supprimer la note du backend
-    await noteService.deleteNote(noteToDelete.value.id);
+    try {
+      await noteService.deleteNote(noteToDelete.value.id);
+    } catch (error: any) {
+      // Si l'erreur est 404, la note n'existe pas dans le backend
+      if (error.response && error.response.status === 404) {
+        console.log('[NotesView][deleteNote] Note non trouvée dans le backend (404), suppression locale uniquement');
+      } else {
+        // Pour toute autre erreur, on la propage
+        throw error;
+      }
+    }
 
-    // Supprimer la note du store local
+    // Dans tous les cas, supprimer la note du store local
     notesStore.removeNote(noteToDelete.value.id);
-
     notificationStore.success('Note supprimée avec succès');
   } catch (error) {
     console.error('Erreur lors de la suppression de la note:', error);
@@ -716,8 +717,6 @@ async function deleteNote() {
   }
 }
 
-
-
 // Gérer la fin du drag and drop des colonnes
 function onColumnDragEnd() {
   // L'ordre est déjà mis à jour via le v-model de draggable
@@ -726,15 +725,24 @@ function onColumnDragEnd() {
 
 // Gérer les changements lors du drag and drop
 async function onDragChange(event: any, columnId: string) {
-  console.log('Drag change event:', event);
+  console.log('[NotesView][onDragChange] Événement:', event);
+  console.log('[NotesView][onDragChange] Colonne cible:', columnId);
 
   try {
     // Gérer le déplacement d'une note entre colonnes
     if (event.added) {
       const { element: note } = event.added;
+      console.log('[NotesView][onDragChange] Note à déplacer:', note);
+
+      // S'assurer que nous avons le bon ID de note
+      const noteId = typeof note === 'object' && note.id ? note.id : null;
+      if (!noteId) {
+        console.error('[NotesView][onDragChange] ID de note invalide:', note);
+        throw new Error('ID de note invalide');
+      }
 
       // Mettre à jour la note dans le store
-      notesStore.moveNote(note.id, columnId);
+      notesStore.moveNote(noteId, columnId);
 
       // Réorganiser les notes dans la colonne cible
       const notesInColumn = getNotesByColumn.value(columnId);
@@ -744,8 +752,8 @@ async function onDragChange(event: any, columnId: string) {
       const targetColumn = notesStore.getColumnById(columnId);
       notificationStore.success(`Note déplacée vers ${targetColumn?.title || 'une autre colonne'}`);
 
-      // Mettre à jour la note dans le backend si un plan est actif
-      await updateNoteInBackend(note.id, { columnId });
+      // Mettre à jour la note dans le backend
+      await updateNoteInBackend(noteId, { columnId });
     }
 
     // Gérer le réordonnancement des notes dans une même colonne
@@ -757,41 +765,56 @@ async function onDragChange(event: any, columnId: string) {
 
       notificationStore.success('Ordre des notes mis à jour');
 
-      // Mettre à jour l'ordre des notes dans le backend si un plan est actif
-      if (currentPlanId.value) {
-        // Mettre à jour l'ordre de toutes les notes dans la colonne
-        for (const [index, note] of notesInColumn.entries()) {
-          await updateNoteInBackend(note.id, { order: index });
-        }
+      // Mettre à jour l'ordre des notes dans le backend
+      for (const [index, note] of notesInColumn.entries()) {
+        await updateNoteInBackend(note.id, { order: index });
       }
     }
-
-    // Gérer la suppression d'une note d'une colonne (lors du déplacement vers une autre colonne)
-    if (event.removed) {
-      // Pas besoin de faire quoi que ce soit ici, car la note sera ajoutée à la nouvelle colonne
-      // et gérée par le cas 'added' dans l'autre colonne
-    }
   } catch (error) {
-    console.error('Erreur lors du drag and drop:', error);
+    console.error('[NotesView][onDragChange] Erreur:', error);
     notificationStore.error('Une erreur est survenue lors du déplacement de la note');
   }
 }
 
 // Fonction utilitaire pour mettre à jour une note dans le backend
 async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
+  console.log('[NotesView][updateNoteInBackend] Mise à jour de la note:', noteId, updates);
   try {
     // Trouver la note dans le store
     const note = notesStore.notes.find(n => n.id === noteId);
-    if (!note) return;
+    if (!note) {
+      console.error('[NotesView][updateNoteInBackend] Note non trouvée:', noteId);
+      return;
+    }
+
+    // Si nous mettons à jour la colonne, utiliser l'ID de la colonne du backend
+    const updateData: any = { ...updates };
+    if (updates.columnId) {
+      const column = notesStore.getColumnById(updates.columnId);
+      if (column) {
+        // Utiliser l'ID de la colonne du backend qui est stocké dans column.id
+        console.log(`[NotesView][updateNoteInBackend] Mise à jour de la colonne: ${column.id} (${column.title})`);
+        updateData.column = parseInt(column.id, 10);
+        delete updateData.columnId;
+        delete updateData.column_id;
+      } else {
+        console.warn(`[NotesView][updateNoteInBackend] Colonne non trouvée: ${updates.columnId}`);
+      }
+    }
 
     // Mettre à jour la note dans le backend
-    await noteService.updateNote(noteId, {
+    const updatedNote = {
       ...note,
-      ...updates,
+      ...updateData,
       updatedAt: new Date().toISOString()
-    });
+    };
+
+    console.log('[NotesView][updateNoteInBackend] Données envoyées au backend:', updatedNote);
+    await noteService.updateNote(noteId, updatedNote);
+    
+    console.log('[NotesView][updateNoteInBackend] Note mise à jour avec succès');
   } catch (error) {
-    console.error('Erreur lors de la mise à jour de la note dans le backend:', error);
+    console.error('[NotesView][updateNoteInBackend] Erreur:', error);
     throw error;
   }
 }

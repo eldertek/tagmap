@@ -560,13 +560,41 @@ export const noteService = {
 
   // Mettre à jour une note existante
   async updateNote(noteId: number, noteData: any) {
+    console.log('[noteService][updateNote] Mise à jour de la note:', { noteId, noteData });
     const endMeasure = performanceMonitor.startMeasure('update_note', 'NoteService');
     try {
-      return await performanceMonitor.measureAsync(
+      // Préparer les données pour la mise à jour
+      const updateData = {
+        ...noteData
+      };
+
+      // Gérer la conversion de l'ID de la colonne
+      if (noteData.column !== undefined) {
+        // S'assurer que column est une chaîne
+        updateData.column = noteData.column.toString();
+      } else if (noteData.columnId !== undefined) {
+        // Si columnId est fourni mais pas column, utiliser columnId
+        updateData.column = noteData.columnId.toString();
+      }
+
+      // Supprimer les champs redondants
+      delete updateData.columnId;
+      delete updateData.column_id;
+      delete updateData.column_details;
+
+      console.log('[noteService][updateNote] Données formatées:', updateData);
+
+      const response = await performanceMonitor.measureAsync(
         'update_note_request',
-        () => api.patch(`/notes/${noteId}/`, noteData),
+        () => api.patch(`/notes/${noteId}/`, updateData),
         'NoteService'
       );
+
+      console.log('[noteService][updateNote] Réponse du serveur:', response.data);
+      return response;
+    } catch (error) {
+      console.error('[noteService][updateNote] Erreur lors de la mise à jour:', error);
+      throw error;
     } finally {
       endMeasure();
     }

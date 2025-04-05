@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from django.contrib.auth import get_user_model
-from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto, NoteColumn
+from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto
 from authentication.models import Utilisateur
 from django.core.files.base import ContentFile
 import base64
@@ -293,34 +292,36 @@ class NotePhotoSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class NoteColumnSerializer(serializers.ModelSerializer):
-    """Sérialiseur pour les colonnes de notes."""
-    class Meta:
-        model = NoteColumn
-        fields = ['id', 'title', 'color', 'order', 'is_default', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+class NoteColumnSerializer(serializers.Serializer):
+    """Sérialiseur pour les colonnes de notes fixes."""
+    id = serializers.CharField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    color = serializers.CharField(read_only=True)
+    order = serializers.IntegerField(read_only=True)
+    is_default = serializers.BooleanField(read_only=True)
 
-    def validate(self, data):
-        """Valide les données de la colonne."""
-        # Si c'est une mise à jour et que la colonne est par défaut,
-        # empêcher la suppression ou la modification du statut par défaut
-        if self.instance and self.instance.is_default:
-            if 'is_default' in data and not data['is_default']:
-                raise serializers.ValidationError({
-                    'is_default': 'Impossible de modifier le statut par défaut de cette colonne.'
-                })
-        return data
+    def to_representation(self, instance):
+        """
+        Surcharge pour gérer à la fois les dictionnaires et les chaînes de caractères.
+        """
+        if isinstance(instance, str):
+            # Si l'instance est une chaîne (ID de colonne), récupérer les détails de la colonne
+            COLUMN_DETAILS = {
+                '1': {'id': '1', 'title': 'Idées', 'color': '#8B5CF6', 'order': 0, 'is_default': False},
+                '2': {'id': '2', 'title': 'À faire', 'color': '#F59E0B', 'order': 1, 'is_default': True},
+                '3': {'id': '3', 'title': 'En cours', 'color': '#3B82F6', 'order': 2, 'is_default': False},
+                '4': {'id': '4', 'title': 'Terminées', 'color': '#10B981', 'order': 3, 'is_default': False},
+                '5': {'id': '5', 'title': 'Autres', 'color': '#6B7280', 'order': 4, 'is_default': False}
+            }
+            return COLUMN_DETAILS.get(instance, COLUMN_DETAILS['1'])
+        # Si c'est déjà un dictionnaire, le retourner tel quel
+        return instance
 
 class GeoNoteSerializer(serializers.ModelSerializer):
     comments = NoteCommentSerializer(many=True, read_only=True)
     photos = NotePhotoSerializer(many=True, read_only=True)
     column_details = NoteColumnSerializer(source='column', read_only=True)
-    column_id = serializers.PrimaryKeyRelatedField(
-        source='column',
-        queryset=NoteColumn.objects.all(),
-        required=False,
-        allow_null=True
-    )
+    column_id = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = GeoNote
@@ -341,29 +342,17 @@ class GeoNoteSerializer(serializers.ModelSerializer):
                 'plan': 'Le plan spécifié n\'existe pas.'
             })
 
-        # Si aucune colonne n'est spécifiée, utiliser la colonne par défaut
-        if 'column' not in data or not data['column']:
-            default_column = NoteColumn.objects.filter(is_default=True).first()
-            if default_column:
-                print(f"[GeoNoteSerializer][validate] Utilisation de la colonne par défaut: {default_column.id} - {default_column.title}")
-                data['column'] = default_column
-            else:
-                # Sinon utiliser/créer la colonne "Idées"
-                ideas_column = NoteColumn.objects.filter(title='Idées').first()
-                if ideas_column:
-                    print(f"[GeoNoteSerializer][validate] Utilisation de la colonne Idées existante: {ideas_column.id}")
-                    data['column'] = ideas_column
-                else:
-                    print(f"[GeoNoteSerializer][validate] Création de la colonne Idées")
-                    ideas_column = NoteColumn.objects.create(
-                        title='Idées',
-                        color='#8B5CF6',
-                        order=0,
-                        is_default=True
-                    )
-                    data['column'] = ideas_column
+        # Gérer la colonne
+        column_id = data.pop('column_id', None) or '1'  # Par défaut, colonne "Idées" (id: 1)
+        if not column_id in ['1', '2', '3', '4', '5']:
+            raise serializers.ValidationError({
+                'column_id': 'ID de colonne invalide. Doit être entre 1 et 5.'
+            })
         
-        print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column'].id if 'column' in data and data['column'] else 'None'}")
+        # Assigner la colonne
+        data['column'] = column_id
+        
+        print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
         return data
         
     def create(self, validated_data):
@@ -372,19 +361,13 @@ class GeoNoteSerializer(serializers.ModelSerializer):
         """
         print(f"\n[GeoNoteSerializer][create] Création de note avec données: {validated_data}")
         
-        # Vérifier une dernière fois que la colonne est bien assignée
-        if 'column' not in validated_data or not validated_data['column']:
-            default_column = NoteColumn.objects.filter(is_default=True).first()
-            if not default_column:
-                default_column = NoteColumn.objects.order_by('order').first()
-            
-            if default_column:
-                print(f"[GeoNoteSerializer][create] Assignation de la colonne par défaut: {default_column.id}")
-                validated_data['column'] = default_column
+        # S'assurer que la colonne est définie
+        if 'column' not in validated_data:
+            validated_data['column'] = '1'  # Colonne "Idées" par défaut
         
         print(f"[GeoNoteSerializer][create] Données finales pour création: {validated_data}")
         instance = super().create(validated_data)
-        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column_id if instance.column else 'None'}")
+        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column}")
         return instance
 
 class PlanDetailSerializer(serializers.ModelSerializer):

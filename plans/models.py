@@ -228,95 +228,62 @@ class TexteAnnotation(models.Model):
     def __str__(self):
         return f"Annotation sur {self.plan.nom}: {self.texte[:30]}..."
 
-class NoteColumn(models.Model):
-    """
-    Modèle pour les colonnes de notes.
-    """
-    title = models.CharField(max_length=100, verbose_name='Titre')
-    color = models.CharField(max_length=20, default='#6B7280', verbose_name='Couleur')
-    order = models.IntegerField(default=0, verbose_name='Ordre d\'affichage')
-    is_default = models.BooleanField(default=False, verbose_name='Colonne par défaut')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Dernière modification')
-
-    class Meta:
-        verbose_name = 'Colonne de notes'
-        verbose_name_plural = 'Colonnes de notes'
-        ordering = ['order', 'created_at']
-
-    def __str__(self):
-        return self.title
-
 class GeoNote(models.Model):
     """
     Modèle pour les notes géolocalisées.
     """
-    class AccessLevel(models.TextChoices):
-        PRIVATE = 'private', 'Privé'
-        COMPANY = 'company', 'Entreprise'
-        EMPLOYEE = 'employee', 'Salariés'
-        VISITOR = 'visitor', 'Visiteurs'
+    COLUMN_CHOICES = [
+        ('1', 'Idées'),
+        ('2', 'À faire'),
+        ('3', 'En cours'),
+        ('4', 'Terminées'),
+        ('5', 'Autres')
+    ]
 
-    plan = models.ForeignKey(
-        Plan,
-        on_delete=models.CASCADE,
-        related_name='notes',
-        verbose_name='Plan associé'
-    )
-    title = models.CharField(max_length=200, verbose_name='Titre')
-    description = models.TextField(blank=True, verbose_name='Description')
-    location = models.PointField(srid=4326, verbose_name='Position')
-    column = models.ForeignKey(
-        NoteColumn,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='notes',
-        verbose_name='Colonne'
-    )
-    access_level = models.CharField(
-        max_length=20,
-        choices=AccessLevel.choices,
-        default=AccessLevel.PRIVATE,
-        verbose_name='Niveau d\'accès'
-    )
-    style = models.JSONField(
-        default=dict,
-        blank=True,
-        verbose_name='Style de la note'
-    )
-    order = models.IntegerField(default=0, verbose_name='Ordre d\'affichage')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Dernière modification')
-    category = models.CharField(
-        max_length=50,
-        default='forages',
-        verbose_name='Catégorie'
-    )
+    ACCESS_LEVELS = [
+        ('private', 'Privé'),
+        ('company', 'Entreprise'),
+        ('employee', 'Salariés'),
+        ('visitor', 'Visiteurs')
+    ]
+
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name='notes')
+    title = models.CharField(max_length=255, db_index=True)
+    description = models.TextField(blank=True)
+    location = models.PointField(srid=4326)
+    column = models.CharField(max_length=2, choices=COLUMN_CHOICES, default='1', db_index=True)
+    access_level = models.CharField(max_length=10, choices=ACCESS_LEVELS, default='private', db_index=True)
+    style = models.JSONField(default=dict)
+    order = models.IntegerField(default=0, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+    category = models.CharField(max_length=50, blank=True, db_index=True)
 
     class Meta:
+        ordering = ['column', 'order', '-updated_at']
         verbose_name = 'Note géolocalisée'
         verbose_name_plural = 'Notes géolocalisées'
-        ordering = ['column', 'order', '-updated_at']
+        indexes = [
+            models.Index(fields=['plan', 'column', 'order']),
+            models.Index(fields=['plan', 'access_level']),
+        ]
 
     def __str__(self):
-        return f"Note '{self.title}' dans {self.plan.nom}"
+        return f"{self.title} ({self.get_column_display()})"
 
-    def save(self, *args, **kwargs):
-        # Si aucune colonne n'est spécifiée, utiliser la colonne "Idées"
-        if not self.column:
-            ideas_column = NoteColumn.objects.filter(title='Idées').first()
-            if ideas_column:
-                self.column = ideas_column
-            else:
-                # Créer la colonne "Idées" si elle n'existe pas
-                ideas_column = NoteColumn.objects.create(
-                    title='Idées',
-                    color='#8B5CF6',
-                    order=0,
-                    is_default=False
-                )
-                self.column = ideas_column
-        super().save(*args, **kwargs)
+    @property
+    def column_details(self):
+        """
+        Retourne les détails de la colonne fixe.
+        """
+        COLUMN_DETAILS = {
+            '1': {'id': '1', 'title': 'Idées', 'color': '#8B5CF6', 'order': 0, 'is_default': False},
+            '2': {'id': '2', 'title': 'À faire', 'color': '#F59E0B', 'order': 1, 'is_default': True},
+            '3': {'id': '3', 'title': 'En cours', 'color': '#3B82F6', 'order': 2, 'is_default': False},
+            '4': {'id': '4', 'title': 'Terminées', 'color': '#10B981', 'order': 3, 'is_default': False},
+            '5': {'id': '5', 'title': 'Autres', 'color': '#6B7280', 'order': 4, 'is_default': False}
+        }
+        return COLUMN_DETAILS.get(self.column, COLUMN_DETAILS['1'])
 
 class NoteComment(models.Model):
     """

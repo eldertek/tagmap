@@ -28,7 +28,7 @@ from .serializers import (
 )
 from plans.models import (
     Plan, FormeGeometrique, Connexion, TexteAnnotation,
-    GeoNote, NoteComment, NotePhoto, NoteColumn
+    GeoNote, NoteComment, NotePhoto
 )
 
 # Configuration
@@ -614,47 +614,6 @@ class TexteAnnotationViewSet(viewsets.ModelViewSet):
         else:  # client
             return TexteAnnotation.objects.filter(plan__createur=user)
 
-class NoteColumnViewSet(viewsets.ModelViewSet):
-    """ViewSet pour la gestion des colonnes de notes."""
-    serializer_class = NoteColumnSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        print("\n[NoteColumnViewSet][get_queryset] Récupération des colonnes")
-        queryset = NoteColumn.objects.all().order_by('order')
-        print(f"[NoteColumnViewSet][get_queryset] Nombre de colonnes trouvées: {queryset.count()}")
-        for col in queryset:
-            print(f"- Colonne: {col.id} | {col.title} | {col.color} | ordre: {col.order} | défaut: {col.is_default}")
-        return queryset
-
-    def perform_create(self, serializer):
-        print("\n[NoteColumnViewSet][perform_create] Création d'une nouvelle colonne")
-        print(f"Données validées: {serializer.validated_data}")
-        
-        # Si c'est la première colonne, la définir comme colonne par défaut
-        if not NoteColumn.objects.exists():
-            print("[NoteColumnViewSet][perform_create] Première colonne, définition comme colonne par défaut")
-            serializer.save(is_default=True)
-        else:
-            serializer.save()
-        
-        print(f"[NoteColumnViewSet][perform_create] Colonne créée avec succès: {serializer.instance.id}")
-
-    def perform_update(self, serializer):
-        print("\n[NoteColumnViewSet][perform_update] Mise à jour d'une colonne")
-        print(f"ID de la colonne: {serializer.instance.id}")
-        print(f"Données validées: {serializer.validated_data}")
-        
-        # Mettre à jour l'ordre des colonnes si nécessaire
-        new_order = self.request.data.get('order')
-        if new_order is not None:
-            print(f"[NoteColumnViewSet][perform_update] Nouvel ordre: {new_order}")
-            serializer.save(order=new_order)
-        else:
-            serializer.save()
-        
-        print("[NoteColumnViewSet][perform_update] Mise à jour réussie")
-
 class GeoNoteViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des notes géolocalisées."""
     serializer_class = GeoNoteSerializer
@@ -882,4 +841,51 @@ def elevation_proxy(request):
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+class NoteColumnViewSet(viewsets.ViewSet):
+    """ViewSet pour la gestion des colonnes de notes fixes."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    FIXED_COLUMNS = [
+        {'id': '1', 'title': 'Idées', 'color': '#8B5CF6', 'order': 0, 'is_default': False},
+        {'id': '2', 'title': 'À faire', 'color': '#F59E0B', 'order': 1, 'is_default': True},
+        {'id': '3', 'title': 'En cours', 'color': '#3B82F6', 'order': 2, 'is_default': False},
+        {'id': '4', 'title': 'Terminées', 'color': '#10B981', 'order': 3, 'is_default': False},
+        {'id': '5', 'title': 'Autres', 'color': '#6B7280', 'order': 4, 'is_default': False}
+    ]
+
+    def list(self, request):
+        """Retourne la liste des colonnes fixes."""
+        serializer = NoteColumnSerializer(self.FIXED_COLUMNS, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """Retourne une colonne fixe par son ID."""
+        try:
+            column = next(col for col in self.FIXED_COLUMNS if col['id'] == pk)
+            serializer = NoteColumnSerializer(column)
+            return Response(serializer.data)
+        except StopIteration:
+            return Response(
+                {'detail': 'Colonne non trouvée.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def create(self, request):
+        return Response(
+            {'detail': 'Les colonnes sont fixes et ne peuvent pas être modifiées.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def update(self, request, pk=None):
+        return Response(
+            {'detail': 'Les colonnes sont fixes et ne peuvent pas être modifiées.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def destroy(self, request, pk=None):
+        return Response(
+            {'detail': 'Les colonnes sont fixes et ne peuvent pas être supprimées.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
         )

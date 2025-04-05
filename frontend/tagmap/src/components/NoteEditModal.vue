@@ -345,11 +345,16 @@ async function saveNote() {
       });
       savedNote = response.data;
 
+      // Vérifier que le backend a fourni un ID
+      if (!savedNote.id) {
+        throw new Error('Le backend n\'a pas fourni d\'ID pour la nouvelle note');
+      }
+
       // Mettre à jour le store avec la nouvelle note
       const defaultColumn = notesStore.getDefaultColumn;
       const storeNote = {
         ...noteData,
-        id: savedNote.id,
+        id: savedNote.id, // Utiliser l'ID fourni par le backend
         columnId: noteData.columnId || defaultColumn.id,
         accessLevel: editingNote.value.accessLevel,
         style: noteData.style || {
@@ -361,7 +366,7 @@ async function saveNote() {
         }
       };
 
-      console.log('[NoteEditModal] Note à ajouter au store:', storeNote);
+      console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);
       notesStore.addNote(storeNote);
 
       notificationStore.success('Note créée avec succès');
