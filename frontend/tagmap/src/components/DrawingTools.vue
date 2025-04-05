@@ -52,7 +52,7 @@
           <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
             class="flex items-center justify-center p-2 rounded-md border"
             :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
-            @click="$emit('tool-change', currentTool === tool.type ? '' : tool.type)" :title="tool.label">
+            @click="handleToolClick(tool.type)" :title="tool.label">
             <span class="icon" v-html="getToolIcon(tool.type)"></span>
           </button>
         </div>
@@ -900,7 +900,7 @@ const switchToFiltersTab = () => {
 }
 
 // Define emits
-const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change'])
+const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
 
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
@@ -1043,6 +1043,18 @@ watch(filters, (newFilters, oldFilters) => {
     console.log('[DrawingTools][watch filters] Onglet filtres non actif, pas d\'application automatique');
   }
 }, { deep: true });
+
+// Ajouter cette méthode dans la partie script setup
+const handleToolClick = (toolType: string) => {
+  // Émettre l'événement tool-change
+  emit('tool-change', props.currentTool === toolType ? '' : toolType);
+  
+  // Sur mobile, émettre un événement pour fermer le tiroir
+  if (window.innerWidth < 768) {
+    // Émettre l'événement close-drawer sur mobile uniquement
+    emit('close-drawer');
+  }
+}
 </script>
 <style scoped>
 .h-full {

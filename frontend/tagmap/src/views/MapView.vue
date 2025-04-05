@@ -140,7 +140,8 @@
             <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape as any"
               :all-layers="featureGroup?.getLayers() || []" @tool-change="setDrawingTool"
               @style-update="updateShapeStyle" @properties-update="updateShapeProperties"
-              @delete-shape="deleteSelectedShape" @filter-change="handleFilterChange"/>
+              @delete-shape="deleteSelectedShape" @filter-change="handleFilterChange"
+              @close-drawer="showDrawingTools = false"/>
           </div>
         </div>
         <!-- Interface de synthèse -->
