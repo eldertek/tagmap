@@ -74,17 +74,15 @@
       </div>
       <!-- Conteneur de la carte avec positionnement relatif -->
       <div v-show="currentPlan" class="map-parent">
-        <!-- Utiliser Teleport pour déplacer la MapToolbar après la barre de navigation -->
-        <Teleport to="body">
-          <div v-if="currentPlan && !isGeneratingSynthesis" class="fixed left-0 right-0 z-[1500]" :style="{ top: 'var(--header-height)' }">
-            <MapToolbar
-              :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
-              :plan-name="currentPlan?.nom" :plan-description="currentPlan?.description" :save-status="saveStatus"
-              @change-map-type="changeBaseMap" @create-new-plan="showNewPlanModal = true"
-              @load-plan="showLoadPlanModal = true" @save-plan="savePlan" @adjust-view="handleAdjustView"
-              @generate-summary="generateSynthesis" />
-          </div>
-        </Teleport>
+        <!-- MapToolbar positionnée dans la hiérarchie normale du DOM -->
+        <div v-if="currentPlan && !isGeneratingSynthesis" class="fixed left-0 right-0 z-[1500]" :style="{ top: 'var(--header-height)' }">
+          <MapToolbar
+            :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
+            :plan-name="currentPlan?.nom" :plan-description="currentPlan?.description" :save-status="saveStatus"
+            @change-map-type="changeBaseMap" @create-new-plan="showNewPlanModal = true"
+            @load-plan="showLoadPlanModal = true" @save-plan="savePlan" @adjust-view="handleAdjustView"
+            @generate-summary="generateSynthesis" />
+        </div>
 
         <!-- Conteneur principal avec carte et outils -->
         <div class="map-content flex flex-col md:flex-row relative">
@@ -92,13 +90,13 @@
           <div
             v-if="showDrawingTools && currentPlan && !isGeneratingSynthesis"
             @click="toggleDrawingTools"
-            class="md:hidden fixed inset-0 bg-black/30 z-[1999] transition-opacity duration-300"
+            class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
           ></div>
           <!-- Barre d'outils compacte sur mobile -->
           <div
             v-if="currentPlan && !isGeneratingSynthesis"
             @click="toggleDrawingTools"
-            class="md:hidden fixed left-0 right-0 z-[2500] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between"
+            class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between"
             style="height: var(--mobile-bottom-toolbar-height); bottom: 0;">
 
             <div class="flex items-center w-full justify-center">
@@ -1833,17 +1831,17 @@ const deleteSelectedShape = () => {
   if (selectedLeafletShape.value && featureGroup.value) {
     const layerId = selectedLeafletShape.value._leaflet_id;
     const dbId = selectedLeafletShape.value._dbId;
-    
+
     setDrawingTool('');  // Ceci va nettoyer les points de contrôle
     featureGroup.value.removeLayer(selectedLeafletShape.value as L.Layer);
-    
+
     // Supprimer également la forme du tableau shapes.value
-    shapes.value = shapes.value.filter(shape => 
+    shapes.value = shapes.value.filter(shape =>
       shape.layer && shape.layer._leaflet_id !== layerId
     );
-    
+
     console.log(`[MapView][deleteSelectedShape] Forme ${layerId} (dbId: ${dbId}) supprimée du featureGroup et de shapes.value`);
-    
+
     selectedLeafletShape.value = null;
   }
 };

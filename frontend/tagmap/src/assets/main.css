@@ -39,6 +39,17 @@
     @apply flex-1 relative;
   }
 
+  /* Z-index hierarchy for proper layering */
+  header.z-\[2500\] {
+    position: relative;
+    z-index: 2500;
+  }
+
+  .map-toolbar {
+    position: relative;
+    z-index: 1500;
+  }
+
   /* Styles spécifiques pour la carte sur mobile */
   @media (max-width: 767px) {
     .map-parent {

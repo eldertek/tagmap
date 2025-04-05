@@ -253,7 +253,7 @@ watchEffect(() => {
 <template>
   <div class="h-screen flex flex-col">
     <!-- NavToolbar -->
-    <header v-if="isAuthenticated" class="bg-white shadow-sm z-[2000] flex-shrink-0">
+    <header v-if="isAuthenticated" class="bg-white shadow-sm z-[2500] flex-shrink-0">
       <nav class="mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
           <!-- Logo et navigation -->
@@ -356,7 +356,7 @@ watchEffect(() => {
               <!-- Menu notifications -->
               <div
                 v-if="showNotificationsMenu"
-                class="absolute right-0 mt-2 md:w-80 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000] md:right-0 right-0 left-0 md:left-auto"
+                class="absolute right-0 mt-2 md:w-80 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3500] md:right-0 right-0 left-0 md:left-auto"
                 :style="isMobile ? 'position: fixed; top: 64px; left: 0; right: 0; margin: 0;' : ''"
               >
                 <div class="px-4 py-2 border-b border-gray-100 flex justify-between items-center">
@@ -445,7 +445,7 @@ watchEffect(() => {
               <!-- Menu profil déroulant -->
               <div
                 v-if="showProfileMenu"
-                class="absolute right-0 mt-2 md:w-48 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3000] md:right-0 right-0 left-0 md:left-auto"
+                class="absolute right-0 mt-2 md:w-48 w-screen md:origin-top-right md:rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-[3500] md:right-0 right-0 left-0 md:left-auto"
                 :style="isMobile ? 'position: fixed; top: 64px; left: 0; right: 0; margin: 0;' : ''"
               >
                 <div class="md:hidden px-4 py-2 border-b border-gray-100 flex justify-between items-center">
@@ -482,7 +482,8 @@ watchEffect(() => {
         <!-- Menu mobile -->
         <div
           v-if="showMobileMenu"
-          class="md:hidden bg-white border-t border-gray-200"
+          class="md:hidden fixed inset-0 bg-white shadow-lg z-[3000] border-t border-gray-200"
+          style="top: var(--header-height);"
         >
           <div class="space-y-1 px-2 pb-3 pt-2">
             <router-link

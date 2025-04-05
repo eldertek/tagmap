@@ -140,7 +140,7 @@
         </div>
       </div>
       <!-- Menu mobile -->
-      <div v-if="showMobileMenu" class="mobile-menu mt-0 bg-white shadow-lg p-4 z-[2000] fixed left-0 right-0 w-full">
+      <div v-if="showMobileMenu" class="mobile-menu mt-0 bg-white shadow-lg p-4 z-[1900] fixed left-0 right-0 w-full">
         <div class="flex justify-between items-center mb-3 border-b pb-2">
           <h3 class="text-base font-semibold text-gray-800">Menu</h3>
           <button @click="showMobileMenu = false" class="p-1 rounded-full hover:bg-gray-100">
@@ -321,7 +321,7 @@ const closeMobileMenu = () => {
   padding: 0.5rem 1rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   width: 100%;
-  z-index: 1000;
+  z-index: 1500;
   overflow: visible;
   flex-shrink: 0;
   min-height: var(--mobile-toolbar-height);
@@ -434,6 +434,7 @@ const closeMobileMenu = () => {
   -webkit-overflow-scrolling: touch;
   width: 100%;
   border-bottom: 1px solid #e5e7eb;
+  z-index: 1900;
 }
 /* Animations de transition */
 .fade-slide-enter-active,
