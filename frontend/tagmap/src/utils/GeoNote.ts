@@ -29,6 +29,9 @@ export class GeoNote extends L.Marker {
   // Propriété pour suivre si la note a été sauvegardée avec le plan
   private _planSaved: boolean = false;
 
+  // Propriété pour suivre si la note est en cours de déplacement
+  private _isMoving: boolean = false;
+
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Créer une icône personnalisée pour le marqueur
     const color = options.color || '#2b6451';
@@ -93,10 +96,10 @@ export class GeoNote extends L.Marker {
       const leafletId = (this as any)._leaflet_id;
       const backendId = this.properties.id;
       const eventNoteId = e.detail.noteId;
-      
-      console.log('[GeoNote][updateStyle] Événement reçu pour noteId:', eventNoteId, 
+
+      console.log('[GeoNote][updateStyle] Événement reçu pour noteId:', eventNoteId,
                   'Comparaison avec - ID Leaflet:', leafletId, 'ID backend:', backendId);
-      
+
       // Vérifier si l'ID dans l'événement correspond soit à l'ID Leaflet, soit à l'ID backend
       if (eventNoteId === leafletId || (backendId && eventNoteId === backendId)) {
         console.log('[GeoNote][updateStyle] Correspondance trouvée, mise à jour du style:', e.detail.style);
@@ -412,13 +415,13 @@ export class GeoNote extends L.Marker {
   // Méthode pour mettre à jour le style
   setNoteStyle(style: any): void {
     console.log('[GeoNote][setNoteStyle] Mise à jour du style:', style);
-    
+
     // S'assurer que nous avons des valeurs pour color et fillColor
     const color = style.color || style.fillColor || '#2b6451';
     const fillColor = style.fillColor || style.color || '#2b6451';
-    
+
     console.log('[GeoNote][setNoteStyle] Nouvelles couleurs - stroke:', color, 'fill:', fillColor);
-      
+
     // Créer une nouvelle icône avec le SVG coloré
     const iconHtml = `
       <div class="geo-note-marker">
@@ -647,5 +650,52 @@ export class GeoNote extends L.Marker {
   // Méthode pour réinitialiser l'état de sauvegarde du plan
   resetPlanSaveState(): void {
     this._planSaved = false;
+  }
+
+  // Méthode pour déplacer la note vers une nouvelle position
+  moveTo(newLatLng: L.LatLng): void {
+    // Mettre à jour la position de la note
+    this.setLatLng(newLatLng);
+
+    // Émettre un événement pour notifier du déplacement
+    this.fire('note:moved', {
+      latlng: newLatLng,
+      note: this
+    });
+
+    // Mettre à jour le popup pour refléter la nouvelle position
+    this.bindPopup(this.createPopupContent());
+
+    // Déclencher la sauvegarde du plan
+    this.triggerPlanSave();
+  }
+
+  // Méthode pour commencer le déplacement
+  startMoving(): void {
+    this._isMoving = true;
+    // Fermer le popup pendant le déplacement
+    this.closePopup();
+    // Émettre un événement pour notifier du début du déplacement
+    this.fire('note:movestart', {
+      latlng: this.getLatLng(),
+      note: this
+    });
+  }
+
+  // Méthode pour terminer le déplacement
+  finishMoving(): void {
+    this._isMoving = false;
+    // Émettre un événement pour notifier de la fin du déplacement
+    this.fire('note:moveend', {
+      latlng: this.getLatLng(),
+      note: this
+    });
+    // Déclencher la sauvegarde du plan
+    this.triggerPlanSave();
+  }
+
+  // Méthode pour vérifier si la note est en cours de déplacement
+  isMoving(): boolean {
+    return this._isMoving;
   }
 }

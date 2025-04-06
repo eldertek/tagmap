@@ -766,6 +766,9 @@ export function useMapDrawing(): MapDrawingReturn {
         updateLineControlPoints(clickedLayer);
       } else if (clickedLayer instanceof L.Polyline) {
         updateLineControlPoints(clickedLayer);
+      } else if (clickedLayer instanceof GeoNote) {
+        // Si c'est une note géolocalisée, traiter spécifiquement
+        updateGeoNoteControlPoints(clickedLayer);
       }
     });
     // Événements d'édition
@@ -807,6 +810,11 @@ export function useMapDrawing(): MapDrawingReturn {
           updateLineControlPoints(layer);
         } else if (layer instanceof L.Polyline) {
           updateLineControlPoints(layer);
+        } else if (layer instanceof GeoNote) {
+          // Si c'est une note géolocalisée, mettre à jour ses propriétés
+          layer.updateProperties();
+          // Mettre à jour les points de contrôle
+          updateGeoNoteControlPoints(layer);
         }
       }
     });
@@ -2616,6 +2624,95 @@ export function useMapDrawing(): MapDrawingReturn {
     // Fonction supprimée selon les exigences
     console.log('updateSemicircleControlPoints est désactivé selon les exigences');
   };
+
+  // Fonction pour mettre à jour les points de contrôle d'une note géolocalisée
+  const updateGeoNoteControlPoints = (layer: GeoNote) => {
+    if (!map.value || !featureGroup.value) return;
+
+    // Nettoyer les points de contrôle existants
+    clearActiveControlPoints();
+
+    // Récupérer la position de la note
+    const position = layer.getLatLng();
+
+    // Créer un point de contrôle central (vert) pour déplacer la note
+    const centerPoint = createControlPoint(position, '#059669') as ControlPoint;
+    activeControlPoints.push(centerPoint);
+
+    // Ajouter les mesures au point central
+    addMeasureEvents(centerPoint, layer, () => {
+      return `Position: ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`;
+    });
+
+    // Gestion du déplacement via le point central
+    centerPoint.on('mousedown', (e: L.LeafletMouseEvent) => {
+      if (!map.value) return;
+
+      // Arrêter la propagation de l'événement
+      L.DomEvent.stopPropagation(e);
+
+      // Désactiver le déplacement de la carte pendant le déplacement du point
+      map.value.dragging.disable();
+
+      // Indiquer que la note est en cours de déplacement
+      layer.startMoving();
+
+      // Variable pour suivre l'état du déplacement
+      let isDragging = true;
+
+      // Fonction pour gérer le déplacement
+      const onMouseMove = (moveEvent: L.LeafletMouseEvent) => {
+        if (!isDragging) return;
+
+        // Mettre à jour la position du point de contrôle
+        centerPoint.setLatLng(moveEvent.latlng);
+
+        // Mettre à jour la position de la note
+        layer.setLatLng(moveEvent.latlng);
+      };
+
+      // Fonction throttlée pour limiter les mises à jour pendant le déplacement
+      const throttledMove = throttle(onMouseMove, 16); // 60fps
+
+      // Fonction pour gérer la fin du déplacement
+      const onMouseUp = () => {
+        if (!map.value) return;
+
+        // Arrêter d'écouter les événements de déplacement
+        map.value.off('mousemove', throttledMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        // Réactiver le déplacement de la carte
+        map.value.dragging.enable();
+
+        // Indiquer que le déplacement est terminé
+        isDragging = false;
+
+        // Finaliser le déplacement de la note
+        layer.finishMoving();
+
+        // Forcer la mise à jour des propriétés
+        layer.updateProperties();
+
+        // Mettre à jour selectedShape pour déclencher la réactivité
+        selectedShape.value = null; // Forcer un reset
+        nextTick(() => {
+          selectedShape.value = layer;
+
+          // Récréer les points de contrôle
+          clearActiveControlPoints();
+          updateGeoNoteControlPoints(layer);
+        });
+      };
+
+      // Ajouter les écouteurs d'événements
+      map.value.on('mousemove', throttledMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    // Synchroniser selectedShape au démarrage de la fonction
+    selectedShape.value = layer;
+  };
   // Fonction pour générer les points de contrôle temporaires
   const generateTempControlPoints = (layer: L.Layer) => {
     if (!map.value || !tempControlPointsGroup.value) {
@@ -2653,6 +2750,23 @@ export function useMapDrawing(): MapDrawingReturn {
             });
             tempControlPointsGroup.value.addLayer(centerPoint);
           }
+        }
+      }
+      else if (layer instanceof GeoNote) {
+        // Points de contrôle pour les notes géolocalisées
+        const position = layer.getLatLng();
+        if (position) {
+          // Point central (vert) pour indiquer la possibilité de déplacement
+          const centerPoint = L.circleMarker(position, {
+            radius: 5,
+            color: '#059669',
+            fillColor: '#059669',
+            fillOpacity: 0.7,
+            weight: 2,
+            className: 'temp-control-point',
+            pmIgnore: true
+          });
+          tempControlPointsGroup.value.addLayer(centerPoint);
         }
       }
       else if (layer instanceof Polygon || layer instanceof L.Polygon) {
