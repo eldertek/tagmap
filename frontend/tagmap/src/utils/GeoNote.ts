@@ -106,7 +106,7 @@ export class GeoNote extends L.Marker {
       if (eventNoteId === backendId) {
         console.log('[GeoNote][updateStyle] Correspondance trouvée, mise à jour du style:', e.detail.style);
         this.setNoteStyle(e.detail.style);
-        
+
         // Mettre à jour les propriétés de la note
         if (this.properties && this.properties.style) {
           this.properties.style = {
@@ -114,7 +114,7 @@ export class GeoNote extends L.Marker {
             ...e.detail.style
           };
         }
-        
+
         // Mettre à jour le popup pour refléter les changements
         this.bindPopup(this.createPopupContent());
       }
@@ -131,7 +131,7 @@ export class GeoNote extends L.Marker {
       // Vérifier si l'ID dans l'événement correspond à l'ID backend
       if (eventNoteId === backendId) {
         console.log('[GeoNote][update] Correspondance trouvée, mise à jour des propriétés:', e.detail.properties);
-        
+
         // Mettre à jour toutes les propriétés
         this.properties = {
           ...this.properties,
@@ -144,7 +144,7 @@ export class GeoNote extends L.Marker {
 
         // Mettre à jour le style visuel
         this.setNoteStyle(e.detail.properties.style);
-        
+
         // Mettre à jour le popup pour refléter les changements
         this.bindPopup(this.createPopupContent());
 
@@ -762,8 +762,17 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour déclencher la sauvegarde du plan (maintenue pour compatibilité)
   triggerPlanSave(): void {
-    // Sauvegarder la note directement via l'API
-    this.saveNote();
+    // Récupérer l'ID du plan courant depuis le localStorage
+    const currentPlanId = localStorage.getItem('lastPlanId');
+
+    // Sauvegarder la note directement via l'API en associant au plan courant
+    if (currentPlanId) {
+      console.log(`[GeoNote][triggerPlanSave] Sauvegarde de la note avec le plan ${currentPlanId}`);
+      this.saveNote(parseInt(currentPlanId));
+    } else {
+      console.log('[GeoNote][triggerPlanSave] Aucun plan courant, sauvegarde sans association');
+      this.saveNote();
+    }
 
     // Émettre un événement pour déclencher la sauvegarde du plan (pour compatibilité)
     const event = new CustomEvent('geonote:savePlan');

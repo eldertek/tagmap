@@ -458,6 +458,7 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref, watch, onBeforeUnmount, onUnmounted, computed, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import type { LatLngTuple } from 'leaflet';
 import * as L from 'leaflet';
 import 'leaflet-simple-map-screenshoter';
@@ -516,6 +517,7 @@ interface ExtendedPlan extends Plan {
   entreprise_details?: ExtendedUserDetails;
 }
 
+const route = useRoute();
 const mapContainer = ref<HTMLElement | null>(null);
 const showDrawingTools = ref(false);
 const irrigationStore = useIrrigationStore();
@@ -523,6 +525,15 @@ const drawingStore = useDrawingStore();
 const notesStore = useNotesStore();
 const notificationStore = useNotificationStore();
 const shapes = ref<any[]>([]);
+
+// Paramètres d'URL
+const urlParams = ref({
+  planId: route.query.planId ? parseInt(route.query.planId as string) : null,
+  noteId: route.query.noteId ? parseInt(route.query.noteId as string) : null,
+  lat: route.query.lat ? parseFloat(route.query.lat as string) : null,
+  lng: route.query.lng ? parseFloat(route.query.lng as string) : null,
+  tool: route.query.tool as string || null
+});
 const {
   currentTool,
   selectedShape: selectedLeafletShape,
@@ -890,31 +901,86 @@ onMounted(async () => {
       }
     }
 
-    // Charger le dernier plan consulté immédiatement
-    const lastPlanId = localStorage.getItem('lastPlanId');
-    if (lastPlanId) {
+    // Gérer les paramètres d'URL s'ils existent
+    if (urlParams.value.planId) {
       try {
-        console.log('[MapView][onMounted] Chargement immédiat du dernier plan:', lastPlanId);
-        await loadPlan(parseInt(lastPlanId));
+        console.log('[MapView][onMounted] Chargement du plan depuis les paramètres d\'URL:', urlParams.value.planId);
+        await loadPlan(urlParams.value.planId);
+
         // Forcer l'affichage de la carte et cacher l'écran d'accueil
         const mapParent = document.querySelector('.map-parent');
         if (mapParent instanceof HTMLElement) {
           mapParent.style.display = 'block';
         }
+
+        // Si des coordonnées sont spécifiées, centrer la carte sur ces coordonnées
+        if (urlParams.value.lat && urlParams.value.lng && map.value) {
+          console.log('[MapView][onMounted] Centrage de la carte sur les coordonnées:', urlParams.value.lat, urlParams.value.lng);
+          map.value.flyTo([urlParams.value.lat, urlParams.value.lng], 16);
+        }
+
+        // Si un noteId est spécifié, mettre en évidence la note correspondante
+        if (urlParams.value.noteId && featureGroup.value) {
+          console.log('[MapView][onMounted] Recherche de la note:', urlParams.value.noteId);
+          // Attendre que toutes les couches soient chargées
+          setTimeout(() => {
+            // Rechercher la note dans les couches de la carte
+            const layers = featureGroup.value?.getLayers() || [];
+            for (const layer of layers) {
+              if (layer._dbId === urlParams.value.noteId || layer.id === urlParams.value.noteId) {
+                console.log('[MapView][onMounted] Note trouvée:', layer);
+                // Sélectionner la couche
+                if (typeof layer.fire === 'function') {
+                  layer.fire('click');
+                }
+                break;
+              }
+            }
+          }, 1000); // Délai pour s'assurer que toutes les couches sont chargées
+        }
+
+        // Si un outil est spécifié, l'activer
+        if (urlParams.value.tool) {
+          console.log('[MapView][onMounted] Activation de l\'outil:', urlParams.value.tool);
+          setDrawingTool(urlParams.value.tool);
+        }
       } catch (error) {
-        console.error('[MapView][onMounted] Erreur chargement dernier plan:', error);
+        console.error('[MapView][onMounted] Erreur chargement plan depuis URL:', error);
+        // Fallback sur le dernier plan consulté
+        loadLastPlan();
+      }
+    } else {
+      // Si pas de paramètres d'URL, charger le dernier plan consulté
+      loadLastPlan();
+    }
+
+    // Fonction pour charger le dernier plan consulté
+    async function loadLastPlan() {
+      const lastPlanId = localStorage.getItem('lastPlanId');
+      if (lastPlanId) {
+        try {
+          console.log('[MapView][loadLastPlan] Chargement du dernier plan:', lastPlanId);
+          await loadPlan(parseInt(lastPlanId));
+          // Forcer l'affichage de la carte et cacher l'écran d'accueil
+          const mapParent = document.querySelector('.map-parent');
+          if (mapParent instanceof HTMLElement) {
+            mapParent.style.display = 'block';
+          }
+        } catch (error) {
+          console.error('[MapView][loadLastPlan] Erreur chargement dernier plan:', error);
+          currentPlan.value = null;
+          irrigationStore.clearCurrentPlan();
+          drawingStore.clearCurrentPlan();
+          clearMap();
+          localStorage.removeItem('lastPlanId');
+        }
+      } else {
+        console.log('[MapView][loadLastPlan] Aucun dernier plan à charger');
         currentPlan.value = null;
         irrigationStore.clearCurrentPlan();
         drawingStore.clearCurrentPlan();
         clearMap();
-        localStorage.removeItem('lastPlanId');
       }
-    } else {
-      console.log('[MapView][onMounted] Aucun dernier plan à charger');
-      currentPlan.value = null;
-      irrigationStore.clearCurrentPlan();
-      drawingStore.clearCurrentPlan();
-      clearMap();
     }
 
     // Écouter l'événement de création de forme

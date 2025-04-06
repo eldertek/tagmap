@@ -630,31 +630,53 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Ne retourne que les notes des plans accessibles à l'utilisateur
+        Si un plan spécifique est demandé, ne retourne que les notes de ce plan
         """
         user = self.request.user
+
+        # Vérifier si un plan spécifique est demandé
+        plan_id = self.request.query_params.get('plan')
+
+        # Base queryset selon le rôle de l'utilisateur
         if user.role == ROLE_ADMIN:
-            return GeoNote.objects.all()
+            base_queryset = GeoNote.objects.all()
         elif user.role == ROLE_USINE:
             # Une entreprise peut voir les notes où elle est assignée directement
             # ou liées à ses salaries et leurs visiteurs
-            return GeoNote.objects.filter(
-                Q(plan__isnull=True) |  # Notes sans plan
+            # ainsi que les notes sans plan
+            base_queryset = GeoNote.objects.filter(
+                Q(plan__isnull=True) |
                 Q(plan__entreprise=user) |
                 Q(plan__salarie__entreprise=user) |
                 Q(plan__visiteur__salarie__entreprise=user)
             )
         elif user.role == ROLE_DEALER:
             # Un salarie peut voir ses notes et celles de ses visiteurs
-            return GeoNote.objects.filter(
-                Q(plan__isnull=True) |  # Notes sans plan
+            # ainsi que les notes sans plan
+            base_queryset = GeoNote.objects.filter(
+                Q(plan__isnull=True) |
                 Q(plan__salarie=user) |
                 Q(plan__visiteur__salarie=user)
             )
         else:  # visiteur
-            return GeoNote.objects.filter(
-                Q(plan__isnull=True) |  # Notes sans plan
+            # Un visiteur peut voir les notes de ses plans
+            # ainsi que les notes sans plan
+            base_queryset = GeoNote.objects.filter(
+                Q(plan__isnull=True) |
                 Q(plan__visiteur=user)
             )
+
+        # Si un plan spécifique est demandé, filtrer uniquement par ce plan
+        if plan_id:
+            print(f"[GeoNoteViewSet][get_queryset] Filtrage des notes pour le plan {plan_id}")
+            # Retourner uniquement les notes associées à ce plan spécifique
+            # (sans inclure les notes sans plan)
+            return base_queryset.filter(plan_id=plan_id)
+
+        # Sinon, inclure toutes les notes accessibles à l'utilisateur
+        # y compris celles sans plan (plan__isnull=True) et celles avec plan
+        print(f"[GeoNoteViewSet][get_queryset] Aucun plan spécifié, retour de toutes les notes accessibles")
+        return base_queryset.distinct()
 
     def perform_create(self, serializer):
         """

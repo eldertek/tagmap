@@ -615,20 +615,34 @@ function goToMap() {
 }
 
 // Voir la note sur la carte
-function viewOnMap(note: Note) {
+async function viewOnMap(note: Note) {
   if (!note.location) {
     notificationStore.warning('Cette note n\'est pas géolocalisée');
     return;
   }
 
-  router.push({
-    path: '/',
-    query: {
-      lat: Array.isArray(note.location) ? note.location[0].toString() : note.location.coordinates[1].toString(),
-      lng: Array.isArray(note.location) ? note.location[1].toString() : note.location.coordinates[0].toString(),
-      noteId: note.id.toString()
-    }
-  });
+  try {
+    // Récupérer les détails de la note pour obtenir le planId
+    const response = await noteService.getNote(note.id);
+    const noteDetails = response.data;
+    const planId = noteDetails.plan;
+
+    console.log('[NotesView][viewOnMap] Détails de la note récupérés:', noteDetails);
+
+    // Rediriger vers la carte avec tous les paramètres nécessaires
+    router.push({
+      path: '/',
+      query: {
+        lat: Array.isArray(note.location) ? note.location[0].toString() : note.location.coordinates[1].toString(),
+        lng: Array.isArray(note.location) ? note.location[1].toString() : note.location.coordinates[0].toString(),
+        noteId: note.id.toString(),
+        planId: planId ? planId.toString() : undefined
+      }
+    });
+  } catch (error) {
+    console.error('[NotesView][viewOnMap] Erreur lors de la récupération des détails de la note:', error);
+    notificationStore.error('Erreur lors de l\'ouverture de la note sur la carte');
+  }
 }
 
 // Ouvrir la note dans Google Maps avec itinéraire
