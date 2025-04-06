@@ -19,10 +19,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            
+
             <!-- Menu déroulant -->
-            <div 
-              v-if="showDropdown" 
+            <div
+              v-if="showDropdown"
               class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
             >
               <div class="py-1">
@@ -95,17 +95,9 @@
           <p class="text-sm text-gray-500">Aucune note ni colonne trouvée</p>
         </div>
 
-        <!-- Colonnes de notes avec drag and drop -->
-        <draggable
-          v-model="columnsForDrag"
-          class="flex space-x-4 min-w-max"
-          item-key="id"
-          :handle="null"
-          :sort="false"
-          :animation="150"
-        >
-          <template #item="{ element: column }">
-            <div class="column-wrapper w-80 flex-shrink-0">
+        <!-- Colonnes de notes (drag and drop désactivé) -->
+        <div class="flex space-x-4 min-w-max">
+          <div v-for="column in columnsForDrag" :key="column.id" class="column-wrapper w-80 flex-shrink-0">
               <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- En-tête de colonne (sans poignée de drag) -->
                 <div
@@ -219,8 +211,7 @@
                 </div>
               </div>
             </div>
-          </template>
-        </draggable>
+        </div>
       </div>
     </div>
 
@@ -301,18 +292,11 @@ const editingNote = ref<Note | null>(null);
 const activeTab = ref('info'); // Onglet actif dans le modal d'édition
 const currentPlanId = ref<number | null>(null);
 
-// Colonnes pour le drag and drop
-const columnsForDrag = computed({
-  get: () => {
-    const sortedColumns = notesStore.getSortedColumns;
-    console.log('[NotesView][columnsForDrag] Colonnes triées:', sortedColumns);
-    return sortedColumns;
-  },
-  set: (newColumns) => {
-    console.log('[NotesView][columnsForDrag] Mise à jour de l\'ordre des colonnes:', newColumns);
-    const columnIds = newColumns.map(col => col.id.toString());
-    notesStore.reorderColumns(columnIds);
-  }
+// Colonnes fixes (drag and drop désactivé)
+const columnsForDrag = computed(() => {
+  const sortedColumns = notesStore.getSortedColumns;
+  console.log('[NotesView][columnsForDrag] Colonnes triées:', sortedColumns);
+  return sortedColumns;
 });
 
 // La colonne par défaut est gérée directement dans le store
@@ -374,12 +358,12 @@ function safeFormatDate(dateString: string | undefined | null): string {
 
   try {
     const date = new Date(dateString);
-    
+
     if (isNaN(date.getTime())) {
       console.warn('[safeFormatDate] Date invalide:', dateString);
       return 'Date invalide';
     }
-    
+
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -396,16 +380,16 @@ function safeFormatDate(dateString: string | undefined | null): string {
 // Utiliser cette fonction pour l'extraction de date sécurisée
 function safeDate(dateString: string | undefined): Date | null {
   if (!dateString) return null;
-  
+
   try {
     const date = new Date(dateString);
-    
+
     // Vérifier si la date est valide
     if (isNaN(date.getTime())) {
       console.warn('[safeDate] Date invalide:', dateString);
       return null;
     }
-    
+
     return date;
   } catch (error) {
     console.error('[safeDate] Erreur lors de la création de la date:', error);
@@ -479,7 +463,7 @@ function getAccessLevelLabel(level: NoteAccessLevel | undefined): string {
   if (level === undefined || level === null) {
     return 'Non défini';
   }
-  
+
   switch (level) {
     case NoteAccessLevel.PRIVATE:
       return 'Privé';
@@ -537,12 +521,12 @@ async function loadInitialData() {
     console.log('[NotesView][loadInitialData] Chargement des colonnes...');
     await notesStore.loadColumns();
     console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
-    
+
     // Récupérer les notes depuis le backend
     console.log('[NotesView][loadInitialData] Chargement des notes...');
     const response = await noteService.getNotes();
     console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
-    
+
     // Vérifier en détail les notes reçues
     if (response.data.length > 0) {
       console.log('[NotesView][loadInitialData] Détails des notes:');
@@ -558,7 +542,7 @@ async function loadInitialData() {
     } else {
       console.warn('[NotesView][loadInitialData] Aucune note reçue du backend!');
     }
-    
+
     // Vérifier les notes avec des colonnes invalides
     const validColumnIds = notesStore.columns.map(col => col.id);
     const notesWithInvalidColumns = response.data.filter((note: BackendNote) => {
@@ -568,10 +552,10 @@ async function loadInitialData() {
 
     if (notesWithInvalidColumns.length > 0) {
       console.warn(`[NotesView][loadInitialData] ${notesWithInvalidColumns.length} notes avec des colonnes invalides:`, notesWithInvalidColumns);
-      
+
       // Assigner les notes à la colonne "À faire" par défaut
       console.log('[NotesView][loadInitialData] Assignation des notes à la colonne À faire (2)');
-      
+
       for (const note of notesWithInvalidColumns) {
         try {
           await noteService.updateNote(note.id, { column: '2' });
@@ -606,7 +590,7 @@ async function loadInitialData() {
     });
 
     console.log('[NotesView][loadInitialData] Notes chargées dans le store');
-    
+
     // Vérifier la répartition des notes par colonne
     for (const column of notesStore.columns) {
       const notesInColumn = notesStore.getNotesByColumn(column.id);
@@ -657,7 +641,7 @@ function openInGoogleMaps(note: Note) {
 
   // Récupérer les coordonnées de la note
   let lat: number, lng: number;
-  
+
   if (Array.isArray(note.location)) {
     lat = note.location[0];
     lng = note.location[1];
@@ -856,7 +840,7 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
 
     console.log('[NotesView][updateNoteInBackend] Données envoyées au backend:', updatedNote);
     await noteService.updateNote(noteId, updatedNote);
-    
+
     console.log('[NotesView][updateNoteInBackend] Note mise à jour avec succès');
   } catch (error) {
     console.error('[NotesView][updateNoteInBackend] Erreur:', error);

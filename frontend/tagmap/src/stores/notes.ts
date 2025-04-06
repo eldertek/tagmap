@@ -198,28 +198,17 @@ export const useNotesStore = defineStore('notes', () => {
     return;
   }
 
-  // Cette fonction est conservée pour compatibilité mais ne modifie que localement
-  async function reorderColumns(newOrder: string[]) {
-    console.log('\n[NotesStore][reorderColumns] Réorganisation locale des colonnes');
-    try {
-      // Mettre à jour l'ordre localement
-      newOrder.forEach((columnId, index) => {
-        const column = columns.value.find(col => col.id === columnId);
-        if (column) {
-          column.order = index;
-        }
-      });
-      console.log('[NotesStore][reorderColumns] Nouvel ordre des colonnes:', columns.value);
-    } catch (error) {
-      console.error('[NotesStore][reorderColumns] Erreur:', error);
-      throw error;
-    }
+  // DÉPRÉCIÉ: Cette fonction est désactivée car le déplacement des colonnes n'est plus possible
+  async function reorderColumns(_newOrder: string[]) {
+    console.log('\n[NotesStore][reorderColumns] FONCTION DÉSACTIVÉE - Le déplacement des colonnes n\'est plus possible');
+    // Ne fait rien car le déplacement des colonnes est désactivé
+    return;
   }
 
   // Fonction utilitaire pour convertir le niveau d'accès du format backend vers le format frontend
   function convertAccessLevel(backendLevel: string | undefined): NoteAccessLevel {
     if (!backendLevel) return NoteAccessLevel.PRIVATE;
-    
+
     switch (backendLevel.toLowerCase()) {
       case 'private':
         return NoteAccessLevel.PRIVATE;
