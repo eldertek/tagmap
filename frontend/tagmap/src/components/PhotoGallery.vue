@@ -262,20 +262,46 @@ watch(cameraMode, async (newValue) => {
   if (newValue) {
     capturedImage.value = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      // Vérifier d'abord si mediaDevices est disponible
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('API de caméra non supportée sur ce navigateur');
+      }
+
+      // Configuration spécifique pour Safari
+      const constraints = {
         video: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
         }
-      });
+      };
+
+      // Demander les permissions et initialiser le stream
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       if (videoElement.value) {
         videoElement.value.srcObject = stream;
+        // Attendre que la vidéo soit chargée avant de l'afficher
+        await new Promise((resolve) => {
+          videoElement.value!.onloadedmetadata = () => {
+            videoElement.value!.play().then(resolve);
+          };
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de l\'accès à la caméra:', error);
-      notificationStore.error('Impossible d\'accéder à la caméra');
+      let errorMessage = 'Impossible d\'accéder à la caméra';
+      
+      // Messages d'erreur plus spécifiques
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'L\'accès à la caméra a été refusé. Veuillez vérifier vos permissions.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'Aucune caméra n\'a été trouvée sur votre appareil.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Votre navigateur ne supporte pas l\'accès à la caméra.';
+      }
+      
+      notificationStore.error(errorMessage);
       cameraMode.value = false;
     }
   } else {
@@ -343,3 +369,22 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: #000;
+  /* Styles spécifiques pour Safari */
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+  -webkit-transform-origin: center;
+  transform-origin: center;
+}
+
+.photo-gallery {
+  position: relative;
+  z-index: 1;
+}
+</style>
