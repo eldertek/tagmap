@@ -320,6 +320,10 @@ async function loadNotePhotos(noteId: number) {
 onMounted(async () => {
   console.log('[NoteEditModal] onMounted - props:', props);
 
+  // S'assurer que les colonnes sont chargées
+  await notesStore.loadColumns();
+  console.log('[NoteEditModal] Colonnes chargées:', notesStore.columns);
+
   if (props.note) {
     // Édition d'une note existante
     console.log('[NoteEditModal] Édition d\'une note existante:', props.note);
@@ -560,13 +564,19 @@ async function saveNote() {
 
       // Émettre un événement pour mettre à jour le style sur la carte
       const noteId = props.note.id;
-      const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
+      const updateEvent = new CustomEvent('geonote:update', {
         detail: {
           noteId: noteId,
-          style: editingNote.value.style
+          properties: {
+            name: editingNote.value.title,
+            description: editingNote.value.description,
+            columnId: editingNote.value.columnId,
+            accessLevel: editingNote.value.accessLevel,
+            style: editingNote.value.style
+          }
         }
       });
-      window.dispatchEvent(updateStyleEvent);
+      window.dispatchEvent(updateEvent);
 
       notificationStore.success('Note mise à jour avec succès');
     } else {

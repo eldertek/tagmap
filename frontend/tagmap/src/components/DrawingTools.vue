@@ -72,8 +72,8 @@
 
         <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
         <div v-if="selectedShape && localProperties" class="mt-4">
-          <!-- Champ pour nommer la forme -->
-          <div class="mb-4">
+          <!-- Champ pour nommer la forme (masqué pour les Notes) -->
+          <div v-if="localProperties.type !== 'Note'" class="mb-4">
             <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
             <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
               placeholder="Donnez un nom à cette forme"

@@ -120,6 +120,38 @@ export class GeoNote extends L.Marker {
       }
     }) as EventListener);
 
+    // Ajouter un écouteur pour la mise à jour complète des propriétés
+    window.addEventListener('geonote:update', ((e: CustomEvent) => {
+      const eventNoteId = e.detail.noteId;
+      const backendId = (this as any)._dbId || this.properties.id;
+
+      console.log('[GeoNote][update] Événement reçu pour noteId:', eventNoteId,
+                  'Comparaison avec ID backend:', backendId);
+
+      // Vérifier si l'ID dans l'événement correspond à l'ID backend
+      if (eventNoteId === backendId) {
+        console.log('[GeoNote][update] Correspondance trouvée, mise à jour des propriétés:', e.detail.properties);
+        
+        // Mettre à jour toutes les propriétés
+        this.properties = {
+          ...this.properties,
+          name: e.detail.properties.name,
+          description: e.detail.properties.description,
+          columnId: e.detail.properties.columnId,
+          accessLevel: e.detail.properties.accessLevel,
+          style: e.detail.properties.style
+        };
+
+        // Mettre à jour le style visuel
+        this.setNoteStyle(e.detail.properties.style);
+        
+        // Mettre à jour le popup pour refléter les changements
+        this.bindPopup(this.createPopupContent());
+
+        console.log('[GeoNote][update] Propriétés mises à jour:', this.properties);
+      }
+    }) as EventListener);
+
     console.log('[GeoNote][constructor] Note créée:', {
       location: latlng,
       name: this.properties.name,
