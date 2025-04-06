@@ -203,11 +203,12 @@ const planData = ref<PlanData>({
 // Computed pour vérifier si le formulaire est valide
 const isFormValid = computed(() => {
   if (authStore.user?.user_type === 'admin') {
-    return planData.value.nom.trim() && planData.value.entreprise && planData.value.salarie && planData.value.visiteur;
+    return planData.value.nom.trim() && planData.value.entreprise && planData.value.salarie;
   } else if (authStore.user?.user_type === 'entreprise') {
-    return planData.value.nom.trim() && planData.value.salarie && planData.value.visiteur;
+    return planData.value.nom.trim() && planData.value.salarie;
   } else if (authStore.user?.user_type === 'salarie') {
-    return planData.value.nom.trim() && planData.value.visiteur;
+    // Le champ visiteur est maintenant optionnel pour les salariés
+    return planData.value.nom.trim();
   }
   return planData.value.nom.trim();
 });
@@ -377,26 +378,35 @@ async function createPlan() {
 
     // Gestion des IDs selon le type d'utilisateur
     if (user.user_type === 'admin') {
-      if (!planData.value.entreprise || !planData.value.salarie || !planData.value.visiteur) {
+      if (!planData.value.entreprise || !planData.value.salarie) {
         throw new Error('Missing required fields');
       }
       data.entreprise = validateId(extractId(planData.value.entreprise));
       data.salarie = validateId(extractId(planData.value.salarie));
-      data.visiteur = planData.value.visiteur;
+      // Le champ visiteur est maintenant optionnel
+      if (planData.value.visiteur) {
+        data.visiteur = planData.value.visiteur;
+      }
     } else if (user.user_type === 'entreprise') {
-      if (!planData.value.salarie || !planData.value.visiteur) {
+      if (!planData.value.salarie) {
         throw new Error('Missing required fields');
       }
       data.entreprise = user.id;
       data.salarie = validateId(extractId(planData.value.salarie));
-      data.visiteur = planData.value.visiteur;
+      // Le champ visiteur est maintenant optionnel
+      if (planData.value.visiteur) {
+        data.visiteur = planData.value.visiteur;
+      }
     } else if (user.user_type === 'salarie') {
-      if (!user.entreprise || !planData.value.visiteur) {
+      if (!user.entreprise) {
         throw new Error('Missing required fields');
       }
       data.entreprise = user.entreprise.id;
       data.salarie = user.id;
-      data.visiteur = planData.value.visiteur;
+      // Le champ visiteur est maintenant optionnel pour les salariés
+      if (planData.value.visiteur) {
+        data.visiteur = planData.value.visiteur;
+      }
     } else if (user.user_type === 'visiteur') {
       if (!user.entreprise || !user.salarie) {
         throw new Error('Missing required fields');

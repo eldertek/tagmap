@@ -266,6 +266,18 @@
                   </div>
                   <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
                   <div class="grid grid-cols-1 gap-2">
+                    <!-- Option pour charger les plans sans visiteur -->
+                    <button @click="loadPlansWithoutVisiteur"
+                      class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                        <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
                     <template v-if="isLoadingClients">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
                         <div class="p-3 bg-white rounded-lg border border-gray-200">
@@ -275,10 +287,10 @@
                       </div>
                     </template>
                     <template v-else>
-                      <div v-if="filteredClients.length === 0" class="text-center py-8">
+                      <div v-if="filteredClients.length === 0" class="text-center py-4">
                         <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarie</div>
                         <div class="text-sm text-gray-400">
-                          Veuillez vérifier que des visiteurs ont été assignés à ce salarie
+                          Vous pouvez utiliser l'option "Plans sans visiteur" ci-dessus
                         </div>
                       </div>
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
@@ -3810,6 +3822,53 @@ async function selectClient(client: ExtendedUserDetails) {
     clientPlans.value = response.data;
   } catch (error) {
     console.error('[MapView] Error loading client plans:', error);
+    clientPlans.value = [];
+  } finally {
+    isLoadingPlans.value = false;
+  }
+}
+
+// Fonction pour charger les plans sans visiteur
+async function loadPlansWithoutVisiteur() {
+  console.log('[MapView][loadPlansWithoutVisiteur] Chargement des plans sans visiteur');
+
+  // Créer un client fictif pour représenter l'option "Sans visiteur"
+  const noVisiteurClient: ExtendedUserDetails = {
+    id: -1, // ID négatif pour indiquer qu'il s'agit d'un client fictif
+    username: 'sans_visiteur',
+    first_name: 'Sans',
+    last_name: 'Visiteur',
+    company_name: '',
+    role: 'VISITEUR',
+    display_name: 'Plans sans visiteur'
+  };
+
+  selectedClient.value = noVisiteurClient;
+  isLoadingPlans.value = true;
+
+  try {
+    const params: any = {
+      visiteur_null: true // Paramètre spécial pour indiquer qu'on veut les plans sans visiteur
+    };
+
+    // Ajouter les paramètres selon le rôle
+    if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id;
+    } else if (selectedEntreprise.value) {
+      params.entreprise = selectedEntreprise.value.id;
+    }
+
+    if (selectedSalarie.value) {
+      params.salarie = selectedSalarie.value.id;
+    }
+
+    console.log('[MapView][loadPlansWithoutVisiteur] Paramètres de requête:', params);
+
+    const response = await api.get('/plans/', { params });
+    console.log('[MapView][loadPlansWithoutVisiteur] Plans reçus:', response.data);
+    clientPlans.value = response.data;
+  } catch (error) {
+    console.error('[MapView] Error loading plans without visiteur:', error);
     clientPlans.value = [];
   } finally {
     isLoadingPlans.value = false;

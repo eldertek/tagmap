@@ -240,10 +240,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Gestion selon le rôle de l'utilisateur
         if user.role == ROLE_DEALER:
-            if not visiteur:
-                raise ValidationError({'visiteur': 'Un visiteur doit être spécifié'})
+            # Le champ visiteur est maintenant optionnel pour les salariés
             data['salarie'] = user
             data['entreprise'] = user.entreprise
+            if visiteur:
+                data['visiteur'] = visiteur
         elif user.role == ROLE_AGRICULTEUR:
             data['visiteur'] = user
             data['salarie'] = user.salarie
@@ -345,12 +346,15 @@ class PlanViewSet(viewsets.ModelViewSet):
         salarie_id = self.request.query_params.get('salarie')
         visiteur_id = self.request.query_params.get('visiteur')
         entreprise_id = self.request.query_params.get('entreprise')
+        visiteur_null = self.request.query_params.get('visiteur_null') == 'true'
 
         if user.role == ROLE_ADMIN:
             if salarie_id:
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
             if visiteur_id:
                 base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
+            elif visiteur_null:
+                base_queryset = base_queryset.filter(visiteur__isnull=True)
             if entreprise_id:
                 base_queryset = base_queryset.filter(entreprise_id=entreprise_id)
             return base_queryset
@@ -368,6 +372,8 @@ class PlanViewSet(viewsets.ModelViewSet):
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
             if visiteur_id:
                 base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
+            elif visiteur_null:
+                base_queryset = base_queryset.filter(visiteur__isnull=True)
 
             return base_queryset
         elif user.role == ROLE_DEALER:
@@ -376,6 +382,8 @@ class PlanViewSet(viewsets.ModelViewSet):
             # Si un visiteur est spécifié, filtrer par cet visiteur
             if visiteur_id:
                 base_queryset = base_queryset.filter(visiteur_id=visiteur_id)
+            elif visiteur_null:
+                base_queryset = base_queryset.filter(visiteur__isnull=True)
             return base_queryset
         else:  # visiteur
             return base_queryset.filter(visiteur=user)
@@ -677,12 +685,12 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         Filtre les commentaires par note si note_id est présent dans l'URL
         """
         queryset = NoteComment.objects.all()
-        
+
         # Si nous sommes dans une URL imbriquée, filtrer par note_id
         note_id = self.kwargs.get('note_pk')
         if note_id:
             queryset = queryset.filter(note_id=note_id)
-            
+
         # Filtrer ensuite par les permissions de l'utilisateur
         user = self.request.user
         if user.role == ROLE_ADMIN:
@@ -712,10 +720,10 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         Surcharge de la création pour ajouter des logs et gérer note_pk
         """
         print("\n[NoteCommentViewSet][create] ====== DÉBUT CRÉATION COMMENTAIRE ======")
-        
+
         # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
         note_pk = self.kwargs.get('note_pk')
-        
+
         # Vérifier le type des données et les traiter en conséquence
         if isinstance(request.data, str):
             # Si les données sont une chaîne, essayer de la parser comme JSON
@@ -731,20 +739,20 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             # Sinon, copier les données existantes
             data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
             print(f"[NoteCommentViewSet][create] Données copiées: {data}")
-        
+
         if note_pk:
             data['note'] = note_pk
 
         # S'assurer que l'utilisateur est défini
         if 'user' not in data:
             data['user'] = request.user.id
-            
+
         print(f"Données finales: {data}")
         print(f"Utilisateur: {request.user.username} (role: {request.user.role})")
-        
+
         serializer = self.get_serializer(data=data)
         print(f"Serializer valide: {serializer.is_valid()}")
-        
+
         if not serializer.is_valid():
             print(f"Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -782,7 +790,7 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         if hasattr(note, 'createur') and note.createur == user:
             creator_access = True
             print(f"[NoteCommentViewSet][perform_create] Accès en tant que créateur: {creator_access}")
-        
+
         # 2. Pour les notes sans plan (privées ou standalone)
         if note.plan is None:
             # Permettre l'accès si c'est une note privée créée par l'utilisateur
@@ -795,7 +803,7 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
                 print("[NoteCommentViewSet][perform_create] Accès autorisé: Utilisateur admin")
                 serializer.save(user=user)
                 return
-        
+
         # 3. Vérifier les accès via les relations plan-entreprise-salarie-visiteur
         plan_access = GeoNote.objects.filter(
             id=note.id
@@ -811,7 +819,7 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             print("[NoteCommentViewSet][perform_create] Accès autorisé")
             serializer.save(user=user)
             return
-        
+
         print("[NoteCommentViewSet][perform_create] Permission refusée - pas d'accès à la note")
         raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
@@ -825,12 +833,12 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         Filtre les photos par note si note_id est présent dans l'URL
         """
         queryset = NotePhoto.objects.all()
-        
+
         # Si nous sommes dans une URL imbriquée, filtrer par note_id
         note_id = self.kwargs.get('note_pk')
         if note_id:
             queryset = queryset.filter(note_id=note_id)
-            
+
         # Filtrer ensuite par les permissions de l'utilisateur
         user = self.request.user
         if user.role == ROLE_ADMIN:
@@ -856,7 +864,7 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         """
         # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
         note_pk = self.kwargs.get('note_pk')
-        
+
         # Vérifier le type des données et les traiter en conséquence
         if isinstance(request.data, str):
             # Si les données sont une chaîne, essayer de la parser comme JSON
@@ -872,19 +880,19 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
             # Sinon, copier les données existantes
             data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
             print(f"[NotePhotoViewSet][create] Données copiées: {data}")
-        
+
         if note_pk:
             data['note'] = note_pk
-            
+
         # S'assurer que l'utilisateur est défini
         if 'user' not in data:
             data['user'] = request.user.id
-            
+
         print(f"[NotePhotoViewSet][create] Données finales: {data}")
         print(f"[NotePhotoViewSet][create] Utilisateur: {request.user.username} (role: {request.user.role})")
-        
+
         serializer = self.get_serializer(data=data)
-        
+
         if not serializer.is_valid():
             print(f"[NotePhotoViewSet][create] Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -907,7 +915,7 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         """
         note = serializer.validated_data['note']
         user = self.request.user
-        
+
         print(f"[NotePhotoViewSet][perform_create] Note ID: {note.id}")
         print(f"[NotePhotoViewSet][perform_create] Utilisateur: {user.username} (role: {user.role})")
 
@@ -916,7 +924,7 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         if hasattr(note, 'createur') and note.createur == user:
             creator_access = True
             print(f"[NotePhotoViewSet][perform_create] Accès en tant que créateur: {creator_access}")
-        
+
         # 2. Pour les notes sans plan (privées ou standalone)
         if note.plan is None:
             # Permettre l'accès si c'est une note privée créée par l'utilisateur
@@ -941,9 +949,9 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 Q(plan__visiteur__salarie=user) |
                 Q(plan__visiteur__salarie__entreprise=user)
             ).exists()
-            
+
             print(f"[NotePhotoViewSet][perform_create] Accès via plan: {plan_access}")
-            
+
             if not (creator_access or plan_access or user.role == ROLE_ADMIN):
                 print("[NotePhotoViewSet][perform_create] Permission refusée - pas d'accès à la note")
                 raise PermissionDenied('Vous n\'avez pas accès à cette note')
