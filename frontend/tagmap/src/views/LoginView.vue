@@ -117,8 +117,33 @@
         </div>
       </div>
 
-      <!-- Section Fonctionnalités Clés -->
+      <!-- Contenu des fonctionnalités -->
       <div class="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Section Équipements Connectés -->
+        <div class="mb-12 bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-lg border border-white/20">
+          <div class="flex items-center mb-6">
+            <span class="text-2xl mr-2">💡</span>
+            <h3 class="text-xl font-bold text-gray-900">Équipements Connectés sans Abonnement</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="flex items-center space-x-4">
+              <div class="flex-shrink-0 text-2xl">📍</div>
+              <div>
+                <h4 class="font-semibold">Tracker GPS solaire</h4>
+                <p class="text-gray-600">Géolocalisez et sécurisez votre matériel</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <div class="flex-shrink-0 text-2xl">🌤️</div>
+              <div>
+                <h4 class="font-semibold">Station météo</h4>
+                <p class="text-gray-600">Optimisez vos décisions avec des données en temps réel</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Fonctionnalités Clés -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <!-- Carte Interactive -->
           <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/20">
@@ -154,30 +179,6 @@
               <h3 class="text-lg font-semibold text-gray-900">Accès Sécurisé</h3>
             </div>
             <p class="text-gray-600">Accès sécurisé et intelligent : Gérez les droits d'accès de vos salariés et prestataires en un clic.</p>
-          </div>
-        </div>
-
-        <!-- Section Équipements Connectés -->
-        <div class="mt-12 bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-lg border border-white/20">
-          <div class="flex items-center mb-6">
-            <span class="text-2xl mr-2">💡</span>
-            <h3 class="text-xl font-bold text-gray-900">Équipements Connectés sans Abonnement</h3>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="flex items-center space-x-4">
-              <div class="flex-shrink-0 text-2xl">📍</div>
-              <div>
-                <h4 class="font-semibold">Tracker GPS solaire</h4>
-                <p class="text-gray-600">Géolocalisez et sécurisez votre matériel</p>
-              </div>
-            </div>
-            <div class="flex items-center space-x-4">
-              <div class="flex-shrink-0 text-2xl">🌤️</div>
-              <div>
-                <h4 class="font-semibold">Station météo</h4>
-                <p class="text-gray-600">Optimisez vos décisions avec des données en temps réel</p>
-              </div>
-            </div>
           </div>
         </div>
 
