@@ -1185,73 +1185,38 @@ export function useMapDrawing(): MapDrawingReturn {
                   // Mettre à jour les propriétés
                   geoNote.updateProperties();
 
-                  // Préparer les données pour l'API
-                  // Format GeoDjango PointField: { "type": "Point", "coordinates": [longitude, latitude] }
-                  const noteData = {
-                    plan: drawingStore.currentMapId, // Utiliser l'ID du plan courant
-                    title: geoNote.properties.name,
-                    description: geoNote.properties.description,
-                    // Convertir en format GeoJSON Point pour GeoDjango
-                    location: {
-                      type: 'Point',
-                      coordinates: [e.latlng.lng, e.latlng.lat] // IMPORTANT: ordre lng, lat (x, y) pour GeoJSON
-                    },
-                    access_level: geoNote.properties.accessLevel,
-                    style: geoNote.properties.style,
-                    category: geoNote.properties.category
-                  };
+                  // Sauvegarder la note directement via la méthode saveNote
+                  try {
+                    // Récupérer l'ID du plan courant
+                    const planId = drawingStore.currentMapId || undefined;
 
-                  console.log('[useMapDrawing] Sauvegarde de la note géolocalisée dans le backend:', noteData);
+                    // Sauvegarder la note en l'associant au plan courant
+                    const backendId = await geoNote.saveNote(planId);
+                    console.log(`[useMapDrawing] Note sauvegardée avec succès, ID backend: ${backendId}`);
 
-                  // Sauvegarder la note dans le backend
-                  import('../services/api').then(async ({ noteService }) => {
-                    try {
-                      const response = await noteService.createNote(noteData);
-                      console.log('[useMapDrawing] Note sauvegardée avec succès:', response.data);
+                    // IMPORTANT: Conserver l'ID Leaflet original pour référence
+                    const leafletId = (geoNote as any)._leaflet_id;
+                    console.log(`[useMapDrawing] ID Leaflet: ${leafletId}, ID backend: ${backendId}`);
 
-                      // Stocker l'ID renvoyé par le backend (important!)
-                      const backendId = response.data.id;
-
-                      // IMPORTANT: Conserver l'ID Leaflet original pour référence
-                      const leafletId = (geoNote as any)._leaflet_id;
-                      console.log(`[useMapDrawing] ID Leaflet: ${leafletId}, ID backend: ${backendId}`);
-
-                      // Mettre à jour l'ID de la note avec celui renvoyé par le backend
-                      (geoNote as any)._dbId = backendId;
-
-                      // CRUCIAL: Mettre à jour la propriété id pour qu'elle utilise l'ID du backend
-                      geoNote.properties.id = backendId;
-
-                      // Mettre à jour la columnId avec celle renvoyée par le backend
-                      if (response.data.column_id) {
-                        geoNote.properties.columnId = response.data.column_id;
-                        console.log('[useMapDrawing] colonne mise à jour avec:', response.data.column_id);
+                    // Émettre un événement pour informer de la création réussie
+                    window.dispatchEvent(new CustomEvent('note:created', {
+                      detail: {
+                        geoNote,
+                        leafletId,
+                        backendId
                       }
+                    }));
 
-                      // Émettre un événement pour informer de la création réussie
-                      window.dispatchEvent(new CustomEvent('note:created', {
-                        detail: {
-                          note: response.data,
-                          geoNote,
-                          leafletId,
-                          backendId
-                        }
-                      }));
-
-                      // Ouvrir le popup pour édition immédiate
-                      geoNote.openPopup();
-
-                      // Déclencher la sauvegarde automatique du plan
-                      geoNote.triggerPlanSave();
-                    } catch (error) {
-                      console.error('[useMapDrawing] Erreur lors de la sauvegarde de la note:', error);
-                      // Afficher un message d'erreur ou annuler l'opération
-                      import('../stores/notification').then(({ useNotificationStore }) => {
-                        const notificationStore = useNotificationStore();
-                        notificationStore.error('Erreur lors de la création de la note');
-                      });
-                    }
-                  });
+                    // Ouvrir le popup pour édition immédiate
+                    geoNote.openPopup();
+                  } catch (error) {
+                    console.error('[useMapDrawing] Erreur lors de la sauvegarde de la note:', error);
+                    // Afficher un message d'erreur
+                    import('../stores/notification').then(({ useNotificationStore }) => {
+                      const notificationStore = useNotificationStore();
+                      notificationStore.error('Erreur lors de la création de la note');
+                    });
+                  }
 
                   // Désactiver le mode note après l'ajout
                   map.value.off('click', onClick);

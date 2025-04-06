@@ -54,6 +54,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   accessLevel: NoteAccessLevel; // Access level for permissions
+  color?: string; // Couleur de la note
   style: {
     color: string;
     weight: number;
@@ -258,22 +259,36 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   function updateNote(id: number, data: Partial<Note> & { access_level?: string }) {
-    const index = notes.value.findIndex(note => note.id === id);
-    if (index !== -1) {
-      // Convertir le niveau d'accès du format backend
-      const accessLevel = convertAccessLevel(data.access_level);
+    console.log('\n[NotesStore][updateNote] Mise à jour de la note:', id, data);
+    try {
+      const index = notes.value.findIndex(note => note.id === id);
+      if (index !== -1) {
+        // Si une nouvelle couleur est fournie, mettre à jour le style également
+        if (data.color) {
+          data.style = {
+            ...notes.value[index].style,
+            color: data.color,
+            fillColor: data.color
+          };
+        }
 
-      // Create a new note object with updated properties
-      const updatedNote = {
-        ...notes.value[index],
-        ...data,
-        accessLevel,
-        updatedAt: new Date().toISOString()
-      };
+        // Convertir access_level si présent
+        if (data.access_level) {
+          data.accessLevel = convertAccessLevel(data.access_level);
+          delete data.access_level;
+        }
 
-      // Replace the note in the array to ensure reactivity
-      notes.value[index] = updatedNote;
-      console.log('[NotesStore][updateNote] Note mise à jour avec niveau d\'accès:', updatedNote.accessLevel);
+        // Mise à jour de la note
+        notes.value[index] = {
+          ...notes.value[index],
+          ...data
+        };
+
+        console.log('[NotesStore][updateNote] Note mise à jour:', notes.value[index]);
+      }
+    } catch (error) {
+      console.error('[NotesStore][updateNote] Erreur:', error);
+      throw error;
     }
   }
 

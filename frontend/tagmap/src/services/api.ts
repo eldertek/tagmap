@@ -530,6 +530,20 @@ export const noteService = {
     }
   },
 
+  // Récupérer les notes associées à un plan spécifique
+  async getNotesByPlan(planId: number) {
+    const endMeasure = performanceMonitor.startMeasure('get_notes_by_plan', 'NoteService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_notes_by_plan_request',
+        () => api.get('/notes/', { params: { plan: planId } }),
+        'NoteService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
   // Récupérer une note spécifique
   async getNote(noteId: number) {
     const endMeasure = performanceMonitor.startMeasure('get_note', 'NoteService');
@@ -552,12 +566,12 @@ export const noteService = {
       const postData = {
         ...noteData
       };
-      
+
       // Ne pas envoyer une location vide au backend, celui-ci s'attend à un GeoJSON valide
       if (postData.location && Object.keys(postData.location).length === 0) {
         delete postData.location;
       }
-      
+
       return await performanceMonitor.measureAsync(
         'create_note_request',
         () => api.post('/notes/', postData),
@@ -636,10 +650,10 @@ export const noteService = {
 
   async addComment(noteId: number, commentText: any) {
     // Si le commentaire est déjà un objet, l'utiliser tel quel
-    const data = typeof commentText === 'string' 
-      ? { text: commentText } 
+    const data = typeof commentText === 'string'
+      ? { text: commentText }
       : commentText;
-    
+
     console.log(`[noteService][addComment] Envoi du commentaire pour la note ${noteId}:`, data);
     return await api.post(`/notes/${noteId}/comments/`, data);
   },

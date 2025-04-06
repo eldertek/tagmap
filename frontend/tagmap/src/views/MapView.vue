@@ -466,7 +466,7 @@ import { Rectangle } from '@/utils/Rectangle';
 import { Line } from '@/utils/Line';
 import { Polygon } from '@/utils/Polygon';
 import { useAuthStore } from '@/stores/auth';
-import api from '@/services/api';
+import api, { noteService } from '@/services/api';
 import NewPlanModal from '@/components/NewPlanModal.vue';
 import jsPDF from 'jspdf';
 import logo from '@/assets/logo.svg';
@@ -1199,7 +1199,7 @@ async function refreshMapWithPlan(planId: number) {
         clearMap();
       }, 'MapView');
 
-      // Charger les éléments du plan
+      // Charger les éléments du plan (formes géométriques sans les notes)
       await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanElements', async () => {
         await drawingStore.loadPlanElements(planId);
       }, 'MapView');
@@ -1216,6 +1216,84 @@ async function refreshMapWithPlan(planId: number) {
           irrigationStore.setCurrentPlan(loadedPlan);
           drawingStore.setCurrentPlan(loadedPlan.id);
           localStorage.setItem('lastPlanId', loadedPlan.id.toString());
+        }, 'MapView');
+
+        // Charger les notes géolocalisées associées au plan séparément
+        await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanNotes', async () => {
+          try {
+            console.log('[MapView][refreshMapWithPlan] Chargement des notes géolocalisées associées au plan:', planId);
+            const response = await noteService.getNotesByPlan(planId);
+            const notes = response.data;
+            console.log(`[MapView][refreshMapWithPlan] ${notes.length} notes géolocalisées récupérées`);
+
+            // Ajouter les notes au store de notes
+            const notesStore = useNotesStore();
+
+            // Ajouter les notes à la carte
+            if (map.value && featureGroup.value) {
+              notes.forEach((note: any) => {
+                try {
+                  // Convertir le format backend en format frontend pour le store
+                  notesStore.addNote({
+                    ...note,
+                    id: note.id,
+                    columnId: note.column,
+                    accessLevel: note.access_level
+                  });
+
+                  // Vérifier si la note a une localisation valide
+                  if (note.location && note.location.type === 'Point' &&
+                      Array.isArray(note.location.coordinates) &&
+                      note.location.coordinates.length === 2) {
+
+                    // Créer une GeoNote à partir des données du backend
+                    const geoNote = GeoNote.fromBackendData({
+                      name: note.title,
+                      description: note.description,
+                      location: note.location,
+                      columnId: note.column,
+                      accessLevel: note.access_level,
+                      style: note.style || {
+                        color: note.color || '#3B82F6', // Utiliser la couleur de la note si elle existe
+                        weight: 2,
+                        opacity: 1,
+                        fillColor: note.color || '#3B82F6', // Utiliser la même couleur pour le remplissage
+                        fillOpacity: 0.6,
+                        radius: 8
+                      },
+                      category: note.category || 'forages',
+                      comments: note.comments || [],
+                      photos: note.photos || []
+                    });
+
+                    // Stocker l'ID de la base de données pour la sauvegarde ultérieure
+                    (geoNote as any)._dbId = note.id;
+
+                    // Ajouter la note à la carte
+                    featureGroup.value.addLayer(geoNote);
+
+                    // Ajouter la note à la liste des formes
+                    shapes.value.push({
+                      id: note.id,
+                      type: 'Note',
+                      layer: geoNote,
+                      properties: (geoNote as any).properties
+                    });
+
+                    console.log('[MapView][refreshMapWithPlan] Note géolocalisée ajoutée à la carte:', {
+                      id: note.id,
+                      title: note.title,
+                      location: note.location
+                    });
+                  }
+                } catch (error) {
+                  console.error('[MapView][refreshMapWithPlan] Erreur lors de l\'ajout de la note géolocalisée:', error);
+                }
+              });
+            }
+          } catch (error) {
+            console.error('[MapView][refreshMapWithPlan] Erreur lors du chargement des notes géolocalisées:', error);
+          }
         }, 'MapView');
 
         // Ajouter les formes à la carte
@@ -1652,40 +1730,19 @@ async function savePlan() {
           }
         };
       } else if ((layer as any).properties?.type === 'Note') {
-        // Traitement spécial pour les GeoNote
-        console.log('[savePlan] Traitement d\'une GeoNote');
+        // Les notes géolocalisées sont maintenant gérées directement via l'API des notes
+        // et ne sont plus incluses dans la sauvegarde du plan
+        console.log('[savePlan] Note géolocalisée détectée - ignorée pour la sauvegarde du plan');
 
-        // Vérifier si c'est bien une instance de GeoNote
+        // Ajouter l'ID à la liste des couches actuelles pour éviter qu'elle soit considérée comme supprimée
         const geoNote = layer as any;
-        if (geoNote.toBackendFormat) {
-          // S'assurer que la catégorie et le niveau d'accès sont définis
-          if (!geoNote.properties.category) {
-            geoNote.properties.category = 'forages';
-            console.log('[savePlan] Catégorie par défaut ajoutée:', geoNote.properties.category);
-          }
-
-          if (!geoNote.properties.accessLevel) {
-            geoNote.properties.accessLevel = 'private';
-            console.log('[savePlan] Niveau d\'accès par défaut ajouté:', geoNote.properties.accessLevel);
-          }
-
-          // Utiliser la méthode toBackendFormat de GeoNote
-          const noteElement = geoNote.toBackendFormat(geoNote._dbId);
-          type_forme = noteElement.type_forme;
-          data = noteElement.data;
-
-          // Ajouter l'ID à la liste des couches actuelles
-          if (geoNote._dbId && typeof geoNote._dbId === 'number') {
-            currentLayerIds.add(geoNote._dbId);
-          }
-
-          console.log('[savePlan] Données de la note préparées pour la sauvegarde:', {
-            id: geoNote._dbId,
-            type: type_forme,
-            category: data.category,
-            accessLevel: data.accessLevel
-          });
+        if (geoNote._dbId && typeof geoNote._dbId === 'number') {
+          currentLayerIds.add(geoNote._dbId);
         }
+
+        // Ne pas ajouter la note aux éléments à sauvegarder
+        type_forme = undefined;
+        data = undefined;
       }
 
       if (type_forme && data) {
@@ -1848,11 +1905,36 @@ const handleAdjustView = () => {
 // La méthode generateSynthesis est déjà définie plus bas dans le composant et sera utilisée par MapToolbar
 // via l'événement @generate-summary="generateSynthesis"
 // Fonction pour supprimer la forme sélectionnée
-const deleteSelectedShape = () => {
+const deleteSelectedShape = async () => {
   if (selectedLeafletShape.value && featureGroup.value) {
     const layerId = selectedLeafletShape.value._leaflet_id;
     const dbId = selectedLeafletShape.value._dbId;
 
+    // Vérifier si c'est une GeoNote
+    const isGeoNote = selectedLeafletShape.value.properties?.type === 'Note';
+
+    // Si c'est une GeoNote et qu'elle a un ID dans la base de données, la supprimer du backend
+    if (isGeoNote && dbId) {
+      try {
+        console.log(`[MapView][deleteSelectedShape] Suppression de la note ${dbId} du backend...`);
+
+        // Appeler l'API pour supprimer la note
+        await noteService.deleteNote(dbId);
+
+        // Supprimer également la note du store
+        notesStore.removeNote(dbId);
+
+        console.log(`[MapView][deleteSelectedShape] Note ${dbId} supprimée avec succès du backend et du store`);
+
+        // Afficher une notification de succès
+        notificationStore.success('Note supprimée avec succès');
+      } catch (error) {
+        console.error(`[MapView][deleteSelectedShape] Erreur lors de la suppression de la note ${dbId} du backend:`, error);
+        notificationStore.error('Erreur lors de la suppression de la note');
+      }
+    }
+
+    // Supprimer la forme de la carte
     setDrawingTool('');  // Ceci va nettoyer les points de contrôle
     featureGroup.value.removeLayer(selectedLeafletShape.value as L.Layer);
 

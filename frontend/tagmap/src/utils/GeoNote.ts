@@ -1,6 +1,9 @@
 import * as L from 'leaflet';
 import { NoteAccessLevel } from '../stores/notes';
 import type { DrawingElementType, NoteData } from '../types/drawing';
+import { noteService } from '../services/api';
+import { useNotesStore } from '../stores/notes';
+import { useNotificationStore } from '../stores/notification';
 
 // Interface pour les options de création d'une GeoNote
 export interface GeoNoteOptions extends L.MarkerOptions {
@@ -93,17 +96,25 @@ export class GeoNote extends L.Marker {
 
     // Ajouter un écouteur pour la mise à jour du style
     window.addEventListener('geonote:updateStyle', ((e: CustomEvent) => {
-      const leafletId = (this as any)._leaflet_id;
-      const backendId = this.properties.id;
       const eventNoteId = e.detail.noteId;
+      const backendId = (this as any)._dbId || this.properties.id;
 
       console.log('[GeoNote][updateStyle] Événement reçu pour noteId:', eventNoteId,
-                  'Comparaison avec - ID Leaflet:', leafletId, 'ID backend:', backendId);
+                  'Comparaison avec ID backend:', backendId);
 
-      // Vérifier si l'ID dans l'événement correspond soit à l'ID Leaflet, soit à l'ID backend
-      if (eventNoteId === leafletId || (backendId && eventNoteId === backendId)) {
+      // Vérifier si l'ID dans l'événement correspond à l'ID backend
+      if (eventNoteId === backendId) {
         console.log('[GeoNote][updateStyle] Correspondance trouvée, mise à jour du style:', e.detail.style);
         this.setNoteStyle(e.detail.style);
+        
+        // Mettre à jour les propriétés de la note
+        if (this.properties && this.properties.style) {
+          this.properties.style = {
+            ...this.properties.style,
+            ...e.detail.style
+          };
+        }
+        
         // Mettre à jour le popup pour refléter les changements
         this.bindPopup(this.createPopupContent());
       }
@@ -433,7 +444,6 @@ export class GeoNote extends L.Marker {
         </svg>
       </div>
     `;
-    console.log('[GeoNote][setNoteStyle] Nouvel HTML d\'icône:', iconHtml);
 
     const icon = L.divIcon({
       html: iconHtml,
@@ -444,7 +454,6 @@ export class GeoNote extends L.Marker {
     });
 
     this.setIcon(icon);
-    console.log('[GeoNote][setNoteStyle] Nouvelle icône appliquée');
 
     // S'assurer que le style dans les propriétés est à jour
     if (this.properties && this.properties.style) {
@@ -454,13 +463,22 @@ export class GeoNote extends L.Marker {
         weight: style.weight || this.properties.style.weight || 2,
         fillColor: fillColor,
         fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity || 0.8,
-        radius: style.radius || (this.properties.style as any)?.radius || 12
+        radius: style.radius || this.properties.style.radius || 12
       };
-      console.log('[GeoNote][setNoteStyle] Style mis à jour dans les propriétés:', this.properties.style);
     }
 
-    // Mettre à jour le popup pour refléter les changements
-    this.bindPopup(this.createPopupContent());
+    // Forcer un rafraîchissement de l'icône
+    this.refreshIconStyle();
+  }
+
+  // Nouvelle méthode pour forcer le rafraîchissement de l'icône
+  private refreshIconStyle(): void {
+    const element = this.getElement();
+    if (element) {
+      element.style.display = 'none';
+      void element.offsetHeight; // Force un reflow
+      element.style.display = '';
+    }
   }
 
   // Convertir la note en format compatible avec le backend
@@ -634,19 +652,90 @@ export class GeoNote extends L.Marker {
     return note;
   }
 
-  // Méthode pour déclencher la sauvegarde du plan
-  triggerPlanSave(): void {
+  // Méthode pour sauvegarder la note directement via l'API
+  async saveNote(planId?: number): Promise<number> {
     // Éviter les sauvegardes multiples
-    if (this._planSaved) return;
+    if (this._planSaved) return (this as any)._dbId || 0;
 
-    console.log('[GeoNote][triggerPlanSave] Déclenchement de la sauvegarde automatique du plan');
+    console.log('[GeoNote][saveNote] Sauvegarde directe de la note via l\'API');
 
-    // Émettre un événement pour déclencher la sauvegarde du plan
+    try {
+      // Préparer les données pour l'envoi
+      const noteData: any = {
+        title: this.properties.name,
+        description: this.properties.description,
+        location: {
+          type: 'Point',
+          coordinates: [this.getLatLng().lng, this.getLatLng().lat] // [longitude, latitude] pour GeoJSON
+        },
+        column: this.properties.columnId || '1', // Utiliser la colonne 'Idées' par défaut
+        access_level: this.properties.accessLevel || 'company', // Valeur par défaut
+        style: this.properties.style || {
+          color: '#2b6451',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#2b6451',
+          fillOpacity: 0.6,
+          radius: 8
+        },
+        category: this.properties.category || 'forages',
+        comments: this.properties.comments || [],
+        photos: this.properties.photos || []
+      };
+
+      // Si un ID de plan est fourni, l'associer à la note
+      if (planId) {
+        noteData.plan = planId;
+      }
+
+      console.log('[GeoNote][saveNote] Données à envoyer:', noteData);
+
+      let savedNote;
+
+      if ((this as any)._dbId) {
+        // Mise à jour d'une note existante
+        const response = await noteService.updateNote((this as any)._dbId, noteData);
+        savedNote = response.data;
+        console.log('[GeoNote][saveNote] Note mise à jour avec succès:', savedNote);
+      } else {
+        // Création d'une nouvelle note
+        const response = await noteService.createNote(noteData);
+        savedNote = response.data;
+        console.log('[GeoNote][saveNote] Note créée avec succès:', savedNote);
+
+        // Stocker l'ID de la base de données pour les futures mises à jour
+        (this as any)._dbId = savedNote.id;
+
+        // Ajouter la note au store
+        const notesStore = useNotesStore();
+        notesStore.addNote({
+          ...savedNote,
+          id: savedNote.id,
+          columnId: savedNote.column,
+          accessLevel: savedNote.access_level
+        });
+      }
+
+      // Marquer la note comme sauvegardée
+      this._planSaved = true;
+
+      return savedNote.id;
+    } catch (error) {
+      console.error('[GeoNote][saveNote] Erreur lors de la sauvegarde de la note:', error);
+      const notificationStore = useNotificationStore();
+      notificationStore.error('Erreur lors de la sauvegarde de la note');
+      return 0;
+    }
+  }
+
+  // Méthode pour déclencher la sauvegarde du plan (maintenue pour compatibilité)
+  triggerPlanSave(): void {
+    // Sauvegarder la note directement via l'API
+    this.saveNote();
+
+    // Émettre un événement pour déclencher la sauvegarde du plan (pour compatibilité)
     const event = new CustomEvent('geonote:savePlan');
     window.dispatchEvent(event);
-
-    // Marquer la note comme sauvegardée avec le plan
-    this._planSaved = true;
   }
 
   // Méthode pour réinitialiser l'état de sauvegarde du plan

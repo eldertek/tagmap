@@ -427,34 +427,54 @@ const colors = [
 ];
 
 // Mettre à jour la couleur de la note
-function updateNoteColor(color: string) {
-  console.log('[NoteEditModal] Mise à jour de la couleur:', color);
-
-  // Mettre à jour les propriétés de style dans l'objet d'édition
-  editingNote.value.style.color = color;
-  editingNote.value.style.fillColor = color;
-
-  // Pour les notes existantes, mettre à jour immédiatement l'apparence sur la carte
-  if (props.note && !props.isNewNote && editingNote.value.location) {
-    // Utiliser _leaflet_id si disponible, sinon utiliser l'ID backend
-    const noteId = (props.note as any)._leaflet_id || props.note.id;
-
-    console.log('[NoteEditModal] Mise à jour de la couleur sur la carte, noteId:', noteId, 'color:', color);
-
-    const event = new CustomEvent('geonote:updateStyle', {
-      detail: {
-        noteId: noteId,
-        style: {
-          color: color,
-          fillColor: color
-        }
-      }
-    });
-    window.dispatchEvent(event);
+const updateNoteColor = (color: string) => {
+  if (!editingNote.value.style) {
+    editingNote.value.style = {
+      color: color,
+      weight: 2,
+      opacity: 1,
+      fillColor: color,
+      fillOpacity: 0.6,
+      radius: 8
+    };
   } else {
-    console.log('[NoteEditModal] Nouvelle note ou non géolocalisée, la couleur sera appliquée lors de la création');
+    editingNote.value.style.color = color;
+    editingNote.value.style.fillColor = color;
   }
-}
+  editingNote.value.color = color; // Sauvegarder la couleur dans la note elle-même
+};
+
+// Initialiser la note avec les valeurs par défaut
+const initializeEditingNote = () => {
+  editingNote.value = {
+    title: props.note?.title || '',
+    description: props.note?.description || '',
+    columnId: props.note?.columnId || '',
+    accessLevel: props.note?.accessLevel || 'private',
+    style: props.note?.style || {
+      color: props.note?.color || '#3B82F6',
+      weight: 2,
+      opacity: 1,
+      fillColor: props.note?.color || '#3B82F6',
+      fillOpacity: 0.6,
+      radius: 8
+    },
+    color: props.note?.color || '#3B82F6', // Ajouter la couleur directement dans la note
+    location: props.location || props.note?.location || null,
+    comments: props.note?.comments || [],
+    photos: props.note?.photos || []
+  };
+};
+
+// Appeler l'initialisation au montage du composant
+onMounted(() => {
+  initializeEditingNote();
+});
+
+// Surveiller les changements de la note
+watch(() => props.note, () => {
+  initializeEditingNote();
+}, { deep: true });
 
 // Fermer le modal
 function closeModal() {
@@ -506,24 +526,22 @@ async function saveNote() {
       description: editingNote.value.description,
       columnId: editingNote.value.columnId,
       style: editingNote.value.style,
-      access_level: editingNote.value.accessLevel, // Utiliser access_level pour le backend
+      access_level: editingNote.value.accessLevel,
       comments: editingNote.value.comments || [],
       photos: editingNote.value.photos || []
     };
 
     // Ajouter la localisation seulement si elle existe
     if (editingNote.value.location) {
-      // Convertir la localisation au format GeoJSON pour le backend
       noteData.location = Array.isArray(editingNote.value.location)
         ? {
             type: 'Point',
-            coordinates: [editingNote.value.location[1], editingNote.value.location[0]] // [lng, lat]
+            coordinates: [editingNote.value.location[1], editingNote.value.location[0]]
           }
         : editingNote.value.location;
     }
 
     console.log('[NoteEditModal] Données de note à sauvegarder:', noteData);
-    console.log('[NoteEditModal] Niveau d\'accès:', editingNote.value.accessLevel);
 
     let savedNote;
     if (props.note?.id) {
@@ -536,20 +554,19 @@ async function saveNote() {
         ...editingNote.value,
         ...savedNote,
         accessLevel: editingNote.value.accessLevel,
+        style: editingNote.value.style,
         updatedAt: new Date().toISOString()
       });
 
       // Émettre un événement pour mettre à jour le style sur la carte
-      if (editingNote.value.location) {
-        const noteId = (props.note as any)._leaflet_id || props.note.id;
-        const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
-          detail: {
-            noteId: noteId,
-            style: editingNote.value.style
-          }
-        });
-        window.dispatchEvent(updateStyleEvent);
-      }
+      const noteId = props.note.id;
+      const updateStyleEvent = new CustomEvent('geonote:updateStyle', {
+        detail: {
+          noteId: noteId,
+          style: editingNote.value.style
+        }
+      });
+      window.dispatchEvent(updateStyleEvent);
 
       notificationStore.success('Note mise à jour avec succès');
     } else {
