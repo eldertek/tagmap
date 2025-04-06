@@ -14,7 +14,7 @@
           <div class="flex items-center">
             <span class="text-xs text-gray-500">{{ formatDate(comment.createdAt) }}</span>
             <button v-if="canDelete(comment)"
-                    @click="deleteComment(comment.id)"
+                    @click.prevent="deleteComment(comment.id)"
                     class="ml-2 text-gray-400 hover:text-red-500">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -39,7 +39,8 @@
       ></textarea>
       <div class="flex justify-end mt-2">
         <button
-          @click="addComment"
+          type="button"
+          @click.prevent="addComment"
           :disabled="!newComment.trim()"
           class="px-3 py-1 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -54,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useNotesStore, type Comment } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
@@ -64,8 +65,18 @@ const props = defineProps<{
   comments?: Comment[];
 }>();
 
+// Déboguer les commentaires reçus
+console.log('[CommentThread] Commentaires reçus initialement:', props.comments);
+
+// Surveiller les changements dans les commentaires
+watch(() => props.comments, (newComments) => {
+  console.log('[CommentThread] Commentaires mis à jour:', newComments);
+}, { deep: true });
+
 const emit = defineEmits<{
   (e: 'update:comments', comments: Comment[]): void;
+  (e: 'comment-added'): void;
+  (e: 'comment-deleted'): void;
 }>();
 
 const authStore = useAuthStore();
@@ -93,6 +104,9 @@ async function addComment() {
     await notesStore.addComment(props.noteId, newComment.value.trim());
     newComment.value = '';
     notificationStore.success('Commentaire ajouté avec succès');
+
+    // Émettre un événement pour indiquer qu'un commentaire a été ajouté
+    emit('comment-added');
   } catch (error: any) {
     console.error('Erreur lors de l\'ajout du commentaire:', error);
 
@@ -121,6 +135,7 @@ async function deleteComment(commentId: number) {
   try {
     await notesStore.removeComment(props.noteId, commentId);
     notificationStore.success('Commentaire supprimé');
+    emit('comment-deleted');
   } catch (error: any) {
     console.error('Erreur lors de la suppression du commentaire:', error);
 
@@ -140,14 +155,30 @@ async function deleteComment(commentId: number) {
 
 // Formater la date
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
+  try {
+    // Vérifier si la date est valide
+    if (!dateString) return 'Date inconnue';
+
+    // Essayer de créer un objet Date
+    const date = new Date(dateString);
+
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) {
+      console.warn(`Date invalide: ${dateString}`);
+      return 'Date invalide';
+    }
+
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  } catch (error) {
+    console.error(`Erreur lors du formatage de la date: ${dateString}`, error);
+    return 'Date invalide';
+  }
 }
 
 // Obtenir la classe CSS pour le badge de rôle

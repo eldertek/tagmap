@@ -529,14 +529,28 @@ export const useNotesStore = defineStore('notes', () => {
 
       // Mettre à jour le store local
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
-      if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
+      if (noteIndex === -1) {
+        console.error('[NotesStore] Note non trouvée pour la suppression de la photo');
+        return;
+      }
+
+      // S'assurer que le tableau photos existe
+      if (!notes.value[noteIndex].photos) {
+        notes.value[noteIndex].photos = [];
+      }
 
       const note = notes.value[noteIndex];
-      note.photos = note.photos!.filter(photo => photo.id !== photoId);
-      note.updatedAt = new Date().toISOString();
+      const updatedPhotos = (note.photos || []).filter(photo => photo.id !== photoId);
+      
+      // Créer une nouvelle référence pour la note avec les photos mises à jour
+      notes.value[noteIndex] = {
+        ...note,
+        photos: updatedPhotos,
+        updatedAt: new Date().toISOString()
+      };
 
-      // Mettre à jour la note
-      notes.value[noteIndex] = { ...note };
+      console.log('[NotesStore] Photo supprimée avec succès, photos restantes:', updatedPhotos.length);
+
     } catch (error) {
       console.error('Erreur lors de la suppression de la photo:', error);
       throw error;

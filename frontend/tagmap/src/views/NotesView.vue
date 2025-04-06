@@ -454,7 +454,6 @@ const filteredNotes = computed(() => {
 // Obtenir les notes d'une colonne
 const getNotesByColumn = computed(() => (columnId: string) => {
   const notes = notesStore.getNotesByColumn(columnId);
-  console.log(`[NotesView][getNotesByColumn] Notes pour la colonne ${columnId}:`, notes);
   return notes;
 });
 
@@ -666,7 +665,24 @@ function editNote(note: Note) {
 }
 
 // Gérer la sauvegarde d'une note depuis le modal
-async function handleNoteSave() {
+async function handleNoteSave(savedNote: Note) {
+  console.log('[NotesView][handleNoteSave] Note sauvegardée:', savedNote);
+
+  // S'assurer que les commentaires et photos sont conservés
+  if (savedNote && savedNote.id) {
+    // Vérifier si la note existe dans le store
+    const noteInStore = notesStore.notes.find(note => note.id === savedNote.id);
+    if (noteInStore) {
+      // S'assurer que les commentaires et photos sont présents
+      if (!savedNote.comments && noteInStore.comments) {
+        savedNote.comments = noteInStore.comments;
+      }
+      if (!savedNote.photos && noteInStore.photos) {
+        savedNote.photos = noteInStore.photos;
+      }
+    }
+  }
+
   // La note est déjà sauvegardée dans le store par le composant NoteEditModal
   showEditModal.value = false;
 

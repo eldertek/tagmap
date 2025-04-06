@@ -32,8 +32,8 @@
                   :class="activeTab === 'comments' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 >
                   Commentaires
-                  <span v-if="note?.comments?.length" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
-                    {{ note.comments.length }}
+                  <span v-if="commentsCount > 0" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
+                    {{ commentsCount }}
                   </span>
                 </button>
                 <button
@@ -43,8 +43,8 @@
                   :class="activeTab === 'photos' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 >
                   Photos
-                  <span v-if="note?.photos?.length" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
-                    {{ note.photos.length }}
+                  <span v-if="photosCount > 0" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
+                    {{ photosCount }}
                   </span>
                 </button>
               </nav>
@@ -108,10 +108,16 @@
 
             <!-- Onglet Commentaires -->
             <div v-else-if="activeTab === 'comments'" class="mt-4">
+              <!-- Déboguer les commentaires -->
+              <div class="hidden">
+                {{ console.log('[NoteEditModal] Commentaires passés au composant:', editingNote.comments) }}
+              </div>
               <CommentThread
                 v-if="note"
                 :noteId="note.id"
-                :comments="note.comments || []"
+                :comments="editingNote.comments || []"
+                @comment-added="handleCommentAdded"
+                @comment-deleted="handleCommentDeleted"
               />
             </div>
 
@@ -120,7 +126,9 @@
               <PhotoGallery
                 v-if="note"
                 :noteId="note.id"
-                :photos="note.photos || []"
+                :photos="editingNote.photos || []"
+                @photo-added="handlePhotoAdded"
+                @photo-deleted="handlePhotoDeleted"
               />
             </div>
           </div>
@@ -139,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
 import { noteService } from '../services/api';
@@ -160,6 +168,30 @@ const emit = defineEmits<{
 const notesStore = useNotesStore();
 const notificationStore = useNotificationStore();
 const activeTab = ref('info');
+
+// Pour le débogage dans le template
+const console = window.console;
+
+// Surveiller les changements d'onglet
+watch(activeTab, async (newTab) => {
+  console.log('[NoteEditModal] Onglet actif changé:', newTab);
+
+  // Si l'onglet Commentaires est sélectionné, recharger les commentaires
+  if (newTab === 'comments' && props.note && props.note.id) {
+    console.log('[NoteEditModal] Onglet Commentaires sélectionné, commentaires actuels:', editingNote.value.comments);
+
+    // Recharger les commentaires pour s'assurer qu'ils sont à jour
+    await loadNoteComments(props.note.id);
+  }
+
+  // Si l'onglet Photos est sélectionné, recharger les photos
+  if (newTab === 'photos' && props.note && props.note.id) {
+    console.log('[NoteEditModal] Onglet Photos sélectionné, photos actuelles:', editingNote.value.photos);
+
+    // Recharger les photos pour s'assurer qu'elles sont à jour
+    await loadNotePhotos(props.note.id);
+  }
+});
 
 // Créer une copie de la note pour l'édition
 const editingNote = ref<any>({
@@ -213,8 +245,79 @@ function safeDate(dateString: string | undefined): string {
   }
 }
 
+// Fonction pour charger les commentaires d'une note
+async function loadNoteComments(noteId: number) {
+  try {
+    console.log(`[NoteEditModal] Chargement des commentaires pour la note ${noteId}`);
+    const response = await noteService.getComments(noteId);
+    console.log('[NoteEditModal] Commentaires reçus:', response.data);
+
+    // Transformer les commentaires du format API au format du store
+    const comments = response.data.map((comment: any) => ({
+      id: comment.id,
+      text: comment.text,
+      createdAt: comment.created_at,
+      userId: comment.user,
+      userName: comment.user_name,
+      userRole: comment.user_role
+    }));
+
+    console.log('[NoteEditModal] Commentaires transformés:', comments);
+
+    // Mettre à jour la note dans le store
+    if (props.note) {
+      notesStore.updateNote(props.note.id, { comments });
+
+      // Mettre à jour la copie locale pour l'édition
+      editingNote.value.comments = comments;
+
+      console.log('[NoteEditModal] Commentaires mis à jour dans le store et localement');
+      console.log('[NoteEditModal] editingNote.comments après mise à jour:', editingNote.value.comments);
+    }
+
+    return comments;
+  } catch (error) {
+    console.error('[NoteEditModal] Erreur lors du chargement des commentaires:', error);
+    notificationStore.error('Erreur lors du chargement des commentaires');
+    return [];
+  }
+}
+
+// Fonction pour charger les photos d'une note
+async function loadNotePhotos(noteId: number) {
+  try {
+    console.log(`[NoteEditModal] Chargement des photos pour la note ${noteId}`);
+    const response = await noteService.getPhotos(noteId);
+    console.log('[NoteEditModal] Photos reçues:', response.data);
+
+    // Transformer les photos du format API au format du store
+    const photos = response.data.map((photo: any) => ({
+      id: photo.id,
+      url: photo.image,
+      createdAt: photo.created_at,
+      caption: photo.caption
+    }));
+
+    // Mettre à jour la note dans le store
+    if (props.note) {
+      notesStore.updateNote(props.note.id, { photos });
+
+      // Mettre à jour la copie locale pour l'édition
+      editingNote.value.photos = photos;
+
+      console.log('[NoteEditModal] Photos mises à jour dans le store et localement');
+    }
+
+    return photos;
+  } catch (error) {
+    console.error('[NoteEditModal] Erreur lors du chargement des photos:', error);
+    notificationStore.error('Erreur lors du chargement des photos');
+    return [];
+  }
+}
+
 // Initialiser les données d'édition
-onMounted(() => {
+onMounted(async () => {
   console.log('[NoteEditModal] onMounted - props:', props);
 
   if (props.note) {
@@ -227,6 +330,27 @@ onMounted(() => {
     noteCopy.updatedAt = safeDate(noteCopy.updatedAt);
 
     editingNote.value = noteCopy;
+
+    // Charger les commentaires et photos si la note existe
+    if (props.note.id) {
+      console.log('[NoteEditModal] Chargement des commentaires et photos...');
+
+      // Charger les commentaires et photos en parallèle
+      await Promise.all([
+        loadNoteComments(props.note.id),
+        loadNotePhotos(props.note.id)
+      ]);
+
+      // Forcer une mise à jour des computed
+      console.log('[NoteEditModal] Après chargement - Commentaires:', editingNote.value.comments?.length || 0);
+      console.log('[NoteEditModal] Après chargement - Photos:', editingNote.value.photos?.length || 0);
+
+      // Attendre le prochain cycle de rendu pour s'assurer que les compteurs sont mis à jour
+      setTimeout(() => {
+        console.log('[NoteEditModal] Compteurs après timeout - Commentaires:', commentsCount.value);
+        console.log('[NoteEditModal] Compteurs après timeout - Photos:', photosCount.value);
+      }, 0);
+    }
   } else if (props.isNewNote) {
     // Création d'une nouvelle note
     console.log('[NoteEditModal] Création d\'une nouvelle note');
@@ -270,6 +394,19 @@ onMounted(() => {
 // Colonnes triées
 const sortedColumns = computed(() => notesStore.getSortedColumns);
 
+// Nombre de commentaires et photos
+const commentsCount = computed(() => {
+  const count = editingNote.value.comments?.length || 0;
+  console.log('[NoteEditModal] Computed commentsCount recalculé:', count);
+  return count;
+});
+
+const photosCount = computed(() => {
+  const count = editingNote.value.photos?.length || 0;
+  console.log('[NoteEditModal] Computed photosCount recalculé:', count);
+  return count;
+});
+
 // Niveaux d'accès
 const accessLevels = [
   { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
@@ -292,18 +429,18 @@ const colors = [
 // Mettre à jour la couleur de la note
 function updateNoteColor(color: string) {
   console.log('[NoteEditModal] Mise à jour de la couleur:', color);
-  
+
   // Mettre à jour les propriétés de style dans l'objet d'édition
   editingNote.value.style.color = color;
   editingNote.value.style.fillColor = color;
-  
+
   // Pour les notes existantes, mettre à jour immédiatement l'apparence sur la carte
   if (props.note && !props.isNewNote && editingNote.value.location) {
     // Utiliser _leaflet_id si disponible, sinon utiliser l'ID backend
     const noteId = (props.note as any)._leaflet_id || props.note.id;
-    
+
     console.log('[NoteEditModal] Mise à jour de la couleur sur la carte, noteId:', noteId, 'color:', color);
-    
+
     const event = new CustomEvent('geonote:updateStyle', {
       detail: {
         noteId: noteId,
@@ -322,6 +459,42 @@ function updateNoteColor(color: string) {
 // Fermer le modal
 function closeModal() {
   emit('close');
+}
+
+// Gérer l'ajout d'un commentaire
+async function handleCommentAdded() {
+  console.log('[NoteEditModal] Commentaire ajouté, le modal reste ouvert');
+
+  // Recharger les commentaires pour mettre à jour l'affichage
+  if (props.note && props.note.id) {
+    await loadNoteComments(props.note.id);
+  }
+}
+
+// Gérer l'ajout d'une photo
+async function handlePhotoAdded() {
+  console.log('[NoteEditModal] Photo ajoutée, le modal reste ouvert');
+
+  // Recharger les photos pour mettre à jour l'affichage
+  if (props.note && props.note.id) {
+    await loadNotePhotos(props.note.id);
+  }
+}
+
+// Gérer la suppression d'un commentaire
+async function handleCommentDeleted() {
+  console.log('[NoteEditModal] Commentaire supprimé, mise à jour de la liste');
+  if (props.note && props.note.id) {
+    await loadNoteComments(props.note.id);
+  }
+}
+
+// Gérer la suppression d'une photo
+async function handlePhotoDeleted() {
+  console.log('[NoteEditModal] Photo supprimée, mise à jour de la liste');
+  if (props.note && props.note.id) {
+    await loadNotePhotos(props.note.id);
+  }
 }
 
 // Sauvegarder la note
@@ -411,7 +584,19 @@ async function saveNote() {
       notificationStore.success('Note créée avec succès');
     }
 
-    // Émettre l'événement save avec la note sauvegardée
+    // S'assurer que les commentaires et photos sont inclus dans la note sauvegardée
+    if (savedNote) {
+      // Si les commentaires ou photos ne sont pas inclus dans la réponse du backend,
+      // utiliser ceux de l'objet d'édition
+      if (!savedNote.comments && editingNote.value.comments) {
+        savedNote.comments = editingNote.value.comments;
+      }
+      if (!savedNote.photos && editingNote.value.photos) {
+        savedNote.photos = editingNote.value.photos;
+      }
+    }
+
+    // Émettre l'événement save avec la note sauvegardée complète
     emit('save', savedNote);
     emit('close');
   } catch (error) {

@@ -634,8 +634,14 @@ export const noteService = {
     return await api.get(`/notes/${noteId}/comments/`);
   },
 
-  async addComment(noteId: number, commentData: any) {
-    return await api.post(`/notes/${noteId}/comments/`, commentData);
+  async addComment(noteId: number, commentText: any) {
+    // Si le commentaire est déjà un objet, l'utiliser tel quel
+    const data = typeof commentText === 'string' 
+      ? { text: commentText } 
+      : commentText;
+    
+    console.log(`[noteService][addComment] Envoi du commentaire pour la note ${noteId}:`, data);
+    return await api.post(`/notes/${noteId}/comments/`, data);
   },
 
   async updateComment(noteId: number, commentId: number, commentData: any) {

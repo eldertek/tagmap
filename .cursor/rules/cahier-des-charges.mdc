@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Cahier des Charges : TagMap
 
+N'essaies pas de lancer les serveurs de développement.
+
 ## 1. Présentation Générale
 TagMap est une interface accessible depuis un ordinateur ou un smartphone permettant la gestion et l'annotation de cartes interactives. L'outil doit offrir des fonctionnalités de collaboration et de visualisation avancées.
 

@@ -672,16 +672,79 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
     serializer_class = NoteCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        """
+        Filtre les commentaires par note si note_id est présent dans l'URL
+        """
+        queryset = NoteComment.objects.all()
+        
+        # Si nous sommes dans une URL imbriquée, filtrer par note_id
+        note_id = self.kwargs.get('note_pk')
+        if note_id:
+            queryset = queryset.filter(note_id=note_id)
+            
+        # Filtrer ensuite par les permissions de l'utilisateur
+        user = self.request.user
+        if user.role == ROLE_ADMIN:
+            return queryset
+        elif user.role == ROLE_USINE:
+            # Une entreprise peut voir les commentaires des notes auxquelles elle a accès
+            note_ids = GeoNote.objects.filter(
+                Q(plan__entreprise=user) |
+                Q(plan__salarie__entreprise=user) |
+                Q(plan__visiteur__salarie__entreprise=user)
+            ).values_list('id', flat=True)
+            return queryset.filter(note_id__in=note_ids)
+        elif user.role == ROLE_DEALER:
+            # Un salarie peut voir les commentaires des notes auxquelles il a accès
+            note_ids = GeoNote.objects.filter(
+                Q(plan__salarie=user) |
+                Q(plan__visiteur__salarie=user)
+            ).values_list('id', flat=True)
+            return queryset.filter(note_id__in=note_ids)
+        else:  # visiteur
+            # Un visiteur ne peut voir que les commentaires des notes de ses plans
+            note_ids = GeoNote.objects.filter(plan__visiteur=user).values_list('id', flat=True)
+            return queryset.filter(note_id__in=note_ids)
+
     def create(self, request, *args, **kwargs):
         """
-        Surcharge de la création pour ajouter des logs
+        Surcharge de la création pour ajouter des logs et gérer note_pk
         """
         print("\n[NoteCommentViewSet][create] ====== DÉBUT CRÉATION COMMENTAIRE ======")
-        print(f"Données reçues: {request.data}")
+        
+        # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
+        note_pk = self.kwargs.get('note_pk')
+        
+        # Vérifier le type des données et les traiter en conséquence
+        if isinstance(request.data, str):
+            # Si les données sont une chaîne, essayer de la parser comme JSON
+            try:
+                import json
+                data = json.loads(request.data)
+                print(f"[NoteCommentViewSet][create] Données converties de chaîne à dict: {data}")
+            except json.JSONDecodeError:
+                # Si ce n'est pas du JSON valide, créer un nouveau dict
+                data = {}
+                print(f"[NoteCommentViewSet][create] Données invalides, création d'un nouveau dict")
+        else:
+            # Sinon, copier les données existantes
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            print(f"[NoteCommentViewSet][create] Données copiées: {data}")
+        
+        if note_pk:
+            data['note'] = note_pk
+
+        # S'assurer que l'utilisateur est défini
+        if 'user' not in data:
+            data['user'] = request.user.id
+            
+        print(f"Données finales: {data}")
         print(f"Utilisateur: {request.user.username} (role: {request.user.role})")
         
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=data)
         print(f"Serializer valide: {serializer.is_valid()}")
+        
         if not serializer.is_valid():
             print(f"Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -714,7 +777,27 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Seules les entreprises peuvent ajouter des commentaires')
 
         # Vérifier que l'utilisateur a accès à la note
-        note_access = GeoNote.objects.filter(
+        # 1. Vérifier si l'utilisateur est le créateur de la note (si la note a un champ createur)
+        creator_access = False
+        if hasattr(note, 'createur') and note.createur == user:
+            creator_access = True
+            print(f"[NoteCommentViewSet][perform_create] Accès en tant que créateur: {creator_access}")
+        
+        # 2. Pour les notes sans plan (privées ou standalone)
+        if note.plan is None:
+            # Permettre l'accès si c'est une note privée créée par l'utilisateur
+            if creator_access:
+                print("[NoteCommentViewSet][perform_create] Accès autorisé: Note privée créée par l'utilisateur")
+                serializer.save(user=user)
+                return
+            # Les admins ont toujours accès
+            if user.role == ROLE_ADMIN:
+                print("[NoteCommentViewSet][perform_create] Accès autorisé: Utilisateur admin")
+                serializer.save(user=user)
+                return
+        
+        # 3. Vérifier les accès via les relations plan-entreprise-salarie-visiteur
+        plan_access = GeoNote.objects.filter(
             id=note.id
         ).filter(
             Q(plan__entreprise=user) |
@@ -722,15 +805,15 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             Q(plan__visiteur__salarie__entreprise=user)
         ).exists()
 
-        print(f"[NoteCommentViewSet][perform_create] Accès à la note: {note_access}")
+        print(f"[NoteCommentViewSet][perform_create] Accès via plan: {plan_access}")
 
-        if not note_access:
-            print("[NoteCommentViewSet][perform_create] Permission refusée - pas d'accès à la note")
-            raise PermissionDenied('Vous n\'avez pas accès à cette note')
-
-        print("[NoteCommentViewSet][perform_create] Sauvegarde du commentaire...")
-        serializer.save(user=user)
-        print("[NoteCommentViewSet][perform_create] Commentaire sauvegardé avec succès")
+        if creator_access or plan_access or user.role == ROLE_ADMIN:
+            print("[NoteCommentViewSet][perform_create] Accès autorisé")
+            serializer.save(user=user)
+            return
+        
+        print("[NoteCommentViewSet][perform_create] Permission refusée - pas d'accès à la note")
+        raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
 class NotePhotoViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des photos des notes."""
@@ -739,13 +822,21 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Ne retourne que les photos des notes accessibles à l'utilisateur
+        Filtre les photos par note si note_id est présent dans l'URL
         """
+        queryset = NotePhoto.objects.all()
+        
+        # Si nous sommes dans une URL imbriquée, filtrer par note_id
+        note_id = self.kwargs.get('note_pk')
+        if note_id:
+            queryset = queryset.filter(note_id=note_id)
+            
+        # Filtrer ensuite par les permissions de l'utilisateur
         user = self.request.user
         if user.role == ROLE_ADMIN:
-            return NotePhoto.objects.all()
+            return queryset
         elif user.role in [ROLE_USINE, ROLE_DEALER]:
-            # Entreprises et salaries peuvent voir toutes les photos des notes auxquelles ils ont accès
+            # Entreprises et salariés peuvent voir toutes les photos des notes auxquelles ils ont accès
             note_ids = GeoNote.objects.filter(
                 Q(plan__entreprise=user) |
                 Q(plan__salarie=user) |
@@ -753,11 +844,62 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 Q(plan__visiteur__salarie=user) |
                 Q(plan__visiteur__salarie__entreprise=user)
             ).values_list('id', flat=True)
-            return NotePhoto.objects.filter(note_id__in=note_ids)
+            return queryset.filter(note_id__in=note_ids)
         else:  # visiteur
             # Les visiteurs ne peuvent voir que les photos des notes de leurs plans
             note_ids = GeoNote.objects.filter(plan__visiteur=user).values_list('id', flat=True)
-            return NotePhoto.objects.filter(note_id__in=note_ids)
+            return queryset.filter(note_id__in=note_ids)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Surcharge de la création pour gérer note_pk
+        """
+        # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
+        note_pk = self.kwargs.get('note_pk')
+        
+        # Vérifier le type des données et les traiter en conséquence
+        if isinstance(request.data, str):
+            # Si les données sont une chaîne, essayer de la parser comme JSON
+            try:
+                import json
+                data = json.loads(request.data)
+                print(f"[NotePhotoViewSet][create] Données converties de chaîne à dict: {data}")
+            except json.JSONDecodeError:
+                # Si ce n'est pas du JSON valide, créer un nouveau dict
+                data = {}
+                print(f"[NotePhotoViewSet][create] Données invalides, création d'un nouveau dict")
+        else:
+            # Sinon, copier les données existantes
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            print(f"[NotePhotoViewSet][create] Données copiées: {data}")
+        
+        if note_pk:
+            data['note'] = note_pk
+            
+        # S'assurer que l'utilisateur est défini
+        if 'user' not in data:
+            data['user'] = request.user.id
+            
+        print(f"[NotePhotoViewSet][create] Données finales: {data}")
+        print(f"[NotePhotoViewSet][create] Utilisateur: {request.user.username} (role: {request.user.role})")
+        
+        serializer = self.get_serializer(data=data)
+        
+        if not serializer.is_valid():
+            print(f"[NotePhotoViewSet][create] Erreurs de validation: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            self.perform_create(serializer)
+            print("[NotePhotoViewSet][create] Photo créée avec succès")
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            print(f"[NotePhotoViewSet][create] Erreur lors de la création: {str(e)}")
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def perform_create(self, serializer):
         """
@@ -765,18 +907,46 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         """
         note = serializer.validated_data['note']
         user = self.request.user
+        
+        print(f"[NotePhotoViewSet][perform_create] Note ID: {note.id}")
+        print(f"[NotePhotoViewSet][perform_create] Utilisateur: {user.username} (role: {user.role})")
 
-        # Vérifier que l'utilisateur a accès à la note
-        if not GeoNote.objects.filter(
-            id=note.id
-        ).filter(
-            Q(plan__entreprise=user) |
-            Q(plan__salarie=user) |
-            Q(plan__salarie__entreprise=user) |
-            Q(plan__visiteur__salarie=user) |
-            Q(plan__visiteur__salarie__entreprise=user)
-        ).exists():
-            raise PermissionDenied('Vous n\'avez pas accès à cette note')
+        # 1. Vérifier si l'utilisateur est le créateur de la note
+        creator_access = False
+        if hasattr(note, 'createur') and note.createur == user:
+            creator_access = True
+            print(f"[NotePhotoViewSet][perform_create] Accès en tant que créateur: {creator_access}")
+        
+        # 2. Pour les notes sans plan (privées ou standalone)
+        if note.plan is None:
+            # Permettre l'accès si c'est une note privée créée par l'utilisateur
+            if creator_access:
+                print("[NotePhotoViewSet][perform_create] Accès autorisé: Note privée créée par l'utilisateur")
+                # Continuer pour ajouter la photo après vérification du quota
+            # Les admins ont toujours accès
+            elif user.role == ROLE_ADMIN:
+                print("[NotePhotoViewSet][perform_create] Accès autorisé: Utilisateur admin")
+                # Continuer pour ajouter la photo après vérification du quota
+            else:
+                print("[NotePhotoViewSet][perform_create] Permission refusée pour note privée")
+                raise PermissionDenied("Vous n'avez pas accès à cette note")
+        else:
+            # 3. Vérifier les accès via les relations plan-entreprise-salarie-visiteur
+            plan_access = GeoNote.objects.filter(
+                id=note.id
+            ).filter(
+                Q(plan__entreprise=user) |
+                Q(plan__salarie=user) |
+                Q(plan__salarie__entreprise=user) |
+                Q(plan__visiteur__salarie=user) |
+                Q(plan__visiteur__salarie__entreprise=user)
+            ).exists()
+            
+            print(f"[NotePhotoViewSet][perform_create] Accès via plan: {plan_access}")
+            
+            if not (creator_access or plan_access or user.role == ROLE_ADMIN):
+                print("[NotePhotoViewSet][perform_create] Permission refusée - pas d'accès à la note")
+                raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
         # Vérifier le quota de stockage
         if 'image' in serializer.validated_data:
@@ -790,6 +960,7 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 })
 
         serializer.save(user=user)
+        print("[NotePhotoViewSet][perform_create] Photo sauvegardée avec succès")
 
 @api_view(['POST'])
 def elevation_proxy(request):
