@@ -991,8 +991,14 @@ onMounted(async () => {
       console.log('[MapView] Note à éditer (global):', note);
 
       // Convertir la note en note compatible avec le store
+      // Rechercher la forme dans shapes.value pour obtenir le dbId correct
+      const shape = shapes.value.find(s => s.layer === event.detail.source);
+      const dbId = shape ? shape.id : note.id;
+
+      console.log('[MapView] ID de la note pour l\'API:', dbId, 'Source:', event.detail.source ? 'Couche Leaflet' : 'Autre');
+
       editingMapNote.value = {
-        id: note.id,
+        id: dbId, // Utiliser l'ID de la base de données
         title: note.title || note.name,
         description: note.description,
         location: note.location,
@@ -1337,7 +1343,18 @@ async function refreshMapWithPlan(planId: number) {
                       case 'Note': {
                         console.log('[MapView][refreshMapWithPlan] Création d\'une note:', element.data);
                         const noteData = element.data as any;
-                        if (noteData.location && Array.isArray(noteData.location) && noteData.location.length === 2) {
+                        // Vérifier si la localisation est valide (soit un tableau [lat, lng] soit un objet GeoJSON)
+                        const hasValidLocation = (
+                          // Format tableau [lat, lng]
+                          (noteData.location && Array.isArray(noteData.location) && noteData.location.length === 2) ||
+                          // Format GeoJSON { type: 'Point', coordinates: [lng, lat] }
+                          (noteData.location && typeof noteData.location === 'object' &&
+                           noteData.location.type === 'Point' &&
+                           Array.isArray(noteData.location.coordinates) &&
+                           noteData.location.coordinates.length === 2)
+                        );
+
+                        if (hasValidLocation) {
                           try {
                             // S'assurer que la catégorie et le niveau d'accès sont définis
                             if (!noteData.category) {
@@ -1371,6 +1388,10 @@ async function refreshMapWithPlan(planId: number) {
                           }
                         } else {
                           console.error('[MapView][refreshMapWithPlan] Données invalides pour Note:', noteData);
+                          console.log('[MapView][refreshMapWithPlan] Format de location attendu:', {
+                            formatArray: '[lat, lng]',
+                            formatGeoJSON: '{ type: "Point", coordinates: [lng, lat] }'
+                          });
                         }
                         break;
                       }

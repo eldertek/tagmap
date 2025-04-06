@@ -318,9 +318,10 @@ export class GeoNote extends L.Marker {
     this.closePopup();
 
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
-    const noteId = this.properties.id || (this as any)._leaflet_id;
+    // Priorité: _dbId (ID de la base de données), puis properties.id, puis _leaflet_id
+    const noteId = (this as any)._dbId || this.properties.id || (this as any)._leaflet_id;
 
-    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${this.properties.id}, ID Leaflet: ${(this as any)._leaflet_id}, ID utilisé: ${noteId}`);
+    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${(this as any)._dbId}, ID properties: ${this.properties.id}, ID Leaflet: ${(this as any)._leaflet_id}, ID utilisé: ${noteId}`);
 
     // Créer un objet note à partir des propriétés
     const note = {
@@ -354,11 +355,12 @@ export class GeoNote extends L.Marker {
     console.log('[GeoNote] Émission de l\'événement note:edit avec', note);
 
     // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
-    const event = new CustomEvent('geonote:edit', { detail: { note } });
+    // Inclure la référence à cette couche Leaflet pour permettre de retrouver le dbId
+    const event = new CustomEvent('geonote:edit', { detail: { note, source: this } });
     window.dispatchEvent(event);
 
     // Également émettre l'événement Leaflet standard (pour compatibilité)
-    this.fire('note:edit', { note });
+    this.fire('note:edit', { note, source: this });
   }
 
   // Méthode pour ouvrir Google Maps avec itinéraire
