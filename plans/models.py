@@ -321,6 +321,12 @@ def note_photo_upload_path(instance, filename):
 
     base_name, extension = os.path.splitext(filename)
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Si la note n'a pas de plan (note privée), utiliser l'ID de l'utilisateur qui ajoute la photo
+    if instance.note.plan is None:
+        return f'notes/{instance.user.id}/{instance.note.id}/{timestamp}{extension}'
+    
+    # Sinon, utiliser l'ID du créateur du plan comme avant
     return f'notes/{instance.note.plan.createur.id}/{instance.note.id}/{timestamp}{extension}'
 
 
