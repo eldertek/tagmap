@@ -176,6 +176,37 @@
                   <p class="mt-1 text-sm text-gray-500">Espace de stockage maximum pour les photos des notes</p>
                 </div>
 
+                <!-- Configuration API (uniquement pour les entreprises) -->
+                <div v-if="form.role === 'ENTREPRISE'" class="border-t pt-4 mt-4">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Configuration API</h3>
+
+                  <!-- Clé API Ecowitt -->
+                  <div class="mb-4">
+                    <label for="ecowitt_api_key" class="block text-sm font-medium text-gray-700">Clé API Ecowitt</label>
+                    <input
+                      type="text"
+                      id="ecowitt_api_key"
+                      v-model="form.ecowitt_api_key"
+                      class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      placeholder="Entrez la clé API Ecowitt"
+                    />
+                    <p class="mt-1 text-sm text-gray-500">Clé API pour accéder aux services météo Ecowitt</p>
+                  </div>
+
+                  <!-- Clé d'application Ecowitt -->
+                  <div class="mb-4">
+                    <label for="ecowitt_application_key" class="block text-sm font-medium text-gray-700">Clé d'application Ecowitt</label>
+                    <input
+                      type="text"
+                      id="ecowitt_application_key"
+                      v-model="form.ecowitt_application_key"
+                      class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      placeholder="Entrez la clé d'application Ecowitt"
+                    />
+                    <p class="mt-1 text-sm text-gray-500">Clé d'application pour accéder aux services météo Ecowitt</p>
+                  </div>
+                </div>
+
                 <div v-if="!form.id">
                       <label for="password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
                       <input
@@ -252,6 +283,8 @@ interface User {
   is_active?: boolean
   storage_quota?: number
   storage_used?: number
+  ecowitt_api_key?: string
+  ecowitt_application_key?: string
 }
 
 interface UserReference {
@@ -330,7 +363,9 @@ const form = reactive({
   entreprise: null as number | null,
   is_active: true,
   storage_quota: 50, // 50 MB par défaut
-  storage_used: 0
+  storage_used: 0,
+  ecowitt_api_key: '',
+  ecowitt_application_key: ''
 })
 
 // Initialiser le formulaire avec les valeurs de l'utilisateur existant
@@ -344,6 +379,10 @@ onMounted(() => {
     form.company_name = props.user.company_name || ''
     form.role = props.user.role || 'VISITEUR'
     form.is_active = props.user.is_active ?? true
+    form.ecowitt_api_key = props.user.ecowitt_api_key || ''
+    form.ecowitt_application_key = props.user.ecowitt_application_key || ''
+    form.storage_quota = props.user.storage_quota || 50
+    form.storage_used = props.user.storage_used || 0
 
     // Gérer les relations
     if (props.user.salarie) {

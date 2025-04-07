@@ -6,6 +6,8 @@ import MapView from '../views/MapView.vue'
 import UserListView from '@/views/UserListView.vue'
 import PlansView from '../views/PlansView.vue'
 import NotesView from '../views/NotesView.vue'
+import MeteoView from '../views/MeteoView.vue'
+
 const router = createRouter({
   history: createWebHistory('/'),
   routes: [
@@ -13,6 +15,15 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: MapView,
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
+      }
+    },
+    {
+      path: '/meteo',
+      name: 'meteo',
+      component: MeteoView,
       meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']

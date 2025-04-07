@@ -448,12 +448,20 @@ export class GeoNote extends L.Marker {
     // Conserver le radius existant s'il existe
     const existingRadius = (this.properties.style as any)?.radius || 12;
 
+    // Conserver les propriétés existantes du style si elles existent
+    const existingStyle = this.properties.style || {};
+
     this.properties.style = {
+      ...existingStyle,
       color: color,
       weight: 2,
       fillColor: color,
       fillOpacity: 0.8,
-      radius: existingRadius
+      radius: existingRadius,
+      // Stocker explicitement la catégorie et le niveau d'accès dans le style
+      _accessLevel: this.properties.accessLevel,
+      accessLevel: this.properties.accessLevel,
+      category: this.properties.category
     };
   }
 
@@ -487,6 +495,10 @@ export class GeoNote extends L.Marker {
 
     this.setIcon(icon);
 
+    // Récupérer les propriétés accessLevel et category depuis le style si disponibles
+    const accessLevel = style._accessLevel || style.accessLevel || this.properties.accessLevel;
+    const category = style.category || this.properties.category;
+
     // S'assurer que le style dans les propriétés est à jour
     if (this.properties && this.properties.style) {
       this.properties.style = {
@@ -495,8 +507,20 @@ export class GeoNote extends L.Marker {
         weight: style.weight || this.properties.style.weight || 2,
         fillColor: fillColor,
         fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity || 0.8,
-        radius: style.radius || this.properties.style.radius || 12
+        radius: style.radius || this.properties.style.radius || 12,
+        // Préserver les propriétés importantes dans le style
+        _accessLevel: accessLevel,
+        accessLevel: accessLevel,
+        category: category
       };
+    }
+
+    // Mettre à jour les propriétés principales également
+    if (accessLevel) {
+      this.properties.accessLevel = accessLevel;
+    }
+    if (category) {
+      this.properties.category = category;
     }
 
     // Forcer un rafraîchissement de l'icône
@@ -574,9 +598,25 @@ export class GeoNote extends L.Marker {
       radius: (data.style as any).radius || 12
     } : this.properties.style;
 
+    // Récupérer le niveau d'accès depuis le style si disponible
+    const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || this.properties.accessLevel || NoteAccessLevel.PRIVATE;
+    console.log('[GeoNote][updateFromBackendData] Niveau d\'accès récupéré:', accessLevel);
+
+    // Récupérer la catégorie depuis le style si disponible
+    const category = (data.style as any)?.category || data.category || this.properties.category || 'forages';
+    console.log('[GeoNote][updateFromBackendData] Catégorie récupérée:', category);
+
     // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
     const columnId = data.columnId || this.properties.columnId || '1';
     console.log('[GeoNote][updateFromBackendData] Mise à jour de note avec columnId:', columnId);
+
+    // S'assurer que le style contient le niveau d'accès et la catégorie
+    const styleWithMetadata = {
+      ...style,
+      _accessLevel: accessLevel,
+      accessLevel: accessLevel,
+      category: category
+    };
 
     // Mettre à jour les propriétés
     this.properties = {
@@ -584,9 +624,9 @@ export class GeoNote extends L.Marker {
       name: data.name || this.properties.name,
       description: data.description || this.properties.description,
       columnId: columnId, // Utiliser la colonne 'Idées' par défaut si non spécifié
-      accessLevel: data.accessLevel || this.properties.accessLevel,
-      category: data.category || this.properties.category || 'forages',
-      style: style,
+      accessLevel: accessLevel,
+      category: category,
+      style: styleWithMetadata,
       comments: data.comments || this.properties.comments || [],
       photos: data.photos || this.properties.photos || [],
       order: data.order || this.properties.order || 0,
@@ -594,8 +634,8 @@ export class GeoNote extends L.Marker {
       updatedAt: data.updatedAt || new Date().toISOString()
     };
 
-    // Mettre à jour le style visuel
-    this.setNoteStyle(style);
+    // Mettre à jour le style visuel avec le style contenant les métadonnées
+    this.setNoteStyle(styleWithMetadata);
 
     // Mettre à jour le popup
     this.bindPopup(this.createPopupContent());
@@ -603,6 +643,8 @@ export class GeoNote extends L.Marker {
     console.log('[GeoNote][updateFromBackendData] Note mise à jour:', {
       name: this.properties.name,
       type: this.properties.type,
+      category: this.properties.category,
+      accessLevel: this.properties.accessLevel,
       style: this.properties.style
     });
   }
@@ -634,8 +676,13 @@ export class GeoNote extends L.Marker {
     const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || NoteAccessLevel.PRIVATE;
     console.log('[GeoNote][fromBackendData] Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
 
-    // Forcer la mise à jour du niveau d'accès dans les données
+    // Récupérer la catégorie depuis le style si disponible
+    const category = (data.style as any)?.category || data.category || 'forages';
+    console.log('[GeoNote][fromBackendData] Catégorie récupérée:', category);
+
+    // Forcer la mise à jour du niveau d'accès et de la catégorie dans les données
     data.accessLevel = accessLevel;
+    data.category = category;
 
     // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
     const columnId = data.columnId || '1';
@@ -677,6 +724,8 @@ export class GeoNote extends L.Marker {
       location: latLng,
       name: note.properties.name,
       type: note.properties.type,
+      category: note.properties.category,
+      accessLevel: note.properties.accessLevel,
       style: note.properties.style
     });
 
@@ -692,6 +741,17 @@ export class GeoNote extends L.Marker {
     console.log('[GeoNote][saveNote] Sauvegarde directe de la note via l\'API');
 
     try {
+      // Mettre à jour les propriétés pour s'assurer qu'elles sont à jour
+      this.updateProperties();
+
+      // S'assurer que le style contient le niveau d'accès et la catégorie
+      const styleWithMetadata = {
+        ...this.properties.style,
+        _accessLevel: this.properties.accessLevel,
+        accessLevel: this.properties.accessLevel,
+        category: this.properties.category
+      };
+
       // Préparer les données pour l'envoi
       const noteData: any = {
         title: this.properties.name,
@@ -702,14 +762,7 @@ export class GeoNote extends L.Marker {
         },
         column: this.properties.columnId || '1', // Utiliser la colonne 'Idées' par défaut
         access_level: this.properties.accessLevel || 'company', // Valeur par défaut
-        style: this.properties.style || {
-          color: '#2b6451',
-          weight: 2,
-          opacity: 1,
-          fillColor: '#2b6451',
-          fillOpacity: 0.6,
-          radius: 8
-        },
+        style: styleWithMetadata,
         category: this.properties.category || 'forages',
         comments: this.properties.comments || [],
         photos: this.properties.photos || []

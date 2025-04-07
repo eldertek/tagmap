@@ -779,4 +779,40 @@ export const columnService = {
   }
 };
 
+// Service pour la météo
+export const weatherService = {
+  // Récupérer la liste des appareils disponibles
+  async getDevices(params: any = {}) {
+    const endMeasure = performanceMonitor.startMeasure('get_weather_devices', 'WeatherService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_weather_devices_request',
+        () => api.get('/weather/real-time/devices/', { params }),
+        'WeatherService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Récupérer les données météo en temps réel
+  async getRealTimeData(params: any) {
+    const endMeasure = performanceMonitor.startMeasure('get_weather_data', 'WeatherService');
+    try {
+      // Si params est une chaîne, c'est l'ancien format (mac uniquement)
+      const requestParams = typeof params === 'string'
+        ? { mac: params }
+        : params;
+
+      return await performanceMonitor.measureAsync(
+        'get_weather_data_request',
+        () => api.get('/weather/real-time/', { params: requestParams }),
+        'WeatherService'
+      );
+    } finally {
+      endMeasure();
+    }
+  }
+};
+
 export default api;

@@ -7,6 +7,7 @@ import base64
 import uuid
 from PIL import Image
 from io import BytesIO
+from rest_framework import viewsets
 
 User = get_user_model()  # Ceci pointera vers authentication.Utilisateur
 
@@ -537,3 +538,146 @@ class PlanDetailSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['createur'] = self.context['request'].user
         return super().create(validated_data)
+
+class EcowittDeviceSerializer(serializers.Serializer):
+    """Sérialiseur pour les appareils Ecowitt."""
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField()
+    mac = serializers.CharField()
+    type = serializers.IntegerField(required=False)
+    date_zone_id = serializers.CharField(source='timezone', required=False, allow_null=True)
+    timezone = serializers.CharField(source='date_zone_id', required=False, allow_null=True)
+    createtime = serializers.IntegerField(required=False)  # Utiliser champ natif sans conversion
+    created_at = serializers.SerializerMethodField(read_only=True)  # Champ calculé séparé
+    longitude = serializers.FloatField(required=False)
+    latitude = serializers.FloatField(required=False)
+    station_type = serializers.CharField(source='stationtype', required=False, allow_null=True)
+    iot_devices = serializers.ListField(source='iotdevice_list', required=False, default=list)
+
+    def get_created_at(self, obj):
+        """Convertit le champ createtime en datetime."""
+        try:
+            from datetime import datetime
+            createtime = obj.get('createtime', None)
+            if createtime and isinstance(createtime, (int, str)):
+                return datetime.fromtimestamp(int(createtime))
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return None
+
+    def to_representation(self, instance):
+        """Convertit les données et ajoute des champs calculés."""
+        # Vérifier si instance est un dict (plus sûr)
+        if not isinstance(instance, dict):
+            instance = dict(instance)
+            
+        data = super().to_representation(instance)
+                
+        # Ajout de la position formatée pour l'affichage si latitude et longitude sont disponibles
+        if 'latitude' in data and 'longitude' in data:
+            if data.get('latitude') is not None and data.get('longitude') is not None:
+                data['position'] = f"{data['latitude']}, {data['longitude']}"
+        
+        # Extraction de la version du firmware depuis station_type
+        station_type = data.get('station_type') or ''
+        if '_V' in station_type:
+            model, version = station_type.split('_V', 1)
+            data['model'] = model
+            data['firmware_version'] = version
+        else:
+            data['model'] = station_type
+            data['firmware_version'] = 'Inconnue'
+
+        # S'assurer que tous les champs nécessaires sont présents
+        # même s'ils n'étaient pas dans les données sources
+        default_fields = {
+            'id': data.get('id', 0),
+            'type': data.get('type', 0),
+            'date_zone_id': data.get('date_zone_id', 'UTC'),
+            'timezone': data.get('timezone', 'UTC'),
+            'longitude': data.get('longitude', 0.0),
+            'latitude': data.get('latitude', 0.0),
+            'station_type': data.get('station_type', ''),
+            'iot_devices': data.get('iot_devices', []),
+            'position': data.get('position', 'N/A'),
+            'model': data.get('model', ''),
+            'firmware_version': data.get('firmware_version', 'Inconnue')
+        }
+        
+        # Ajouter les champs manquants avec leurs valeurs par défaut
+        for key, value in default_fields.items():
+            if key not in data or data[key] is None:
+                data[key] = value
+                
+        return data
+
+class WeatherDataSerializer(serializers.Serializer):
+    """Sérialiseur pour les données météo en temps réel."""
+    outdoor = serializers.DictField(required=False)
+    indoor = serializers.DictField(required=False)
+    pressure = serializers.DictField(required=False)
+    wind = serializers.DictField(required=False)
+    rainfall = serializers.DictField(required=False)
+    solar_and_uvi = serializers.DictField(required=False)
+    battery = serializers.DictField(required=False)
+    timestamp = serializers.DateTimeField(required=False)
+
+    def to_representation(self, instance):
+        """
+        Convertit les valeurs textuelles en valeurs numériques appropriées
+        lorsque c'est possible.
+        """
+        data = super().to_representation(instance)
+        
+        # Convertir les valeurs de pression de texte en nombre
+        if 'pressure' in data:
+            self._convert_nested_values(data['pressure'])
+            
+        # Convertir d'autres valeurs numériques en nombres
+        if 'outdoor' in data:
+            self._convert_nested_values(data['outdoor'])
+        
+        if 'indoor' in data:
+            self._convert_nested_values(data['indoor'])
+            
+        if 'wind' in data:
+            self._convert_nested_values(data['wind'])
+            
+        if 'rainfall' in data:
+            self._convert_nested_values(data['rainfall'])
+            
+        if 'solar_and_uvi' in data:
+            self._convert_nested_values(data['solar_and_uvi'])
+            
+        return data
+    
+    def _convert_nested_values(self, data_dict):
+        """
+        Convertit récursivement les valeurs textuelles en nombres
+        dans un dictionnaire imbriqué.
+        """
+        if not isinstance(data_dict, dict):
+            return
+            
+        for key, value in data_dict.items():
+            if isinstance(value, dict):
+                # Si c'est un dict contenant unit et value, convertir la valeur
+                if 'value' in value and isinstance(value['value'], str):
+                    try:
+                        value['value'] = float(value['value'])
+                    except (ValueError, TypeError):
+                        # Garder la valeur telle quelle si la conversion échoue
+                        pass
+                # Sinon, traiter récursivement
+                else:
+                    self._convert_nested_values(value)
+
+class NoteColumnViewSet(viewsets.ViewSet):
+    """ViewSet pour la gestion des colonnes de notes fixes."""
+    FIXED_COLUMNS = [
+        {'id': '1', 'title': 'Idées', 'color': '#8B5CF6', 'order': 0, 'is_default': False},
+        {'id': '2', 'title': 'À faire', 'color': '#F59E0B', 'order': 1, 'is_default': True},
+        {'id': '3', 'title': 'En cours', 'color': '#3B82F6', 'order': 2, 'is_default': False},
+        {'id': '4', 'title': 'Terminées', 'color': '#10B981', 'order': 3, 'is_default': False},
+        {'id': '5', 'title': 'Autres', 'color': '#6B7280', 'order': 4, 'is_default': False}
+    ]

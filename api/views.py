@@ -24,7 +24,8 @@ from .serializers import (
     UserSerializer, SalarieSerializer, ClientSerializer,
     PlanSerializer, FormeGeometriqueSerializer, ConnexionSerializer,
     TexteAnnotationSerializer, PlanDetailSerializer, GeoNoteSerializer,
-    NoteCommentSerializer, NotePhotoSerializer, NoteColumnSerializer
+    NoteCommentSerializer, NotePhotoSerializer, NoteColumnSerializer,
+    WeatherDataSerializer, EcowittDeviceSerializer
 )
 from plans.models import (
     Plan, FormeGeometrique, Connexion, TexteAnnotation,
@@ -1054,6 +1055,309 @@ def elevation_proxy(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+class WeatherViewSet(viewsets.ViewSet):
+    """ViewSet pour la gestion des données météo."""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = WeatherDataSerializer
+
+    # URL de base de l'API Ecowitt
+    ECOWITT_BASE_URL = 'https://api.ecowitt.net/api/v3'
+
+    def get_ecowitt_config(self):
+        """Récupère la configuration Ecowitt pour l'utilisateur actuel."""
+        user = self.request.user
+        entreprise_id = self.request.query_params.get('entreprise')
+        config = None
+        error_message = None
+
+        # Si un ID d'entreprise est spécifié et que l'utilisateur est admin
+        if entreprise_id and user.role == 'ADMIN':
+            try:
+                from authentication.models import Utilisateur
+                entreprise = Utilisateur.objects.get(id=entreprise_id, role='ENTREPRISE')
+                if entreprise.ecowitt_api_key and entreprise.ecowitt_application_key:
+                    config = {
+                        'api_key': entreprise.ecowitt_api_key,
+                        'application_key': entreprise.ecowitt_application_key,
+                        'base_url': self.ECOWITT_BASE_URL
+                    }
+                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {entreprise.company_name}")
+                else:
+                    error_message = f"L'entreprise {entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
+            except Exception as e:
+                print(f"[WeatherViewSet][get_ecowitt_config] Erreur lors de la récupération de l'entreprise: {str(e)}")
+                error_message = "Erreur lors de la récupération de l'entreprise."
+
+        # Sinon, utiliser l'entreprise de l'utilisateur ou sa hiérarchie
+        else:
+            # Si l'utilisateur est une entreprise
+            if user.role == 'ENTREPRISE':
+                if user.ecowitt_api_key and user.ecowitt_application_key:
+                    config = {
+                        'api_key': user.ecowitt_api_key,
+                        'application_key': user.ecowitt_application_key,
+                        'base_url': self.ECOWITT_BASE_URL
+                    }
+                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.company_name}")
+                else:
+                    error_message = "Vous n'avez pas configuré vos clés API Ecowitt. Veuillez les ajouter dans votre profil."
+
+            # Si l'utilisateur est un salarié, utiliser les clés de son entreprise
+            elif user.role == 'SALARIE' and user.entreprise:
+                if user.entreprise.ecowitt_api_key and user.entreprise.ecowitt_application_key:
+                    config = {
+                        'api_key': user.entreprise.ecowitt_api_key,
+                        'application_key': user.entreprise.ecowitt_application_key,
+                        'base_url': self.ECOWITT_BASE_URL
+                    }
+                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.entreprise.company_name}")
+                else:
+                    error_message = f"L'entreprise {user.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+
+            # Si l'utilisateur est un visiteur, utiliser les clés de l'entreprise associée
+            elif user.role == 'VISITEUR' and user.salarie and user.salarie.entreprise:
+                if user.salarie.entreprise.ecowitt_api_key and user.salarie.entreprise.ecowitt_application_key:
+                    config = {
+                        'api_key': user.salarie.entreprise.ecowitt_api_key,
+                        'application_key': user.salarie.entreprise.ecowitt_application_key,
+                        'base_url': self.ECOWITT_BASE_URL
+                    }
+                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.salarie.entreprise.company_name}")
+                else:
+                    error_message = f"L'entreprise {user.salarie.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+            else:
+                error_message = "Impossible de déterminer l'entreprise associée. Veuillez contacter votre administrateur."
+
+        return config, error_message
+
+    def log_api_response(self, endpoint: str, response: requests.Response, error: bool = False):
+        """Fonction utilitaire pour logger les réponses de l'API."""
+        print(f"\n[WeatherViewSet][{endpoint}] {'❌ ERREUR' if error else '✅ SUCCÈS'} API Ecowitt")
+        print(f"URL: {response.url}")
+        print(f"Status: {response.status_code}")
+        print(f"Headers: {dict(response.headers)}")
+
+        try:
+            data = response.json()
+            print(f"Response Code: {data.get('code')}")
+            print(f"Message: {data.get('msg')}")
+            if not error and 'data' in data:
+                print("\nDonnées disponibles:")
+                self.log_data_structure(data['data'])
+        except Exception as e:
+            print(f"Erreur lors du parsing JSON: {str(e)}")
+            print(f"Contenu brut: {response.text[:500]}...")
+
+    def log_data_structure(self, data: dict, prefix: str = "", depth: int = 0):
+        """Affiche la structure des données de manière récursive."""
+        if depth > 5:  # Limite la profondeur pour éviter les boucles infinies
+            return
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                current_path = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, (dict, list)):
+                    print(f"{'  ' * depth}📁 {current_path}")
+                    self.log_data_structure(value, current_path, depth + 1)
+                else:
+                    print(f"{'  ' * depth}📄 {current_path}: {type(value).__name__} = {value}")
+        elif isinstance(data, list):
+            if data:
+                print(f"{'  ' * depth}📋 {prefix} (Liste de {len(data)} éléments)")
+                self.log_data_structure(data[0], f"{prefix}[0]", depth + 1)
+            else:
+                print(f"{'  ' * depth}📋 {prefix} (Liste vide)")
+
+    def get_devices(self):
+        """Récupère la liste des appareils disponibles."""
+        try:
+            print("\n[WeatherViewSet][get_devices] 🔍 Récupération des appareils")
+            config, error_message = self.get_ecowitt_config()
+
+            # Si aucune configuration n'est disponible, retourner l'erreur
+            if not config:
+                print(f"[WeatherViewSet][get_devices] ❌ Erreur: {error_message}")
+                return None, error_message
+
+            api_url = f"{config['base_url']}/device/list"
+            params = {
+                'application_key': config['application_key'],
+                'api_key': config['api_key'],
+            }
+
+            print(f"URL: {api_url}")
+            print(f"Paramètres: {params}")
+
+            response = requests.get(api_url, params=params)
+
+            if response.status_code != 200:
+                self.log_api_response('get_devices', response, error=True)
+                return None
+
+            data = response.json()
+            if data.get('code') != 0:
+                self.log_api_response('get_devices', response, error=True)
+                return None
+
+            self.log_api_response('get_devices', response)
+
+            # Récupérer la liste des appareils depuis la réponse
+            # La liste peut être soit directement dans data['devices'], soit dans data['list']
+            devices = []
+            if 'devices' in data.get('data', {}):
+                devices = data['data']['devices']
+            elif 'list' in data.get('data', {}):
+                devices = data['data']['list']
+
+            print(f"[WeatherViewSet][get_devices] Nombre d'appareils trouvés: {len(devices)}")
+            return devices
+
+        except Exception as e:
+            print(f"\n[WeatherViewSet][get_devices] ❌ Exception: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return None
+
+    @action(detail=False, methods=['get'])
+    def devices(self, request):
+        """Liste tous les appareils disponibles."""
+        print("\n[WeatherViewSet][devices] 📱 Récupération de la liste des appareils")
+        result = self.get_devices()
+
+        # Si le résultat est un tuple, c'est qu'il contient (None, error_message)
+        if isinstance(result, tuple):
+            devices, error_message = result
+            if devices is None:
+                return Response(
+                    {'error': error_message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            devices = result
+
+        if devices is None:
+            return Response(
+                {'error': 'Erreur lors de la récupération des appareils'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        print(f"Nombre d'appareils trouvés: {len(devices)}")
+        for device in devices:
+            print(f"\nAppareil trouvé:")
+            print(f"  - MAC: {device.get('mac')}")
+            print(f"  - Nom: {device.get('name')}")
+            print(f"  - Type: {device.get('stationtype', device.get('station_type', 'Inconnu'))}")
+
+            # Extraire la version du firmware si disponible
+            station_type = device.get('stationtype', device.get('station_type', ''))
+            firmware = 'Inconnue'
+            if '_V' in station_type:
+                firmware = station_type.split('_V')[1]
+            print(f"  - Firmware: {firmware}")
+
+            # Afficher l'intervalle de rapport s'il est disponible
+            print(f"  - Intervalle: {device.get('report_interval', 'N/A')}s")
+
+        serializer = EcowittDeviceSerializer(devices, many=True)
+        return Response(serializer.data)
+
+    def list(self, request):
+        """Récupère les données météo en temps réel pour un appareil spécifique."""
+        device_mac = request.query_params.get('mac')
+        print(f"\n[WeatherViewSet][list] 🌤 Récupération des données météo")
+        print(f"MAC demandé: {device_mac}")
+
+        # Si aucun MAC n'est spécifié, récupérer la liste des appareils
+        if not device_mac:
+            devices = self.get_devices()
+            if not devices:
+                return Response(
+                    {'error': 'Aucun appareil disponible'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Utiliser le premier appareil de la liste
+            device_mac = devices[0].get('mac')
+            if not device_mac:
+                return Response(
+                    {'error': 'Identifiant MAC manquant pour l\'appareil'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            print(f"Utilisation du premier appareil disponible: {device_mac}")
+
+        try:
+            config, error_message = self.get_ecowitt_config()
+
+            # Si aucune configuration n'est disponible, retourner l'erreur
+            if not config:
+                print(f"[WeatherViewSet][list] ❌ Erreur: {error_message}")
+                return Response(
+                    {'error': error_message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            api_url = f"{config['base_url']}/device/real_time"
+            params = {
+                'application_key': config['application_key'],
+                'api_key': config['api_key'],
+                'mac': device_mac,
+                'call_back': 'all'
+            }
+
+            print(f"URL: {api_url}")
+            print(f"Paramètres: {params}")
+
+            response = requests.get(api_url, params=params)
+
+            if response.status_code != 200:
+                self.log_api_response('list', response, error=True)
+                return Response(
+                    {'error': 'Erreur lors de la récupération des données météo'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            data = response.json()
+            if data.get('code') != 0:
+                self.log_api_response('list', response, error=True)
+                return Response(
+                    {'error': data.get('msg', 'Erreur inconnue')},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            self.log_api_response('list', response)
+
+            # Obtenir les données depuis le chemin approprié dans la réponse
+            weather_data = data.get('data', {})
+
+            # Vérifier si les données existent et sont complètes
+            if not weather_data:
+                print(f"⚠️ Aucune donnée météo reçue de l'API pour l'appareil {device_mac}")
+                return Response(
+                    {'error': 'Aucune donnée météo disponible'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Sérialiser et retourner les données
+            serializer = WeatherDataSerializer(data=weather_data)
+            if serializer.is_valid():
+                return Response(serializer.data)
+
+            print(f"❌ Erreur de sérialisation: {serializer.errors}")
+            return Response(
+                serializer.errors,
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception as e:
+            print(f"\n[WeatherViewSet][list] ❌ Exception: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class NoteColumnViewSet(viewsets.ViewSet):
     """ViewSet pour la gestion des colonnes de notes fixes."""

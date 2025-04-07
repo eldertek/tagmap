@@ -77,6 +77,23 @@ class Utilisateur(AbstractUser):
         help_text='Espace de stockage actuellement utilisé en mégaoctets'
     )
 
+    # Clés API Ecowitt pour les entreprises
+    ecowitt_api_key = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Clé API Ecowitt',
+        help_text='Clé API pour accéder aux services Ecowitt'
+    )
+
+    ecowitt_application_key = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Clé d\'application Ecowitt',
+        help_text='Clé d\'application pour accéder aux services Ecowitt'
+    )
+
     class Meta:
         verbose_name = 'Utilisateur'
         verbose_name_plural = 'Utilisateurs'

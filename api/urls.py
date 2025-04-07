@@ -12,6 +12,7 @@ from .views import (
     NoteCommentViewSet,
     NotePhotoViewSet,
     NoteColumnViewSet,
+    WeatherViewSet,
     elevation_proxy
 )
 
@@ -27,6 +28,7 @@ router.register(r'notes', GeoNoteViewSet, basename='note')
 router.register(r'note-comments', NoteCommentViewSet, basename='note-comment')
 router.register(r'note-photos', NotePhotoViewSet, basename='note-photo')
 router.register(r'columns', NoteColumnViewSet, basename='column')
+router.register(r'weather/real-time', WeatherViewSet, basename='weather')
 
 # Routers imbriqués pour les commentaires et photos de notes
 notes_router = NestedDefaultRouter(router, r'notes', lookup='note')

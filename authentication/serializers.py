@@ -21,20 +21,20 @@ class UserDetailsSerializer(serializers.ModelSerializer):
     def get_logo(self, obj):
         """Retourne l'URL du logo de l'utilisateur s'il existe."""
         print(f"\n[UserDetailsSerializer][get_logo] Vérification du logo pour {obj.username} (ID: {obj.id})")
-        
+
         if not hasattr(obj, 'logo'):
             print(f"[UserDetailsSerializer][get_logo] L'objet n'a pas d'attribut 'logo'")
             return None
-            
+
         print(f"[UserDetailsSerializer][get_logo] Attribut logo: {obj.logo}")
-        
+
         if not obj.logo:
             print(f"[UserDetailsSerializer][get_logo] Pas de logo configuré pour {obj.username}")
             return None
-            
+
         try:
             from django.conf import settings
-            
+
             # Simplement retourner l'URL relative commençant par "/"
             if hasattr(obj.logo, 'url'):
                 logo_url = obj.logo.url
@@ -46,12 +46,12 @@ class UserDetailsSerializer(serializers.ModelSerializer):
                 logo_url = f"{settings.MEDIA_URL}{logo_path}"
                 print(f"[UserDetailsSerializer][get_logo] URL relative construite: {logo_url}")
                 return logo_url
-                
+
         except Exception as e:
             print(f"[UserDetailsSerializer][get_logo] ERREUR lors de la récupération de l'URL du logo: {str(e)}")
             import traceback
             print(f"[UserDetailsSerializer][get_logo] Traceback:\n{traceback.format_exc()}")
-            
+
             # En cas d'erreur, tenter une solution de secours
             try:
                 from django.conf import settings
@@ -93,7 +93,7 @@ class UserSerializer(serializers.ModelSerializer):
         write_only=True
     )
     salarie = UserNestedSerializer(read_only=True)
-    
+
     class Meta:
         model = User
         fields = [
@@ -101,7 +101,8 @@ class UserSerializer(serializers.ModelSerializer):
             'password', 'old_password', 'role', 'salarie', 'salarie_id',
             'salarie_name', 'company_name', 'must_change_password', 'phone',
             'full_name', 'is_active', 'permissions', 'user_type', 'plans_count',
-            'entreprise', 'entreprise_id', 'logo'
+            'entreprise', 'entreprise_id', 'logo', 'ecowitt_api_key', 'ecowitt_application_key',
+            'storage_quota', 'storage_used'
         ]
         read_only_fields = ['id']
         extra_kwargs = {
@@ -129,7 +130,7 @@ class UserSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'salarie': 'Un salarie doit être spécifié pour un visiteur'
                 })
-            
+
             # Vérifier que le salarie existe et a une entreprise
             if salarie:
                 try:
@@ -154,15 +155,15 @@ class UserSerializer(serializers.ModelSerializer):
         print(f"\n[UserSerializer][to_representation] ====== DÉBUT SÉRIALISATION ======")
         print(f"Instance ID: {instance.id}")
         print(f"Logo URL: {instance.logo.url if instance.logo else None}")
-        
+
         data = super().to_representation(instance)
         print(f"Données sérialisées: {data}")
         print("[UserSerializer][to_representation] ====== FIN SÉRIALISATION ======\n")
-        
+
         # Pour un salarie, inclure son entreprise
         if instance.role == 'SALARIE':
             data['entreprise'] = UserNestedSerializer(instance.entreprise).data if instance.entreprise else None
-        
+
         # Pour un visiteur, inclure son salarie et l'entreprise associée
         elif instance.role == 'VISITEUR':
             if instance.salarie:
@@ -228,9 +229,9 @@ class UserSerializer(serializers.ModelSerializer):
         """Met à jour un utilisateur existant."""
         password = validated_data.pop('password', None)
         old_password = validated_data.pop('old_password', None)
-        
+
         print("Update validated_data:", validated_data)
-        
+
         # Si un nouveau mot de passe est fourni
         if password:
             if instance.must_change_password or (old_password and instance.check_password(old_password)):
@@ -243,7 +244,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         # Gérer les relations selon le rôle
         role = validated_data.get('role', instance.role)
-        
+
         # Pour un salarie
         if role == 'SALARIE':
             entreprise = validated_data.get('entreprise')
@@ -254,7 +255,7 @@ class UserSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'entreprise': 'Une entreprise doit être spécifiée pour un salarie'
                 })
-        
+
         # Pour un visiteur
         elif role == 'VISITEUR':
             salarie = validated_data.get('salarie')
@@ -265,12 +266,12 @@ class UserSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'salarie': 'Un salarie doit être spécifié pour un visiteur'
                 })
-        
+
         # Pour une entreprise
         elif role == 'ENTREPRISE':
             instance.entreprise = None
             instance.salarie = None
-        
+
         # Pour un admin
         elif role == 'ADMIN':
             instance.entreprise = None
@@ -280,7 +281,7 @@ class UserSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             if attr not in ['entreprise', 'salarie']:
                 setattr(instance, attr, value)
-        
+
         instance.save()
         return instance
 
@@ -294,4 +295,4 @@ class SalarieListSerializer(serializers.ModelSerializer):
 
     def get_name(self, obj):
         """Retourne le nom d'affichage standardisé du salarie."""
-        return obj.get_display_name() 
+        return obj.get_display_name()
