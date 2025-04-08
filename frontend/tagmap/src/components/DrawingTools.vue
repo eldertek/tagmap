@@ -1,373 +1,384 @@
 <!-- DrawingTools.vue -->
 <template>
-  <div class="h-full flex flex-col bg-white">
-    <!-- Header avec titre (masqué sur mobile car déjà dans le panneau parent) -->
-    <div class="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center md:flex hidden">
-      <h3 class="text-sm font-semibold text-gray-700">Outils de dessin</h3>
+  <div class="drawing-tools-panel" :class="{ 'open': show }">
+    <!-- En-tête sur mobile uniquement -->
+    <div class="hidden md:hidden flex-mobile items-center justify-between p-4 border-b border-gray-200">
+      <div class="flex items-center">
+        <div class="w-10 h-1.5 bg-gray-300 rounded-full mr-3"></div>
+        <h3 class="text-sm font-semibold text-gray-700">Outils de dessin</h3>
+      </div>
+      <button
+        @click="$emit('update:show', false)"
+        class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
 
-    <!-- Navigation par onglets -->
-    <div class="border-b border-gray-200">
-      <nav class="flex -mb-px">
-        <!-- Onglet Outils (toujours visible) -->
-        <button @click="activeTab = 'tools'"
-          :class="[activeTab === 'tools' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-          <span>Outils</span>
-        </button>
-        <!-- Onglet Style (visible uniquement si une forme est sélectionnée et ce n'est pas une Note) -->
-        <button v-if="selectedShape && selectedShape.properties?.type !== 'Note'" @click="activeTab = 'style'"
-          :class="[activeTab === 'style' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-          </svg>
-          <span>Style</span>
-        </button>
-        <!-- Onglet Filtres (toujours visible) -->
-        <button @click="switchToFiltersTab"
-          :class="[activeTab === 'filters' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <span>Filtres</span>
-        </button>
-      </nav>
-    </div>
-
-    <!-- Contenu des onglets -->
+    <!-- Contenu principal -->
     <div class="flex-1 overflow-y-auto">
-      <!-- Onglet Outils -->
-      <div v-if="activeTab === 'tools'" class="p-3">
-        <!-- Outils de dessin - version compacte avec icônes -->
-        <div class="grid grid-cols-4 gap-1.5 mb-4">
-          <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
-            class="flex items-center justify-center p-2 rounded-md border"
-            :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
-            @click="handleToolClick(tool.type)" :title="tool.label">
-            <span class="icon" v-html="getToolIcon(tool.type)"></span>
+      <!-- Navigation par onglets -->
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
+          <button @click="activeTab = 'tools'"
+            :class="[activeTab === 'tools' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            <span>Outils</span>
           </button>
+          <button v-if="selectedShape && selectedShape.properties?.type !== 'Note'" @click="activeTab = 'style'"
+            :class="[activeTab === 'style' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+            <span>Style</span>
+          </button>
+          <button @click="switchToFiltersTab"
+            :class="[activeTab === 'filters' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300', 'flex-1 py-3 px-1 text-center border-b-2 font-medium text-sm']">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto mb-1" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span>Filtres</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Contenu des onglets -->
+      <div class="flex-1 overflow-y-auto">
+        <!-- Onglet Outils -->
+        <div v-if="activeTab === 'tools'" class="p-3">
+          <!-- Outils de dessin - version compacte avec icônes -->
+          <div class="grid grid-cols-4 gap-1.5 mb-4">
+            <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
+              class="flex items-center justify-center p-2 rounded-md border"
+              :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
+              @click="handleToolClick(tool.type)" :title="tool.label">
+              <span class="icon" v-html="getToolIcon(tool.type)"></span>
+            </button>
+          </div>
+          <!-- Bouton de suppression -->
+          <button v-if="selectedShape"
+            class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
+            :class="{ 'bg-red-100': currentTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span class="text-sm">Supprimer</span>
+          </button>
+
+          <!-- Séparateur -->
+          <div v-if="selectedShape && localProperties" class="my-4 border-t border-gray-200"></div>
+
+          <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
+          <div v-if="selectedShape && localProperties" class="mt-4">
+            <!-- Champ pour nommer la forme (masqué pour les Notes) -->
+            <div v-if="localProperties.type !== 'Note'" class="mb-4">
+              <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
+              <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
+                placeholder="Donnez un nom à cette forme"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
+            </div>
+
+            <!-- Catégorie de la forme -->
+            <div class="mb-4">
+              <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+              <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                <option value="forages">Forages</option>
+                <option value="clients">Clients</option>
+                <option value="entrepots">Entrepôts</option>
+                <option value="livraisons">Lieux de livraison</option>
+                <option value="cultures">Cultures</option>
+                <option value="parcelles">Noms des parcelles</option>
+                <option value="default">Autre</option>
+              </select>
+            </div>
+
+            <!-- Niveau d'accès -->
+            <div class="mb-4">
+              <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
+              <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
+                Définit qui peut voir cet élément sur la carte.
+              </div>
+              <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                <option value="company">Entreprise uniquement</option>
+                <option value="employee">Entreprise et salariés</option>
+                <option value="visitor">Tous (visiteurs inclus)</option>
+              </select>
+            </div>
+
+            <!-- Tableau compact des propriétés pour tous les types -->
+            <div class="grid grid-cols-1 gap-4">
+              <!-- Polygone -->
+              <template v-if="localProperties.type === 'Polygon'">
+                <div class="space-y-1">
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700">Surface :</span>
+                    <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0)
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
+                    <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0)
+                    }}</span>
+                  </div>
+                </div>
+              </template>
+
+
+              <!-- Ligne -->
+              <template v-else-if="localProperties.type === 'Line'">
+                <span class="text-sm font-semibold text-gray-700">Longueur :</span>
+                <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.length || 0) }}</span>
+              </template>
+              <!-- ElevationLine -->
+              <template v-else-if="localProperties.type === 'ElevationLine'">
+                <!-- Propriétés sur une seule colonne -->
+                <div class="flex flex-col space-y-2 w-full">
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0)
+                    }}</span>
+                  </div>
+
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain
+                      || 0) }}</span>
+                  </div>
+
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss
+                      || 0) }}</span>
+                  </div>
+
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope ||
+                      0) }}</span>
+                  </div>
+
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
+                    <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0)
+                    }}</span>
+                  </div>
+                </div>
+
+                <!-- Graphique du profil sur toute la largeur -->
+                <div ref="elevationProfileContainer"
+                  class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4">
+                  <canvas ref="elevationCanvas"></canvas>
+                </div>
+              </template>
+            </div>
+          </div>
         </div>
-        <!-- Bouton de suppression -->
-        <button v-if="selectedShape"
-          class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
-          :class="{ 'bg-red-100': currentTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          <span class="text-sm">Supprimer</span>
-        </button>
 
-        <!-- Séparateur -->
-        <div v-if="selectedShape && localProperties" class="my-4 border-t border-gray-200"></div>
-
-        <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
-        <div v-if="selectedShape && localProperties" class="mt-4">
-          <!-- Champ pour nommer la forme (masqué pour les Notes) -->
-          <div v-if="localProperties.type !== 'Note'" class="mb-4">
-            <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
-            <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
-              placeholder="Donnez un nom à cette forme"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
+        <!-- Onglet Style -->
+        <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3">
+          <!-- Couleurs prédéfinies - compact -->
+          <div class="grid grid-cols-6 gap-2 mb-4">
+            <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
+              :style="{ backgroundColor: color }" @click="selectPresetColor(color)" :title="color"></button>
           </div>
-
-          <!-- Catégorie de la forme -->
-          <div class="mb-4">
-            <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-            <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-              <option value="forages">Forages</option>
-              <option value="clients">Clients</option>
-              <option value="entrepots">Entrepôts</option>
-              <option value="livraisons">Lieux de livraison</option>
-              <option value="cultures">Cultures</option>
-              <option value="parcelles">Noms des parcelles</option>
-              <option value="default">Autre</option>
-            </select>
+          <!-- Contrôles de style pour les formes standards (non TextRectangle) -->
+          <div v-if="localProperties?.type !== 'TextRectangle'" class="space-y-4">
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
+              <div class="flex items-center gap-2">
+                <input type="color" v-model="strokeColor" class="w-16 h-8 rounded border"
+                  @change="updateStyle({ strokeColor })" title="Couleur du contour" />
+                <input type="range" v-model="strokeWidth" min="1" max="10" class="w-16 h-2 rounded-md"
+                  @change="updateStyle({ strokeWidth })" title="Épaisseur du contour" />
+              </div>
+            </div>
+            <!-- Style de trait -->
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-sm font-semibold text-gray-700">Style</span>
+              <select v-model="strokeStyle" class="w-full rounded border" @change="updateStyle({ strokeStyle })">
+                <option v-for="style in strokeStyles" :key="style.value" :value="style.value">
+                  {{ style.label }}
+                </option>
+              </select>
+            </div>
+            <div v-if="showFillOptions" class="flex items-center gap-4">
+              <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
+              <div class="flex items-center gap-2">
+                <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
+                  @change="updateStyle({ fillColor })" title="Couleur de remplissage" />
+                <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" class="w-16 h-2 rounded-md"
+                  @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
+              </div>
+            </div>
           </div>
+          <!-- Options spécifiques au TextRectangle -->
+          <div v-if="localProperties?.type === 'TextRectangle'" class="space-y-4">
+            <!-- Contour du rectangle avec texte -->
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
+              <div class="flex items-center gap-2">
+                <input type="color" v-model="strokeColor" class="w-16 h-8 rounded border"
+                  @change="updateStyle({ strokeColor })" title="Couleur du contour" />
+                <input type="range" v-model="strokeWidth" min="1" max="10" class="w-16 h-2 rounded-md"
+                  @change="updateStyle({ strokeWidth })" title="Épaisseur du contour" />
+              </div>
+            </div>
+            <!-- Remplissage du rectangle -->
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
+              <div class="flex items-center gap-2">
+                <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
+                  @change="updateStyle({ fillColor })" title="Couleur de remplissage" />
+                <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" class="w-16 h-2 rounded-md"
+                  @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <!-- Niveau d'accès -->
-          <div class="mb-4">
-            <label for="accessLevel" class="block text-sm font-medium text-gray-700 mb-1">Niveau d'accès</label>
+        <!-- Onglet Filtres -->
+        <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
+          <!-- Section des niveaux d'accès avec liste déroulante -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
             <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
-              Définit qui peut voir cet élément sur la carte.
+              Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
             </div>
-            <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-              <option value="company">Entreprise uniquement</option>
-              <option value="employee">Entreprise et salariés</option>
-              <option value="visitor">Tous (visiteurs inclus)</option>
-            </select>
-          </div>
-
-          <!-- Tableau compact des propriétés pour tous les types -->
-          <div class="grid grid-cols-1 gap-4">
-            <!-- Polygone -->
-            <template v-if="localProperties.type === 'Polygon'">
-              <div class="space-y-1">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Surface :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatArea(localProperties.surface || 0)
-                  }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700">Périmètre :</span>
-                  <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.perimeter || 0)
-                  }}</span>
-                </div>
+            <div>
+              <select v-model="selectedAccessLevel" @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
+                <option value="company">Entreprise (accès à tout)</option>
+                <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
+                <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
+              </select>
+              <div class="mt-2 text-xs text-gray-500">
+                <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
+                <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
+                <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
               </div>
-            </template>
-
-
-            <!-- Ligne -->
-            <template v-else-if="localProperties.type === 'Line'">
-              <span class="text-sm font-semibold text-gray-700">Longueur :</span>
-              <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.length || 0) }}</span>
-            </template>
-            <!-- ElevationLine -->
-            <template v-else-if="localProperties.type === 'ElevationLine'">
-              <!-- Propriétés sur une seule colonne -->
-              <div class="flex flex-col space-y-2 w-full">
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
-                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0)
-                  }}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
-                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain
-                    || 0) }}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
-                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss
-                    || 0) }}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
-                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope ||
-                    0) }}</span>
-                </div>
-
-                <div class="flex justify-between items-center">
-                  <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
-                  <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0)
-                  }}</span>
-                </div>
-              </div>
-
-              <!-- Graphique du profil sur toute la largeur -->
-              <div ref="elevationProfileContainer"
-                class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4">
-                <canvas ref="elevationCanvas"></canvas>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      <!-- Onglet Style -->
-      <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3">
-        <!-- Couleurs prédéfinies - compact -->
-        <div class="grid grid-cols-6 gap-2 mb-4">
-          <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
-            :style="{ backgroundColor: color }" @click="selectPresetColor(color)" :title="color"></button>
-        </div>
-        <!-- Contrôles de style pour les formes standards (non TextRectangle) -->
-        <div v-if="localProperties?.type !== 'TextRectangle'" class="space-y-4">
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
-            <div class="flex items-center gap-2">
-              <input type="color" v-model="strokeColor" class="w-16 h-8 rounded border"
-                @change="updateStyle({ strokeColor })" title="Couleur du contour" />
-              <input type="range" v-model="strokeWidth" min="1" max="10" class="w-16 h-2 rounded-md"
-                @change="updateStyle({ strokeWidth })" title="Épaisseur du contour" />
             </div>
           </div>
-          <!-- Style de trait -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Style</span>
-            <select v-model="strokeStyle" class="w-full rounded border" @change="updateStyle({ strokeStyle })">
-              <option v-for="style in strokeStyles" :key="style.value" :value="style.value">
-                {{ style.label }}
-              </option>
-            </select>
-          </div>
-          <div v-if="showFillOptions" class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
-            <div class="flex items-center gap-2">
-              <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
-                @change="updateStyle({ fillColor })" title="Couleur de remplissage" />
-              <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" class="w-16 h-2 rounded-md"
-                @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
-            </div>
-          </div>
-        </div>
-        <!-- Options spécifiques au TextRectangle -->
-        <div v-if="localProperties?.type === 'TextRectangle'" class="space-y-4">
-          <!-- Contour du rectangle avec texte -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
-            <div class="flex items-center gap-2">
-              <input type="color" v-model="strokeColor" class="w-16 h-8 rounded border"
-                @change="updateStyle({ strokeColor })" title="Couleur du contour" />
-              <input type="range" v-model="strokeWidth" min="1" max="10" class="w-16 h-2 rounded-md"
-                @change="updateStyle({ strokeWidth })" title="Épaisseur du contour" />
-            </div>
-          </div>
-          <!-- Remplissage du rectangle -->
-          <div class="flex items-center gap-4">
-            <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
-            <div class="flex items-center gap-2">
-              <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
-                @change="updateStyle({ fillColor })" title="Couleur de remplissage" />
-              <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" class="w-16 h-2 rounded-md"
-                @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Onglet Filtres -->
-      <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
-        <!-- Section des niveaux d'accès avec liste déroulante -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
-          <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
-            Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
-          </div>
-          <div>
-            <select v-model="selectedAccessLevel" @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
-              <option value="company">Entreprise (accès à tout)</option>
-              <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
-              <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
-            </select>
-            <div class="mt-2 text-xs text-gray-500">
-              <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
-              <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
-              <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section des catégories d'éléments -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
-          <div class="space-y-1">
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Forages</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Clients</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Cultures</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
-            </label>
-
-            <!-- Afficher les filtres personnalisés existants -->
-            <template v-for="(value, key) in filters.categories" :key="key">
-              <label v-if="!defaultCategories.includes(String(key))" class="flex items-center">
-                <input type="checkbox" v-model="filters.categories[key]" @change="deselectCurrentShape"
+          <!-- Section des catégories d'éléments -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
+            <div class="space-y-1">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape"
                   class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">{{ key }}</span>
+                <span class="ml-2 text-sm text-gray-700">Forages</span>
               </label>
-            </template>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Clients</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Cultures</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
+              </label>
 
-            <!-- Ajout de filtre personnalisé (visible uniquement pour admin et entreprise) -->
-            <div v-if="isAdmin || isEntreprise" class="mt-2 pt-2 border-t border-gray-200">
-              <div class="flex space-x-2">
-                <input
-                  type="text"
-                  v-model="newFilter.name"
-                  placeholder="Nouveau filtre..."
-                  class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-                />
-                <button
-                  @click="createFilter"
-                  :disabled="!newFilter.name || isCreatingFilter"
-                  class="px-2 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                  <svg v-if="!isCreatingFilter" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </button>
+              <!-- Afficher les filtres personnalisés existants -->
+              <template v-for="(value, key) in filters.categories" :key="key">
+                <label v-if="!defaultCategories.includes(String(key))" class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories[key]" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">{{ key }}</span>
+                </label>
+              </template>
+
+              <!-- Ajout de filtre personnalisé (visible uniquement pour admin et entreprise) -->
+              <div v-if="isAdmin || isEntreprise" class="mt-2 pt-2 border-t border-gray-200">
+                <div class="flex space-x-2">
+                  <input
+                    type="text"
+                    v-model="newFilter.name"
+                    placeholder="Nouveau filtre..."
+                    class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <button
+                    @click="createFilter"
+                    :disabled="!newFilter.name || isCreatingFilter"
+                    class="px-2 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="!isCreatingFilter" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Section des types de formes -->
-        <div class="space-y-2">
-          <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
-          <div class="space-y-1">
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Polygones</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Lignes</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
-            </label>
-            <label class="flex items-center">
-              <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape"
-                class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-              <span class="ml-2 text-sm text-gray-700">Notes</span>
-            </label>
+          <!-- Section des types de formes -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
+            <div class="space-y-1">
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Polygones</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Lignes</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
+              </label>
+              <label class="flex items-center">
+                <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape"
+                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                <span class="ml-2 text-sm text-gray-700">Notes</span>
+              </label>
+            </div>
           </div>
+
+          <!-- Bouton de réinitialisation -->
+          <div class="pt-2">
+            <button @click="resetFiltersAndDeselect"
+              class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
+              Réinitialiser
+            </button>
+          </div>
+
+
         </div>
-
-        <!-- Bouton de réinitialisation -->
-        <div class="pt-2">
-          <button @click="resetFiltersAndDeselect"
-            class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
-            Réinitialiser
-          </button>
-        </div>
-
-
       </div>
     </div>
     <!-- Section de personnalisation des points d'échantillonnage -->
@@ -434,8 +445,6 @@
       </div>
     </div>
   </div>
-
-
 </template>
 
 <script setup lang="ts">
@@ -460,24 +469,39 @@ interface ShapeProperties {
 
 interface ShapeType {
   type: string;
-  properties: ShapeProperties;
+  properties: {
+    type: string;  // Rendre le type obligatoire
+    style?: any;
+    name?: string;
+    category?: ElementCategory;
+    accessLevel?: AccessLevel;
+    [key: string]: any;
+  };
   layer: any;
   options: any;
 }
 
 // Define props for the component
 const props = defineProps({
+  show: {
+    type: Boolean,
+    default: false
+  },
   currentTool: {
-    type: String as () => string,
+    type: String,
     default: ''
   },
   selectedShape: {
-    type: Object as () => ShapeType | null,
+    type: Object as () => import('@/types/drawing').ShapeType | null,
     default: null
   },
   allLayers: {
     type: Array,
     default: () => []
+  },
+  isDrawing: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -1037,7 +1061,7 @@ const switchToFiltersTab = () => {
 }
 
 // Define emits
-const emit = defineEmits(['tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
+const emit = defineEmits(['update:show', 'tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
 
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
@@ -1194,6 +1218,42 @@ const handleToolClick = (toolType: string) => {
 }
 </script>
 <style scoped>
+/* Styles de base */
+.drawing-tools-panel {
+  @apply bg-white flex flex-col;
+  height: 100%;
+}
+
+/* Styles pour mobile */
+@media (max-width: 767px) {
+  .drawing-tools-panel {
+    @apply fixed bottom-0 left-0 right-0 z-[2000];
+    height: 80vh;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .drawing-tools-panel.open {
+    transform: translateY(0);
+  }
+
+  /* Afficher flex uniquement sur mobile */
+  .flex-mobile {
+    display: flex !important;
+  }
+}
+
+/* Styles pour desktop */
+@media (min-width: 768px) {
+  .drawing-tools-panel {
+    @apply relative border-l border-gray-200;
+    width: 20rem;
+  }
+}
+
 .h-full {
   height: 100%;
 }

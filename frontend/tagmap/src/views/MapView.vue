@@ -74,76 +74,69 @@
       </div>
       <!-- Conteneur de la carte avec positionnement relatif -->
       <div v-show="currentPlan" class="map-parent">
-        <!-- MapToolbar positionnée dans la hiérarchie normale du DOM -->
-        <div v-if="currentPlan && !isGeneratingSynthesis" class="fixed left-0 right-0 z-[1500]" :style="{ top: 'var(--header-height)' }">
-          <MapToolbar
-            :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
-            :plan-name="currentPlan?.nom" :plan-description="currentPlan?.description" :save-status="saveStatus"
-            @change-map-type="changeBaseMap" @create-new-plan="showNewPlanModal = true"
-            @load-plan="openLoadPlanModal" @save-plan="savePlan" @adjust-view="handleAdjustView"
-            @generate-summary="generateSynthesis" />
-        </div>
-
         <!-- Conteneur principal avec carte et outils -->
-        <div class="map-content flex flex-col md:flex-row relative">
-          <!-- Overlay semi-transparent quand le panneau d'outils est ouvert sur mobile -->
-          <div
-            v-if="showDrawingTools && currentPlan && !isGeneratingSynthesis"
-            @click="toggleDrawingTools"
-            class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
-          ></div>
-          <!-- Barre d'outils compacte sur mobile -->
-          <div
+        <div class="map-content flex flex-col h-full">
+          <!-- MapToolbar intégré directement dans le flux -->
+          <MapToolbar
             v-if="currentPlan && !isGeneratingSynthesis"
-            class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between cursor-pointer"
-            style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
-            @click="toggleDrawingTools">
+            :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
+            :plan-name="currentPlan?.nom"
+            :plan-description="currentPlan?.description"
+            :save-status="saveStatus"
+            @change-map-type="changeBaseMap"
+            @create-new-plan="showNewPlanModal = true"
+            @load-plan="openLoadPlanModal"
+            @save-plan="savePlan"
+            @adjust-view="handleAdjustView"
+            @generate-summary="generateSynthesis"
+            class="flex-shrink-0"
+          />
 
-            <div class="flex items-center w-full justify-center">
-              <div class="flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                </svg>
-                <span class="text-sm text-gray-500 font-medium">Outils de dessin</span>
+          <!-- Conteneur flex pour la carte et les outils de dessin -->
+          <div class="flex-1 flex flex-col md:flex-row relative">
+            <!-- Overlay semi-transparent quand le panneau d'outils est ouvert sur mobile -->
+            <div
+              v-if="showDrawingTools && currentPlan && !isGeneratingSynthesis"
+              @click="toggleDrawingTools"
+              class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
+            ></div>
+
+            <!-- Conteneur de la carte -->
+            <div class="flex-1 relative">
+              <div ref="mapContainer" class="absolute inset-0 z-[1000]"></div>
+            </div>
+
+            <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
+            <DrawingTools
+              v-if="currentPlan && !isGeneratingSynthesis"
+              v-model:show="showDrawingTools"
+              :selected-tool="currentTool"
+              :selected-shape="selectedShape"
+              :is-drawing="isDrawing"
+              @tool-selected="setDrawingTool"
+              @filter-change="handleFilterChange"
+              class="md:w-80 md:flex-shrink-0"
+            />
+
+            <!-- Barre d'outils compacte sur mobile -->
+            <div
+              v-if="currentPlan && !isGeneratingSynthesis"
+              class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between cursor-pointer"
+              style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
+              @click="toggleDrawingTools"
+            >
+              <div class="flex items-center w-full justify-center">
+                <div class="flex items-center space-x-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                  </svg>
+                  <span class="text-sm text-gray-500 font-medium">Outils de dessin</span>
+                </div>
               </div>
             </div>
-          </div>
-
-          <!-- Conteneur de la carte -->
-          <div class="flex-1 relative">
-            <div ref="mapContainer" class="absolute inset-0 z-[1000]"></div>
-
-            <!-- Panneau de filtrage supprimé car intégré dans DrawingTools -->
-            <!-- <div v-if="currentPlan && !isGeneratingSynthesis" class="absolute top-4 right-4 z-[1200]">
-              <MapFilterPanel @filter-change="handleFilterChange" />
-            </div> -->
-          </div>
-
-          <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
-          <div v-if="currentPlan && !isGeneratingSynthesis"
-            :class="[showDrawingTools ? 'translate-y-0' : 'translate-y-full md:translate-y-0',
-                    'w-full md:w-64 bg-white border-t md:border-t-0 border-gray-200 flex-shrink-0 z-[2000] transition-transform duration-300 ease-out',
-                    'fixed md:relative bottom-0 md:bottom-auto right-0 md:top-0 h-[80%] md:h-auto rounded-t-xl md:rounded-none shadow-lg md:shadow-none']"
-            :style="{ 'bottom': 'var(--mobile-bottom-toolbar-height)' }">
-            <!-- Poignée de fermeture pour le panneau mobile (style tiroir) -->
-            <div class="md:hidden w-full flex justify-between items-center px-4 py-2 border-b border-gray-200 cursor-pointer" @click="toggleDrawingTools">
-              <div class="flex items-center">
-                <div class="w-10 h-1.5 bg-gray-300 rounded-full mr-3"></div>
-              </div>
-              <button
-                class="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <DrawingTools :current-tool="currentTool" :selected-shape="selectedShape as any"
-              :all-layers="featureGroup?.getLayers() || []" @tool-change="setDrawingTool"
-              @style-update="updateShapeStyle" @properties-update="updateShapeProperties"
-              @delete-shape="deleteSelectedShape" @filter-change="handleFilterChange"
-              @close-drawer="showDrawingTools = false"/>
           </div>
         </div>
+
         <!-- Interface de synthèse -->
         <div v-if="isGeneratingSynthesis"
           class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
@@ -567,6 +560,7 @@ const {
   adjustView,
   clearActiveControlPoints,
   calculateConnectedCoverageArea,
+  isDrawing
 } = useMapDrawing();
 const {
   initMap: initState,
