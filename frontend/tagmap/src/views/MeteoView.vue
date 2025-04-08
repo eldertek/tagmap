@@ -606,7 +606,8 @@ function formatPressure(value: number | string | null | undefined): string {
   // Vérifier si c'est un nombre valide
   if (isNaN(numValue)) return '0';
   
-  return numValue.toFixed(1);
+  // Convertir de inHg en hPa (1 inHg = 33.8639 hPa)
+  return (numValue * 33.8639).toFixed(1);
 }
 
 function formatWindDirection(degrees: number): string {

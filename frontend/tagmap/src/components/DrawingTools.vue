@@ -60,8 +60,10 @@
           <div class="grid grid-cols-4 gap-1.5 mb-4">
             <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
               class="flex items-center justify-center p-2 rounded-md border transition-all duration-200"
-              :class="{ 'bg-primary-100 border-primary-500 text-primary-700 shadow-sm': currentTool === tool.type,
-                       'hover:bg-gray-50 border-gray-300 text-gray-700': currentTool !== tool.type }"
+              :class="{
+                'bg-primary-50 border-primary-500 text-primary-600': props.selectedTool === tool.type,
+                'hover:bg-gray-50 border-gray-300 text-gray-700': props.selectedTool !== tool.type
+              }"
               @click="handleToolClick(tool.type)" :title="tool.label">
               <span class="icon" v-html="getToolIcon(tool.type)"></span>
             </button>
@@ -69,7 +71,7 @@
           <!-- Bouton de suppression -->
           <button v-if="selectedShape"
             class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
-            :class="{ 'bg-red-100': currentTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
+            :class="{ 'bg-red-100': props.selectedTool === 'delete' }" @click="$emit('delete-shape')" title="Supprimer la forme">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -488,7 +490,7 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  currentTool: {
+  selectedTool: {
     type: String,
     default: ''
   },
@@ -560,6 +562,11 @@ const getToolIcon = (type: string) => {
 
 // Define reactive variables for the component
 const activeTab = ref('tools') // Onglet actif par défaut
+
+// Observer les changements de l'outil sélectionné
+watch(() => props.selectedTool, (newTool, oldTool) => {
+  console.log('[DrawingTools][watch selectedTool] Changement d\'outil:', { newTool, oldTool });
+});
 
 // Watch for tab changes to ensure filters are applied when switching to the filters tab
 watch(activeTab, (newTab, oldTab) => {
@@ -1206,10 +1213,13 @@ watch(filters, (newFilters, oldFilters) => {
   }
 }, { deep: true });
 
-// Ajouter cette méthode dans la partie script setup
+// Méthode pour gérer le clic sur un outil
 const handleToolClick = (toolType: string) => {
+  console.log('[DrawingTools][handleToolClick] Outil cliqué:', toolType, 'Outil actuel:', props.selectedTool);
+
   // Émettre l'événement tool-selected
-  emit('tool-selected', props.currentTool === toolType ? '' : toolType);
+  // Si l'outil cliqué est déjà sélectionné, on le désélectionne, sinon on le sélectionne
+  emit('tool-selected', props.selectedTool === toolType ? '' : toolType);
 
   // Sur mobile, fermer le panneau d'outils après la sélection
   if (window.innerWidth < 768) {
