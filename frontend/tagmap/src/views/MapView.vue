@@ -914,9 +914,17 @@ onMounted(async () => {
         featureGroup.value.on('layerremove', (e: any) => {
           const layer = e.layer;
           if (layer && layer._leaflet_id) {
-            // Ne pas supprimer la couche de shapes.value, car nous voulons pouvoir la restaurer
-            // lorsque les filtres sont modifiés
-            console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value`);
+            // Supprimer la couche de shapes.value pour éviter la duplication lors du filtrage
+            const layerIndex = shapes.value.findIndex(shape => 
+              shape.layer && shape.layer._leaflet_id === layer._leaflet_id
+            );
+            
+            if (layerIndex !== -1) {
+              shapes.value.splice(layerIndex, 1);
+              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup et de shapes.value`);
+            } else {
+              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais introuvable dans shapes.value`);
+            }
           }
         });
       }
