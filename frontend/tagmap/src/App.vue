@@ -6,6 +6,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 import SearchBar from '@/components/SearchBar.vue'
 import PerformancePanel from '@/components/PerformancePanel.vue'
+import PWAUpdateNotification from '@/components/PWAUpdateNotification.vue'
+import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
+import { updateSW } from '@/main'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -24,22 +27,42 @@ const bellButtonRef = ref<HTMLElement | null>(null)
 const islandPositionTop = ref('13px')
 const islandPositionRight = ref('65px')
 
+// Références aux composants PWA
+const pwaUpdateNotification = ref<InstanceType<typeof PWAUpdateNotification> | null>(null)
+const pwaInstallPrompt = ref<InstanceType<typeof PWAInstallPrompt> | null>(null)
+
 // Fonction pour détecter si on est sur mobile
 function checkMobile() {
   isMobile.value = window.innerWidth < 768
 }
 
-// Écouter les changements de taille d'écran
+// Écouter les changements de taille d'écran et les événements PWA
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   window.addEventListener('resize', updateIslandPosition)
+
+  // Écouter les événements PWA
+  window.addEventListener('pwa-update-available', () => {
+    if (pwaUpdateNotification.value) {
+      pwaUpdateNotification.value.showRefreshUI = true
+      pwaUpdateNotification.value.updateSW = updateSW
+    }
+  })
+
+  window.addEventListener('pwa-offline-ready', () => {
+    if (pwaUpdateNotification.value) {
+      pwaUpdateNotification.value.showOfflineReady = true
+    }
+  })
 })
 
 // Nettoyer les écouteurs d'événement
 onBeforeUnmount(() => {
   window.removeEventListener('resize', checkMobile)
   window.removeEventListener('resize', updateIslandPosition)
+  window.removeEventListener('pwa-update-available', () => {})
+  window.removeEventListener('pwa-offline-ready', () => {})
 })
 
 // Fonction pour déterminer la position de la Dynamic Island par rapport à la cloche
@@ -507,6 +530,10 @@ watchEffect(() => {
 
     <!-- Panneau de performance (visible si le paramètre URL perf=true est présent) -->
     <PerformancePanel position="bottom-left" />
+
+    <!-- Composants PWA -->
+    <PWAUpdateNotification ref="pwaUpdateNotification" />
+    <PWAInstallPrompt ref="pwaInstallPrompt" />
   </div>
 </template>
 <style>

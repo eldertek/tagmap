@@ -61,8 +61,5 @@ frontend/tagmap/cypress/downloads/
 frontend/tagmap/cypress/fixtures/example.json
 *.mp4
 *.png
+!frontend/tagmap/public/img/icons/*.png
 cypress.env.json
-*-results.json
-*-results.txt
-.nyc_output
-coverage/

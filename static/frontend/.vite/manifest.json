@@ -11,7 +11,8 @@
       "src/views/ProfileView.vue",
       "src/views/ForgotPasswordView.vue",
       "src/views/ResetPasswordView.vue",
-      "src/views/NotFoundView.vue"
+      "src/views/NotFoundView.vue",
+      "node_modules/workbox-window/build/workbox-window.prod.es5.mjs"
     ],
     "css": [
       "assets/index.css"
@@ -40,6 +41,12 @@
     "file": "assets/html2canvas.esm.js",
     "name": "html2canvas.esm",
     "src": "node_modules/html2canvas/dist/html2canvas.esm.js",
+    "isDynamicEntry": true
+  },
+  "node_modules/workbox-window/build/workbox-window.prod.es5.mjs": {
+    "file": "assets/workbox-window.prod.es5.js",
+    "name": "workbox-window.prod.es5",
+    "src": "node_modules/workbox-window/build/workbox-window.prod.es5.mjs",
     "isDynamicEntry": true
   },
   "src/assets/background.svg": {
