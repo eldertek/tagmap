@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto
+from plans.models import Plan, FormeGeometrique, Connexion, TexteAnnotation, GeoNote, NoteComment, NotePhoto, MapFilter
 from authentication.models import Utilisateur
 from django.core.files.base import ContentFile
 import base64
@@ -69,6 +69,7 @@ class PlanSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    entreprise_id = serializers.IntegerField(source='entreprise.id', read_only=True)
     salarie = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role=Utilisateur.Role.SALARIE),
         required=False,
@@ -84,7 +85,7 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'nom', 'description', 'date_creation', 'date_modification',
-            'createur', 'entreprise', 'salarie', 'visiteur', 'preferences',
+            'createur', 'entreprise', 'entreprise_id', 'salarie', 'visiteur', 'preferences',
             'elements', 'historique'
         ]
         read_only_fields = ['date_creation', 'date_modification', 'historique']
@@ -344,7 +345,7 @@ class GeoNoteSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         print(f"\n[GeoNoteSerializer][validate] Validation des données de note: {data}")
-        
+
         # Vérifier que le plan existe s'il est fourni
         if 'plan' in data and data['plan'] is not None and not Plan.objects.filter(id=data['plan'].id).exists():
             raise serializers.ValidationError({
@@ -365,21 +366,21 @@ class GeoNoteSerializer(serializers.ModelSerializer):
                 data['column'] = column_id
             elif not self.instance:  # Seulement pour les nouvelles notes
                 data['column'] = '1'  # Colonne "Idées" par défaut
-        
+
         if 'column' in data:
             print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
         return data
-        
+
     def create(self, validated_data):
         """
         S'assurer que la note est bien créée avec une colonne assignée
         """
         print(f"\n[GeoNoteSerializer][create] Création de note avec données: {validated_data}")
-        
+
         # S'assurer que la colonne est définie
         if 'column' not in validated_data:
             validated_data['column'] = '1'  # Colonne "Idées" par défaut
-        
+
         print(f"[GeoNoteSerializer][create] Données finales pour création: {validated_data}")
         instance = super().create(validated_data)
         print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column}")
@@ -395,6 +396,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         allow_null=True,
         write_only=True
     )
+    entreprise_id_read = serializers.IntegerField(source='entreprise.id', read_only=True)
     salarie = UserDetailsSerializer(read_only=True)
     salarie_id = serializers.PrimaryKeyRelatedField(
         source='salarie',
@@ -423,7 +425,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'nom', 'description', 'date_creation', 'date_modification',
-            'createur', 'entreprise', 'entreprise_id', 'salarie', 'salarie_id',
+            'createur', 'entreprise', 'entreprise_id', 'entreprise_id_read', 'salarie', 'salarie_id',
             'visiteur', 'visiteur_id', 'formes', 'connexions', 'annotations',
             'preferences', 'elements', 'historique',
             'entreprise_details', 'salarie_details', 'client_details'
@@ -570,14 +572,14 @@ class EcowittDeviceSerializer(serializers.Serializer):
         # Vérifier si instance est un dict (plus sûr)
         if not isinstance(instance, dict):
             instance = dict(instance)
-            
+
         data = super().to_representation(instance)
-                
+
         # Ajout de la position formatée pour l'affichage si latitude et longitude sont disponibles
         if 'latitude' in data and 'longitude' in data:
             if data.get('latitude') is not None and data.get('longitude') is not None:
                 data['position'] = f"{data['latitude']}, {data['longitude']}"
-        
+
         # Extraction de la version du firmware depuis station_type
         station_type = data.get('station_type') or ''
         if '_V' in station_type:
@@ -603,12 +605,12 @@ class EcowittDeviceSerializer(serializers.Serializer):
             'model': data.get('model', ''),
             'firmware_version': data.get('firmware_version', 'Inconnue')
         }
-        
+
         # Ajouter les champs manquants avec leurs valeurs par défaut
         for key, value in default_fields.items():
             if key not in data or data[key] is None:
                 data[key] = value
-                
+
         return data
 
 class WeatherDataSerializer(serializers.Serializer):
@@ -628,29 +630,29 @@ class WeatherDataSerializer(serializers.Serializer):
         lorsque c'est possible.
         """
         data = super().to_representation(instance)
-        
+
         # Convertir les valeurs de pression de texte en nombre
         if 'pressure' in data:
             self._convert_nested_values(data['pressure'])
-            
+
         # Convertir d'autres valeurs numériques en nombres
         if 'outdoor' in data:
             self._convert_nested_values(data['outdoor'])
-        
+
         if 'indoor' in data:
             self._convert_nested_values(data['indoor'])
-            
+
         if 'wind' in data:
             self._convert_nested_values(data['wind'])
-            
+
         if 'rainfall' in data:
             self._convert_nested_values(data['rainfall'])
-            
+
         if 'solar_and_uvi' in data:
             self._convert_nested_values(data['solar_and_uvi'])
-            
+
         return data
-    
+
     def _convert_nested_values(self, data_dict):
         """
         Convertit récursivement les valeurs textuelles en nombres
@@ -658,7 +660,7 @@ class WeatherDataSerializer(serializers.Serializer):
         """
         if not isinstance(data_dict, dict):
             return
-            
+
         for key, value in data_dict.items():
             if isinstance(value, dict):
                 # Si c'est un dict contenant unit et value, convertir la valeur
@@ -672,6 +674,77 @@ class WeatherDataSerializer(serializers.Serializer):
                 else:
                     self._convert_nested_values(value)
 
+class WeatherHistoryDataSerializer(serializers.Serializer):
+    """Sérialiseur pour les données météo historiques."""
+    outdoor = serializers.DictField(required=False)
+    indoor = serializers.DictField(required=False)
+    pressure = serializers.DictField(required=False)
+    wind = serializers.DictField(required=False)
+    rainfall = serializers.DictField(required=False)
+    solar_and_uvi = serializers.DictField(required=False)
+    
+    def to_representation(self, instance):
+        """
+        Traite les données historiques pour les adapter au format attendu par les graphiques.
+        """
+        data = super().to_representation(instance)
+        
+        # Formatage des données de température extérieure
+        if 'outdoor' in data and 'temperature' in data['outdoor']:
+            self._format_time_series_data(data['outdoor']['temperature'])
+            
+        # Formatage des données d'humidité extérieure
+        if 'outdoor' in data and 'humidity' in data['outdoor']:
+            self._format_time_series_data(data['outdoor']['humidity'])
+            
+        # Formatage des données de pression
+        if 'pressure' in data and 'relative' in data['pressure']:
+            self._format_time_series_data(data['pressure']['relative'])
+            
+        # Formatage des données de vent
+        if 'wind' in data:
+            if 'wind_speed' in data['wind']:
+                self._format_time_series_data(data['wind']['wind_speed'])
+            if 'wind_gust' in data['wind']:
+                self._format_time_series_data(data['wind']['wind_gust'])
+                
+        # Formatage des données de précipitations
+        if 'rainfall' in data:
+            for key in data['rainfall']:
+                self._format_time_series_data(data['rainfall'][key])
+                
+        # Formatage des données solaires
+        if 'solar_and_uvi' in data and 'solar' in data['solar_and_uvi']:
+            self._format_time_series_data(data['solar_and_uvi']['solar'])
+            
+        return data
+        
+    def _format_time_series_data(self, data_list):
+        """
+        Convertit les valeurs des séries temporelles en nombres 
+        et formate les horodatages.
+        """
+        if not isinstance(data_list, list):
+            return
+            
+        for item in data_list:
+            # Convertir les valeurs en nombres si possible
+            if 'value' in item and isinstance(item['value'], str):
+                try:
+                    item['value'] = float(item['value'])
+                except (ValueError, TypeError):
+                    pass
+
+class WeatherChartDataSerializer(serializers.Serializer):
+    """Sérialiseur pour les données de graphiques météo."""
+    type = serializers.CharField()
+    labels = serializers.ListField(child=serializers.CharField())
+    datasets = serializers.ListField(
+        child=serializers.DictField()
+    )
+    raw_data = serializers.DictField(required=False)
+    error = serializers.CharField(required=False)
+
 class NoteColumnViewSet(viewsets.ViewSet):
     """ViewSet pour la gestion des colonnes de notes fixes."""
     FIXED_COLUMNS = [
@@ -681,3 +754,13 @@ class NoteColumnViewSet(viewsets.ViewSet):
         {'id': '4', 'title': 'Terminées', 'color': '#10B981', 'order': 3, 'is_default': False},
         {'id': '5', 'title': 'Autres', 'color': '#6B7280', 'order': 4, 'is_default': False}
     ]
+
+
+class MapFilterSerializer(serializers.ModelSerializer):
+    """Sérialiseur pour les filtres de carte personnalisés."""
+    entreprise_name = serializers.CharField(source='entreprise.company_name', read_only=True)
+
+    class Meta:
+        model = MapFilter
+        fields = ['id', 'name', 'category', 'description', 'entreprise', 'entreprise_name', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']

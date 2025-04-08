@@ -61,7 +61,7 @@
               </svg>
               Créer un nouveau plan
             </button>
-            <button @click="showLoadPlanModal = true"
+            <button @click="openLoadPlanModal"
               class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200">
               <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -80,7 +80,7 @@
             :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
             :plan-name="currentPlan?.nom" :plan-description="currentPlan?.description" :save-status="saveStatus"
             @change-map-type="changeBaseMap" @create-new-plan="showNewPlanModal = true"
-            @load-plan="showLoadPlanModal = true" @save-plan="savePlan" @adjust-view="handleAdjustView"
+            @load-plan="openLoadPlanModal" @save-plan="savePlan" @adjust-view="handleAdjustView"
             @generate-summary="generateSynthesis" />
         </div>
 
@@ -419,8 +419,29 @@
 
               <!-- Interface entreprise -->
               <div v-else-if="authStore.isEntreprise" class="space-y-4">
-                <!-- Contenu existant de l'interface entreprise -->
-                {{ authStore.isEntreprise ? '...' : '' }}
+                <!-- Liste des plans de l'entreprise -->
+                <div v-if="isLoadingPlans" class="py-4">
+                  <div class="flex justify-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
+                  </div>
+                  <p class="text-center text-sm text-gray-500 mt-2">Chargement des plans...</p>
+                </div>
+                <div v-else-if="irrigationStore.plans.length === 0" class="text-center py-8">
+                  <p class="text-gray-500">Aucun plan disponible</p>
+                </div>
+                <div v-else class="space-y-2">
+                  <h3 class="font-medium text-gray-700">Vos plans</h3>
+                  <div class="grid grid-cols-1 gap-2">
+                    <button v-for="plan in irrigationStore.plans" :key="plan.id" @click="loadPlan(plan.id)"
+                      class="w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                      <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                      <div class="text-xs text-gray-400 mt-1">
+                        Modifié le {{ formatLastSaved(plan.date_modification) }}
+                      </div>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Interface client -->
@@ -3942,6 +3963,24 @@ async function loadPlansWithoutVisiteur() {
 }
 
 const emit = defineEmits(['shape-selected']);
+
+// Fonction pour ouvrir le modal de chargement de plan
+async function openLoadPlanModal() {
+  // Si l'utilisateur est une entreprise, charger ses plans
+  if (authStore.isEntreprise) {
+    isLoadingPlans.value = true;
+    try {
+      await irrigationStore.fetchPlans();
+    } catch (error) {
+      console.error('[MapView] Erreur lors du chargement des plans:', error);
+    } finally {
+      isLoadingPlans.value = false;
+    }
+  }
+
+  // Afficher le modal
+  showLoadPlanModal.value = true;
+}
 
 // Fonction pour formater l'affichage des sections dans la synthèse
 function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY: number, maxWidth: number): number {

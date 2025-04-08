@@ -29,6 +29,7 @@ const api = axios.create({
   withCredentials: true
 });
 
+// Création d'une instance sans hooks de cycle de vie
 const performanceMonitor = usePerformanceMonitor();
 
 // Fonction utilitaire pour obtenir un cookie
@@ -418,6 +419,40 @@ export const userService = {
   }
 };
 
+// Fonction utilitaire pour le retry avec backoff exponentiel
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000, // Délai initial en ms
+  maxDelay: number = 10000  // Délai maximum en ms
+): Promise<T> {
+  let retries = 0;
+  
+  while (true) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      retries++;
+      
+      // Si on a atteint le nombre maximum de tentatives, on propage l'erreur
+      if (retries >= maxRetries) {
+        throw error;
+      }
+      
+      // Calculer le délai avec backoff exponentiel
+      const delay = Math.min(baseDelay * Math.pow(2, retries - 1), maxDelay);
+      
+      // Ajouter un peu de "jitter" pour éviter que tous les clients retentent en même temps
+      const jitter = Math.random() * 200;
+      
+      console.log(`Tentative ${retries}/${maxRetries} échouée, nouvelle tentative dans ${delay + jitter}ms`);
+      
+      // Attendre avant la prochaine tentative
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
+    }
+  }
+}
+
 // Service pour les plans d'irrigation
 export const irrigationService = {
   async getPlans() {
@@ -785,10 +820,11 @@ export const weatherService = {
   async getDevices(params: any = {}) {
     const endMeasure = performanceMonitor.startMeasure('get_weather_devices', 'WeatherService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_weather_devices_request',
-        () => api.get('/weather/real-time/devices/', { params }),
-        'WeatherService'
+      return await retryWithBackoff(
+        () => api.get('/weather/devices/', { params }),
+        3, // maxRetries
+        1000, // baseDelay
+        10000 // maxDelay
       );
     } finally {
       endMeasure();
@@ -799,15 +835,116 @@ export const weatherService = {
   async getRealTimeData(params: any) {
     const endMeasure = performanceMonitor.startMeasure('get_weather_data', 'WeatherService');
     try {
-      // Si params est une chaîne, c'est l'ancien format (mac uniquement)
-      const requestParams = typeof params === 'string'
-        ? { mac: params }
-        : params;
+      const requestParams = typeof params === 'string' ? { mac: params } : params;
+      return await retryWithBackoff(
+        () => api.get('/weather/', { params: requestParams }),
+        3,
+        1000,
+        10000
+      );
+    } finally {
+      endMeasure();
+    }
+  },
 
+  // Récupérer les données historiques
+  async getHistoryData(params: {
+    mac: string;
+    start_date: string;
+    end_date: string;
+    cycle_type?: string;
+    entreprise?: number;
+  }) {
+    const endMeasure = performanceMonitor.startMeasure('get_history_data', 'WeatherService');
+    try {
+      return await retryWithBackoff(
+        () => api.get('/weather/history/', { params }),
+        3,
+        1000,
+        10000
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+};
+
+// Service pour les filtres de carte personnalisés
+export const mapFilterService = {
+  /**
+   * Récupère tous les filtres de carte accessibles à l'utilisateur
+   */
+  async getFilters() {
+    const endMeasure = performanceMonitor.startMeasure('get_map_filters', 'MapFilterService');
+    try {
       return await performanceMonitor.measureAsync(
-        'get_weather_data_request',
-        () => api.get('/weather/real-time/', { params: requestParams }),
-        'WeatherService'
+        'get_map_filters_request',
+        () => api.get('/map-filters/'),
+        'MapFilterService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  /**
+   * Récupère un filtre de carte spécifique
+   */
+  async getFilter(id: number) {
+    const endMeasure = performanceMonitor.startMeasure('get_map_filter', 'MapFilterService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_map_filter_request',
+        () => api.get(`/map-filters/${id}/`),
+        'MapFilterService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  /**
+   * Crée un nouveau filtre de carte
+   */
+  async createFilter(data: { name: string; category: string; description?: string; entreprise: number }) {
+    const endMeasure = performanceMonitor.startMeasure('create_map_filter', 'MapFilterService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'create_map_filter_request',
+        () => api.post('/map-filters/', data),
+        'MapFilterService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  /**
+   * Met à jour un filtre de carte existant
+   */
+  async updateFilter(id: number, data: { name?: string; category?: string; description?: string }) {
+    const endMeasure = performanceMonitor.startMeasure('update_map_filter', 'MapFilterService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'update_map_filter_request',
+        () => api.patch(`/map-filters/${id}/`, data),
+        'MapFilterService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  /**
+   * Supprime un filtre de carte
+   */
+  async deleteFilter(id: number) {
+    const endMeasure = performanceMonitor.startMeasure('delete_map_filter', 'MapFilterService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'delete_map_filter_request',
+        () => api.delete(`/map-filters/${id}/`),
+        'MapFilterService'
       );
     } finally {
       endMeasure();

@@ -4,14 +4,12 @@ import { ref, computed, onMounted, watch, onBeforeUnmount, watchEffect, nextTick
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
-import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor'
 import SearchBar from '@/components/SearchBar.vue'
 import PerformancePanel from '@/components/PerformancePanel.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
-const { isQueryParamEnabled } = usePerformanceMonitor()
 
 const showProfileMenu = ref(false)
 const showMobileMenu = ref(false)
@@ -328,19 +326,6 @@ watchEffect(() => {
 
           <!-- Menu de droite (notifications et profil) -->
           <div class="flex items-center space-x-2 md:space-x-4">
-            <!-- Bouton performances (visible uniquement si perf=true) -->
-            <button
-              v-if="isQueryParamEnabled"
-              class="hidden md:flex items-center justify-center p-2 text-amber-500 hover:text-amber-600 rounded-full hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              title="Performance activée"
-            >
-              <span class="sr-only">Performance</span>
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </button>
-
             <!-- Notifications -->
             <div class="relative">
               <button

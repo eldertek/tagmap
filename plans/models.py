@@ -321,11 +321,11 @@ def note_photo_upload_path(instance, filename):
 
     base_name, extension = os.path.splitext(filename)
     timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-    
+
     # Si la note n'a pas de plan (note privée), utiliser l'ID de l'utilisateur qui ajoute la photo
     if instance.note.plan is None:
         return f'notes/{instance.user.id}/{instance.note.id}/{timestamp}{extension}'
-    
+
     # Sinon, utiliser l'ID du créateur du plan comme avant
     return f'notes/{instance.note.plan.createur.id}/{instance.note.id}/{timestamp}{extension}'
 
@@ -394,3 +394,30 @@ class NotePhoto(models.Model):
         if self.user.storage_used >= round(size_mb):
             self.user.storage_used -= round(size_mb)
             self.user.save(update_fields=['storage_used'])
+
+
+class MapFilter(models.Model):
+    """
+    Modèle pour les filtres personnalisés de la carte.
+    """
+    name = models.CharField(max_length=100, verbose_name='Nom du filtre')
+    category = models.CharField(max_length=100, verbose_name='Catégorie')
+    description = models.TextField(blank=True, verbose_name='Description')
+    entreprise = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='map_filters',
+        verbose_name='Entreprise',
+        limit_choices_to={'role': Utilisateur.Role.ENTREPRISE}
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+
+    class Meta:
+        verbose_name = 'Filtre de carte'
+        verbose_name_plural = 'Filtres de carte'
+        ordering = ['name']
+        unique_together = ['name', 'entreprise']
+
+    def __str__(self):
+        return f"{self.name} ({self.entreprise.company_name})"

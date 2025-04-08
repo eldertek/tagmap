@@ -43,33 +43,47 @@
       <div class="space-y-2">
         <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
         <div class="space-y-1">
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Forages</span>
-          </label>
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Clients</span>
-          </label>
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
-          </label>
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
-          </label>
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Cultures</span>
-          </label>
-          <label class="flex items-center">
-            <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-            <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
-          </label>
-          <!-- Catégories personnalisées -->
+          <!-- Catégories par défaut -->
+          <div class="mb-2">
+            <h5 class="text-xs font-medium text-gray-500 mb-1">Catégories standard</h5>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Forages</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Clients</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Cultures</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
+            </label>
+          </div>
+
+          <!-- Filtres dynamiques de l'entreprise -->
+          <div v-if="dynamicFilters.length > 0" class="mt-3">
+            <h5 class="text-xs font-medium text-gray-500 mb-1">Filtres personnalisés</h5>
+            <label v-for="filter in dynamicFilters" :key="filter.id" class="flex items-center">
+              <input type="checkbox" v-model="filters.categories[filter.category]" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+              <span class="ml-2 text-sm text-gray-700">{{ filter.name }}</span>
+            </label>
+          </div>
+
+          <!-- Autres catégories personnalisées (pour compatibilité) -->
           <template v-for="categoryKey in Object.keys(filters.categories)" :key="categoryKey">
-            <div v-if="!defaultCategories.includes(categoryKey)">
+            <div v-if="!defaultCategories.includes(categoryKey) && !dynamicFilters.some(f => f.category === categoryKey)">
               <label class="flex items-center">
                 <input type="checkbox" v-model="filters.categories[categoryKey as keyof CategoryFilters]" @change="deselectCurrentShape" class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                 <span class="ml-2 text-sm text-gray-700">{{ formatCategoryName(categoryKey) }}</span>
@@ -116,10 +130,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useMapDrawing } from '@/composables/useMapDrawing';
+import { useMapFilterStore } from '@/stores/mapFilters';
 import type { ElementCategory, AccessLevel } from '@/types/drawing';
+import type { MapFilter } from '@/stores/mapFilters';
 
 // Définir les props
 const props = defineProps({
@@ -135,6 +151,7 @@ const emit = defineEmits(['filter-change']);
 // État local
 const collapsed = ref(props.initialCollapsed);
 const authStore = useAuthStore();
+const mapFilterStore = useMapFilterStore();
 const { selectedShape, clearActiveControlPoints } = useMapDrawing();
 
 // Computed properties pour les rôles d'utilisateur
@@ -151,6 +168,27 @@ const defaultCategories = [
   'cultures',
   'parcelles'
 ];
+
+// Filtres dynamiques
+const dynamicFilters = ref<MapFilter[]>([]);
+
+// Charger les filtres dynamiques au montage du composant
+onMounted(async () => {
+  await mapFilterStore.initializeStore();
+  try {
+    await mapFilterStore.fetchFilters();
+    dynamicFilters.value = mapFilterStore.filters;
+
+    // Ajouter les filtres dynamiques aux catégories
+    dynamicFilters.value.forEach(filter => {
+      if (!filters.categories[filter.category]) {
+        filters.categories[filter.category] = true;
+      }
+    });
+  } catch (error) {
+    console.error('[MapFilterPanel] Erreur lors du chargement des filtres:', error);
+  }
+});
 
 // Type definitions for filters
 type AccessLevelFilters = Record<AccessLevel | string, boolean>;

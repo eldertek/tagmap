@@ -1,6 +1,5 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_nested.routers import NestedDefaultRouter
 from .views import (
     SalarieViewSet,
     ClientViewSet,
@@ -12,6 +11,7 @@ from .views import (
     NoteCommentViewSet,
     NotePhotoViewSet,
     NoteColumnViewSet,
+    MapFilterViewSet,
     WeatherViewSet,
     elevation_proxy
 )
@@ -28,15 +28,12 @@ router.register(r'notes', GeoNoteViewSet, basename='note')
 router.register(r'note-comments', NoteCommentViewSet, basename='note-comment')
 router.register(r'note-photos', NotePhotoViewSet, basename='note-photo')
 router.register(r'columns', NoteColumnViewSet, basename='column')
-router.register(r'weather/real-time', WeatherViewSet, basename='weather')
+router.register(r'map-filters', MapFilterViewSet, basename='map-filter')
 
-# Routers imbriqués pour les commentaires et photos de notes
-notes_router = NestedDefaultRouter(router, r'notes', lookup='note')
-notes_router.register(r'comments', NoteCommentViewSet, basename='note-comments')
-notes_router.register(r'photos', NotePhotoViewSet, basename='note-photos')
+# Routes pour l'API météo (séparer les endpoints)
+router.register(r'weather', WeatherViewSet, basename='weather')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('', include(notes_router.urls)),
     path('elevation/', elevation_proxy, name='elevation-proxy'),
 ]

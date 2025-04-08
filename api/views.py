@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q, Count
 from django.shortcuts import get_object_or_404, render
+from datetime import datetime
 
 # Imports DRF
 from rest_framework import viewsets, permissions, status
@@ -17,6 +18,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 # Imports tiers
 import requests
+import time
 
 # Imports locaux
 from .permissions import IsAdmin, IsSalarie, IsEntreprise
@@ -25,11 +27,12 @@ from .serializers import (
     PlanSerializer, FormeGeometriqueSerializer, ConnexionSerializer,
     TexteAnnotationSerializer, PlanDetailSerializer, GeoNoteSerializer,
     NoteCommentSerializer, NotePhotoSerializer, NoteColumnSerializer,
-    WeatherDataSerializer, EcowittDeviceSerializer
+    WeatherDataSerializer, WeatherHistoryDataSerializer, WeatherChartDataSerializer,
+    EcowittDeviceSerializer, MapFilterSerializer
 )
 from plans.models import (
     Plan, FormeGeometrique, Connexion, TexteAnnotation,
-    GeoNote, NoteComment, NotePhoto
+    GeoNote, NoteComment, NotePhoto, MapFilter
 )
 
 # Configuration
@@ -1064,12 +1067,25 @@ class WeatherViewSet(viewsets.ViewSet):
     # URL de base de l'API Ecowitt
     ECOWITT_BASE_URL = 'https://api.ecowitt.net/api/v3'
 
+    def get_serializer_class(self):
+        """Retourne le sérialiseur approprié en fonction de l'action."""
+        if self.action == 'history':
+            return WeatherHistoryDataSerializer
+        elif self.action == 'chart':
+            return WeatherChartDataSerializer
+        return WeatherDataSerializer
+
     def get_ecowitt_config(self):
         """Récupère la configuration Ecowitt pour l'utilisateur actuel."""
         user = self.request.user
         entreprise_id = self.request.query_params.get('entreprise')
         config = None
         error_message = None
+
+        print(f"\n[WeatherViewSet][get_ecowitt_config] 🔍 Recherche de configuration pour l'utilisateur:")
+        print(f"  - ID: {user.id}")
+        print(f"  - Rôle: {user.role}")
+        print(f"  - Entreprise ID demandé: {entreprise_id}")
 
         # Si un ID d'entreprise est spécifié et que l'utilisateur est admin
         if entreprise_id and user.role == 'ADMIN':
@@ -1082,11 +1098,13 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {entreprise.company_name}")
+                    print(f"✅ Utilisation des clés API de l'entreprise {entreprise.company_name}")
+                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     error_message = f"L'entreprise {entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
+                    print(f"❌ Erreur: {error_message}")
             except Exception as e:
-                print(f"[WeatherViewSet][get_ecowitt_config] Erreur lors de la récupération de l'entreprise: {str(e)}")
+                print(f"❌ Erreur lors de la récupération de l'entreprise: {str(e)}")
                 error_message = "Erreur lors de la récupération de l'entreprise."
 
         # Sinon, utiliser l'entreprise de l'utilisateur ou sa hiérarchie
@@ -1099,9 +1117,11 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.company_name}")
+                    print(f"✅ Utilisation des clés API de l'entreprise {user.company_name}")
+                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     error_message = "Vous n'avez pas configuré vos clés API Ecowitt. Veuillez les ajouter dans votre profil."
+                    print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un salarié, utiliser les clés de son entreprise
             elif user.role == 'SALARIE' and user.entreprise:
@@ -1111,9 +1131,11 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.entreprise.company_name}")
+                    print(f"✅ Utilisation des clés API de l'entreprise {user.entreprise.company_name}")
+                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     error_message = f"L'entreprise {user.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+                    print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un visiteur, utiliser les clés de l'entreprise associée
             elif user.role == 'VISITEUR' and user.salarie and user.salarie.entreprise:
@@ -1123,11 +1145,14 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.salarie.entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"[WeatherViewSet][get_ecowitt_config] Utilisation des clés API de l'entreprise {user.salarie.entreprise.company_name}")
+                    print(f"✅ Utilisation des clés API de l'entreprise {user.salarie.entreprise.company_name}")
+                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     error_message = f"L'entreprise {user.salarie.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+                    print(f"❌ Erreur: {error_message}")
             else:
                 error_message = "Impossible de déterminer l'entreprise associée. Veuillez contacter votre administrateur."
+                print(f"❌ Erreur: {error_message}")
 
         return config, error_message
 
@@ -1219,53 +1244,40 @@ class WeatherViewSet(viewsets.ViewSet):
             print(f"Traceback:\n{traceback.format_exc()}")
             return None
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='devices')
     def devices(self, request):
         """Liste tous les appareils disponibles."""
-        print("\n[WeatherViewSet][devices] 📱 Récupération de la liste des appareils")
-        result = self.get_devices()
+        print(f"\n[WeatherViewSet][devices] 📱 Récupération des appareils disponibles")
+        entreprise_id = request.query_params.get('entreprise')
+        print(f"Entreprise ID: {entreprise_id}")
 
-        # Si le résultat est un tuple, c'est qu'il contient (None, error_message)
-        if isinstance(result, tuple):
-            devices, error_message = result
-            if devices is None:
+        try:
+            devices = self.get_devices()
+            if not devices:
                 return Response(
-                    {'error': error_message},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {'error': 'Aucun appareil disponible'},
+                    status=status.HTTP_404_NOT_FOUND
                 )
-        else:
-            devices = result
 
-        if devices is None:
+            # Formater la réponse pour le frontend
+            response_data = {
+                'devices': devices
+            }
+
+            return Response(response_data)
+        except Exception as e:
+            print(f"\n[WeatherViewSet][devices] ❌ Exception: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
-                {'error': 'Erreur lors de la récupération des appareils'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        print(f"Nombre d'appareils trouvés: {len(devices)}")
-        for device in devices:
-            print(f"\nAppareil trouvé:")
-            print(f"  - MAC: {device.get('mac')}")
-            print(f"  - Nom: {device.get('name')}")
-            print(f"  - Type: {device.get('stationtype', device.get('station_type', 'Inconnu'))}")
-
-            # Extraire la version du firmware si disponible
-            station_type = device.get('stationtype', device.get('station_type', ''))
-            firmware = 'Inconnue'
-            if '_V' in station_type:
-                firmware = station_type.split('_V')[1]
-            print(f"  - Firmware: {firmware}")
-
-            # Afficher l'intervalle de rapport s'il est disponible
-            print(f"  - Intervalle: {device.get('report_interval', 'N/A')}s")
-
-        serializer = EcowittDeviceSerializer(devices, many=True)
-        return Response(serializer.data)
 
     def list(self, request):
         """Récupère les données météo en temps réel pour un appareil spécifique."""
         device_mac = request.query_params.get('mac')
-        print(f"\n[WeatherViewSet][list] 🌤 Récupération des données météo")
+        print(f"\n[WeatherViewSet][list] 🌤 Récupération des données météo en temps réel")
         print(f"MAC demandé: {device_mac}")
 
         # Si aucun MAC n'est spécifié, récupérer la liste des appareils
@@ -1298,7 +1310,8 @@ class WeatherViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            api_url = f"{config['base_url']}/device/real_time"
+            # Appel à l'API Ecowitt pour les données en temps réel
+            api_url = f"{config['base_url']}/device/real_time"  # Endpoint real_time
             params = {
                 'application_key': config['application_key'],
                 'api_key': config['api_key'],
@@ -1327,28 +1340,7 @@ class WeatherViewSet(viewsets.ViewSet):
                 )
 
             self.log_api_response('list', response)
-
-            # Obtenir les données depuis le chemin approprié dans la réponse
-            weather_data = data.get('data', {})
-
-            # Vérifier si les données existent et sont complètes
-            if not weather_data:
-                print(f"⚠️ Aucune donnée météo reçue de l'API pour l'appareil {device_mac}")
-                return Response(
-                    {'error': 'Aucune donnée météo disponible'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # Sérialiser et retourner les données
-            serializer = WeatherDataSerializer(data=weather_data)
-            if serializer.is_valid():
-                return Response(serializer.data)
-
-            print(f"❌ Erreur de sérialisation: {serializer.errors}")
-            return Response(
-                serializer.errors,
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response(data)
 
         except Exception as e:
             print(f"\n[WeatherViewSet][list] ❌ Exception: {str(e)}")
@@ -1358,6 +1350,562 @@ class WeatherViewSet(viewsets.ViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        """Récupère les données historiques pour un appareil spécifique."""
+        device_mac = request.query_params.get('mac')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        cycle_type = request.query_params.get('cycle_type', '5min')
+        entreprise_id = request.query_params.get('entreprise')
+
+        print(f"\n[WeatherViewSet][history] 📊 Récupération des données historiques")
+        print(f"MAC demandé: {device_mac}")
+        print(f"Période: {start_date} - {end_date}")
+        print(f"Type de cycle: {cycle_type}")
+        print(f"Entreprise ID: {entreprise_id}")
+
+        # Vérifier les paramètres obligatoires
+        if not device_mac:
+            return Response(
+                {'error': 'Le paramètre MAC est obligatoire'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not start_date or not end_date:
+            return Response(
+                {'error': 'Les dates de début et de fin sont obligatoires'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Valider le format des dates
+            try:
+                datetime.strptime(start_date, '%Y-%m-%d')
+                datetime.strptime(end_date, '%Y-%m-%d')
+            except ValueError:
+                return Response(
+                    {'error': 'Format de date incorrect. Utilisez le format YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Valider le type de cycle et vérifier que la plage de dates est conforme
+            now = datetime.now()
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            date_diff = (end_dt - start_dt).days + 1
+
+            # Règles selon la documentation Ecowitt
+            if cycle_type == '5min' and date_diff > 1:
+                return Response(
+                    {'error': 'Pour le cycle 5min, la plage ne doit pas dépasser 1 jour'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif cycle_type == '30min' and date_diff > 7:
+                return Response(
+                    {'error': 'Pour le cycle 30min, la plage ne doit pas dépasser 7 jours'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif cycle_type == '4hour' and date_diff > 31:
+                return Response(
+                    {'error': 'Pour le cycle 4hour, la plage ne doit pas dépasser 31 jours'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif cycle_type == '1day' and date_diff > 365:
+                return Response(
+                    {'error': 'Pour le cycle 1day, la plage ne doit pas dépasser 365 jours'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            config, error_message = self.get_ecowitt_config()
+
+            # Si aucune configuration n'est disponible, retourner l'erreur
+            if not config:
+                print(f"[WeatherViewSet][history] ❌ Erreur: {error_message}")
+                return Response(
+                    {'error': error_message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Appel à l'API Ecowitt pour les données historiques
+            api_url = f"{config['base_url']}/device/history"
+            
+            # Paramètres conformes à la documentation Ecowitt
+            # call_back doit être spécifique (outdoor, indoor, etc.) et non 'all'
+            params = {
+                'application_key': config['application_key'],
+                'api_key': config['api_key'],
+                'mac': device_mac,
+                'start_date': f"{start_date} 00:00:00",  # Format ISO8601 requis
+                'end_date': f"{end_date} 23:59:59",      # Format ISO8601 requis
+                'cycle_type': cycle_type,
+                'call_back': 'outdoor,indoor,pressure,wind,rainfall,solar_and_uvi,battery'  # Valeurs spécifiques au lieu de 'all'
+            }
+
+            print(f"URL: {api_url}")
+            print(f"Paramètres: {params}")
+
+            response = requests.get(api_url, params=params)
+
+            if response.status_code != 200:
+                self.log_api_response('history', response, error=True)
+                return Response(
+                    {'error': 'Erreur lors de la récupération des données historiques'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            data = response.json()
+            if data.get('code') != 0:
+                self.log_api_response('history', response, error=True)
+                return Response(
+                    {'error': data.get('msg', 'Erreur inconnue')},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            self.log_api_response('history', response)
+            return Response(data)
+
+        except Exception as e:
+            print(f"\n[WeatherViewSet][history] ❌ Exception: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['get'])
+    def chart(self, request):
+        """Récupère les données pour générer des graphiques."""
+        device_mac = request.query_params.get('mac')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        cycle_type = request.query_params.get('cycle_type', '5min')
+        data_type = request.query_params.get('data_type')
+        entreprise_id = request.query_params.get('entreprise')
+
+        print(f"\n[WeatherViewSet][chart] 📈 Récupération des données pour graphiques")
+        print(f"MAC demandé: {device_mac}")
+        print(f"Période: {start_date} - {end_date}")
+        print(f"Type de cycle: {cycle_type}")
+        print(f"Type de données: {data_type}")
+        print(f"Entreprise ID: {entreprise_id}")
+
+        # Vérifier les paramètres obligatoires
+        if not device_mac:
+            return Response(
+                {'error': 'Le paramètre MAC est obligatoire'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not start_date or not end_date:
+            return Response(
+                {'error': 'Les dates de début et de fin sont obligatoires'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not data_type:
+            return Response(
+                {'error': 'Le type de données est obligatoire'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Valider le format des dates
+            try:
+                from datetime import datetime
+                datetime.strptime(start_date, '%Y-%m-%d')
+                datetime.strptime(end_date, '%Y-%m-%d')
+            except ValueError:
+                return Response(
+                    {'error': 'Format de date incorrect. Utilisez le format YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            config, error_message = self.get_ecowitt_config()
+
+            # Si aucune configuration n'est disponible, retourner l'erreur
+            if not config:
+                print(f"[WeatherViewSet][chart] ❌ Erreur: {error_message}")
+                return Response(
+                    {'error': error_message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Mapper les types de données de notre API vers les chemins d'API Ecowitt
+            data_type_mapping = {
+                'temp': 'outdoor.temperature',
+                'humidity': 'outdoor.humidity',
+                'pressure': 'pressure.absolute',
+                'wind': 'wind.wind_speed',
+                'rain': 'rainfall.daily',
+                'solar': 'solar_and_uvi.solar'
+            }
+
+            # Vérifier si le type de données est valide
+            if data_type not in data_type_mapping:
+                return Response(
+                    {'error': f'Type de données invalide. Valeurs acceptées: {", ".join(data_type_mapping.keys())}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Convertir le type de données en chemin complet pour l'API Ecowitt
+            call_back = data_type_mapping[data_type]
+
+            api_url = f"{config['base_url']}/device/history"
+            params = {
+                'application_key': config['application_key'],
+                'api_key': config['api_key'],
+                'mac': device_mac,
+                'start_date': f"{start_date} 00:00:00",
+                'end_date': f"{end_date} 23:59:59",
+                'cycle_type': cycle_type,
+                'call_back': call_back
+            }
+
+            print(f"URL: {api_url}")
+            print(f"Paramètres: {params}")
+
+            response = requests.get(api_url, params=params)
+
+            if response.status_code != 200:
+                self.log_api_response('chart', response, error=True)
+                return Response(
+                    {'error': 'Erreur lors de la récupération des données'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            data = response.json()
+            if data.get('code') != 0:
+                self.log_api_response('chart', response, error=True)
+                print(f"[WeatherViewSet][chart] ❌ Erreur API (code {data.get('code')}): {data.get('msg')}")
+                return Response(
+                    {'error': data.get('msg', 'Erreur inconnue')},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            self.log_api_response('chart', response)
+
+            # Traiter les données pour le graphique
+            chart_data = self.format_chart_data(data.get('data', {}), data_type)
+            return Response(chart_data)
+
+        except Exception as e:
+            print(f"\n[WeatherViewSet][chart] ❌ Exception: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def format_chart_data(self, data, data_type):
+        """Transforme les données brutes en format adapté aux graphiques."""
+        try:
+            result = {
+                'type': data_type,
+                'labels': [],
+                'datasets': []
+            }
+
+            # Vérifier si nous avons des données en temps réel (un seul point)
+            if isinstance(data, dict) and not isinstance(data, list):
+                # Vérifier si c'est des données historiques au format Ecowitt API v3
+                if data_type in data and isinstance(data[data_type], dict):
+                    print(f"[WeatherViewSet][format_chart_data] Traitement des données historiques pour {data_type}")
+
+                    # Initialiser les configurations de datasets selon le type de données
+                    if data_type == 'temp':
+                        datasets_config = [
+                            {'key': 'temperature', 'subkey': 'list', 'label': 'Température extérieure', 'color': '#FF6384', 'bgColor': 'rgba(255, 99, 132, 0.2)', 'conversion': self.fahrenheit_to_celsius}
+                        ]
+                    elif data_type == 'humidity':
+                        datasets_config = [
+                            {'key': 'humidity', 'subkey': 'list', 'label': 'Humidité extérieure', 'color': '#36A2EB', 'bgColor': 'rgba(54, 162, 235, 0.2)', 'conversion': lambda x: x}
+                        ]
+                    elif data_type == 'pressure':
+                        datasets_config = [
+                            {'key': 'absolute', 'subkey': 'list', 'label': 'Pression absolue', 'color': '#4BC0C0', 'bgColor': 'rgba(75, 192, 192, 0.2)', 'conversion': lambda x: x * 33.8639}  # inHg vers hPa
+                        ]
+                    elif data_type == 'wind':
+                        datasets_config = [
+                            {'key': 'wind_speed', 'subkey': 'list', 'label': 'Vitesse du vent', 'color': '#FFCE56', 'bgColor': 'rgba(255, 206, 86, 0.2)', 'conversion': lambda x: x * 1.60934},  # mph vers km/h
+                            {'key': 'wind_gust', 'subkey': 'list', 'label': 'Rafales', 'color': '#FF9F40', 'bgColor': 'rgba(255, 159, 64, 0.2)', 'conversion': lambda x: x * 1.60934}  # mph vers km/h
+                        ]
+                    elif data_type == 'rain':
+                        datasets_config = [
+                            {'key': 'daily', 'subkey': 'list', 'label': 'Précipitations journalières', 'color': '#9966FF', 'bgColor': 'rgba(153, 102, 255, 0.2)', 'conversion': lambda x: x * 25.4}  # inches vers mm
+                        ]
+                    elif data_type == 'solar':
+                        datasets_config = [
+                            {'key': 'solar', 'subkey': 'list', 'label': 'Rayonnement solaire', 'color': '#FF9F40', 'bgColor': 'rgba(255, 159, 64, 0.2)', 'conversion': lambda x: x}
+                        ]
+                    else:
+                        datasets_config = []
+
+                    # Traiter chaque dataset configuré
+                    for config in datasets_config:
+                        # Vérifier si les données existent pour cette clé
+                        if config['key'] in data[data_type] and config['subkey'] in data[data_type][config['key']]:
+                            # Récupérer les données de la liste
+                            data_list = data[data_type][config['key']][config['subkey']]
+
+                            # Créer un dataset pour cette série
+                            dataset = {
+                                'label': config['label'],
+                                'borderColor': config['color'],
+                                'backgroundColor': config['bgColor'],
+                                'fill': False,
+                                'tension': 0.1,
+                                'data': []
+                            }
+
+                            # Ajouter les points de données (format timestamp: valeur)
+                            for timestamp, value in data_list.items():
+                                try:
+                                    # Convertir la valeur selon la fonction de conversion
+                                    converted_value = config['conversion'](float(value))
+
+                                    # Ajouter le point au dataset (timestamp en ms pour JavaScript)
+                                    dataset['data'].append({
+                                        'x': int(timestamp) * 1000,  # Convertir en millisecondes pour JavaScript
+                                        'y': converted_value
+                                    })
+                                except (ValueError, TypeError) as e:
+                                    print(f"[WeatherViewSet][format_chart_data] ⚠️ Erreur de conversion pour {config['key']} à {timestamp}: {e}")
+
+                            # Trier les points par timestamp
+                            dataset['data'].sort(key=lambda point: point['x'])
+
+                            # Si le dataset contient des données, l'ajouter au résultat
+                            if dataset['data']:
+                                result['datasets'].append(dataset)
+
+                # Données en temps réel
+                else:
+                    current_time = data.get('outdoor', {}).get('temperature', {}).get('time', str(int(time.time())))
+
+                    # Formater selon le type de données
+                    if data_type == 'temp':
+                        if 'outdoor' in data and 'temperature' in data['outdoor']:
+                            result['datasets'].append({
+                                'label': 'Température extérieure',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': self.fahrenheit_to_celsius(float(data['outdoor']['temperature']['value']))
+                                }],
+                                'borderColor': '#FF6384',
+                                'backgroundColor': 'rgba(255, 99, 132, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+                        if 'indoor' in data and 'temperature' in data['indoor']:
+                            result['datasets'].append({
+                                'label': 'Température intérieure',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': self.fahrenheit_to_celsius(float(data['indoor']['temperature']['value']))
+                                }],
+                                'borderColor': '#36A2EB',
+                                'backgroundColor': 'rgba(54, 162, 235, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+
+                    elif data_type == 'humidity':
+                        if 'outdoor' in data and 'humidity' in data['outdoor']:
+                            result['datasets'].append({
+                                'label': 'Humidité extérieure',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': float(data['outdoor']['humidity']['value'])
+                                }],
+                                'borderColor': '#36A2EB',
+                                'backgroundColor': 'rgba(54, 162, 235, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+                        if 'indoor' in data and 'humidity' in data['indoor']:
+                            result['datasets'].append({
+                                'label': 'Humidité intérieure',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': float(data['indoor']['humidity']['value'])
+                                }],
+                                'borderColor': '#4BC0C0',
+                                'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+
+                    elif data_type == 'pressure':
+                        if 'pressure' in data and 'absolute' in data['pressure']:
+                            result['datasets'].append({
+                                'label': 'Pression absolue',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': float(data['pressure']['absolute']['value']) * 33.8639  # Conversion inHg vers hPa
+                                }],
+                                'borderColor': '#4BC0C0',
+                                'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+
+                    elif data_type == 'wind':
+                        if 'wind' in data:
+                            if 'wind_speed' in data['wind']:
+                                result['datasets'].append({
+                                    'label': 'Vitesse du vent',
+                                    'data': [{
+                                        'x': current_time,
+                                        'y': float(data['wind']['wind_speed']['value']) * 1.60934  # Conversion mph vers km/h
+                                    }],
+                                    'borderColor': '#FFCE56',
+                                    'backgroundColor': 'rgba(255, 206, 86, 0.2)',
+                                    'fill': False,
+                                    'tension': 0.1
+                                })
+                            if 'wind_gust' in data['wind']:
+                                result['datasets'].append({
+                                    'label': 'Rafales',
+                                    'data': [{
+                                        'x': current_time,
+                                        'y': float(data['wind']['wind_gust']['value']) * 1.60934  # Conversion mph vers km/h
+                                    }],
+                                    'borderColor': '#FF9F40',
+                                    'backgroundColor': 'rgba(255, 159, 64, 0.2)',
+                                    'fill': False,
+                                    'tension': 0.1
+                                })
+
+                    elif data_type == 'rain':
+                        if 'rainfall' in data and 'daily' in data['rainfall']:
+                            result['datasets'].append({
+                                'label': 'Précipitations journalières',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': float(data['rainfall']['daily']['value']) * 25.4  # Conversion inches vers mm
+                                }],
+                                'borderColor': '#9966FF',
+                                'backgroundColor': 'rgba(153, 102, 255, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+
+                    elif data_type == 'solar':
+                        if 'solar_and_uvi' in data and 'solar' in data['solar_and_uvi']:
+                            result['datasets'].append({
+                                'label': 'Rayonnement solaire',
+                                'data': [{
+                                    'x': current_time,
+                                    'y': float(data['solar_and_uvi']['solar']['value'])
+                                }],
+                                'borderColor': '#FF9F40',
+                                'backgroundColor': 'rgba(255, 159, 64, 0.2)',
+                                'fill': False,
+                                'tension': 0.1
+                            })
+
+            # Données historiques (liste de points - ancien format)
+            elif isinstance(data, list):
+            # Extraire les timestamps pour les labels
+                result['labels'] = [item.get('time') for item in data]
+
+            # Formater selon le type de données
+            if data_type == 'temp':
+                result['datasets'].append({
+                    'label': 'Température extérieure',
+                    'data': [self.fahrenheit_to_celsius(float(item.get('outdoor', {}).get('temperature', {}).get('value', 0))) for item in data],
+                    'borderColor': '#FF6384',
+                    'backgroundColor': 'rgba(255, 99, 132, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            elif data_type == 'humidity':
+                result['datasets'].append({
+                    'label': 'Humidité extérieure',
+                    'data': [float(item.get('outdoor', {}).get('humidity', {}).get('value', 0)) for item in data],
+                    'borderColor': '#36A2EB',
+                    'backgroundColor': 'rgba(54, 162, 235, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            elif data_type == 'pressure':
+                result['datasets'].append({
+                    'label': 'Pression absolue',
+                    'data': [float(item.get('pressure', {}).get('absolute', {}).get('value', 0)) * 33.8639 for item in data],  # Conversion inHg vers hPa
+                    'borderColor': '#4BC0C0',
+                    'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            elif data_type == 'wind':
+                # Vitesse du vent
+                result['datasets'].append({
+                    'label': 'Vitesse du vent',
+                    'data': [float(item.get('wind', {}).get('wind_speed', {}).get('value', 0)) * 1.60934 for item in data],  # Conversion mph vers km/h
+                    'borderColor': '#FFCE56',
+                    'backgroundColor': 'rgba(255, 206, 86, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+                # Rafales
+                result['datasets'].append({
+                    'label': 'Rafales',
+                    'data': [float(item.get('wind', {}).get('wind_gust', {}).get('value', 0)) * 1.60934 for item in data],  # Conversion mph vers km/h
+                    'borderColor': '#FF9F40',
+                    'backgroundColor': 'rgba(255, 159, 64, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            elif data_type == 'rain':
+                result['datasets'].append({
+                    'label': 'Précipitations journalières',
+                    'data': [float(item.get('rainfall', {}).get('daily', {}).get('value', 0)) * 25.4 for item in data],  # Conversion inches vers mm
+                    'borderColor': '#9966FF',
+                    'backgroundColor': 'rgba(153, 102, 255, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            elif data_type == 'solar':
+                result['datasets'].append({
+                    'label': 'Rayonnement solaire',
+                    'data': [float(item.get('solar_and_uvi', {}).get('solar', {}).get('value', 0)) for item in data],
+                        'borderColor': '#FF9F40',
+                        'backgroundColor': 'rgba(255, 159, 64, 0.2)',
+                    'fill': False,
+                    'tension': 0.1
+                })
+
+            # Afficher un résumé des données générées
+            print(f"[WeatherViewSet][format_chart_data] ✅ Données formatées pour {data_type}:")
+            print(f"- Nombre de datasets: {len(result['datasets'])}")
+            for i, dataset in enumerate(result['datasets']):
+                print(f"  - Dataset {i+1} ({dataset['label']}): {len(dataset['data'])} points")
+
+            return result
+
+        except Exception as e:
+            print(f"[WeatherViewSet][format_chart_data] ❌ Erreur lors du formatage des données: {str(e)}")
+            import traceback
+            print(f"Traceback:\n{traceback.format_exc()}")
+            return {
+                'type': data_type,
+                'labels': [],
+                'datasets': [],
+                'error': str(e)
+            }
+
+    def fahrenheit_to_celsius(self, fahrenheit):
+        """Convertit les degrés Fahrenheit en Celsius."""
+        return (fahrenheit - 32) * 5/9
 
 class NoteColumnViewSet(viewsets.ViewSet):
     """ViewSet pour la gestion des colonnes de notes fixes."""
@@ -1405,3 +1953,46 @@ class NoteColumnViewSet(viewsets.ViewSet):
             {'detail': 'Les colonnes sont fixes et ne peuvent pas être supprimées.'},
             status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
+
+
+class MapFilterViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des filtres de carte personnalisés."""
+    serializer_class = MapFilterSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Filtre les filtres selon le rôle de l'utilisateur."""
+        user = self.request.user
+
+        # Les admins peuvent voir tous les filtres
+        if user.role == ROLE_ADMIN:
+            return MapFilter.objects.all()
+
+        # Les entreprises peuvent voir leurs propres filtres
+        if user.role == ROLE_USINE:
+            return MapFilter.objects.filter(entreprise=user)
+
+        # Les salariés peuvent voir les filtres de leur entreprise
+        if user.role == ROLE_DEALER and user.entreprise:
+            return MapFilter.objects.filter(entreprise=user.entreprise)
+
+        # Les visiteurs peuvent voir les filtres de l'entreprise de leur salarié
+        if user.role == ROLE_AGRICULTEUR and user.salarie and user.salarie.entreprise:
+            return MapFilter.objects.filter(entreprise=user.salarie.entreprise)
+
+        # Par défaut, aucun filtre n'est accessible
+        return MapFilter.objects.none()
+
+    def perform_create(self, serializer):
+        """Assigne automatiquement l'entreprise lors de la création."""
+        user = self.request.user
+
+        # Si l'utilisateur est une entreprise, assigner directement
+        if user.role == ROLE_USINE:
+            serializer.save(entreprise=user)
+        # Si l'utilisateur est un admin et qu'une entreprise est spécifiée, utiliser celle-ci
+        elif user.role == ROLE_ADMIN and 'entreprise' in serializer.validated_data:
+            serializer.save()
+        # Sinon, erreur
+        else:
+            raise PermissionDenied("Seules les entreprises peuvent créer des filtres de carte.")
