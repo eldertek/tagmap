@@ -1,5 +1,5 @@
 <template>
-  <div v-if="showRefreshUI" class="pwa-update-notification">
+  <div v-if="showUpdateNotification" class="pwa-update-notification">
     <div class="pwa-update-content">
       <p>Une nouvelle version est disponible</p>
       <div class="pwa-update-actions">
@@ -8,53 +8,34 @@
       </div>
     </div>
   </div>
-  <div v-if="showOfflineReady" class="pwa-offline-notification">
-    <div class="pwa-offline-content">
-      <p>Application prête pour une utilisation hors ligne</p>
-      <button @click="closeOfflineNotification" class="pwa-close-button">OK</button>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const showRefreshUI = ref(false)
-const showOfflineReady = ref(false)
-const updateSW = ref<(() => Promise<void>) | null>(null)
+const showUpdateNotification = ref(false)
 
 // Fonction pour mettre à jour l'application
 const refreshApp = async () => {
-  if (updateSW.value) {
-    await updateSW.value()
-    showRefreshUI.value = false
-  }
+  window.location.reload()
+  showUpdateNotification.value = false
 }
 
 // Fonction pour fermer la notification de mise à jour
 const closeNotification = () => {
-  showRefreshUI.value = false
-}
-
-// Fonction pour fermer la notification de disponibilité hors ligne
-const closeOfflineNotification = () => {
-  showOfflineReady.value = false
+  showUpdateNotification.value = false
 }
 
 // Exposer les méthodes pour être utilisées par le composant parent
 defineExpose({
-  showRefreshUI,
-  showOfflineReady,
-  updateSW,
+  showUpdateNotification,
   refreshApp,
-  closeNotification,
-  closeOfflineNotification
+  closeNotification
 })
 </script>
 
 <style scoped>
-.pwa-update-notification,
-.pwa-offline-notification {
+.pwa-update-notification {
   position: fixed;
   bottom: 20px;
   left: 50%;
@@ -70,8 +51,7 @@ defineExpose({
   animation: slide-up 0.3s ease-out;
 }
 
-.pwa-update-content,
-.pwa-offline-content {
+.pwa-update-content {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -125,8 +105,7 @@ defineExpose({
 
 /* Adaptation pour mobile */
 @media (max-width: 480px) {
-  .pwa-update-notification,
-  .pwa-offline-notification {
+  .pwa-update-notification {
     width: 90%;
     bottom: 10px;
   }

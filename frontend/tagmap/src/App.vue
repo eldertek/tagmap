@@ -8,7 +8,6 @@ import SearchBar from '@/components/SearchBar.vue'
 import PerformancePanel from '@/components/PerformancePanel.vue'
 import PWAUpdateNotification from '@/components/PWAUpdateNotification.vue'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
-import { updateSW } from '@/main'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -31,6 +30,8 @@ const islandPositionRight = ref('65px')
 const pwaUpdateNotification = ref<InstanceType<typeof PWAUpdateNotification> | null>(null)
 const pwaInstallPrompt = ref<InstanceType<typeof PWAInstallPrompt> | null>(null)
 
+const showUpdateNotification = ref(false)
+
 // Fonction pour détecter si on est sur mobile
 function checkMobile() {
   isMobile.value = window.innerWidth < 768
@@ -44,16 +45,7 @@ onMounted(() => {
 
   // Écouter les événements PWA
   window.addEventListener('pwa-update-available', () => {
-    if (pwaUpdateNotification.value) {
-      pwaUpdateNotification.value.showRefreshUI = true
-      pwaUpdateNotification.value.updateSW = updateSW
-    }
-  })
-
-  window.addEventListener('pwa-offline-ready', () => {
-    if (pwaUpdateNotification.value) {
-      pwaUpdateNotification.value.showOfflineReady = true
-    }
+    showUpdateNotification.value = true
   })
 })
 
@@ -62,7 +54,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', checkMobile)
   window.removeEventListener('resize', updateIslandPosition)
   window.removeEventListener('pwa-update-available', () => {})
-  window.removeEventListener('pwa-offline-ready', () => {})
 })
 
 // Fonction pour déterminer la position de la Dynamic Island par rapport à la cloche
