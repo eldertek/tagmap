@@ -115,6 +115,7 @@
               :is-drawing="isDrawing"
               @tool-selected="setDrawingTool"
               @filter-change="handleFilterChange"
+              @delete-shape="deleteSelectedShape"
               class="md:w-80 md:flex-shrink-0"
             />
 
