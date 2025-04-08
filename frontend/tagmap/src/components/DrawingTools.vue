@@ -59,8 +59,9 @@
           <!-- Outils de dessin - version compacte avec icônes -->
           <div class="grid grid-cols-4 gap-1.5 mb-4">
             <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
-              class="flex items-center justify-center p-2 rounded-md border"
-              :class="{ 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm': currentTool === tool.type }"
+              class="flex items-center justify-center p-2 rounded-md border transition-all duration-200"
+              :class="{ 'bg-primary-100 border-primary-500 text-primary-700 shadow-sm': currentTool === tool.type,
+                       'hover:bg-gray-50 border-gray-300 text-gray-700': currentTool !== tool.type }"
               @click="handleToolClick(tool.type)" :title="tool.label">
               <span class="icon" v-html="getToolIcon(tool.type)"></span>
             </button>
@@ -582,7 +583,7 @@ watch(activeTab, (newTab, oldTab) => {
     // Désélectionner la forme actuelle lorsqu'on passe à l'onglet filtres
     if (props.selectedShape) {
       console.log('[DrawingTools][watch activeTab] Désélection de la forme actuelle lors du passage à l\'onglet filtres');
-      emit('tool-change', ''); // Désélectionne l'outil actuel
+      emit('tool-selected', ''); // Désélectionne l'outil actuel
     }
 
     // Appliquer les filtres immédiatement lors du passage à l'onglet filtres
@@ -748,7 +749,7 @@ const updateAccessLevelFilterAndDeselect = (level: string) => {
   // Désélectionner la forme actuelle si nécessaire
   if (props.selectedShape) {
     console.log('[DrawingTools][updateAccessLevelFilterAndDeselect] Désélection de la forme actuelle');
-    emit('tool-change', ''); // Désélectionne l'outil actuel
+    emit('tool-selected', ''); // Désélectionne l'outil actuel
   }
 
   // Appeler la fonction de mise à jour standard
@@ -986,7 +987,7 @@ const deselectCurrentShape = () => {
   // Désélectionner la forme actuelle si nécessaire
   if (props.selectedShape) {
     console.log('[DrawingTools][deselectCurrentShape] Désélection de la forme actuelle');
-    emit('tool-change', ''); // Désélectionne l'outil actuel
+    emit('tool-selected', ''); // Désélectionne l'outil actuel
   }
 };
 
@@ -1061,7 +1062,7 @@ const switchToFiltersTab = () => {
 }
 
 // Define emits
-const emit = defineEmits(['update:show', 'tool-change', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
+const emit = defineEmits(['update:show', 'tool-selected', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
 
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
@@ -1207,13 +1208,12 @@ watch(filters, (newFilters, oldFilters) => {
 
 // Ajouter cette méthode dans la partie script setup
 const handleToolClick = (toolType: string) => {
-  // Émettre l'événement tool-change
-  emit('tool-change', props.currentTool === toolType ? '' : toolType);
+  // Émettre l'événement tool-selected
+  emit('tool-selected', props.currentTool === toolType ? '' : toolType);
 
-  // Sur mobile, émettre un événement pour fermer le tiroir
+  // Sur mobile, fermer le panneau d'outils après la sélection
   if (window.innerWidth < 768) {
-    // Émettre l'événement close-drawer sur mobile uniquement
-    emit('close-drawer');
+    emit('update:show', false);
   }
 }
 </script>
