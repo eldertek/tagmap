@@ -53,9 +53,9 @@
       </div>
 
       <!-- Contenu des onglets -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-hidden flex flex-col">
         <!-- Onglet Outils -->
-        <div v-if="activeTab === 'tools'" class="p-3">
+        <div v-if="activeTab === 'tools'" class="p-3 overflow-y-auto flex-1">
           <!-- Outils de dessin - version compacte avec icônes -->
           <div class="grid grid-cols-4 gap-1.5 mb-4">
             <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
@@ -97,12 +97,17 @@
               <label for="shapeCategory" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
               <select id="shapeCategory" v-model="shapeCategory" @change="updateShapeCategory"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
+                <!-- Catégories par défaut -->
                 <option value="forages">Forages</option>
                 <option value="clients">Clients</option>
                 <option value="entrepots">Entrepôts</option>
                 <option value="livraisons">Lieux de livraison</option>
                 <option value="cultures">Cultures</option>
                 <option value="parcelles">Noms des parcelles</option>
+                <!-- Catégories personnalisées -->
+                <template v-for="(value, key) in filters.categories" :key="key">
+                  <option v-if="!defaultCategories.includes(String(key))" :value="String(key)">{{ formatCategoryName(String(key)) }}</option>
+                </template>
                 <option value="default">Autre</option>
               </select>
             </div>
@@ -191,7 +196,7 @@
         </div>
 
         <!-- Onglet Style -->
-        <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3">
+        <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 overflow-y-auto flex-1">
           <!-- Couleurs prédéfinies - compact -->
           <div class="grid grid-cols-6 gap-2 mb-4">
             <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
@@ -253,134 +258,134 @@
         </div>
 
         <!-- Onglet Filtres -->
-        <div v-if="activeTab === 'filters'" class="p-3 space-y-4">
-          <!-- Section des niveaux d'accès avec liste déroulante -->
-          <div class="space-y-2">
-            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
-            <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
-              Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
-            </div>
-            <div>
-              <select v-model="selectedAccessLevel" @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
-                <option value="company">Entreprise (accès à tout)</option>
-                <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
-                <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
-              </select>
-              <div class="mt-2 text-xs text-gray-500">
-                <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
-                <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
-                <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
+        <div v-if="activeTab === 'filters'" class="filters-tab">
+          <div class="filters-content">
+            <!-- Section des niveaux d'accès avec liste déroulante -->
+            <div class="space-y-2">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Niveau d'accès</h4>
+              <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
+                Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
               </div>
-            </div>
-          </div>
-
-          <!-- Section des catégories -->
-          <div class="space-y-2">
-            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories</h4>
-            <div class="space-y-1">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Forages</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Clients</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Cultures</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
-              </label>
-
-              <!-- Afficher les filtres personnalisés existants -->
-              <template v-for="(value, key) in filters.categories" :key="key">
-                <label v-if="!defaultCategories.includes(String(key))" class="flex items-center">
-                  <input type="checkbox" v-model="filters.categories[key]" @change="deselectCurrentShape"
-                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                  <span class="ml-2 text-sm text-gray-700">{{ key }}</span>
-                </label>
-              </template>
-
-              <!-- Ajout de filtre personnalisé (visible uniquement pour admin et entreprise) -->
-              <div v-if="isAdmin || isEntreprise" class="mt-2 pt-2 border-t border-gray-200">
-                <div class="flex space-x-2">
-                  <input
-                    type="text"
-                    v-model="newFilter.name"
-                    placeholder="Nouveau filtre..."
-                    class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
-                  />
-                  <button
-                    @click="createFilter"
-                    :disabled="!newFilter.name || isCreatingFilter"
-                    class="px-2 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                    <svg v-if="!isCreatingFilter" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </button>
+              <div>
+                <select v-model="selectedAccessLevel" @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
+                  <option value="company">Entreprise (accès à tout)</option>
+                  <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
+                  <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
+                </select>
+                <div class="mt-2 text-xs text-gray-500">
+                  <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
+                  <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
+                  <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section des types de formes -->
-          <div class="space-y-2">
-            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
-            <div class="space-y-1">
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Polygones</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Lignes</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
-              </label>
-              <label class="flex items-center">
-                <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape"
-                  class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                <span class="ml-2 text-sm text-gray-700">Notes</span>
-              </label>
+            <!-- Section des catégories -->
+            <div class="space-y-2 mt-4">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories</h4>
+              <div class="space-y-1">
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Forages</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.clients" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Clients</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.entrepots" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Entrepôts</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.livraisons" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Lieux de livraison</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.cultures" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Cultures</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.categories.parcelles" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Noms des parcelles</span>
+                </label>
+
+                <!-- Afficher les filtres personnalisés existants -->
+                <template v-for="(value, key) in filters.categories" :key="key">
+                  <label v-if="!defaultCategories.includes(String(key))" class="flex items-center">
+                    <input type="checkbox" v-model="filters.categories[key]" @change="deselectCurrentShape"
+                      class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                    <span class="ml-2 text-sm text-gray-700">{{ key }}</span>
+                  </label>
+                </template>
+
+                <!-- Ajout de filtre personnalisé (visible uniquement pour admin et entreprise) -->
+                <div v-if="isAdmin || isEntreprise" class="mt-2 pt-2 border-t border-gray-200">
+                  <div class="flex space-x-2">
+                    <input
+                      type="text"
+                      v-model="newFilter.name"
+                      placeholder="Nouveau filtre..."
+                      class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    <button
+                      @click="createFilter"
+                      :disabled="!newFilter.name || isCreatingFilter"
+                      class="px-2 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg v-if="!isCreatingFilter" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      <svg v-else class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section des types de formes -->
+            <div class="space-y-2 mt-4">
+              <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Types de formes</h4>
+              <div class="space-y-1">
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.shapeTypes.Polygon" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Polygones</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.shapeTypes.Line" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Lignes</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape"
+                    class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
+                  <span class="ml-2 text-sm text-gray-700">Notes</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Bouton de réinitialisation -->
+            <div class="pt-4 mb-4">
+              <button @click="resetFiltersAndDeselect"
+                class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
+                Réinitialiser
+              </button>
             </div>
           </div>
-
-          <!-- Bouton de réinitialisation -->
-          <div class="pt-2">
-            <button @click="resetFiltersAndDeselect"
-              class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
-              Réinitialiser
-            </button>
-          </div>
-
-
         </div>
       </div>
     </div>
@@ -989,6 +994,20 @@ const formatSlope = (value: number): string => {
   return `${value.toFixed(1)}%`
 }
 
+// Méthode pour formater le nom d'une catégorie
+const formatCategoryName = (category: string): string => {
+  // Si c'est une catégorie par défaut, retourner le nom tel quel
+  if (defaultCategories.value.includes(category)) {
+    return category;
+  }
+  
+  // Pour les catégories personnalisées, formater le nom
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // Fonction pour désélectionner la forme actuelle
 const deselectCurrentShape = () => {
   // Désélectionner la forme actuelle si nécessaire
@@ -1038,17 +1057,29 @@ async function createFilter() {
     console.log('[DrawingTools] Création d\'un filtre pour l\'entreprise:', entrepriseId);
 
     // Créer le filtre via le store
-    await mapFilterStore.createFilter({
+    const newMapFilter = await mapFilterStore.createFilter({
       name: newFilter.name,
       category: category,
       entreprise: entrepriseId
     });
 
+    console.log('[DrawingTools] Filtre créé avec succès:', newMapFilter);
+
     // Ajouter la catégorie au filtre local
     if (!filters.categories[category]) {
+      console.log(`[DrawingTools] Ajout de la catégorie ${category} aux filtres locaux`);
       filters.categories[category] = true;
-      emit('filter-change', filters);
     }
+
+    // Mettre à jour le DrawingStore avec la nouvelle catégorie
+    console.log(`[DrawingTools] Mise à jour du DrawingStore avec la catégorie ${category}`);
+    const updatedCategories = { ...drawingStore.filters.categories };
+    updatedCategories[category] = true;
+    drawingStore.updateFilters({ categories: updatedCategories });
+
+    // Émettre un événement pour indiquer que les filtres ont changé
+    console.log('[DrawingTools] Émission de l\'événement filter-change');
+    emit('filter-change', filters);
 
     // Réinitialiser le formulaire
     newFilter.name = '';
@@ -1122,7 +1153,7 @@ watchEffect(() => {
 })
 
 // Initialiser les filtres avec les valeurs du store seulement au montage du composant
-onMounted(() => {
+onMounted(async () => {
   console.log('[DrawingTools][onMounted] Initialisation des filtres depuis le store');
   const storeFilters = drawingStore.filters;
 
@@ -1151,6 +1182,37 @@ onMounted(() => {
   filters.shapeTypes.Line = storeFilters.shapeTypes.Line;
   filters.shapeTypes.ElevationLine = storeFilters.shapeTypes.ElevationLine;
   filters.shapeTypes.Note = storeFilters.shapeTypes.Note;
+
+  // Charger les filtres personnalisés depuis l'API
+  try {
+    console.log('[DrawingTools][onMounted] Chargement des filtres personnalisés');
+    await mapFilterStore.fetchFilters();
+    
+    // Récupérer les catégories uniques des filtres personnalisés
+    const customCategories = mapFilterStore.getUniqueCategories;
+    console.log('[DrawingTools][onMounted] Catégories personnalisées trouvées:', customCategories);
+    
+    // Ajouter les catégories personnalisées aux filtres
+    const categoriesAdded: string[] = [];
+    customCategories.forEach(category => {
+      // Ne pas ajouter les catégories par défaut qui existent déjà
+      if (!defaultCategories.value.includes(category) && !filters.categories[category]) {
+        console.log(`[DrawingTools][onMounted] Ajout de la catégorie personnalisée: ${category}`);
+        filters.categories[category] = true;
+        categoriesAdded.push(category);
+      }
+    });
+    
+    // Si des catégories ont été ajoutées, mettre à jour le store
+    if (categoriesAdded.length > 0) {
+      console.log('[DrawingTools][onMounted] Mise à jour du store avec les catégories personnalisées:', categoriesAdded);
+      drawingStore.updateFilters({ categories: filters.categories });
+      // Émettre un événement pour indiquer que les filtres ont changé
+      emit('filter-change', filters);
+    }
+  } catch (error) {
+    console.error('[DrawingTools][onMounted] Erreur lors du chargement des filtres personnalisés:', error);
+  }
 
   console.log('[DrawingTools][onMounted] Filtres locaux après initialisation:', JSON.stringify({
     accessLevels: { ...filters.accessLevels },
@@ -1232,6 +1294,54 @@ const handleToolClick = (toolType: string) => {
 .drawing-tools-panel {
   @apply bg-white flex flex-col;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nouvelle structure pour permettre le défilement dans l'onglet filtres */
+.flex-1 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Style spécifique pour l'onglet filtres */
+div[v-if="activeTab === 'filters'"] {
+  overflow-y: auto;
+  max-height: 100%;
+  flex: 1;
+}
+
+/* Style spécifique pour les autres onglets */
+div[v-if="activeTab === 'tools'"],
+div[v-if="activeTab === 'style'"] {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Tous les conteneurs d'onglets ont besoin de flex-1 pour prendre toute la hauteur disponible */
+div[v-if].flex-1,
+div[v-if="activeTab === 'tools'"],
+div[v-if="activeTab === 'style'"],
+div[v-if="activeTab === 'filters'"] {
+  min-height: 0;
+}
+
+/* Contenu principal des onglets */
+.overflow-hidden.flex.flex-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 767px) {
+  /* Ajouter un padding au bas des onglets sur mobile pour éviter que le contenu ne soit caché */
+  div[v-if="activeTab === 'filters'"],
+  div[v-if="activeTab === 'tools'"],
+  div[v-if="activeTab === 'style'"] {
+    padding-bottom: 80px; /* Plus d'espace pour éviter que le contenu soit caché par la barre d'outils mobile */
+  }
 }
 
 /* Styles pour mobile */
@@ -1244,10 +1354,20 @@ const handleToolClick = (toolType: string) => {
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden; /* Assurer que le contenu ne déborde pas du panneau */
   }
 
   .drawing-tools-panel.open {
     transform: translateY(0);
+  }
+
+  /* Assurer que les contenus d'onglets défilent correctement sur mobile */
+  div[v-if="activeTab === 'filters'"],
+  div[v-if="activeTab === 'tools'"],
+  div[v-if="activeTab === 'style'"] {
+    overflow-y: auto;
+    max-height: calc(80vh - 50px); /* Hauteur du panneau moins la hauteur de l'en-tête */
+    padding-bottom: 60px; /* Ajouter un espace en bas pour éviter que le contenu ne soit caché */
   }
 
   /* Afficher flex uniquement sur mobile */
@@ -1261,6 +1381,13 @@ const handleToolClick = (toolType: string) => {
   .drawing-tools-panel {
     @apply relative border-l border-gray-200;
     width: 20rem;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Assurer que le contenu défile correctement sur desktop */
+  div[v-if="activeTab === 'filters'"] {
+    max-height: calc(100vh - 150px); /* Ajustez cette valeur selon la hauteur des éléments au-dessus */
   }
 }
 
@@ -1807,5 +1934,37 @@ canvas {
 .pattern-dot {
   background-image: radial-gradient(circle, #3B82F6 1px, transparent 1px);
   background-size: 5px 5px;
+}
+
+.filters-tab {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.filters-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: min-content;
+  padding-bottom: 20px;
+}
+
+@media (max-width: 767px) {
+  .filters-tab {
+    max-height: calc(80vh - 50px);
+    padding-bottom: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  .filters-tab {
+    max-height: calc(100vh - 120px);
+  }
 }
 </style>

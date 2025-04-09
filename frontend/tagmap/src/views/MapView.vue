@@ -504,6 +504,7 @@ import { debounce } from 'lodash';
 import { Circle } from '@/utils/Circle';
 import { ElevationLine } from '@/utils/ElevationLine';
 import { GeoNote } from '@/utils/GeoNote';
+import { useMapFilterStore } from '@/stores/mapFilters';
 
 // Types étendus pour les utilisateurs et plans
 interface UserDetails {
@@ -911,17 +912,10 @@ onMounted(async () => {
         featureGroup.value.on('layerremove', (e: any) => {
           const layer = e.layer;
           if (layer && layer._leaflet_id) {
-            // Supprimer la couche de shapes.value pour éviter la duplication lors du filtrage
-            const layerIndex = shapes.value.findIndex(shape =>
-              shape.layer && shape.layer._leaflet_id === layer._leaflet_id
-            );
-
-            if (layerIndex !== -1) {
-              shapes.value.splice(layerIndex, 1);
-              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup et de shapes.value`);
-            } else {
-              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais introuvable dans shapes.value`);
-            }
+            // NE PAS supprimer la couche de shapes.value lors du filtrage
+            // On garde la référence pour pouvoir restaurer la couche plus tard
+            // On va seulement logger l'opération pour le débogage
+            console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value pour restauration ultérieure`);
           }
         });
       }
@@ -3811,8 +3805,23 @@ function updateMapDisplay() {
         categoryVisible = drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] === true;
         console.log(`[MapView][updateMapDisplay] Vérification de la catégorie ${category}: ${categoryVisible}`);
       } else {
-        categoryVisible = drawingStore.filters.categories.forages === true;
-        console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée, utilisation de 'forages': ${categoryVisible}`);
+        // Si la catégorie n'existe pas dans les filtres, vérifier d'abord si elle existe dans mapFilterStore
+        // pour éviter de réinitialiser à 'forages' les catégories personnalisées qui n'ont pas encore été chargées
+        const mapFilterStore = useMapFilterStore();
+        const customCategories = mapFilterStore.getUniqueCategories;
+        
+        if (customCategories.includes(category)) {
+          // Si c'est une catégorie personnalisée connue, l'ajouter au filtre avec une valeur true
+          console.log(`[MapView][updateMapDisplay] Catégorie personnalisée ${category} trouvée dans mapFilterStore, ajout aux filtres`);
+          const updatedCategories = { ...drawingStore.filters.categories };
+          updatedCategories[category] = true;
+          drawingStore.updateFilters({ categories: updatedCategories });
+          categoryVisible = true;
+        } else {
+          // Si ce n'est pas une catégorie personnalisée connue, utiliser 'forages' comme catégorie par défaut
+          categoryVisible = drawingStore.filters.categories.forages === true;
+          console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée, utilisation de 'forages': ${categoryVisible}`);
+        }
       }
     } else {
       categoryVisible = drawingStore.filters.categories.forages === true;
