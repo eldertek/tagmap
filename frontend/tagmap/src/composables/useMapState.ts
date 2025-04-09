@@ -11,68 +11,46 @@ export function useMapState() {
   const currentBaseMap = ref('Hybride');
   const activeLayer = ref<any>(null);
 
+  // Configuration commune pour toutes les couches de base
+  const commonTileOptions = {
+    maxZoom: 19,
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    noWrap: true,
+    keepBuffer: 4,
+    maxNativeZoom: 19,
+    tileSize: 256,
+    zoomOffset: 0,
+    bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
+    crossOrigin: true,
+    detectRetina: true
+  };
+
   // Mesurer les performances de la création des baseMaps
   const endBaseMapsCreation = startMeasure('createBaseMaps', 'useMapState');
   const baseMaps = {
     'Hybride': L.layerGroup([
       L.tileLayer('/osm_tiles/{z}/{x}/{y}.png', {
+        ...commonTileOptions,
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-        updateWhenZooming: false,
-        updateWhenIdle: true,
-        noWrap: true,
-        keepBuffer: 4,
-        maxNativeZoom: 19,
-        tileSize: 256,
-        zoomOffset: 0,
-        bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-        crossOrigin: true,
-        detectRetina: true,
         opacity: 0.6
       }),
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        ...commonTileOptions,
         attribution: '© Esri',
-        maxZoom: 19,
-        updateWhenZooming: false,
-        updateWhenIdle: true,
-        noWrap: true,
-        keepBuffer: 4,
         maxNativeZoom: 20,
-        tileSize: 256,
-        zoomOffset: 0,
-        bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-        crossOrigin: true,
-        detectRetina: true,
         opacity: 0.6
       })
     ]),
     'Cadastre': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+      ...commonTileOptions,
       attribution: 'Cadastre - Carte © IGN/Geoportail',
-      maxZoom: 19,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      noWrap: true,
-      keepBuffer: 4,
-      maxNativeZoom: 18,
-      tileSize: 256,
-      zoomOffset: 0,
-      bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-      crossOrigin: true,
-      detectRetina: true
+      maxNativeZoom: 18
     }),
     'IGN': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+      ...commonTileOptions,
       attribution: 'Carte IGN © IGN/Geoportail',
-      maxZoom: 19,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      noWrap: true,
-      keepBuffer: 4,
-      maxNativeZoom: 18,
-      tileSize: 256,
-      zoomOffset: 0,
-      bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
-      crossOrigin: true,
-      detectRetina: true
+      maxNativeZoom: 18
     })
   };
   endBaseMapsCreation();
@@ -134,6 +112,13 @@ export function useMapState() {
               if (maxBounds && !currentBounds.intersects(maxBounds)) {
                 mapInstance.panInsideBounds(maxBounds, { animate: false });
               }
+              
+              // Forcer un rafraîchissement de tous les marqueurs GeoNote
+              mapInstance.eachLayer((layer: any) => {
+                if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
+                  layer.updatePosition();
+                }
+              });
             }, 250);
           }, 250);
         });
@@ -152,6 +137,16 @@ export function useMapState() {
             }
           };
         }
+        
+        // Ajouter un gestionnaire d'événement spécifique pour l'animation de zoom
+        // qui mettra à jour correctement les positions des GeoNotes
+        mapInstance.on('zoomanim', (e: any) => {
+          mapInstance.eachLayer((layer: any) => {
+            if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePositionDuringZoom === 'function') {
+              layer.updatePositionDuringZoom(e);
+            }
+          });
+        });
       }, 'useMapState');
 
       // Ajouter la couche initiale
@@ -207,6 +202,13 @@ export function useMapState() {
             endCenter: mapInstance.getCenter()
           });
           endMove();
+          
+          // Mettre à jour la position de tous les GeoNotes
+          mapInstance.eachLayer((layer: any) => {
+            if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
+              layer.updatePosition();
+            }
+          });
         });
 
         // Monitorer le chargement des tuiles
@@ -303,6 +305,15 @@ export function useMapState() {
         // Forcer un rafraîchissement de la carte
         try {
           mapInstance.invalidateSize({ animate: false, pan: false });
+          
+          // Mettre à jour la position de tous les GeoNotes
+          setTimeout(() => {
+            mapInstance.eachLayer((layer: any) => {
+              if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
+                layer.updatePosition();
+              }
+            });
+          }, 100);
         } catch (e) {
           console.warn('Erreur lors du rafraîchissement de la carte:', e);
         }
@@ -370,7 +381,7 @@ export function useMapState() {
         if (data && data.length > 0) {
           performanceMonitor.measure('searchLocation:updateView', () => {
             const { lat, lon } = data[0];
-            map.value!.setView([lat, lon], 13, { animate: currentBaseMap.value !== 'Cadastre' });
+            map.value!.setView([lat, lon], 13, { animate: true });
           }, 'useMapState');
         }
       } catch (error) {
