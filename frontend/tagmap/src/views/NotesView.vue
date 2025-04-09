@@ -124,20 +124,21 @@
                       class="space-y-2"
                       group="notes"
                       item-key="id"
-                      handle=".note-drag-handle"
+                      :handle="isMobile ? null : '.note-drag-handle'"
                       @change="(event) => onDragChange(event, column.id)"
                       :animation="150"
                       ghost-class="ghost-card"
                       chosen-class="chosen"
                       drag-class="dragging"
+                      :disabled="isMobile"
                     >
                       <template #item="{element: note}">
                         <div class="note-container">
                           <!-- Carte de note -->
                           <div class="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-                            <div class="p-3 flex items-center justify-between note-drag-handle cursor-move no-select">
+                            <div class="p-3 flex items-center justify-between" :class="{ 'note-drag-handle cursor-move': !isMobile, 'no-select': true }">
                               <div class="flex items-center">
-                                <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg v-if="!isMobile" class="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
                                 </svg>
                                 <h4 class="text-sm font-medium text-gray-900 truncate">{{ note.title }}</h4>
@@ -291,6 +292,14 @@ const noteToDelete = ref<Note | null>(null);
 const editingNote = ref<Note | null>(null);
 const activeTab = ref('info'); // Onglet actif dans le modal d'édition
 const currentPlanId = ref<number | null>(null);
+
+// Détection du mobile
+const isMobile = ref(window.innerWidth < 768);
+
+// Mettre à jour isMobile quand la fenêtre est redimensionnée
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768;
+};
 
 // Colonnes fixes (drag and drop désactivé)
 const columnsForDrag = computed(() => {
@@ -508,6 +517,8 @@ onMounted(() => {
       console.error('[NotesView] Erreur lors du chargement des données:', error);
       notificationStore.error('Erreur lors du chargement des données');
     });
+  document.addEventListener('click', handleClickOutside);
+  window.addEventListener('resize', handleResize);
 });
 
 // Ajouter cette fonction pour charger les données initiales
@@ -927,11 +938,13 @@ function handleClickOutside(event: MouseEvent) {
 // Ajouter les écouteurs d'événements
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  window.addEventListener('resize', handleResize);
 });
 
 // Supprimer les écouteurs d'événements lors du démontage
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
