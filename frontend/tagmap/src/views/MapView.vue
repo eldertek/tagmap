@@ -912,10 +912,22 @@ onMounted(async () => {
         featureGroup.value.on('layerremove', (e: any) => {
           const layer = e.layer;
           if (layer && layer._leaflet_id) {
-            // NE PAS supprimer la couche de shapes.value lors du filtrage
-            // On garde la référence pour pouvoir restaurer la couche plus tard
-            // On va seulement logger l'opération pour le débogage
-            console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value pour restauration ultérieure`);
+            // Vérifier si c'est une couche temporaire créée pendant le déplacement d'une GeoNote
+            const isTemporaryLayer = !layer._dbId && (!layer.properties || (layer.properties && !layer.properties.type));
+            
+            if (isTemporaryLayer) {
+              // Pour les couches temporaires, les supprimer complètement de shapes.value
+              console.log(`[MapView][featureGroup.layerremove] Couche temporaire ${layer._leaflet_id} supprimée définitivement`);
+              const index = shapes.value.findIndex(shape => 
+                shape.layer && shape.layer._leaflet_id === layer._leaflet_id
+              );
+              if (index !== -1) {
+                shapes.value.splice(index, 1);
+              }
+            } else {
+              // Pour les couches normales, conserver dans shapes.value pour restauration ultérieure
+              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value pour restauration ultérieure`);
+            }
           }
         });
       }
@@ -3419,6 +3431,24 @@ function handleFilterChange(filters: {
 // Fonction pour mettre à jour l'affichage de la carte en fonction des filtres
 function updateMapDisplay() {
   if (!featureGroup.value) return;
+
+  // Nettoyage préventif des couches temporaires
+  // Cette étape permet d'éliminer toutes les couches temporaires qui auraient pu être créées lors des déplacements
+  const shapesToRemove: number[] = [];
+  shapes.value.forEach((shape, index) => {
+    if (shape.layer && 
+        !shape.id && 
+        (!shape.layer.properties || 
+         (shape.layer.properties && !shape.layer.properties.type))) {
+      console.log(`[MapView][updateMapDisplay] Nettoyage préventif de la couche temporaire ${shape.layer._leaflet_id}`);
+      shapesToRemove.push(index);
+    }
+  });
+
+  // Supprimer les couches temporaires en parcourant le tableau à l'envers pour éviter les problèmes d'indices
+  for (let i = shapesToRemove.length - 1; i >= 0; i--) {
+    shapes.value.splice(shapesToRemove[i], 1);
+  }
 
   // Log détaillé des filtres pour débogage
   const filtersLog = {

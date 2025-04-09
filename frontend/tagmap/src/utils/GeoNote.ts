@@ -1084,6 +1084,12 @@ export class GeoNote extends L.Marker {
     // Mettre à jour le popup pour refléter la nouvelle position
     this.bindPopup(this.createPopupContent());
 
+    // Forcer une mise à jour du rendu de la couche
+    if (this._map) {
+      // Forcer un rafraîchissement de la couche pour éviter les artefacts visuels
+      this._map.invalidateSize();
+    }
+
     // Déclencher la sauvegarde du plan
     this.triggerPlanSave();
   }
