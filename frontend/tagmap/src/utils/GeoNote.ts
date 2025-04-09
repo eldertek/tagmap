@@ -54,6 +54,12 @@ export class GeoNote extends L.Marker {
   // Déclaration de la méthode _animateZoom avec initialisation
   private _animateZoom: (e: any) => void = () => {};
 
+  // Déclaration de la méthode _onZoomStart avec initialisation
+  private _onZoomStart: () => void = () => {};
+
+  // Propriété pour suivre si la protection contre les erreurs d'animation de zoom est active
+  private _zoomProtectionActive: boolean = false;
+
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Récupérer la couleur des options ou utiliser la couleur par défaut
     const color = options.color || '#2b6451';
@@ -141,18 +147,27 @@ export class GeoNote extends L.Marker {
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
 
+    // Activer la protection contre les erreurs d'animation de zoom
+    this._protectFromZoomAnimationErrors();
+
     // Ajouter des écouteurs pour les événements de carte
     this.on('add', (e: any) => {
       if (e.target && e.target._map) {
         // Quand la note est ajoutée à la carte, ajouter des écouteurs pour les événements de zoom et de déplacement
         const map = e.target._map;
 
+        // D'abord, supprimer les écouteurs existants pour éviter les doublons
+        map.off('zoomend', this.refreshIconStyle, this);
+        map.off('moveend', this.refreshIconStyle, this);
+        map.off('zoomstart', this._onZoomStart, this);
+        map.off('zoomanim', this.updatePositionDuringZoom, this);
+
         // Ajouter des écouteurs pour rafraîchir l'icône après les événements de carte
         map.on('zoomend', () => this.refreshIconStyle());
         map.on('moveend', () => this.refreshIconStyle());
 
         // Ajouter un écouteur pour l'événement zoomstart pour éviter le mouvement pendant le zoom
-        map.on('zoomstart', () => {
+        map.on('zoomstart', this._onZoomStart = () => {
           // Forcer une mise à jour de la position au début du zoom
           setTimeout(() => {
             this.updatePosition();
@@ -160,10 +175,19 @@ export class GeoNote extends L.Marker {
         });
 
         // Ajouter un écouteur pendant l'animation de zoom
-        map.on('zoomanim', (e: any) => {
-          // Calculer et appliquer la transformation correcte pendant l'animation de zoom
-          this.updatePositionDuringZoom(e);
-        });
+        // Utiliser la méthode updatePositionDuringZoom directement pour éviter les problèmes de contexte
+        map.on('zoomanim', (e: any) => this.updatePositionDuringZoom(e));
+      }
+    });
+
+    // Nettoyer les écouteurs lorsque la note est retirée de la carte
+    this.on('remove', () => {
+      if (this._map) {
+        this._map.off('zoomend', this.refreshIconStyle, this);
+        this._map.off('moveend', this.refreshIconStyle, this);
+        this._map.off('zoomstart', this._onZoomStart, this);
+        this._map.off('zoomanim', this._animateZoom, this);
+        this._map.off('zoomanim', this.updatePositionDuringZoom, this);
       }
     });
 
@@ -1051,21 +1075,39 @@ export class GeoNote extends L.Marker {
       const element = this.getElement();
       if (!element || !this._map) return;
 
+      // Vérifier que l'événement contient les données nécessaires
+      if (!e || !e.center || e.zoom === undefined) {
+        console.warn('[GeoNote][updatePositionDuringZoom] Événement de zoom incomplet');
+        return;
+      }
+
       // Récupérer les données de zoom
       const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
       const position = this._map.latLngToLayerPoint(this.getLatLng());
 
-      // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
-      // _getCenterOffset et _getMapPanePos sont des méthodes internes mais nécessaires pour la transformation
-      const mapAny = this._map as any;
-      const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
+      try {
+        // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
+        // _getCenterOffset et _getMapPanePos sont des méthodes internes mais nécessaires pour la transformation
+        const mapAny = this._map as any;
 
-      // Appliquer la transformation manuellement pour éviter le décalage
-      L.DomUtil.setTransform(element, position.add(offset), scale);
+        // Vérifier que les méthodes internes existent
+        if (typeof mapAny._getCenterOffset !== 'function' || typeof mapAny._getMapPanePos !== 'function') {
+          throw new Error('Méthodes internes de Leaflet non disponibles');
+        }
+
+        const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
+
+        // Appliquer la transformation manuellement pour éviter le décalage
+        L.DomUtil.setTransform(element, position.add(offset), scale);
+      } catch (innerError) {
+        console.warn('[GeoNote][updatePositionDuringZoom] Erreur avec les méthodes internes:', innerError);
+        // En cas d'erreur avec les méthodes internes, utiliser une approche plus simple
+        setTimeout(() => this.updatePosition(), 50);
+      }
     } catch (error) {
-      console.warn('[GeoNote][updatePositionDuringZoom] Erreur:', error);
-      // En cas d'erreur, essayer de mettre à jour la position normalement
-      this.updatePosition();
+      console.warn('[GeoNote][updatePositionDuringZoom] Erreur générale:', error);
+      // En cas d'erreur, essayer de mettre à jour la position après un délai
+      setTimeout(() => this.updatePosition(), 100);
     }
   }
 
@@ -1080,5 +1122,53 @@ export class GeoNote extends L.Marker {
     } catch (e) {
       console.warn('[GeoNote][updatePosition] Erreur lors de la mise à jour de la position:', e);
     }
+  }
+
+  // Méthode pour protéger contre les erreurs d'animation de zoom
+  _protectFromZoomAnimationErrors(): void {
+    if (this._zoomProtectionActive) return;
+
+    console.log('[GeoNote][_protectFromZoomAnimationErrors] Protection contre les erreurs d\'animation de zoom activée');
+
+    // Remplacer la méthode _animateZoom de cette instance par une version sécurisée
+    this._animateZoom = (e: any) => {
+      try {
+        // Vérifier que la carte est disponible
+        if (!this._map) return;
+
+        // Récupérer les données de zoom
+        const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
+        const position = this._map.latLngToLayerPoint(this.getLatLng());
+        const element = this.getElement();
+
+        if (!element) return;
+
+        try {
+          // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
+          const mapAny = this._map as any;
+          const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
+
+          // Appliquer la transformation manuellement pour éviter le décalage
+          L.DomUtil.setTransform(element, position.add(offset), scale);
+        } catch (innerError) {
+          // En cas d'erreur avec les méthodes internes, utiliser une approche plus simple
+          setTimeout(() => this.updatePosition(), 50);
+        }
+      } catch (error) {
+        console.warn('[GeoNote][_animateZoom] Erreur d\'animation capturée:', error);
+        // En cas d'erreur, essayer de mettre à jour la position après un délai
+        setTimeout(() => this.updatePosition(), 100);
+      }
+    };
+
+    // Ajouter un écouteur pour l'événement zoomanim de la carte
+    this.on('add', () => {
+      if (this._map) {
+        this._map.on('zoomanim', this._animateZoom);
+      }
+    });
+
+    // Marquer la protection comme active
+    this._zoomProtectionActive = true;
   }
 }
