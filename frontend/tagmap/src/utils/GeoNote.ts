@@ -21,12 +21,12 @@ export interface GeoNoteOptions extends L.MarkerOptions {
 
 // Stockage des URL d'icônes pour chaque couleur
 const ICON_COLOR_MAP: Record<string, string> = {
-  '#FF5252': '/img/map-icons/geonote-red.svg',
-  '#4285F4': '/img/map-icons/geonote-blue.svg',
-  '#2b6451': '/img/map-icons/geonote-green.svg',
-  '#FFC107': '/img/map-icons/geonote-yellow.svg',
-  '#FF9800': '/img/map-icons/geonote-orange.svg',
-  '#9C27B0': '/img/map-icons/geonote-purple.svg',
+  '#FF5252': '@/assets/map-icons/geonote-red.svg',
+  '#4285F4': '@/assets/map-icons/geonote-blue.svg',
+  '#2b6451': '@/assets/map-icons/geonote-green.svg',
+  '#FFC107': '@/assets/map-icons/geonote-yellow.svg',
+  '#FF9800': '@/assets/map-icons/geonote-orange.svg',
+  '#9C27B0': '@/assets/map-icons/geonote-purple.svg',
 };
 
 // Liste des couleurs disponibles pour les icônes
@@ -624,8 +624,15 @@ export class GeoNote extends L.Marker {
   // Méthode pour mettre à jour l'icône avec une nouvelle couleur
   private updateIconForColor(fillColor: string): void {
     try {
-      // Obtenir l'URL de l'icône pour cette couleur
-      const iconUrl = getIconUrlForColor(fillColor);
+      // Obtenir le chemin de l'icône pour cette couleur
+      const iconPath = getIconUrlForColor(fillColor);
+      
+      // Utiliser l'importation dynamique avec require pour charger l'image correctement
+      // Cela fonctionnera en développement et en production grâce à la notation @/
+      // Note: pour les SVG, il faut utiliser l'URL directe
+      const iconUrl = new URL(iconPath, import.meta.url).href;
+      
+      console.log('[GeoNote][updateIconForColor] Chemin d\'icône utilisé:', iconPath, 'URL:', iconUrl);
       
       // Créer une nouvelle icône avec l'image SVG précolorée
       const icon = L.divIcon({
@@ -642,6 +649,29 @@ export class GeoNote extends L.Marker {
       console.log('[GeoNote][updateIconForColor] Icône mise à jour avec la nouvelle couleur');
     } catch (e) {
       console.error('[GeoNote][updateIconForColor] Erreur lors de la mise à jour de l\'icône:', e);
+      
+      // En cas d'erreur, utiliser une fallback avec une icône en dur
+      try {
+        // Créer une icône SVG directement, sans utiliser d'image externe
+        const svgIcon = L.divIcon({
+          html: `
+            <div class="geo-note-marker">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
+              </svg>
+            </div>
+          `,
+          className: 'geo-note-icon',
+          iconSize: [24, 36],
+          iconAnchor: [12, 36],
+          popupAnchor: [0, -36]
+        });
+        
+        this.setIcon(svgIcon);
+        console.log('[GeoNote][updateIconForColor] Icône de secours utilisée avec la couleur:', fillColor);
+      } catch (fallbackError) {
+        console.error('[GeoNote][updateIconForColor] Échec de l\'icône de secours:', fallbackError);
+      }
     }
   }
 
