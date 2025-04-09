@@ -5,14 +5,6 @@ import { noteService } from '../services/api';
 import { useNotesStore } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
 
-// Import direct des icônes SVG
-import redIcon from '@/assets/map-icons/geonote-red.svg';
-import blueIcon from '@/assets/map-icons/geonote-blue.svg';
-import greenIcon from '@/assets/map-icons/geonote-green.svg';
-import yellowIcon from '@/assets/map-icons/geonote-yellow.svg';
-import orangeIcon from '@/assets/map-icons/geonote-orange.svg';
-import purpleIcon from '@/assets/map-icons/geonote-purple.svg';
-
 // Interface pour les options de création d'une GeoNote
 export interface GeoNoteOptions extends L.MarkerOptions {
   name?: string;
@@ -27,28 +19,20 @@ export interface GeoNoteOptions extends L.MarkerOptions {
   radius?: number;
 }
 
-// Stockage des URL d'icônes pour chaque couleur
-const ICON_COLOR_MAP: Record<string, string> = {
-  '#FF5252': redIcon,
-  '#4285F4': blueIcon,
-  '#2b6451': greenIcon,
-  '#FFC107': yellowIcon,
-  '#FF9800': orangeIcon,
-  '#9C27B0': purpleIcon,
-};
-
 // Liste des couleurs disponibles pour les icônes
 const AVAILABLE_COLORS = ['#2b6451', '#FF5252', '#4285F4', '#FFC107', '#FF9800', '#9C27B0'];
 
-// Fonction pour obtenir l'URL de l'icône en fonction de la couleur
-function getIconUrlForColor(color: string): string {
-  // Si la couleur existe exactement dans la carte, l'utiliser
-  if (ICON_COLOR_MAP[color]) {
-    return ICON_COLOR_MAP[color];
-  }
-  
-  // Sinon, utiliser une couleur par défaut (vert)
-  return ICON_COLOR_MAP['#2b6451'];
+// Fonction pour générer un SVG de marqueur avec une couleur spécifique
+function generateMarkerSVG(color: string): string {
+  // Utiliser la couleur fournie ou une couleur par défaut
+  const fillColor = color || '#2b6451';
+
+  // Créer le SVG directement avec la couleur spécifiée
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="36">
+      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
+    </svg>
+  `;
 }
 
 export class GeoNote extends L.Marker {
@@ -73,15 +57,15 @@ export class GeoNote extends L.Marker {
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
     // Récupérer la couleur des options ou utiliser la couleur par défaut
     const color = options.color || '#2b6451';
-    
-    // Obtenir le chemin de l'icône pour cette couleur
-    const iconUrl = getIconUrlForColor(color);
-    
-    console.log('[GeoNote][constructor] Utilisation de l\'icône:', iconUrl);
-    
-    // Créer une icône avec l'image SVG précolorée
+
+    console.log('[GeoNote][constructor] Utilisation de la couleur:', color);
+
+    // Générer le SVG avec la couleur spécifiée
+    const svgContent = generateMarkerSVG(color);
+
+    // Créer une icône avec le SVG généré directement
     const icon = L.divIcon({
-      html: `<div class="geo-note-marker"><img src="${iconUrl}" width="24" height="36" alt="marker" /></div>`,
+      html: `<div class="geo-note-marker">${svgContent}</div>`,
       className: 'geo-note-icon',
       iconSize: [24, 36],
       iconAnchor: [12, 36],
@@ -105,9 +89,10 @@ export class GeoNote extends L.Marker {
           height: 100%;
           transform-origin: center bottom;
         }
-        .geo-note-marker img {
+        .geo-note-marker svg {
           width: 24px;
           height: 36px;
+          filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.5));
         }
       `;
       document.head.appendChild(style);
@@ -161,11 +146,11 @@ export class GeoNote extends L.Marker {
       if (e.target && e.target._map) {
         // Quand la note est ajoutée à la carte, ajouter des écouteurs pour les événements de zoom et de déplacement
         const map = e.target._map;
-        
+
         // Ajouter des écouteurs pour rafraîchir l'icône après les événements de carte
         map.on('zoomend', () => this.refreshIconStyle());
         map.on('moveend', () => this.refreshIconStyle());
-        
+
         // Ajouter un écouteur pour l'événement zoomstart pour éviter le mouvement pendant le zoom
         map.on('zoomstart', () => {
           // Forcer une mise à jour de la position au début du zoom
@@ -173,7 +158,7 @@ export class GeoNote extends L.Marker {
             this.updatePosition();
           }, 0);
         });
-        
+
         // Ajouter un écouteur pendant l'animation de zoom
         map.on('zoomanim', (e: any) => {
           // Calculer et appliquer la transformation correcte pendant l'animation de zoom
@@ -520,18 +505,12 @@ export class GeoNote extends L.Marker {
     if (color.startsWith('rgb')) {
       const element = this.getElement();
       if (element) {
-        const img = element.querySelector('.geo-note-marker img');
-        if (img) {
-          const src = img.getAttribute('src');
-          if (src) {
-            // Trouver la couleur correspondant à l'image
-            for (const [hexColor, iconPath] of Object.entries(ICON_COLOR_MAP)) {
-              if (src.includes(iconPath) || iconPath.includes(src)) {
-                color = hexColor;
-                console.log('[GeoNote][updateProperties] Couleur identifiée à partir de l\'image:', color);
-                break;
-              }
-            }
+        const svg = element.querySelector('.geo-note-marker svg path');
+        if (svg) {
+          const fill = svg.getAttribute('fill');
+          if (fill) {
+            color = fill;
+            console.log('[GeoNote][updateProperties] Couleur identifiée à partir du SVG:', color);
           }
         }
       }
@@ -610,7 +589,7 @@ export class GeoNote extends L.Marker {
     this.refreshIconStyle();
 
     console.log('[GeoNote][setNoteStyle] Mise à jour du popup');
-    
+
     // Mettre à jour le popup pour refléter les changements
     this.bindPopup(this.createPopupContent());
   }
@@ -633,14 +612,14 @@ export class GeoNote extends L.Marker {
   // Méthode pour mettre à jour l'icône avec une nouvelle couleur
   private updateIconForColor(fillColor: string): void {
     try {
-      // Obtenir le chemin de l'icône pour cette couleur
-      const iconPath = getIconUrlForColor(fillColor);
-      
-      console.log('[GeoNote][updateIconForColor] Utilisation de l\'icône:', iconPath);
-      
-      // Créer une nouvelle icône avec l'image SVG précolorée
+      console.log('[GeoNote][updateIconForColor] Utilisation de la couleur:', fillColor);
+
+      // Générer le SVG avec la couleur spécifiée
+      const svgContent = generateMarkerSVG(fillColor);
+
+      // Créer une nouvelle icône avec le SVG généré directement
       const icon = L.divIcon({
-        html: `<div class="geo-note-marker"><img src="${iconPath}" width="24" height="36" alt="marker" /></div>`,
+        html: `<div class="geo-note-marker">${svgContent}</div>`,
         className: 'geo-note-icon',
         iconSize: [24, 36],
         iconAnchor: [12, 36],
@@ -649,33 +628,10 @@ export class GeoNote extends L.Marker {
 
       // Mettre à jour l'icône
       this.setIcon(icon);
-      
+
       console.log('[GeoNote][updateIconForColor] Icône mise à jour avec la nouvelle couleur');
     } catch (e) {
       console.error('[GeoNote][updateIconForColor] Erreur lors de la mise à jour de l\'icône:', e);
-      
-      // En cas d'erreur, utiliser une fallback avec une icône en dur
-      try {
-        // Créer une icône SVG directement, sans utiliser d'image externe
-        const svgIcon = L.divIcon({
-          html: `
-            <div class="geo-note-marker">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
-              </svg>
-            </div>
-          `,
-          className: 'geo-note-icon',
-          iconSize: [24, 36],
-          iconAnchor: [12, 36],
-          popupAnchor: [0, -36]
-        });
-        
-        this.setIcon(svgIcon);
-        console.log('[GeoNote][updateIconForColor] Icône de secours utilisée avec la couleur:', fillColor);
-      } catch (fallbackError) {
-        console.error('[GeoNote][updateIconForColor] Échec de l\'icône de secours:', fallbackError);
-      }
     }
   }
 
@@ -909,18 +865,12 @@ export class GeoNote extends L.Marker {
       if (color.startsWith('rgb')) {
         const element = this.getElement();
         if (element) {
-          const img = element.querySelector('.geo-note-marker img');
-          if (img) {
-            const src = img.getAttribute('src');
-            if (src) {
-              // Trouver la couleur correspondant à l'image
-              for (const [hexColor, iconPath] of Object.entries(ICON_COLOR_MAP)) {
-                if (src.includes(iconPath) || iconPath.includes(src)) {
-                  color = hexColor;
-                  console.log('[GeoNote][saveNote] Couleur identifiée à partir de l\'image:', color);
-                  break;
-                }
-              }
+          const svg = element.querySelector('.geo-note-marker svg path');
+          if (svg) {
+            const fill = svg.getAttribute('fill');
+            if (fill) {
+              color = fill;
+              console.log('[GeoNote][saveNote] Couleur identifiée à partir du SVG:', color);
             }
           }
         }
@@ -976,7 +926,7 @@ export class GeoNote extends L.Marker {
           styleFillColor: savedNote.style?.fillColor,
           styleObject: savedNote.style
         });
-        
+
         // Forcer la mise à jour du popup après la sauvegarde
         this.bindPopup(this.createPopupContent());
       } else {
@@ -1100,16 +1050,16 @@ export class GeoNote extends L.Marker {
     try {
       const element = this.getElement();
       if (!element || !this._map) return;
-      
+
       // Récupérer les données de zoom
       const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
       const position = this._map.latLngToLayerPoint(this.getLatLng());
-      
+
       // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
       // _getCenterOffset et _getMapPanePos sont des méthodes internes mais nécessaires pour la transformation
       const mapAny = this._map as any;
       const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
-      
+
       // Appliquer la transformation manuellement pour éviter le décalage
       L.DomUtil.setTransform(element, position.add(offset), scale);
     } catch (error) {
@@ -1118,7 +1068,7 @@ export class GeoNote extends L.Marker {
       this.updatePosition();
     }
   }
-  
+
   // Méthode pour mettre à jour la position de l'icône
   private updatePosition(): void {
     try {

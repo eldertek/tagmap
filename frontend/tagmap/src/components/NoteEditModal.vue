@@ -445,7 +445,10 @@ const updateNoteColor = (color: string) => {
     editingNote.value.style.color = color;
     editingNote.value.style.fillColor = color;
   }
-  editingNote.value.color = color; // Sauvegarder la couleur dans la note elle-même
+  // Sauvegarder la couleur dans la note elle-même pour s'assurer qu'elle est préservée
+  editingNote.value.color = color;
+
+  console.log('[NoteEditModal] Couleur mise à jour:', color);
 };
 
 // Initialiser la note avec les valeurs par défaut
@@ -577,7 +580,7 @@ async function saveNote() {
         }
       });
       window.dispatchEvent(updateEvent);
-      
+
       // Ajouter un délai pour s'assurer que les composants ont eu le temps de traiter l'événement
       setTimeout(() => {
         // Ré-émettre l'événement après un court délai pour s'assurer que le popup est correctement mis à jour

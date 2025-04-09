@@ -914,11 +914,11 @@ onMounted(async () => {
           if (layer && layer._leaflet_id) {
             // Vérifier si c'est une couche temporaire créée pendant le déplacement d'une GeoNote
             const isTemporaryLayer = !layer._dbId && (!layer.properties || (layer.properties && !layer.properties.type));
-            
+
             if (isTemporaryLayer) {
               // Pour les couches temporaires, les supprimer complètement de shapes.value
               console.log(`[MapView][featureGroup.layerremove] Couche temporaire ${layer._leaflet_id} supprimée définitivement`);
-              const index = shapes.value.findIndex(shape => 
+              const index = shapes.value.findIndex(shape =>
                 shape.layer && shape.layer._leaflet_id === layer._leaflet_id
               );
               if (index !== -1) {
@@ -1028,6 +1028,24 @@ onMounted(async () => {
     window.addEventListener('geonote:savePlan', (() => {
       console.log('[MapView] Événement geonote:savePlan reçu - Sauvegarde automatique du plan');
       savePlan();
+    }) as EventListener);
+
+    // Écouter l'événement de sélection d'une note géolocalisée
+    window.addEventListener('geonote:select', ((event: CustomEvent) => {
+      console.log('[MapView] Événement geonote:select reçu', event.detail);
+
+      if (event.detail && event.detail.geoNote) {
+        // Sélectionner la note dans l'interface
+        const geoNote = event.detail.geoNote;
+
+        // Mettre à jour selectedLeafletShape pour que la note soit sélectionnée dans DrawingTools
+        selectedLeafletShape.value = geoNote;
+
+        // Forcer la mise à jour de l'interface pour afficher les propriétés de la note
+        nextTick(() => {
+          console.log('[MapView] Note géolocalisée sélectionnée:', geoNote);
+        });
+      }
     }) as EventListener);
 
     // Écouter les événements de réactivation des catégories
@@ -3436,9 +3454,9 @@ function updateMapDisplay() {
   // Cette étape permet d'éliminer toutes les couches temporaires qui auraient pu être créées lors des déplacements
   const shapesToRemove: number[] = [];
   shapes.value.forEach((shape, index) => {
-    if (shape.layer && 
-        !shape.id && 
-        (!shape.layer.properties || 
+    if (shape.layer &&
+        !shape.id &&
+        (!shape.layer.properties ||
          (shape.layer.properties && !shape.layer.properties.type))) {
       console.log(`[MapView][updateMapDisplay] Nettoyage préventif de la couche temporaire ${shape.layer._leaflet_id}`);
       shapesToRemove.push(index);
@@ -3839,7 +3857,7 @@ function updateMapDisplay() {
         // pour éviter de réinitialiser à 'forages' les catégories personnalisées qui n'ont pas encore été chargées
         const mapFilterStore = useMapFilterStore();
         const customCategories = mapFilterStore.getUniqueCategories;
-        
+
         if (customCategories.includes(category)) {
           // Si c'est une catégorie personnalisée connue, l'ajouter au filtre avec une valeur true
           console.log(`[MapView][updateMapDisplay] Catégorie personnalisée ${category} trouvée dans mapFilterStore, ajout aux filtres`);

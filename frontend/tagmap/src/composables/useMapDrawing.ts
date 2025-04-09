@@ -972,6 +972,16 @@ export function useMapDrawing(): MapDrawingReturn {
     } catch (error) {
       console.error('Error disabling modes:', error);
     }
+
+    // Émettre un événement pour indiquer que l'outil a changé
+    // Cela permettra de nettoyer les gestionnaires d'événements spécifiques à l'outil
+    window.dispatchEvent(new CustomEvent('tool:changed', {
+      detail: {
+        previousTool: currentTool.value,
+        newTool: tool
+      }
+    }));
+
     currentTool.value = tool;
     // Si aucun outil n'est sélectionné
     if (!tool) {
@@ -1165,15 +1175,16 @@ export function useMapDrawing(): MapDrawingReturn {
           case 'GeoNote':
             showHelpMessage('Cliquez pour ajouter une note géolocalisée, double-cliquez pour éditer');
             if (map.value) {
-              const onClick = async (e: L.LeafletMouseEvent) => {
-                if (!map.value || !featureGroup.value) return;
+              // Fonction pour créer une note géolocalisée à une position donnée
+              const createGeoNote = async (latlng: L.LatLng) => {
+                if (!map.value || !featureGroup.value) return null;
 
                 try {
                   // Initialiser le store de dessin
                   const drawingStore = useDrawingStore();
 
                   // Créer une nouvelle note géolocalisée
-                  const geoNote = new GeoNote(e.latlng, {
+                  const geoNote = new GeoNote(latlng, {
                     color: '#3B82F6',
                     name: 'Note géolocalisée',
                     description: '',
@@ -1209,6 +1220,9 @@ export function useMapDrawing(): MapDrawingReturn {
 
                     // Ouvrir le popup pour édition immédiate
                     geoNote.openPopup();
+
+                    // Retourner la note créée
+                    return geoNote;
                   } catch (error) {
                     console.error('[useMapDrawing] Erreur lors de la sauvegarde de la note:', error);
                     // Afficher un message d'erreur
@@ -1216,19 +1230,127 @@ export function useMapDrawing(): MapDrawingReturn {
                       const notificationStore = useNotificationStore();
                       notificationStore.error('Erreur lors de la création de la note');
                     });
+                    return null;
                   }
-
-                  // Désactiver le mode note après l'ajout
-                  map.value.off('click', onClick);
-                  setDrawingTool('');
                 } catch (error) {
                   console.error('[useMapDrawing] Erreur lors de la création de la note:', error);
-                  // Désactiver le mode note en cas d'erreur
-                  map.value.off('click', onClick);
-                  setDrawingTool('');
+                  return null;
                 }
               };
+
+              const onClick = async (e: L.LeafletMouseEvent) => {
+                // Empêcher la propagation de l'événement pour éviter que les formes existantes ne le capturent
+                L.DomEvent.stopPropagation(e);
+                L.DomEvent.preventDefault(e as unknown as Event);
+
+                // Créer la note à la position du clic
+                const geoNote = await createGeoNote(e.latlng);
+
+                if (geoNote) {
+                  // Désactiver le mode note après l'ajout
+                  map.value.off('click', onClick);
+
+                  // Nettoyer les gestionnaires d'événements pour les formes existantes
+                  if (featureGroup.value) {
+                    featureGroup.value.getLayers().forEach((layer: L.Layer) => {
+                      if (layer.off && typeof layer.off === 'function') {
+                        try {
+                          // Essayer de supprimer tous les gestionnaires de clic
+                          layer.off('click');
+                        } catch (error) {
+                          console.warn('[useMapDrawing] Erreur lors du nettoyage des gestionnaires:', error);
+                        }
+                      }
+                    });
+                  }
+
+                  // Désactiver l'outil de dessin
+                  setDrawingTool('');
+
+                  // Émettre un événement pour sélectionner la note dans l'interface
+                  window.dispatchEvent(new CustomEvent('geonote:select', {
+                    detail: {
+                      geoNote,
+                      leafletId: (geoNote as any)._leaflet_id
+                    }
+                  }));
+                }
+              };
+
+              // Ajouter un gestionnaire d'événements pour les clics sur la carte
               map.value.on('click', onClick);
+
+              // Ajouter un gestionnaire d'événements pour les clics sur les formes existantes
+              if (featureGroup.value) {
+                const onShapeClick = async (e: L.LeafletMouseEvent) => {
+                  // Empêcher la propagation de l'événement pour éviter que la forme ne soit sélectionnée
+                  L.DomEvent.stopPropagation(e);
+                  L.DomEvent.preventDefault(e as unknown as Event);
+
+                  console.log('[useMapDrawing] Clic sur une forme existante en mode GeoNote');
+
+                  // Créer la note à la position du clic sur la forme
+                  const geoNote = await createGeoNote(e.latlng);
+
+                  if (geoNote) {
+                    // Désactiver le mode note après l'ajout
+                    map.value.off('click', onClick);
+
+                    // Nettoyer les gestionnaires d'événements pour les formes existantes
+                    if (featureGroup.value) {
+                      featureGroup.value.getLayers().forEach((layer: L.Layer) => {
+                        if (layer.off && typeof layer.off === 'function') {
+                          try {
+                            // Essayer de supprimer tous les gestionnaires de clic
+                            layer.off('click');
+                          } catch (error) {
+                            console.warn('[useMapDrawing] Erreur lors du nettoyage des gestionnaires:', error);
+                          }
+                        }
+                      });
+                    }
+
+                    // Désactiver l'outil de dessin
+                    setDrawingTool('');
+
+                    // Émettre un événement pour sélectionner la note dans l'interface
+                    window.dispatchEvent(new CustomEvent('geonote:select', {
+                      detail: {
+                        geoNote,
+                        leafletId: (geoNote as any)._leaflet_id
+                      }
+                    }));
+                  }
+
+                  return false;
+                };
+
+                // Appliquer le gestionnaire à toutes les formes existantes
+                featureGroup.value.getLayers().forEach((layer: L.Layer) => {
+                  layer.on('click', onShapeClick);
+                });
+
+                // Nettoyer les gestionnaires d'événements lorsque l'outil est désactivé
+                const cleanupShapeHandlers = () => {
+                  if (featureGroup.value) {
+                    featureGroup.value.getLayers().forEach((layer: L.Layer) => {
+                      if (layer.off && typeof layer.off === 'function') {
+                        try {
+                          // Essayer de supprimer tous les gestionnaires de clic
+                          layer.off('click');
+                        } catch (error) {
+                          console.warn('[useMapDrawing] Erreur lors du nettoyage des gestionnaires:', error);
+                        }
+                      }
+                    });
+                  }
+                  window.removeEventListener('tool:changed', cleanupShapeHandlers);
+                  console.log('[useMapDrawing] Nettoyage des gestionnaires d\'\u00e9v\u00e9nements pour les formes existantes');
+                };
+
+                // Écouter l'événement de changement d'outil pour nettoyer les gestionnaires
+                window.addEventListener('tool:changed', cleanupShapeHandlers);
+              }
             }
             break;
           case 'delete':
