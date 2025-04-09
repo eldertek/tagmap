@@ -5,6 +5,14 @@ import { noteService } from '../services/api';
 import { useNotesStore } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
 
+// Import direct des icônes SVG
+import redIcon from '@/assets/map-icons/geonote-red.svg';
+import blueIcon from '@/assets/map-icons/geonote-blue.svg';
+import greenIcon from '@/assets/map-icons/geonote-green.svg';
+import yellowIcon from '@/assets/map-icons/geonote-yellow.svg';
+import orangeIcon from '@/assets/map-icons/geonote-orange.svg';
+import purpleIcon from '@/assets/map-icons/geonote-purple.svg';
+
 // Interface pour les options de création d'une GeoNote
 export interface GeoNoteOptions extends L.MarkerOptions {
   name?: string;
@@ -21,12 +29,12 @@ export interface GeoNoteOptions extends L.MarkerOptions {
 
 // Stockage des URL d'icônes pour chaque couleur
 const ICON_COLOR_MAP: Record<string, string> = {
-  '#FF5252': '@/assets/map-icons/geonote-red.svg',
-  '#4285F4': '@/assets/map-icons/geonote-blue.svg',
-  '#2b6451': '@/assets/map-icons/geonote-green.svg',
-  '#FFC107': '@/assets/map-icons/geonote-yellow.svg',
-  '#FF9800': '@/assets/map-icons/geonote-orange.svg',
-  '#9C27B0': '@/assets/map-icons/geonote-purple.svg',
+  '#FF5252': redIcon,
+  '#4285F4': blueIcon,
+  '#2b6451': greenIcon,
+  '#FFC107': yellowIcon,
+  '#FF9800': orangeIcon,
+  '#9C27B0': purpleIcon,
 };
 
 // Liste des couleurs disponibles pour les icônes
@@ -66,8 +74,10 @@ export class GeoNote extends L.Marker {
     // Récupérer la couleur des options ou utiliser la couleur par défaut
     const color = options.color || '#2b6451';
     
-    // Obtenir l'URL de l'icône pour cette couleur
+    // Obtenir le chemin de l'icône pour cette couleur
     const iconUrl = getIconUrlForColor(color);
+    
+    console.log('[GeoNote][constructor] Utilisation de l\'icône:', iconUrl);
     
     // Créer une icône avec l'image SVG précolorée
     const icon = L.divIcon({
@@ -508,18 +518,17 @@ export class GeoNote extends L.Marker {
 
     // Si la couleur est au format rgb, essayer de la convertir
     if (color.startsWith('rgb')) {
-      // Essayez de récupérer la couleur de la source de l'image
       const element = this.getElement();
       if (element) {
         const img = element.querySelector('.geo-note-marker img');
         if (img) {
-          // Trouver quelle couleur correspond à cette source
           const src = img.getAttribute('src');
           if (src) {
-            // Essayer de trouver la couleur correspondante dans ICON_COLOR_MAP
+            // Trouver la couleur correspondant à l'image
             for (const [hexColor, iconPath] of Object.entries(ICON_COLOR_MAP)) {
-              if (iconPath === src || src.endsWith(iconPath)) {
+              if (src.includes(iconPath) || iconPath.includes(src)) {
                 color = hexColor;
+                console.log('[GeoNote][updateProperties] Couleur identifiée à partir de l\'image:', color);
                 break;
               }
             }
@@ -627,16 +636,11 @@ export class GeoNote extends L.Marker {
       // Obtenir le chemin de l'icône pour cette couleur
       const iconPath = getIconUrlForColor(fillColor);
       
-      // Utiliser l'importation dynamique avec require pour charger l'image correctement
-      // Cela fonctionnera en développement et en production grâce à la notation @/
-      // Note: pour les SVG, il faut utiliser l'URL directe
-      const iconUrl = new URL(iconPath, import.meta.url).href;
-      
-      console.log('[GeoNote][updateIconForColor] Chemin d\'icône utilisé:', iconPath, 'URL:', iconUrl);
+      console.log('[GeoNote][updateIconForColor] Utilisation de l\'icône:', iconPath);
       
       // Créer une nouvelle icône avec l'image SVG précolorée
       const icon = L.divIcon({
-        html: `<div class="geo-note-marker"><img src="${iconUrl}" width="24" height="36" alt="marker" /></div>`,
+        html: `<div class="geo-note-marker"><img src="${iconPath}" width="24" height="36" alt="marker" /></div>`,
         className: 'geo-note-icon',
         iconSize: [24, 36],
         iconAnchor: [12, 36],
@@ -894,22 +898,30 @@ export class GeoNote extends L.Marker {
       // Log de la couleur avant la sauvegarde
       console.log('[GeoNote][saveNote] Couleur avant sauvegarde:', {
         styleColor: this.properties.style?.color,
-        styleFillColor: this.properties.style?.fillColor,
-        iconColor: this.getElement()?.querySelector('.geo-note-marker img')?.getAttribute('src') || 'non disponible'
+        styleFillColor: this.properties.style?.fillColor
       });
 
       // S'assurer que le style contient le niveau d'accès, la catégorie et la couleur correcte
       // Vérifier si la couleur est au format rgb et la convertir en hex si nécessaire
       let color = this.properties.style?.color || '#2b6451';
 
-      // Si la couleur est au format rgb, essayer de récupérer la couleur depuis l'icône SVG
+      // Si la couleur est au format rgb, essayer de la convertir
       if (color.startsWith('rgb')) {
-        const svgPath = this.getElement()?.querySelector('.geo-note-marker img');
-        if (svgPath) {
-          const fillColor = svgPath.getAttribute('src');
-          if (fillColor) {
-            color = fillColor;
-            console.log('[GeoNote][saveNote] Couleur récupérée depuis SVG pour remplacer RGB:', color);
+        const element = this.getElement();
+        if (element) {
+          const img = element.querySelector('.geo-note-marker img');
+          if (img) {
+            const src = img.getAttribute('src');
+            if (src) {
+              // Trouver la couleur correspondant à l'image
+              for (const [hexColor, iconPath] of Object.entries(ICON_COLOR_MAP)) {
+                if (src.includes(iconPath) || iconPath.includes(src)) {
+                  color = hexColor;
+                  console.log('[GeoNote][saveNote] Couleur identifiée à partir de l\'image:', color);
+                  break;
+                }
+              }
+            }
           }
         }
       }
