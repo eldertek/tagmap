@@ -116,6 +116,8 @@
               @tool-selected="setDrawingTool"
               @filter-change="handleFilterChange"
               @delete-shape="deleteSelectedShape"
+              @properties-update="updateShapeProperties"
+              @style-update="updateShapeStyle"
               class="md:w-80 md:flex-shrink-0"
             />
 
@@ -910,10 +912,10 @@ onMounted(async () => {
           const layer = e.layer;
           if (layer && layer._leaflet_id) {
             // Supprimer la couche de shapes.value pour éviter la duplication lors du filtrage
-            const layerIndex = shapes.value.findIndex(shape => 
+            const layerIndex = shapes.value.findIndex(shape =>
               shape.layer && shape.layer._leaflet_id === layer._leaflet_id
             );
-            
+
             if (layerIndex !== -1) {
               shapes.value.splice(layerIndex, 1);
               console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup et de shapes.value`);
@@ -1834,12 +1836,57 @@ async function savePlan() {
       } else if ((layer as any).properties?.type === 'Note') {
         // Les notes géolocalisées sont maintenant gérées directement via l'API des notes
         // et ne sont plus incluses dans la sauvegarde du plan
-        console.log('[savePlan] Note géolocalisée détectée - ignorée pour la sauvegarde du plan');
+        console.log('[savePlan] Note géolocalisée détectée - sauvegarde via API dédiée');
 
         // Ajouter l'ID à la liste des couches actuelles pour éviter qu'elle soit considérée comme supprimée
         const geoNote = layer as any;
         if (geoNote._dbId && typeof geoNote._dbId === 'number') {
           currentLayerIds.add(geoNote._dbId);
+        }
+
+        // Sauvegarder la note via sa propre méthode saveNote
+        if (typeof geoNote.saveNote === 'function') {
+          try {
+            // S'assurer que le niveau d'accès est correctement défini dans le style
+            if (geoNote.properties) {
+              if (!geoNote.properties.style) {
+                geoNote.properties.style = {};
+              }
+
+              // Mettre à jour le niveau d'accès dans le style pour s'assurer qu'il est sauvegardé
+              if (geoNote.properties.accessLevel) {
+                geoNote.properties.style._accessLevel = geoNote.properties.accessLevel;
+                geoNote.properties.style.accessLevel = geoNote.properties.accessLevel;
+              }
+
+              // Préserver la couleur existante
+              if (geoNote.properties.style.color) {
+                const currentColor = geoNote.properties.style.color;
+                console.log('[savePlan] Préservation de la couleur existante:', currentColor);
+
+                // S'assurer que la couleur est préservée dans le style
+                geoNote.properties.style.color = currentColor;
+                geoNote.properties.style.fillColor = currentColor;
+              }
+            }
+
+            console.log('[savePlan] Sauvegarde de la note géolocalisée via API dédiée', {
+              category: geoNote.properties?.category,
+              accessLevel: geoNote.properties?.accessLevel,
+              styleAccessLevel: geoNote.properties?.style?.accessLevel
+            });
+            // Sauvegarder la note avec l'ID du plan actuel
+            if (currentPlan.value && currentPlan.value.id) {
+              geoNote.saveNote(currentPlan.value.id);
+            } else {
+              // Sauvegarder sans ID de plan si aucun plan n'est actif
+              geoNote.saveNote();
+            }
+          } catch (error) {
+            console.error('[savePlan] Erreur lors de la sauvegarde de la note:', error);
+          }
+        } else {
+          console.warn('[savePlan] La note ne possède pas de méthode saveNote');
         }
 
         // Ne pas ajouter la note aux éléments à sauvegarder
@@ -1950,8 +1997,68 @@ function updateShapeProperties(properties: any) {
   // Mettre à jour les propriétés de la forme
   updatePropertiesFromDestruct(properties);
 
-  // Si la catégorie est mise à jour, mettre à jour l'élément correspondant dans le store
-  if (properties.category && selectedLeafletShape.value && selectedLeafletShape.value._dbId) {
+  // Vérifier si c'est une note géolocalisée
+  if (selectedLeafletShape.value && selectedLeafletShape.value.properties?.type === 'Note') {
+    console.log('[MapView][updateShapeProperties] Note géolocalisée détectée, sauvegarde via API dédiée');
+
+    // Vérifier si la note a une méthode saveNote
+    if (typeof (selectedLeafletShape.value as any).saveNote === 'function') {
+      try {
+        // S'assurer que les propriétés sont correctement mises à jour avant la sauvegarde
+        if (properties.category) {
+          selectedLeafletShape.value.properties.category = properties.category;
+        }
+
+        if (properties.accessLevel) {
+          // Mettre à jour le niveau d'accès dans les propriétés principales
+          selectedLeafletShape.value.properties.accessLevel = properties.accessLevel;
+
+          // Mettre à jour le niveau d'accès dans le style pour s'assurer qu'il est sauvegardé
+          if (!selectedLeafletShape.value.properties.style) {
+            selectedLeafletShape.value.properties.style = {};
+          }
+          selectedLeafletShape.value.properties.style._accessLevel = properties.accessLevel;
+          selectedLeafletShape.value.properties.style.accessLevel = properties.accessLevel;
+        }
+
+        // Préserver la couleur existante
+        if (selectedLeafletShape.value.properties.style && selectedLeafletShape.value.properties.style.color) {
+          const currentColor = selectedLeafletShape.value.properties.style.color;
+          console.log('[MapView][updateShapeProperties] Préservation de la couleur existante:', currentColor);
+
+          // S'assurer que la couleur est préservée dans le style
+          selectedLeafletShape.value.properties.style.color = currentColor;
+          selectedLeafletShape.value.properties.style.fillColor = currentColor;
+        }
+
+        console.log('[MapView][updateShapeProperties] Sauvegarde de la note géolocalisée via API dédiée', {
+          category: selectedLeafletShape.value.properties?.category,
+          accessLevel: selectedLeafletShape.value.properties?.accessLevel,
+          updatedProperties: properties
+        });
+
+        // Sauvegarder la note avec l'ID du plan actuel
+        if (currentPlan.value && currentPlan.value.id) {
+          (selectedLeafletShape.value as any).saveNote(currentPlan.value.id);
+        } else {
+          // Sauvegarder sans ID de plan si aucun plan n'est actif
+          (selectedLeafletShape.value as any).saveNote();
+        }
+
+        // Forcer la mise à jour du popup après la sauvegarde
+        if (selectedLeafletShape.value.bindPopup && selectedLeafletShape.value.createPopupContent) {
+          console.log('[MapView][updateShapeProperties] Forçage de la mise à jour du popup après la sauvegarde');
+          selectedLeafletShape.value.bindPopup(selectedLeafletShape.value.createPopupContent());
+        }
+      } catch (error) {
+        console.error('[MapView][updateShapeProperties] Erreur lors de la sauvegarde de la note:', error);
+      }
+    } else {
+      console.warn('[MapView][updateShapeProperties] La note ne possède pas de méthode saveNote');
+    }
+  }
+  // Pour les autres types de formes, mettre à jour le store
+  else if (properties.category && selectedLeafletShape.value && selectedLeafletShape.value._dbId) {
     const dbId = selectedLeafletShape.value._dbId;
     const storeElement = drawingStore.elements.find(e => e.id === dbId);
 
@@ -4151,5 +4258,4 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
     padding-bottom: var(--mobile-bottom-toolbar-height) !important; /* Utiliser la variable CSS */
   }
 }
-</style>
-F
+</style>F

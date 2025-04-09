@@ -745,9 +745,6 @@ export const useDrawingStore = defineStore('drawing', {
       categories?: { [key: string]: boolean };
       shapeTypes?: { [key: string]: boolean };
     }) {
-      console.log('[DrawingStore][updateFilters] Mise à jour des filtres:', JSON.stringify(filters, null, 2));
-      console.log('[DrawingStore][updateFilters] Filtres avant mise à jour:', JSON.stringify(this.filters, null, 2));
-
       // Mettre à jour les niveaux d'accès si fournis
       if (filters.accessLevels) {
         const oldAccessLevels = { ...this.filters.accessLevels };
@@ -755,11 +752,6 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.accessLevels,
           ...filters.accessLevels
         };
-
-        console.log('[DrawingStore][updateFilters] Niveaux d\'accès mis à jour:', {
-          avant: oldAccessLevels,
-          après: this.filters.accessLevels
-        });
       }
 
       // Mettre à jour les catégories si fournies
@@ -769,28 +761,18 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.categories,
           ...filters.categories
         };
-
-        console.log('[DrawingStore][updateFilters] Catégories mises à jour:', {
-          avant: oldCategories,
-          après: this.filters.categories
-        });
-
         // Vérifier si des catégories ont été activées ou désactivées
         const changedCategories = Object.keys(filters.categories).filter(key =>
           oldCategories[key] !== this.filters.categories[key]
         );
 
         if (changedCategories.length > 0) {
-          console.log(`[DrawingStore][updateFilters] Catégories modifiées: ${changedCategories.join(', ')}`);
-
           // Si des catégories ont été réactivées, s'assurer que les éléments conservent leur catégorie d'origine
           const reactivatedCategories = changedCategories.filter(key =>
             oldCategories[key] === false && this.filters.categories[key] === true
           );
 
           if (reactivatedCategories.length > 0) {
-            console.log(`[DrawingStore][updateFilters] Catégories réactivées: ${reactivatedCategories.join(', ')}`);
-
             // Émettre un événement spécifique pour la réactivation des catégories
             window.dispatchEvent(new CustomEvent('categoriesReactivated', {
               detail: {
@@ -808,28 +790,18 @@ export const useDrawingStore = defineStore('drawing', {
           ...this.filters.shapeTypes,
           ...filters.shapeTypes
         };
-
-        console.log('[DrawingStore][updateFilters] Types de formes mis à jour:', {
-          avant: oldShapeTypes,
-          après: this.filters.shapeTypes
-        });
-
         // Vérifier si des types de formes ont été activés ou désactivés
         const changedShapeTypes = Object.keys(filters.shapeTypes).filter(key =>
           oldShapeTypes[key] !== this.filters.shapeTypes[key]
         );
 
         if (changedShapeTypes.length > 0) {
-          console.log(`[DrawingStore][updateFilters] Types de formes modifiés: ${changedShapeTypes.join(', ')}`);
-
           // Si des types de formes ont été réactivés, s'assurer que les éléments conservent leur type d'origine
           const reactivatedShapeTypes = changedShapeTypes.filter(key =>
             oldShapeTypes[key] === false && this.filters.shapeTypes[key] === true
           );
 
           if (reactivatedShapeTypes.length > 0) {
-            console.log(`[DrawingStore][updateFilters] Types de formes réactivés: ${reactivatedShapeTypes.join(', ')}`);
-
             // Émettre un événement spécifique pour la réactivation des types de formes
             window.dispatchEvent(new CustomEvent('shapeTypesReactivated', {
               detail: {
@@ -839,11 +811,7 @@ export const useDrawingStore = defineStore('drawing', {
           }
         }
       }
-
-      console.log('[DrawingStore][updateFilters] Filtres mis à jour:', JSON.stringify(this.filters, null, 2));
-
       // Émettre un événement pour indiquer que les filtres ont changé
-      console.log('[DrawingStore][updateFilters] Émission de l\'event filtersChanged');
       window.dispatchEvent(new CustomEvent('filtersChanged', {
         detail: {
           filters: this.filters

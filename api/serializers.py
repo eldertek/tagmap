@@ -326,6 +326,8 @@ class GeoNoteSerializer(serializers.ModelSerializer):
     column_id = serializers.CharField(write_only=True, required=False)
     is_geolocated = serializers.SerializerMethodField(read_only=True)
 
+    # Ajouter des logs pour le style
+
     class Meta:
         model = GeoNote
         fields = [
@@ -682,51 +684,51 @@ class WeatherHistoryDataSerializer(serializers.Serializer):
     wind = serializers.DictField(required=False)
     rainfall = serializers.DictField(required=False)
     solar_and_uvi = serializers.DictField(required=False)
-    
+
     def to_representation(self, instance):
         """
         Traite les données historiques pour les adapter au format attendu par les graphiques.
         """
         data = super().to_representation(instance)
-        
+
         # Formatage des données de température extérieure
         if 'outdoor' in data and 'temperature' in data['outdoor']:
             self._format_time_series_data(data['outdoor']['temperature'])
-            
+
         # Formatage des données d'humidité extérieure
         if 'outdoor' in data and 'humidity' in data['outdoor']:
             self._format_time_series_data(data['outdoor']['humidity'])
-            
+
         # Formatage des données de pression
         if 'pressure' in data and 'relative' in data['pressure']:
             self._format_time_series_data(data['pressure']['relative'])
-            
+
         # Formatage des données de vent
         if 'wind' in data:
             if 'wind_speed' in data['wind']:
                 self._format_time_series_data(data['wind']['wind_speed'])
             if 'wind_gust' in data['wind']:
                 self._format_time_series_data(data['wind']['wind_gust'])
-                
+
         # Formatage des données de précipitations
         if 'rainfall' in data:
             for key in data['rainfall']:
                 self._format_time_series_data(data['rainfall'][key])
-                
+
         # Formatage des données solaires
         if 'solar_and_uvi' in data and 'solar' in data['solar_and_uvi']:
             self._format_time_series_data(data['solar_and_uvi']['solar'])
-            
+
         return data
-        
+
     def _format_time_series_data(self, data_list):
         """
-        Convertit les valeurs des séries temporelles en nombres 
+        Convertit les valeurs des séries temporelles en nombres
         et formate les horodatages.
         """
         if not isinstance(data_list, list):
             return
-            
+
         for item in data_list:
             # Convertir les valeurs en nombres si possible
             if 'value' in item and isinstance(item['value'], str):

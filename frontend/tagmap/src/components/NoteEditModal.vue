@@ -577,6 +577,13 @@ async function saveNote() {
         }
       });
       window.dispatchEvent(updateEvent);
+      
+      // Ajouter un délai pour s'assurer que les composants ont eu le temps de traiter l'événement
+      setTimeout(() => {
+        // Ré-émettre l'événement après un court délai pour s'assurer que le popup est correctement mis à jour
+        window.dispatchEvent(updateEvent);
+        console.log('[NoteEditModal] Événement de mise à jour ré-émis pour garantir la mise à jour du popup');
+      }, 100);
 
       notificationStore.success('Note mise à jour avec succès');
     } else {

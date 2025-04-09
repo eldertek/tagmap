@@ -275,9 +275,9 @@
             </div>
           </div>
 
-          <!-- Section des catégories d'éléments -->
+          <!-- Section des catégories -->
           <div class="space-y-2">
-            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Éléments</h4>
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories</h4>
             <div class="space-y-1">
               <label class="flex items-center">
                 <input type="checkbox" v-model="filters.categories.forages" @change="deselectCurrentShape"

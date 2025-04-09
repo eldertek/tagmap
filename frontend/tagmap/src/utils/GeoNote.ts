@@ -481,31 +481,55 @@ export class GeoNote extends L.Marker {
       this.properties.accessLevel = NoteAccessLevel.PRIVATE;
     }
 
-    // Mettre à jour les propriétés de style
-    // Pour un marqueur, nous stockons la couleur dans les propriétés
-    const iconElement = this.getElement()?.querySelector('.geo-note-marker');
-    const color = iconElement ?
-      window.getComputedStyle(iconElement).color :
-      '#2b6451';
-
-    // Conserver le radius existant s'il existe
-    const existingRadius = (this.properties.style as any)?.radius || 12;
-
     // Conserver les propriétés existantes du style si elles existent
     const existingStyle = this.properties.style || {};
+
+    // Priorité pour la couleur :
+    // 1. Utiliser la couleur existante dans le style si elle existe
+    // 2. Sinon, essayer de récupérer la couleur de l'icône SVG
+    // 3. Sinon, utiliser la couleur par défaut
+    let color = existingStyle.color || existingStyle.fillColor;
+
+    // Si aucune couleur n'est définie dans le style, essayer de la récupérer depuis l'icône SVG
+    if (!color) {
+      const svgPath = this.getElement()?.querySelector('.geo-note-marker svg path');
+      if (svgPath) {
+        const fillColor = svgPath.getAttribute('fill');
+        if (fillColor) {
+          color = fillColor;
+          console.log('[GeoNote][updateProperties] Couleur récupérée depuis SVG:', color);
+        }
+      }
+    }
+
+    // Si toujours pas de couleur, utiliser la couleur par défaut
+    if (!color) {
+      color = '#2b6451';
+      console.log('[GeoNote][updateProperties] Utilisation de la couleur par défaut:', color);
+    }
+
+    console.log('[GeoNote][updateProperties] Couleur finale utilisée:', color);
+
+    // Conserver le radius existant s'il existe
+    const existingRadius = existingStyle.radius || 12;
 
     this.properties.style = {
       ...existingStyle,
       color: color,
-      weight: 2,
+      weight: existingStyle.weight || 2,
       fillColor: color,
-      fillOpacity: 0.8,
+      fillOpacity: existingStyle.fillOpacity || 0.8,
       radius: existingRadius,
       // Stocker explicitement la catégorie et le niveau d'accès dans le style
       _accessLevel: this.properties.accessLevel,
       accessLevel: this.properties.accessLevel,
       category: this.properties.category
     };
+
+    console.log('[GeoNote][updateProperties] Style mis à jour:', this.properties.style);
+
+    // Mettre à jour le popup pour refléter les changements
+    this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour mettre à jour le style
@@ -565,14 +589,26 @@ export class GeoNote extends L.Marker {
 
     // Mettre à jour les propriétés principales également
     if (accessLevel) {
-      this.properties.accessLevel = accessLevel;
+      if (this.properties.accessLevel !== accessLevel) {
+        this.properties.accessLevel = accessLevel;
+        console.log('[GeoNote][setNoteStyle] Niveau d\'accès mis à jour:', accessLevel);
+      }
     }
+
     if (category) {
-      this.properties.category = category;
+      if (this.properties.category !== category) {
+        this.properties.category = category;
+        console.log('[GeoNote][setNoteStyle] Catégorie mise à jour:', category);
+      }
     }
 
     // Forcer un rafraîchissement de l'icône
     this.refreshIconStyle();
+
+    // Toujours mettre à jour le popup pour s'assurer que les changements sont reflétés
+    // même si les propriétés n'ont pas changé (pour résoudre le problème de mise à jour multiple)
+    console.log('[GeoNote][setNoteStyle] Mise à jour du popup');
+    this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour forcer le rafraîchissement de l'icône
@@ -731,6 +767,13 @@ export class GeoNote extends L.Marker {
 
   // Mettre à jour les propriétés de la note à partir des données du backend
   updateFromBackendData(data: NoteData): void {
+    console.log('[GeoNote][updateFromBackendData] Début de la mise à jour avec les données:', data);
+    console.log('[GeoNote][updateFromBackendData] Couleur dans les données reçues:', {
+      styleColor: data.style?.color,
+      styleFillColor: data.style?.fillColor,
+      styleObject: data.style
+    });
+
     // S'assurer que le type est correctement défini
     this.properties.type = 'Note';
 
@@ -739,6 +782,8 @@ export class GeoNote extends L.Marker {
       ...data.style,
       radius: (data.style as any).radius || 12
     } : this.properties.style;
+
+    console.log('[GeoNote][updateFromBackendData] Style après traitement initial:', style);
 
     // Récupérer le niveau d'accès depuis le style si disponible
     const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || this.properties.accessLevel || NoteAccessLevel.PRIVATE;
@@ -886,13 +931,39 @@ export class GeoNote extends L.Marker {
       // Mettre à jour les propriétés pour s'assurer qu'elles sont à jour
       this.updateProperties();
 
-      // S'assurer que le style contient le niveau d'accès et la catégorie
+      // Log de la couleur avant la sauvegarde
+      console.log('[GeoNote][saveNote] Couleur avant sauvegarde:', {
+        styleColor: this.properties.style?.color,
+        styleFillColor: this.properties.style?.fillColor,
+        iconColor: this.getElement()?.querySelector('.geo-note-marker svg path')?.getAttribute('fill') || 'non disponible'
+      });
+
+      // S'assurer que le style contient le niveau d'accès, la catégorie et la couleur correcte
+      // Vérifier si la couleur est au format rgb et la convertir en hex si nécessaire
+      let color = this.properties.style?.color || '#2b6451';
+
+      // Si la couleur est au format rgb, essayer de récupérer la couleur depuis l'icône SVG
+      if (color.startsWith('rgb')) {
+        const svgPath = this.getElement()?.querySelector('.geo-note-marker svg path');
+        if (svgPath) {
+          const fillColor = svgPath.getAttribute('fill');
+          if (fillColor) {
+            color = fillColor;
+            console.log('[GeoNote][saveNote] Couleur récupérée depuis SVG pour remplacer RGB:', color);
+          }
+        }
+      }
+
       const styleWithMetadata = {
         ...this.properties.style,
+        color: color,
+        fillColor: color,
         _accessLevel: this.properties.accessLevel,
         accessLevel: this.properties.accessLevel,
         category: this.properties.category
       };
+
+      console.log('[GeoNote][saveNote] Style final pour l\'envoi:', styleWithMetadata);
 
       // Préparer les données pour l'envoi
       const noteData: any = {
@@ -916,6 +987,10 @@ export class GeoNote extends L.Marker {
       }
 
       console.log('[GeoNote][saveNote] Données à envoyer:', noteData);
+      console.log('[GeoNote][saveNote] Couleur dans les données envoyées:', {
+        styleColor: noteData.style.color,
+        styleFillColor: noteData.style.fillColor
+      });
 
       let savedNote;
 
@@ -924,11 +999,27 @@ export class GeoNote extends L.Marker {
         const response = await noteService.updateNote((this as any)._dbId, noteData);
         savedNote = response.data;
         console.log('[GeoNote][saveNote] Note mise à jour avec succès:', savedNote);
+        console.log('[GeoNote][saveNote] Couleur dans la réponse du backend (update):', {
+          styleColor: savedNote.style?.color,
+          styleFillColor: savedNote.style?.fillColor,
+          styleObject: savedNote.style
+        });
+        
+        // Forcer la mise à jour du popup après la sauvegarde
+        this.bindPopup(this.createPopupContent());
       } else {
         // Création d'une nouvelle note
         const response = await noteService.createNote(noteData);
         savedNote = response.data;
         console.log('[GeoNote][saveNote] Note créée avec succès:', savedNote);
+        console.log('[GeoNote][saveNote] Couleur dans la réponse du backend (create):', {
+          styleColor: savedNote.style?.color,
+          styleFillColor: savedNote.style?.fillColor,
+          styleObject: savedNote.style
+        });
+
+        // Forcer la mise à jour du popup après la sauvegarde
+        this.bindPopup(this.createPopupContent());
 
         // Stocker l'ID de la base de données pour les futures mises à jour
         (this as any)._dbId = savedNote.id;
