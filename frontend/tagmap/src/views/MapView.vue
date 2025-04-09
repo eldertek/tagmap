@@ -328,14 +328,20 @@
                       </div>
                     </template>
                     <template v-else>
-                      <button v-for="plan in clientPlans" :key="plan.id" @click="loadPlan(plan.id)"
-                        class="w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
-                        <div class="font-medium text-gray-900">{{ plan.nom }}</div>
-                        <div class="text-sm text-gray-500">{{ plan.description }}</div>
-                        <div class="text-xs text-gray-400 mt-1">
-                          Modifié le {{ formatLastSaved(plan.date_modification) }}
-                        </div>
-                      </button>
+                      <div v-for="plan in clientPlans" :key="plan.id"
+                        class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                        <button @click="loadPlan(plan.id)" class="w-full text-left">
+                          <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                          <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                          <div class="text-xs text-gray-400 mt-1">
+                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                          </div>
+                        </button>
+                        <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
+                          class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                          Supprimer
+                        </button>
+                      </div>
                     </template>
                   </div>
                 </div>
@@ -400,14 +406,20 @@
                       </div>
                     </template>
                     <template v-else>
-                      <button v-for="plan in clientPlans" :key="plan.id" @click="loadPlan(plan.id)"
-                        class="w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
-                        <div class="font-medium text-gray-900">{{ plan.nom }}</div>
-                        <div class="text-sm text-gray-500">{{ plan.description }}</div>
-                        <div class="text-xs text-gray-400 mt-1">
-                          Modifié le {{ formatLastSaved(plan.date_modification) }}
-                        </div>
-                      </button>
+                      <div v-for="plan in clientPlans" :key="plan.id"
+                        class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                        <button @click="loadPlan(plan.id)" class="w-full text-left">
+                          <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                          <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                          <div class="text-xs text-gray-400 mt-1">
+                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                          </div>
+                        </button>
+                        <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
+                          class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                          Supprimer
+                        </button>
+                      </div>
                     </template>
                   </div>
                 </div>
@@ -415,27 +427,131 @@
 
               <!-- Interface entreprise -->
               <div v-else-if="authStore.isEntreprise" class="space-y-4">
-                <!-- Liste des plans de l'entreprise -->
-                <div v-if="isLoadingPlans" class="py-4">
-                  <div class="flex justify-center">
-                    <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
-                  </div>
-                  <p class="text-center text-sm text-gray-500 mt-2">Chargement des plans...</p>
-                </div>
-                <div v-else-if="irrigationStore.plans.length === 0" class="text-center py-8">
-                  <p class="text-gray-500">Aucun plan disponible</p>
-                </div>
-                <div v-else class="space-y-2">
-                  <h3 class="font-medium text-gray-700">Vos plans</h3>
+                <!-- Étape 1: Sélection du salarié -->
+                <div v-if="!selectedSalarie" class="space-y-2">
+                  <h3 class="font-medium text-gray-700">Sélectionnez un salarié</h3>
                   <div class="grid grid-cols-1 gap-2">
-                    <button v-for="plan in irrigationStore.plans" :key="plan.id" @click="loadPlan(plan.id)"
-                      class="w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
-                      <div class="font-medium text-gray-900">{{ plan.nom }}</div>
-                      <div class="text-sm text-gray-500">{{ plan.description }}</div>
-                      <div class="text-xs text-gray-400 mt-1">
-                        Modifié le {{ formatLastSaved(plan.date_modification) }}
+                    <template v-if="isLoadingSalaries">
+                      <div v-for="i in 3" :key="i" class="animate-pulse">
+                        <div class="p-3 bg-white rounded-lg border border-gray-200">
+                          <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                        </div>
                       </div>
+                    </template>
+                    <template v-else>
+                      <button v-for="salarie in salaries" :key="salarie.id"
+                        @click="selectSalarie(salarie)"
+                        class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                        <div>
+                          <div class="font-medium text-gray-900">{{ formatUserDisplay(salarie) }}</div>
+                        </div>
+                        <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Étape 2: Sélection du visiteur -->
+                <div v-else-if="!selectedClient" class="space-y-2">
+                  <div class="flex items-center mb-4">
+                    <button @click="backToSalarieList"
+                      class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Retour à la liste des salariés
                     </button>
+                    <span class="mx-2 text-gray-400">|</span>
+                    <span class="text-sm text-gray-600">
+                      {{ formatUserDisplay(selectedSalarie) }}
+                    </span>
+                  </div>
+                  <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
+                  <div class="grid grid-cols-1 gap-2">
+                    <!-- Option pour charger les plans sans visiteur -->
+                    <button @click="loadPlansWithoutVisiteur"
+                      class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                        <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    <template v-if="isLoadingClients">
+                      <div v-for="i in 3" :key="i" class="animate-pulse">
+                        <div class="p-3 bg-white rounded-lg border border-gray-200">
+                          <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div v-if="filteredClients.length === 0" class="text-center py-4">
+                        <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarié</div>
+                        <div class="text-sm text-gray-400">
+                          Vous pouvez utiliser l'option "Plans sans visiteur" ci-dessus
+                        </div>
+                      </div>
+                      <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
+                        class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                        <div>
+                          <div class="font-medium text-gray-900">{{ formatUserDisplay(client) }}</div>
+                        </div>
+                        <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Étape 3: Liste des plans du visiteur -->
+                <div v-else class="space-y-2">
+                  <div class="flex items-center mb-4">
+                    <button @click="backToClientList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Retour à la liste des visiteurs
+                    </button>
+                    <span class="mx-2 text-gray-400">|</span>
+                    <span class="text-sm text-gray-600">
+                      {{ formatUserDisplay(selectedClient) }}
+                    </span>
+                  </div>
+                  <h3 class="font-medium text-gray-700">Plans disponibles</h3>
+                  <div class="grid grid-cols-1 gap-2">
+                    <template v-if="isLoadingPlans">
+                      <div v-for="i in 3" :key="i" class="animate-pulse">
+                        <div class="p-3 bg-white rounded-lg border border-gray-200">
+                          <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div class="h-4 bg-gray-100 rounded w-2/3 mb-2"></div>
+                          <div class="h-3 bg-gray-50 rounded w-1/3"></div>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div v-for="plan in clientPlans" :key="plan.id"
+                        class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                        <button @click="loadPlan(plan.id)" class="w-full text-left">
+                          <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                          <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                          <div class="text-xs text-gray-400 mt-1">
+                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                          </div>
+                        </button>
+                        <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
+                          class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                          Supprimer
+                        </button>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -446,16 +562,49 @@
                   <p class="text-gray-500">Aucun plan disponible</p>
                 </div>
                 <div v-else class="space-y-2">
-                  <button v-for="plan in irrigationStore.plans" :key="plan.id" @click="loadPlan(plan.id)"
-                    class="w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
-                    <div class="font-medium text-gray-900">{{ plan.nom }}</div>
-                    <div class="text-sm text-gray-500">{{ plan.description }}</div>
-                    <div class="text-xs text-gray-400 mt-1">
-                      Modifié le {{ formatLastSaved(plan.date_modification) }}
-                    </div>
-                  </button>
+                  <div v-for="plan in irrigationStore.plans" :key="plan.id"
+                    class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                    <button @click="loadPlan(plan.id)" class="w-full text-left">
+                      <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                      <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                      <div class="text-xs text-gray-400 mt-1">
+                        Modifié le {{ formatLastSaved(plan.date_modification) }}
+                      </div>
+                    </button>
+                    <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
+                      class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                      Supprimer
+                    </button>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+      <!-- Modal de confirmation de suppression de plan -->
+      <Teleport to="body">
+        <div v-if="showDeletePlanModal"
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div class="text-center mb-4">
+              <svg class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <h3 class="text-xl font-semibold text-gray-900">Supprimer le plan</h3>
+              <p class="mt-2 text-gray-600">
+                Êtes-vous sûr de vouloir supprimer le plan "{{ planToDelete?.nom }}" ? Cette action est irréversible.
+              </p>
+            </div>
+            <div class="flex justify-center space-x-4">
+              <button @click="cancelDeletePlan"
+                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                Annuler
+              </button>
+              <button @click="confirmDeletePlan"
+                class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                Supprimer
+              </button>
             </div>
           </div>
         </div>
@@ -574,8 +723,10 @@ const {
 const showNewPlanModal = ref(false);
 const showLoadPlanModal = ref(false);
 const showNoteEditModal = ref(false);
+const showDeletePlanModal = ref(false);
 const currentPlan = ref<ExtendedPlan | null>(null);
 const editingMapNote = ref<any>(null);
+const planToDelete = ref<Plan | null>(null);
 // État pour la sauvegarde
 const saving = ref(false);
 const saveStatus = ref<'saving' | 'success' | null>(null);
@@ -1176,6 +1327,18 @@ watch(() => drawingStore.hasUnsavedChanges, (newValue) => {
     irrigationStore.markUnsavedChanges();
   }
 });
+
+// Surveiller les changements dans la liste des plans du store
+watch(() => irrigationStore.plans, (newPlans) => {
+  console.log('[MapView][watch irrigationStore.plans] Mise à jour de la liste des plans:', newPlans.length);
+  // Si le modal de chargement de plan est ouvert, s'assurer que l'interface est à jour
+  if (showLoadPlanModal.value) {
+    // Si on est dans l'interface client simple (pas de client sélectionné)
+    if (!selectedClient.value) {
+      console.log('[MapView][watch irrigationStore.plans] Mise à jour de l\'interface client');
+    }
+  }
+}, { deep: true });
 
 // Surveiller les changements dans les filtres
 watch(() => drawingStore.filters, (newFilters, oldFilters) => {
@@ -3408,6 +3571,77 @@ function closeNoteEditModal() {
   editingMapNote.value = null;
 }
 
+// Fonctions pour gérer la suppression de plan
+function confirmDeletePlanModal(plan: Plan) {
+  planToDelete.value = plan;
+  showDeletePlanModal.value = true;
+}
+
+async function confirmDeletePlan() {
+  if (!planToDelete.value?.id) return;
+  try {
+    // Sauvegarder l'ID du plan à supprimer et le contexte actuel
+    const planIdToDelete = planToDelete.value.id;
+    const currentContext = {
+      selectedClient: selectedClient.value,
+      selectedSalarie: selectedSalarie.value,
+      isNoVisiteurView: selectedClient.value && (selectedClient.value as any).id === -1
+    };
+
+    // Supprimer le plan
+    await irrigationStore.deletePlan(planIdToDelete);
+
+    // Fermer le modal avant de recharger les plans pour éviter les problèmes d'interface
+    showDeletePlanModal.value = false;
+    planToDelete.value = null;
+
+    // Attendre un court instant pour que l'interface se mette à jour
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Recharger les plans selon le contexte
+    if (currentContext.isNoVisiteurView) {
+      // Si on était dans la vue des plans sans visiteur
+      console.log('[MapView][confirmDeletePlan] Rechargement des plans sans visiteur');
+      await loadPlansWithoutVisiteur();
+    } else if (currentContext.selectedClient) {
+      // Si on était dans la vue des plans d'un client spécifique
+      console.log('[MapView][confirmDeletePlan] Rechargement des plans du client:', currentContext.selectedClient.id);
+      const params: any = { visiteur: currentContext.selectedClient.id };
+      if (currentContext.selectedSalarie) params.salarie = currentContext.selectedSalarie.id;
+      if (authStore.isEntreprise) params.entreprise = authStore.user?.id;
+      else if (selectedEntreprise.value) params.entreprise = selectedEntreprise.value.id;
+
+      const response = await api.get('/plans/', { params });
+      clientPlans.value = response.data;
+    } else {
+      // Interface client simple - forcer le rechargement complet
+      console.log('[MapView][confirmDeletePlan] Rechargement de tous les plans');
+      await irrigationStore.fetchPlans();
+    }
+
+    // Si le plan supprimé était le plan courant, le nettoyer
+    if (currentPlan.value?.id === planIdToDelete) {
+      currentPlan.value = null;
+      irrigationStore.clearCurrentPlan();
+      drawingStore.clearCurrentPlan();
+      clearMap();
+      localStorage.removeItem('lastPlanId');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du plan:', error);
+    alert('Une erreur est survenue lors de la suppression du plan');
+
+    // En cas d'erreur, fermer quand même le modal
+    showDeletePlanModal.value = false;
+    planToDelete.value = null;
+  }
+}
+
+function cancelDeletePlan() {
+  showDeletePlanModal.value = false;
+  planToDelete.value = null;
+}
+
 // Fonction pour gérer les changements de filtres
 function handleFilterChange(filters: {
   accessLevels: { company: boolean; employee: boolean; visitor: boolean };
@@ -4051,6 +4285,8 @@ function handleNoteSave(note: any) {
   notificationStore.success('Note enregistrée avec succès');
 }
 
+
+
 // Fonction pour sélectionner un client
 async function selectClient(client: ExtendedUserDetails) {
   selectedClient.value = client;
@@ -4133,15 +4369,29 @@ const emit = defineEmits(['shape-selected']);
 
 // Fonction pour ouvrir le modal de chargement de plan
 async function openLoadPlanModal() {
-  // Si l'utilisateur est une entreprise, charger ses plans
+  // Réinitialiser les sélections précédentes
+  selectedSalarie.value = null;
+  selectedClient.value = null;
+  clientPlans.value = [];
+
+  // Si l'utilisateur est une entreprise, charger ses salariés
   if (authStore.isEntreprise) {
-    isLoadingPlans.value = true;
+    isLoadingSalaries.value = true;
     try {
-      await irrigationStore.fetchPlans();
+      // Charger les salariés de l'entreprise
+      const response = await api.get('/users/', {
+        params: {
+          role: 'SALARIE',
+          entreprise: authStore.user?.id
+        }
+      });
+      salaries.value = response.data;
+      console.log('[MapView][openLoadPlanModal] Salariés chargés:', salaries.value.length);
     } catch (error) {
-      console.error('[MapView] Erreur lors du chargement des plans:', error);
+      console.error('[MapView][openLoadPlanModal] Erreur lors du chargement des salariés:', error);
+      salaries.value = [];
     } finally {
-      isLoadingPlans.value = false;
+      isLoadingSalaries.value = false;
     }
   }
 

@@ -2,9 +2,9 @@
   <div class="fixed z-[9999] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="flex items-center justify-center min-h-screen w-full">
       <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-      <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
-        <form @submit.prevent="saveNote" class="h-full md:h-auto flex flex-col">
-          <div class="p-4 md:p-6 flex-1 overflow-y-auto">
+      <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden flex flex-col">
+        <form @submit.prevent="saveNote" class="h-full md:h-auto flex flex-col max-h-screen md:max-h-[90vh] overflow-hidden">
+          <div class="p-4 md:p-6 flex-1 overflow-y-auto pb-16" style="max-height: calc(100vh - 180px); overflow-y: auto;">
             <div class="flex justify-between items-center mb-4 border-b pb-4">
               <h3 class="text-xl font-semibold text-gray-900">{{ note?.id ? 'Modifier la note' : 'Nouvelle note' }}</h3>
               <button type="button" @click="closeModal" class="text-gray-400 hover:text-gray-500">
@@ -132,7 +132,7 @@
               />
             </div>
           </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse sticky bottom-0 border-t border-gray-200">
             <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm">
               Enregistrer
             </button>
@@ -642,3 +642,48 @@ async function saveNote() {
   }
 }
 </script>
+
+<style scoped>
+/* Styles spécifiques pour le modal */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Styles pour les scrollbars */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+@media (max-width: 768px) {
+  /* Assurer que le contenu est scrollable sur mobile */
+  .flex-1.overflow-y-auto {
+    max-height: calc(100vh - 180px) !important;
+    overflow-y: auto !important;
+    padding-bottom: 80px !important; /* Espace supplémentaire en bas pour éviter que le contenu soit caché derrière le footer */
+  }
+
+  /* S'assurer que le footer reste visible */
+  .sticky.bottom-0 {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+}
+</style>
