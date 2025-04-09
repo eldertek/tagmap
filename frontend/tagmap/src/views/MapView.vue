@@ -651,7 +651,6 @@ import jsPDF from 'jspdf';
 import logo from '@/assets/logo.svg';
 import { debounce } from 'lodash';
 import { Circle } from '@/utils/Circle';
-import { ElevationLine } from '@/utils/ElevationLine';
 import { GeoNote } from '@/utils/GeoNote';
 import { useMapFilterStore } from '@/stores/mapFilters';
 
@@ -801,8 +800,6 @@ const selectedShape = computed((): ShapeType | null => {
     shapeType = 'Polygon';
   } else if (selectedLeafletShape.value instanceof L.Polygon) {
     shapeType = 'Polygon';
-  } else if (selectedLeafletShape.value instanceof ElevationLine) {
-    shapeType = 'ElevationLine';
   } else if (selectedLeafletShape.value instanceof Line) {
     shapeType = 'Line';
   } else if (selectedLeafletShape.value instanceof L.Polyline && !(selectedLeafletShape.value instanceof L.Polygon)) {
@@ -1600,7 +1597,7 @@ async function refreshMapWithPlan(planId: number) {
               }))
             });
 
-            // Regrouper les éléments par type pour un traitement par lots
+            // Regrouper les éléments par type et priorité pour un traitement par lots
             const elementsByType = drawingStore.getCurrentElements.reduce((acc, element) => {
               if (!acc[element.type_forme]) {
                 acc[element.type_forme] = [];
@@ -1609,9 +1606,33 @@ async function refreshMapWithPlan(planId: number) {
               return acc;
             }, {} as Record<string, any[]>);
 
-            // Traiter chaque type d'élément en parallèle
-            const batchSize = 10; // Nombre d'éléments à traiter par lot
-            const creationPromises = Object.entries(elementsByType).map(async ([_, elements]) => {
+            // Définir l'ordre de priorité des types d'éléments (les plus importants d'abord)
+            const priorityOrder = ['Note', 'Polygon', 'Line', 'Circle', 'Rectangle'];
+
+            // Trier les types d'éléments par priorité
+            const sortedElementTypes = Object.keys(elementsByType).sort((a, b) => {
+              const indexA = priorityOrder.indexOf(a);
+              const indexB = priorityOrder.indexOf(b);
+              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+            });
+
+            // Augmenter la taille des lots pour les formes simples
+            const getBatchSizeForType = (type: string) => {
+              switch (type) {
+                case 'Note': return 20; // Les notes sont légères
+                case 'Circle': return 15;
+                case 'Rectangle': return 15;
+                case 'Line': return 10;
+                case 'Polygon': return 5; // Les polygones sont plus lourds
+                default: return 10;
+              }
+            };
+
+            // Traiter les types d'éléments séquentiellement par ordre de priorité
+            for (const elementType of sortedElementTypes) {
+              const elements = elementsByType[elementType];
+              const batchSize = getBatchSizeForType(elementType);
+
               // Diviser les éléments en lots
               for (let i = 0; i < elements.length; i += batchSize) {
                 const batch = elements.slice(i, i + batchSize);
@@ -1680,31 +1701,6 @@ async function refreshMapWithPlan(planId: number) {
                           if (lineData.name) {
                             (layer as any).properties = { name: lineData.name };
                             (layer as any).name = lineData.name;
-                          }
-                        }
-                        break;
-                      }
-                      case 'ElevationLine': {
-                        const lineData = element.data as ElevationLineData;
-                        if (lineData.points && lineData.points.length > 0) {
-                          const latLngs = lineData.points.map(point => L.latLng(point[1], point[0]));
-                          layer = new ElevationLine(latLngs, lineData.style);
-                          if (lineData.name) {
-                            (layer as any).properties = {
-                              name: lineData.name,
-                              type: 'ElevationLine',
-                              elevationData: lineData.elevationData,
-                              minElevation: lineData.minElevation,
-                              maxElevation: lineData.maxElevation,
-                              elevationGain: lineData.elevationGain,
-                              elevationLoss: lineData.elevationLoss,
-                              averageSlope: lineData.averageSlope,
-                              maxSlope: lineData.maxSlope
-                            };
-                            (layer as any).name = lineData.name;
-                          }
-                          if (lineData.elevationData) {
-                            (layer as any).elevationData = lineData.elevationData;
                           }
                         }
                         break;
@@ -1780,16 +1776,21 @@ async function refreshMapWithPlan(planId: number) {
                 }));
 
                 // Petit délai entre les lots pour éviter de bloquer le thread principal
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Utiliser requestAnimationFrame pour synchroniser avec le cycle de rendu du navigateur
+                await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
               }
-            });
-
-            // Attendre que tous les éléments soient créés
-            await Promise.all(creationPromises);
+            }
 
             // Ajuster la vue après avoir ajouté toutes les formes
             performanceMonitor.measure('refreshMapWithPlan:adjustView', () => {
-              adjustView();
+              // Utiliser un délai pour permettre au navigateur de terminer le rendu
+              setTimeout(() => {
+                adjustView();
+                // Forcer un rafraîchissement de la carte
+                if (map.value) {
+                  map.value.invalidateSize({ animate: false, pan: false });
+                }
+              }, 100);
             }, 'MapView');
           }, 'MapView');
         }
@@ -2774,24 +2775,9 @@ async function generateSynthesis() {
           } catch (error) {
             console.warn('[generateSynthesis] Erreur lors de l\'invalidation de la taille de la carte:', error);
           }
-          // Attendre que toutes les tuiles soient chargées
-          await new Promise<void>((resolve) => {
-            const checkTiles = () => {
-              const container = map.value?.getContainer();
-              if (!container) {
-                resolve();
-                return;
-              }
-              const tiles = container.querySelectorAll('.leaflet-tile-loaded');
-              const loading = container.querySelectorAll('.leaflet-tile-loading');
-              if (loading.length === 0 && tiles.length > 0) {
-                resolve();
-              } else {
-                setTimeout(checkTiles, 100);
-              }
-            };
-            checkTiles();
-          });
+          // Attendre un délai fixe au lieu de vérifier les tuiles
+          // Cela évite les boucles de polling qui peuvent affecter les performances
+          await new Promise(resolve => setTimeout(resolve, 500));
 
           // Capturer la carte
           const dataUrl = await screenshoter.takeScreen('image');
@@ -3113,24 +3099,9 @@ async function generateSynthesis() {
         await new Promise(resolve => setTimeout(resolve, 2000));
         // Forcer un rafraîchissement de la carte
         map.value.invalidateSize();
-        // Attendre que toutes les tuiles soient chargées
-        await new Promise<void>((resolve) => {
-          const checkTiles = () => {
-            const container = map.value?.getContainer();
-            if (!container) {
-              resolve();
-              return;
-            }
-            const tiles = container.querySelectorAll('.leaflet-tile-loaded');
-            const loading = container.querySelectorAll('.leaflet-tile-loading');
-            if (loading.length === 0 && tiles.length > 0) {
-              resolve();
-            } else {
-              setTimeout(checkTiles, 100);
-            }
-          };
-          checkTiles();
-        });
+        // Attendre un délai fixe au lieu de vérifier les tuiles
+        // Cela évite les boucles de polling qui peuvent affecter les performances
+        await new Promise(resolve => setTimeout(resolve, 500));
         try {
           // Capturer la carte
           const dataUrl = await screenshoter.takeScreen('image');

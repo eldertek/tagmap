@@ -14,16 +14,20 @@ export function useMapState() {
   // Configuration commune pour toutes les couches de base
   const commonTileOptions = {
     maxZoom: 19,
-    updateWhenZooming: false,
+    updateWhenZooming: true, // Mettre à jour les tuiles pendant le zoom pour une expérience plus fluide
     updateWhenIdle: true,
     noWrap: true,
-    keepBuffer: 4,
+    keepBuffer: 2, // Réduire le buffer pour économiser de la mémoire
     maxNativeZoom: 19,
     tileSize: 256,
     zoomOffset: 0,
     bounds: L.latLngBounds(L.latLng(41.333, -5.566), L.latLng(51.089, 9.555)),
     crossOrigin: true,
-    detectRetina: true
+    detectRetina: true,
+    // Ajouter des options de mise en cache
+    useCache: true,
+    // Réduire la priorité de chargement des tuiles hors écran
+    priorityLevels: 3
   };
 
   // Mesurer les performances de la création des baseMaps
@@ -33,13 +37,16 @@ export function useMapState() {
       L.tileLayer('/osm_tiles/{z}/{x}/{y}.png', {
         ...commonTileOptions,
         attribution: '© OpenStreetMap contributors',
-        opacity: 0.6
+        opacity: 0.6,
+        // Optimisations spécifiques pour les tuiles locales
+        subdomains: ['a', 'b', 'c'], // Utiliser plusieurs sous-domaines si disponibles
+        crossOrigin: true
       }),
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         ...commonTileOptions,
         attribution: '© Esri',
         maxNativeZoom: 20,
-        opacity: 0.6
+        opacity: 0.6,
       })
     ]),
     'Cadastre': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
@@ -60,12 +67,15 @@ export function useMapState() {
       performanceMonitor.measure('initMap:setOptions', () => {
         map.value = mapInstance;
         // Optimisation du zoom
-        mapInstance.options.zoomSnap = 0.25;
-        mapInstance.options.zoomDelta = 0.25;
-        mapInstance.options.wheelPxPerZoomLevel = 100;
+        mapInstance.options.zoomSnap = 0.5; // Augmenter pour réduire les calculs intermédiaires
+        mapInstance.options.zoomDelta = 0.5; // Augmenter pour réduire les calculs intermédiaires
+        mapInstance.options.wheelPxPerZoomLevel = 120; // Augmenter pour réduire la sensibilité
         mapInstance.options.zoomAnimation = true;
         mapInstance.options.fadeAnimation = true;
         mapInstance.options.markerZoomAnimation = true;
+        // Optimisations supplémentaires
+        mapInstance.options.preferCanvas = true; // Utiliser Canvas au lieu de SVG pour le rendu
+        mapInstance.options.renderer = L.canvas(); // Forcer l'utilisation du renderer Canvas
         // Limites de zoom et de vue
         mapInstance.options.minZoom = 2;
         mapInstance.options.maxZoom = 19;
@@ -112,7 +122,7 @@ export function useMapState() {
               if (maxBounds && !currentBounds.intersects(maxBounds)) {
                 mapInstance.panInsideBounds(maxBounds, { animate: false });
               }
-              
+
               // Forcer un rafraîchissement de tous les marqueurs GeoNote
               mapInstance.eachLayer((layer: any) => {
                 if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
@@ -137,7 +147,7 @@ export function useMapState() {
             }
           };
         }
-        
+
         // Ajouter un gestionnaire d'événement spécifique pour l'animation de zoom
         // qui mettra à jour correctement les positions des GeoNotes
         mapInstance.on('zoomanim', (e: any) => {
@@ -167,7 +177,7 @@ export function useMapState() {
                 console.warn('Erreur lors de la suppression de la couche active précédente:', e);
               }
             }
-            
+
             activeLayer.value = baseMaps[baseMapKey];
             try {
               activeLayer.value.addTo(mapInstance as any);
@@ -202,7 +212,7 @@ export function useMapState() {
             endCenter: mapInstance.getCenter()
           });
           endMove();
-          
+
           // Mettre à jour la position de tous les GeoNotes
           mapInstance.eachLayer((layer: any) => {
             if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
@@ -239,20 +249,20 @@ export function useMapState() {
         if (currentBaseMap.value === baseMapName) return;
 
         console.log(`Changement de carte: ${currentBaseMap.value} -> ${baseMapName}`);
-        
+
         // Récupérer l'instance de carte et la position actuelle
         const mapInstance = map.value;
         const currentCenter = mapInstance.getCenter();
         const currentZoom = mapInstance.getZoom();
-        
+
         // Désactiver temporairement les animations
         mapInstance.options.zoomAnimation = false;
         mapInstance.options.fadeAnimation = false;
         mapInstance.options.markerZoomAnimation = false;
-        
+
         // Récupérer la nouvelle couche
         const newLayer = baseMaps[baseMapName];
-        
+
         // Supprimer la couche active actuelle si elle existe
         if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
           try {
@@ -262,7 +272,7 @@ export function useMapState() {
             console.warn('Erreur lors de la suppression de la couche active:', e);
           }
         }
-        
+
         // Ajouter la nouvelle couche
         try {
           if (newLayer instanceof L.LayerGroup) {
@@ -285,11 +295,11 @@ export function useMapState() {
             throw new Error('Impossible d\'ajouter la nouvelle couche');
           }
         }
-        
+
         // Mettre à jour les références
         activeLayer.value = newLayer;
         currentBaseMap.value = baseMapName;
-        
+
         // Réinitialiser la vue
         try {
           mapInstance.setView(currentCenter, currentZoom, {
@@ -301,11 +311,11 @@ export function useMapState() {
         } catch (e) {
           console.warn('Erreur lors de la réinitialisation de la vue:', e);
         }
-        
+
         // Forcer un rafraîchissement de la carte
         try {
           mapInstance.invalidateSize({ animate: false, pan: false });
-          
+
           // Mettre à jour la position de tous les GeoNotes
           setTimeout(() => {
             mapInstance.eachLayer((layer: any) => {
@@ -317,7 +327,7 @@ export function useMapState() {
         } catch (e) {
           console.warn('Erreur lors du rafraîchissement de la carte:', e);
         }
-        
+
         // Restaurer les animations après un court délai
         setTimeout(() => {
           mapInstance.options.zoomAnimation = true;
@@ -331,28 +341,28 @@ export function useMapState() {
         if (map.value) {
           try {
             const mapInstance = map.value;
-            
+
             // Supprimer toutes les couches de tuiles
             mapInstance.eachLayer((layer: any) => {
               if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
                 mapInstance.removeLayer(layer);
               }
             });
-            
+
             // Ajouter la couche demandée
             const newLayer = baseMaps[baseMapName];
             newLayer.addTo(mapInstance as any);
-            
+
             // Mettre à jour les références
             activeLayer.value = newLayer;
             currentBaseMap.value = baseMapName;
-            
+
             // Restaurer les animations
             mapInstance.options.zoomAnimation = true;
             mapInstance.options.fadeAnimation = true;
             mapInstance.options.markerZoomAnimation = true;
             mapInstance.invalidateSize({ animate: false, pan: false });
-            
+
             console.log('Récupération effectuée après erreur');
           } catch (e) {
             console.error('Erreur lors de la récupération après échec:', e);

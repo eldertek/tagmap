@@ -57,7 +57,7 @@
         <!-- Onglet Outils -->
         <div v-if="activeTab === 'tools'" class="p-3 overflow-y-auto flex-1">
           <!-- Outils de dessin - version compacte avec icônes -->
-          <div class="grid grid-cols-4 gap-1.5 mb-4">
+          <div class="grid grid-cols-3 gap-1.5 mb-4">
             <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
               class="flex items-center justify-center p-2 rounded-md border transition-all duration-200"
               :class="{
@@ -546,7 +546,6 @@ const defaultCategories = ref([
 const drawingTools = [
   { type: 'Polygon', label: 'Polygone' },
   { type: 'Line', label: 'Ligne' },
-  { type: 'ElevationLine', label: 'Profil altimétrique' },
   { type: 'Note', label: 'Note géolocalisée' }
 ]
 
@@ -556,8 +555,6 @@ const getToolIcon = (type: string) => {
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5l16 0l0 14l-16 0l0 -14z"/></svg>'
     case 'Line':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20l16 -16"/></svg>'
-    case 'ElevationLine':
-      return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20h18l-3-3l-4 4l-4-7l-4 4l-3-3"/></svg>'
     case 'Note':
       return '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 2l4 4m-6 0l2-2 4 4-2 2-4-4z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14h4" /></svg>'
     default:
@@ -1000,7 +997,7 @@ const formatCategoryName = (category: string): string => {
   if (defaultCategories.value.includes(category)) {
     return category;
   }
-  
+
   // Pour les catégories personnalisées, formater le nom
   return category
     .split('_')
@@ -1187,11 +1184,11 @@ onMounted(async () => {
   try {
     console.log('[DrawingTools][onMounted] Chargement des filtres personnalisés');
     await mapFilterStore.fetchFilters();
-    
+
     // Récupérer les catégories uniques des filtres personnalisés
     const customCategories = mapFilterStore.getUniqueCategories;
     console.log('[DrawingTools][onMounted] Catégories personnalisées trouvées:', customCategories);
-    
+
     // Ajouter les catégories personnalisées aux filtres
     const categoriesAdded: string[] = [];
     customCategories.forEach(category => {
@@ -1202,7 +1199,7 @@ onMounted(async () => {
         categoriesAdded.push(category);
       }
     });
-    
+
     // Si des catégories ont été ajoutées, mettre à jour le store
     if (categoriesAdded.length > 0) {
       console.log('[DrawingTools][onMounted] Mise à jour du store avec les catégories personnalisées:', categoriesAdded);
@@ -1384,7 +1381,7 @@ div[v-if="activeTab === 'filters'"] {
     display: flex;
     flex-direction: column;
   }
-  
+
   /* Assurer que le contenu défile correctement sur desktop */
   div[v-if="activeTab === 'filters'"] {
     max-height: calc(100vh - 150px); /* Ajustez cette valeur selon la hauteur des éléments au-dessus */

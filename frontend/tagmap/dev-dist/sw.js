@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-f001acab'], (function (workbox) { 'use strict';
+define(['./workbox-bbaa7e3b'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -79,12 +79,39 @@ define(['./workbox-f001acab'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "0.b0bgl6rp8pg"
+    "revision": "0.tq26k14qrqo"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
+  workbox.registerRoute(/\/osm_tiles\//, new workbox.CacheFirst({
+    "cacheName": "osm-tiles-cache",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 1000,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    }), new workbox.RangeRequestsPlugin()]
+  }), 'GET');
+  workbox.registerRoute(/^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/World_Imagery\/MapServer\/tile/, new workbox.CacheFirst({
+    "cacheName": "esri-tiles-cache",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 1000,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    }), new workbox.RangeRequestsPlugin()]
+  }), 'GET');
+  workbox.registerRoute(/^https:\/\/data\.geopf\.fr\/wmts/, new workbox.CacheFirst({
+    "cacheName": "ign-tiles-cache",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 1000,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    }), new workbox.RangeRequestsPlugin()]
+  }), 'GET');
   workbox.registerRoute(/^https:\/\/nominatim\.openstreetmap\.org\/search/, new workbox.CacheFirst({
     "cacheName": "openstreetmap-api",
     plugins: [new workbox.ExpirationPlugin({

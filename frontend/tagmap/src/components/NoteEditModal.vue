@@ -93,17 +93,6 @@
                   </option>
                 </select>
               </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Couleur</label>
-                <div class="mt-1 flex space-x-2">
-                  <div v-for="color in colors" :key="color"
-                    class="w-8 h-8 rounded-full cursor-pointer border-2"
-                    :class="{ 'border-gray-400': editingNote.style.color !== color, 'border-black': editingNote.style.color === color }"
-                    :style="{ backgroundColor: color }"
-                    @click="updateNoteColor(color)">
-                  </div>
-                </div>
-              </div>
             </div>
 
             <!-- Onglet Commentaires -->
@@ -366,10 +355,10 @@ onMounted(async () => {
       columnId: notesStore.getDefaultColumn.id || '1', // Utiliser la colonne par défaut
       accessLevel: NoteAccessLevel.PRIVATE, // Définir explicitement le niveau d'accès par défaut
       style: {
-        color: '#3B82F6',
+        color: '#2b6451',
         weight: 2,
         opacity: 1,
-        fillColor: '#3B82F6',
+        fillColor: '#2b6451',
         fillOpacity: 0.6,
         radius: 8
       },
@@ -419,38 +408,6 @@ const accessLevels = [
   { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous' }
 ];
 
-// Couleurs disponibles
-const colors = [
-  '#3B82F6', // Bleu
-  '#10B981', // Vert
-  '#F59E0B', // Orange
-  '#EF4444', // Rouge
-  '#8B5CF6', // Violet
-  '#EC4899', // Rose
-  '#6B7280'  // Gris
-];
-
-// Mettre à jour la couleur de la note
-const updateNoteColor = (color: string) => {
-  if (!editingNote.value.style) {
-    editingNote.value.style = {
-      color: color,
-      weight: 2,
-      opacity: 1,
-      fillColor: color,
-      fillOpacity: 0.6,
-      radius: 8
-    };
-  } else {
-    editingNote.value.style.color = color;
-    editingNote.value.style.fillColor = color;
-  }
-  // Sauvegarder la couleur dans la note elle-même pour s'assurer qu'elle est préservée
-  editingNote.value.color = color;
-
-  console.log('[NoteEditModal] Couleur mise à jour:', color);
-};
-
 // Initialiser la note avec les valeurs par défaut
 const initializeEditingNote = () => {
   editingNote.value = {
@@ -459,14 +416,13 @@ const initializeEditingNote = () => {
     columnId: props.note?.columnId || '',
     accessLevel: props.note?.accessLevel || 'private',
     style: props.note?.style || {
-      color: props.note?.color || '#3B82F6',
+      color: '#2b6451',
       weight: 2,
       opacity: 1,
-      fillColor: props.note?.color || '#3B82F6',
+      fillColor: '#2b6451',
       fillOpacity: 0.6,
       radius: 8
     },
-    color: props.note?.color || '#3B82F6', // Ajouter la couleur directement dans la note
     location: props.location || props.note?.location || null,
     comments: props.note?.comments || [],
     photos: props.note?.photos || []
@@ -527,6 +483,21 @@ async function handlePhotoDeleted() {
 // Sauvegarder la note
 async function saveNote() {
   try {
+    // S'assurer que le style utilise la couleur standard
+    if (editingNote.value.style) {
+      editingNote.value.style.color = '#2b6451';
+      editingNote.value.style.fillColor = '#2b6451';
+    } else {
+      editingNote.value.style = {
+        color: '#2b6451',
+        weight: 2,
+        opacity: 1,
+        fillColor: '#2b6451',
+        fillOpacity: 0.6,
+        radius: 8
+      };
+    }
+
     // Préparer les données pour l'envoi
     const noteData: any = {
       title: editingNote.value.title,
@@ -606,13 +577,7 @@ async function saveNote() {
         id: savedNote.id, // Utiliser l'ID fourni par le backend
         columnId: noteData.columnId || defaultColumn.id,
         accessLevel: editingNote.value.accessLevel,
-        style: noteData.style || {
-          color: '#3B82F6',
-          weight: 2,
-          opacity: 1,
-          fillColor: '#3B82F6',
-          fillOpacity: 0.2
-        }
+        style: noteData.style
       };
 
       console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);

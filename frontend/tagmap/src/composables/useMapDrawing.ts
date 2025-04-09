@@ -5,7 +5,6 @@ import { Circle } from '../utils/Circle';
 import { Rectangle } from '../utils/Rectangle';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
-import { ElevationLine } from '../utils/ElevationLine';
 import { GeoNote } from '../utils/GeoNote';
 import type { TextMarker, TextStyle } from '../types/leaflet';
 import type { DrawableLayer } from '../types/drawing';
@@ -506,7 +505,6 @@ export function useMapDrawing(): MapDrawingReturn {
         Rectangle: layer instanceof L.Rectangle,
         Polygon: layer instanceof L.Polygon,
         Polyline: layer instanceof L.Polyline,
-        ElevationLine: layer instanceof ElevationLine,
         Line: layer instanceof Line
       },
       options: layer.options
@@ -1357,7 +1355,6 @@ export function useMapDrawing(): MapDrawingReturn {
             showHelpMessage('Cliquez sur une forme pour la supprimer');
             map.value?.pm.enableGlobalRemovalMode();
             break;
-          // TextRectangle case removed as per requirements
           case 'ElevationLine':
             showHelpMessage('Cliquez et maintenez pour tracer le profil altimétrique');
             map.value?.pm.enableDraw('Line', {
@@ -1390,41 +1387,6 @@ export function useMapDrawing(): MapDrawingReturn {
                 map.value?.removeLayer(e.layer);
                 if (featureGroup.value?.hasLayer(e.layer)) {
                   featureGroup.value.removeLayer(e.layer);
-                }
-
-                // Créer une nouvelle ligne d'élévation
-                const elevationLine = new ElevationLine(latLngs, {
-                  color: '#FF4500',
-                  weight: 4,
-                  opacity: 0.8,
-                  interactive: false,
-                  pmIgnore: true
-                });
-
-                // Ajouter la ligne au groupe de fonctionnalités
-                if (featureGroup.value) {
-                  featureGroup.value.addLayer(elevationLine);
-                  selectedShape.value = elevationLine;
-
-                  // Initialiser le profil d'élévation et attendre la fin
-                  await elevationLine.updateElevationProfile();
-
-                  // Forcer la mise à jour des propriétés
-                  const updatedProperties = calculateShapeProperties(elevationLine, 'ElevationLine');
-
-                  // Fusionner avec les propriétés spécifiques d'élévation
-                  Object.assign(elevationLine.properties, {
-                    ...updatedProperties,
-                    ...elevationLine.properties,
-                    type: 'ElevationLine',
-                    elevationData: elevationLine.getElevationData()
-                  });
-
-                  // Forcer la mise à jour du composant
-                  selectedShape.value = null;
-                  nextTick(() => {
-                    selectedShape.value = elevationLine;
-                  });
                 }
 
                 // Désactiver le mode dessin et réinitialiser l'outil

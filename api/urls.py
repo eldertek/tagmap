@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_nested.routers import NestedDefaultRouter
 from .views import (
     SalarieViewSet,
     ClientViewSet,
@@ -33,7 +34,13 @@ router.register(r'map-filters', MapFilterViewSet, basename='map-filter')
 # Routes pour l'API météo (séparer les endpoints)
 router.register(r'weather', WeatherViewSet, basename='weather')
 
+# Nested routes for notes
+notes_router = NestedDefaultRouter(router, r'notes', lookup='note')
+notes_router.register(r'comments', NoteCommentViewSet, basename='note-comments')
+notes_router.register(r'photos', NotePhotoViewSet, basename='note-photos')
+
 urlpatterns = [
     path('', include(router.urls)),
+    path('', include(notes_router.urls)),  # Include nested routes
     path('elevation/', elevation_proxy, name='elevation-proxy'),
 ]

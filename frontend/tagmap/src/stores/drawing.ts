@@ -14,7 +14,6 @@ import type {
 } from '@/types/drawing';
 import L from 'leaflet';
 import { Polygon } from '@/utils/Polygon';
-import { ElevationLine } from '@/utils/ElevationLine';
 import { Line } from '@/utils/Line';
 import { Rectangle } from '@/utils/Rectangle';
 import { GeoNote } from '@/utils/GeoNote';
@@ -117,30 +116,6 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
     return { type_forme: 'Note' as DrawingElementType, data };
   }
 
-  // Vérifier si c'est une ElevationLine
-  if (shape instanceof ElevationLine || shape.properties?.type === 'ElevationLine') {
-    const latLngsElevation = shape.getLatLngs() as L.LatLng[];
-    const data = {
-      points: latLngsElevation.map((ll: L.LatLng) => [ll.lng, ll.lat]),
-      style: {
-        color: shape.properties.style?.color || '#2b6451',
-        weight: shape.properties.style?.weight || 4,
-        opacity: shape.properties.style?.opacity || 0.8,
-        name: shape.properties.style?.name || ''
-      },
-      category: shape.properties.category || 'forages',
-      accessLevel: shape.properties.accessLevel || 'visitor',
-      elevationData: shape.properties.elevationData,
-      minElevation: shape.properties.minElevation,
-      maxElevation: shape.properties.maxElevation,
-      elevationGain: shape.properties.elevationGain,
-      elevationLoss: shape.properties.elevationLoss,
-      averageSlope: shape.properties.averageSlope,
-      maxSlope: shape.properties.maxSlope
-    } as ElevationLineData;
-    return { type_forme: 'ElevationLine', data };
-  }
-
   // Vérifier si c'est un polygone
   if (shape instanceof Polygon || shape.properties?.type === 'Polygon') {
     const latLngs = shape.getLatLngs()[0] as L.LatLng[];
@@ -219,67 +194,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
       polygon.updateProperties();
 
       return polygon;
-    }
-
-    case 'ElevationLine': {
-      const data = element.data;
-      if (!isElevationData(data)) {
-        console.error('[DrawingStore] Données invalides pour ElevationLine');
-        return null;
-      }
-
-      const points = data.points.map((point: [number, number]) =>
-        L.latLng(point[1], point[0])
-      );
-
-      // Récupérer le niveau d'accès depuis le style si disponible
-      const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
-      console.log('[DrawingStore] ElevationLine - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
-
-      // Forcer la mise à jour du niveau d'accès dans les données
-      data.accessLevel = accessLevel;
-
-      const elevationLine = new ElevationLine(points, {
-        color: data.style?.color || '#2b6451',
-        weight: data.style?.weight || 4,
-        opacity: data.style?.opacity || 0.8,
-        name: data.style?.name || '',
-        category: data.category || 'forages',
-        accessLevel: accessLevel
-      });
-
-      // Restore all properties including elevation data
-      elevationLine.properties = {
-        type: 'ElevationLine',
-        category: data.category || 'forages',
-        accessLevel: accessLevel, // Utiliser le niveau d'accès récupéré précédemment
-        style: {
-          ...(data.style || {}),
-          name: data.style?.name || ''
-        },
-        elevationData: data.elevationData,
-        minElevation: data.minElevation,
-        maxElevation: data.maxElevation,
-        elevationGain: data.elevationGain,
-        elevationLoss: data.elevationLoss,
-        averageSlope: data.averageSlope,
-        maxSlope: data.maxSlope,
-        dataSource: 'restored' // Mark as restored to prevent unnecessary API calls
-      };
-
-      // Update elevation profile if we have data
-      if (data.elevationData) {
-        elevationLine.updateElevationProfile();
-      }
-
-      console.log('[DrawingStore] ElevationLine restored:', {
-        points: points.length,
-        hasElevationData: !!data.elevationData,
-        name: data.style?.name,
-        properties: elevationLine.properties
-      });
-
-      return elevationLine;
     }
 
     case 'Line': {

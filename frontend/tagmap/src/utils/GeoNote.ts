@@ -19,22 +19,6 @@ export interface GeoNoteOptions extends L.MarkerOptions {
   radius?: number;
 }
 
-// Liste des couleurs disponibles pour les icônes
-const AVAILABLE_COLORS = ['#2b6451', '#FF5252', '#4285F4', '#FFC107', '#FF9800', '#9C27B0'];
-
-// Fonction pour générer un SVG de marqueur avec une couleur spécifique
-function generateMarkerSVG(color: string): string {
-  // Utiliser la couleur fournie ou une couleur par défaut
-  const fillColor = color || '#2b6451';
-
-  // Créer le SVG directement avec la couleur spécifiée
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="36">
-      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
-    </svg>
-  `;
-}
-
 export class GeoNote extends L.Marker {
   properties: {
     type: string;
@@ -61,52 +45,8 @@ export class GeoNote extends L.Marker {
   private _zoomProtectionActive: boolean = false;
 
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
-    // Récupérer la couleur des options ou utiliser la couleur par défaut
-    const color = options.color || '#2b6451';
-
-    console.log('[GeoNote][constructor] Utilisation de la couleur:', color);
-
-    // Générer le SVG avec la couleur spécifiée
-    const svgContent = generateMarkerSVG(color);
-
-    // Créer une icône avec le SVG généré directement
-    const icon = L.divIcon({
-      html: `<div class="geo-note-marker">${svgContent}</div>`,
-      className: 'geo-note-icon',
-      iconSize: [24, 36],
-      iconAnchor: [12, 36],
-      popupAnchor: [0, -36]
-    });
-
-    // Ajouter du CSS pour s'assurer que l'icône est correctement positionnée
-    if (!document.getElementById('geo-note-style')) {
-      const style = document.createElement('style');
-      style.id = 'geo-note-style';
-      style.textContent = `
-        .geo-note-icon {
-          background: none !important;
-          border: none !important;
-        }
-        .geo-note-marker {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          transform-origin: center bottom;
-        }
-        .geo-note-marker svg {
-          width: 24px;
-          height: 36px;
-          filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.5));
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    // Options par défaut pour un marqueur
+    // Options par défaut pour un marqueur - utiliser l'icône standard de Leaflet
     const defaultOptions: L.MarkerOptions = {
-      icon: icon,
       draggable: false,
       autoPan: true,
       riseOnHover: true,
@@ -620,43 +560,14 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour rafraîchir le style de l'icône
   private refreshIconStyle(): void {
-    const element = this.getElement();
-    if (element) {
-      // Une technique pour forcer le rafraîchissement du rendu
-      element.style.display = 'none';
-      // eslint-disable-next-line no-unused-expressions
-      element.offsetHeight; // Déclenche un reflow
-      element.style.display = '';
-
-      // Si la carte est disponible, mettre à jour la position
-      this.updatePosition();
-    }
+    // Uniquement mettre à jour la position si nécessaire
+    this.updatePosition();
   }
 
-  // Méthode pour mettre à jour l'icône avec une nouvelle couleur
+  // Méthode pour mettre à jour l'icône
   private updateIconForColor(fillColor: string): void {
-    try {
-      console.log('[GeoNote][updateIconForColor] Utilisation de la couleur:', fillColor);
-
-      // Générer le SVG avec la couleur spécifiée
-      const svgContent = generateMarkerSVG(fillColor);
-
-      // Créer une nouvelle icône avec le SVG généré directement
-      const icon = L.divIcon({
-        html: `<div class="geo-note-marker">${svgContent}</div>`,
-        className: 'geo-note-icon',
-        iconSize: [24, 36],
-        iconAnchor: [12, 36],
-        popupAnchor: [0, -36]
-      });
-
-      // Mettre à jour l'icône
-      this.setIcon(icon);
-
-      console.log('[GeoNote][updateIconForColor] Icône mise à jour avec la nouvelle couleur');
-    } catch (e) {
-      console.error('[GeoNote][updateIconForColor] Erreur lors de la mise à jour de l\'icône:', e);
-    }
+    // Ne rien faire, on garde l'icône par défaut de Leaflet
+    console.log('[GeoNote][updateIconForColor] Conservation de l\'icône par défaut, aucune action nécessaire');
   }
 
   // Convertir la note en format compatible avec le backend
@@ -1085,27 +996,24 @@ export class GeoNote extends L.Marker {
       const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
       const position = this._map.latLngToLayerPoint(this.getLatLng());
 
-      try {
-        // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
-        // _getCenterOffset et _getMapPanePos sont des méthodes internes mais nécessaires pour la transformation
-        const mapAny = this._map as any;
-
-        // Vérifier que les méthodes internes existent
-        if (typeof mapAny._getCenterOffset !== 'function' || typeof mapAny._getMapPanePos !== 'function') {
-          throw new Error('Méthodes internes de Leaflet non disponibles');
-        }
-
-        const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
-
-        // Appliquer la transformation manuellement pour éviter le décalage
-        L.DomUtil.setTransform(element, position.add(offset), scale);
-      } catch (innerError) {
-        console.warn('[GeoNote][updatePositionDuringZoom] Erreur avec les méthodes internes:', innerError);
-        // En cas d'erreur avec les méthodes internes, utiliser une approche plus simple
-        setTimeout(() => this.updatePosition(), 50);
+      // Utilisons une approche simplifiée qui fonctionne mieux avec notre marqueur
+      if (scale !== 1) {
+        // Pendant un changement d'échelle, utilisons une transformation simple
+        L.DomUtil.setTransform(element, position, 1);
+        // Masquer temporairement l'élément pendant le zoom pour éviter les artefacts
+        element.style.opacity = '0.6';
+        
+        // Rétablir l'opacité après la fin du zoom
+        setTimeout(() => {
+          element.style.opacity = '1';
+          this.updatePosition();
+        }, 300);
+      } else {
+        // Si pas de changement d'échelle, mettre à jour normalement
+        L.DomUtil.setPosition(element, position);
       }
     } catch (error) {
-      console.warn('[GeoNote][updatePositionDuringZoom] Erreur générale:', error);
+      console.warn('[GeoNote][updatePositionDuringZoom] Erreur:', error);
       // En cas d'erreur, essayer de mettre à jour la position après un délai
       setTimeout(() => this.updatePosition(), 100);
     }
@@ -1143,16 +1051,21 @@ export class GeoNote extends L.Marker {
 
         if (!element) return;
 
-        try {
-          // Accéder aux méthodes internes de Leaflet via any pour éviter les erreurs TypeScript
-          const mapAny = this._map as any;
-          const offset = mapAny._getCenterOffset(e.center).multiplyBy(-scale).subtract(mapAny._getMapPanePos());
-
-          // Appliquer la transformation manuellement pour éviter le décalage
-          L.DomUtil.setTransform(element, position.add(offset), scale);
-        } catch (innerError) {
-          // En cas d'erreur avec les méthodes internes, utiliser une approche plus simple
-          setTimeout(() => this.updatePosition(), 50);
+        // Utiliser la même approche simplifiée que dans updatePositionDuringZoom
+        if (scale !== 1) {
+          // Pendant un changement d'échelle, utiliser une transformation simple
+          L.DomUtil.setTransform(element, position, 1);
+          // Masquer temporairement l'élément pendant le zoom pour éviter les artefacts
+          element.style.opacity = '0.6';
+          
+          // Rétablir l'opacité après la fin du zoom
+          setTimeout(() => {
+            element.style.opacity = '1';
+            this.updatePosition();
+          }, 300);
+        } else {
+          // Si pas de changement d'échelle, mettre à jour normalement
+          L.DomUtil.setPosition(element, position);
         }
       } catch (error) {
         console.warn('[GeoNote][_animateZoom] Erreur d\'animation capturée:', error);

@@ -105,6 +105,54 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
+          // Cache pour les tuiles OSM locales
+          {
+            urlPattern: /\/osm_tiles\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'osm-tiles-cache',
+              expiration: {
+                maxEntries: 1000, // Augmenter le nombre de tuiles en cache
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true
+            }
+          },
+          // Cache pour les tuiles Esri
+          {
+            urlPattern: /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/World_Imagery\/MapServer\/tile/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'esri-tiles-cache',
+              expiration: {
+                maxEntries: 1000,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true
+            }
+          },
+          // Cache pour les tuiles IGN/Geoportail
+          {
+            urlPattern: /^https:\/\/data\.geopf\.fr\/wmts/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ign-tiles-cache',
+              expiration: {
+                maxEntries: 1000,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true
+            }
+          },
           {
             urlPattern: /^https:\/\/nominatim\.openstreetmap\.org\/search/,
             handler: 'CacheFirst',
