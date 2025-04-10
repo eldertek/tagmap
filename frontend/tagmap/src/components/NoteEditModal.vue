@@ -745,13 +745,13 @@ async function saveNote() {
 }
 
 .tab-button.active {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
+  color: #10b981;
+  border-bottom-color: #10b981;
 }
 
 .badge {
-  background-color: #eef2ff;
-  color: #3b82f6;
+  background-color: #ecfdf5;
+  color: #10b981;
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -796,8 +796,8 @@ async function saveNote() {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 /* Indicateur de localisation */
@@ -806,7 +806,7 @@ async function saveNote() {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background-color: #f3f4f6;
+  background-color: #ecfdf5;
   border-radius: 0.375rem;
   margin-bottom: 1rem;
 }
@@ -814,12 +814,12 @@ async function saveNote() {
 .location-indicator .icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #3b82f6;
+  color: #10b981;
 }
 
 .location-indicator span {
   font-size: 0.875rem;
-  color: #4b5563;
+  color: #047857;
 }
 
 /* Sélecteur de couleur */
@@ -839,7 +839,7 @@ async function saveNote() {
 }
 
 .color-option.selected {
-  border-color: #111827;
+  border-color: #10b981;
   transform: scale(1.1);
 }
 
@@ -866,13 +866,13 @@ async function saveNote() {
 }
 
 .primary-button {
-  background-color: #3b82f6;
+  background-color: #10b981;
   color: white;
   border: none;
 }
 
 .primary-button:hover {
-  background-color: #2563eb;
+  background-color: #047857;
 }
 
 .secondary-button {
