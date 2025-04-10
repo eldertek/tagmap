@@ -1312,6 +1312,10 @@ const handleToolClick = (toolType: string) => {
 const editGeoNote = () => {
   console.log('[DrawingTools][editGeoNote] Édition de la GeoNote');
 
+  // Fermer le panneau DrawingTools avant d'ouvrir le modal d'édition
+  // pour éviter que le modal soit masqué
+  emit('update:show', false);
+
   if (props.selectedShape && props.selectedShape.properties?.type === 'Note') {
     // Accéder à l'instance de GeoNote via la propriété layer
     const geoNote = props.selectedShape.layer;
@@ -1329,6 +1333,9 @@ const editGeoNote = () => {
 // Méthode pour ouvrir l'itinéraire Google Maps pour une GeoNote
 const openGeoNoteRoute = () => {
   console.log('[DrawingTools][openGeoNoteRoute] Ouverture de l\'itinéraire pour la GeoNote');
+
+  // Fermer le panneau DrawingTools avant d'ouvrir Google Maps
+  emit('update:show', false);
 
   if (props.selectedShape && props.selectedShape.properties?.type === 'Note') {
     // Accéder à l'instance de GeoNote via la propriété layer
