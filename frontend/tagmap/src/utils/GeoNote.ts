@@ -38,17 +38,52 @@ export class GeoNote extends L.Marker {
   // Déclaration de la méthode _animateZoom avec initialisation
   private _animateZoom: (e: any) => void = () => {};
 
-  // Déclaration de la méthode _onZoomStart avec initialisation
-  private _onZoomStart: () => void = () => {};
-
-  // Propriété pour suivre si la protection contre les erreurs d'animation de zoom est active
-  private _zoomProtectionActive: boolean = false;
-
   constructor(latlng: L.LatLngExpression, options: GeoNoteOptions = {}) {
-    // Options par défaut pour un marqueur - utiliser l'icône standard de Leaflet
+    // Créer une icône personnalisée pour le marqueur
+    const color = options.color || '#2b6451';
+    const iconHtml = `
+      <div class="geo-note-marker">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+          <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${color}" />
+        </svg>
+      </div>
+    `;
+
+    const icon = L.divIcon({
+      html: iconHtml,
+      className: 'geo-note-icon',
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36]
+    });
+
+    // Ajouter du CSS pour s'assurer que l'icône est correctement positionnée
+    if (!document.getElementById('geo-note-style')) {
+      const style = document.createElement('style');
+      style.id = 'geo-note-style';
+      style.textContent = `
+        .geo-note-icon {
+          background: none !important;
+          border: none !important;
+        }
+        .geo-note-marker {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          transform-origin: center bottom;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Options par défaut pour un marqueur
     const defaultOptions: L.MarkerOptions = {
+      icon: icon,
       draggable: false,
       autoPan: true,
+      // Ajouter des options pour améliorer la stabilité du rendu
       riseOnHover: true,
       bubblingMouseEvents: false,
       interactive: true,
@@ -87,47 +122,18 @@ export class GeoNote extends L.Marker {
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
 
-    // Activer la protection contre les erreurs d'animation de zoom
-    this._protectFromZoomAnimationErrors();
-
     // Ajouter des écouteurs pour les événements de carte
     this.on('add', (e: any) => {
       if (e.target && e.target._map) {
         // Quand la note est ajoutée à la carte, ajouter des écouteurs pour les événements de zoom et de déplacement
         const map = e.target._map;
 
-        // D'abord, supprimer les écouteurs existants pour éviter les doublons
-        map.off('zoomend', this.refreshIconStyle, this);
-        map.off('moveend', this.refreshIconStyle, this);
-        map.off('zoomstart', this._onZoomStart, this);
-        map.off('zoomanim', this.updatePositionDuringZoom, this);
+        // Protéger contre les erreurs d'animation de zoom
+        this._protectFromZoomAnimationErrors(map);
 
         // Ajouter des écouteurs pour rafraîchir l'icône après les événements de carte
         map.on('zoomend', () => this.refreshIconStyle());
         map.on('moveend', () => this.refreshIconStyle());
-
-        // Ajouter un écouteur pour l'événement zoomstart pour éviter le mouvement pendant le zoom
-        map.on('zoomstart', this._onZoomStart = () => {
-          // Forcer une mise à jour de la position au début du zoom
-          setTimeout(() => {
-            this.updatePosition();
-          }, 0);
-        });
-
-        // Ajouter un écouteur pendant l'animation de zoom
-        // Utiliser la méthode updatePositionDuringZoom directement pour éviter les problèmes de contexte
-        map.on('zoomanim', (e: any) => this.updatePositionDuringZoom(e));
-      }
-    });
-
-    // Nettoyer les écouteurs lorsque la note est retirée de la carte
-    this.on('remove', () => {
-      if (this._map) {
-        this._map.off('zoomend', this.refreshIconStyle, this);
-        this._map.off('moveend', this.refreshIconStyle, this);
-        this._map.off('zoomstart', this._onZoomStart, this);
-        this._map.off('zoomanim', this._animateZoom, this);
-        this._map.off('zoomanim', this.updatePositionDuringZoom, this);
       }
     });
 
@@ -460,45 +466,61 @@ export class GeoNote extends L.Marker {
     window.open(url, '_blank');
   }
 
-  // Mets à jour les propriétés du style de la note basées sur le contenu du DOM
+  // Mettre à jour les propriétés
   updateProperties(): void {
-    // Récupérer la couleur actuelle
-    let color = this.properties.style?.color || '#2b6451';
+    // S'assurer que le type est correctement défini
+    this.properties.type = 'Note';
 
-    // Si la couleur est au format rgb, essayer de la convertir
-    if (color.startsWith('rgb')) {
-      const element = this.getElement();
-      if (element) {
-        const svg = element.querySelector('.geo-note-marker svg path');
-        if (svg) {
-          const fill = svg.getAttribute('fill');
-          if (fill) {
-            color = fill;
-            console.log('[GeoNote][updateProperties] Couleur identifiée à partir du SVG:', color);
-          }
+    // S'assurer que la catégorie est définie
+    if (!this.properties.category) {
+      this.properties.category = 'forages';
+    }
+
+    // S'assurer que le niveau d'accès est défini
+    if (!this.properties.accessLevel) {
+      this.properties.accessLevel = NoteAccessLevel.PRIVATE;
+    }
+
+    // Conserver les propriétés existantes du style si elles existent
+    const existingStyle = this.properties.style || {};
+
+    // Priorité pour la couleur :
+    // 1. Utiliser la couleur existante dans le style si elle existe
+    // 2. Sinon, essayer de récupérer la couleur de l'icône SVG
+    // 3. Sinon, utiliser la couleur par défaut
+    let color = existingStyle.color || existingStyle.fillColor;
+
+    // Si aucune couleur n'est définie dans le style, essayer de la récupérer depuis l'icône SVG
+    if (!color) {
+      const svgPath = this.getElement()?.querySelector('.geo-note-marker svg path');
+      if (svgPath) {
+        const fillColor = svgPath.getAttribute('fill');
+        if (fillColor) {
+          color = fillColor;
+          console.log('[GeoNote][updateProperties] Couleur récupérée depuis SVG:', color);
         }
       }
     }
 
-    // Si aucune couleur valide n'a été trouvée, utiliser la couleur par défaut
-    if (!color || color.startsWith('rgb')) {
+    // Si toujours pas de couleur, utiliser la couleur par défaut
+    if (!color) {
       color = '#2b6451';
       console.log('[GeoNote][updateProperties] Utilisation de la couleur par défaut:', color);
     }
 
     console.log('[GeoNote][updateProperties] Couleur finale utilisée:', color);
 
-    // Récupérer d'autres propriétés de style
-    const radius = this.properties.style?.radius || 12;
+    // Conserver le radius existant s'il existe
+    const existingRadius = existingStyle.radius || 12;
 
-    // Mettre à jour le style
     this.properties.style = {
-      ...this.properties.style,
+      ...existingStyle,
       color: color,
-      weight: this.properties.style?.weight || 2,
+      weight: existingStyle.weight || 2,
       fillColor: color,
-      fillOpacity: this.properties.style?.fillOpacity || 0.8,
-      radius: radius,
+      fillOpacity: existingStyle.fillOpacity || 0.8,
+      radius: existingRadius,
+      // Stocker explicitement la catégorie et le niveau d'accès dans le style
       _accessLevel: this.properties.accessLevel,
       accessLevel: this.properties.accessLevel,
       category: this.properties.category
@@ -510,64 +532,187 @@ export class GeoNote extends L.Marker {
     this.bindPopup(this.createPopupContent());
   }
 
-  // Méthode pour mettre à jour le style de la note
+  // Méthode pour mettre à jour le style
   setNoteStyle(style: any): void {
     console.log('[GeoNote][setNoteStyle] Mise à jour du style:', style);
 
-    // Récupérer la couleur depuis le style
-    const strokeColor = style.color || style.fillColor || '#2b6451';
+    // S'assurer que nous avons des valeurs pour color et fillColor
+    const color = style.color || style.fillColor || '#2b6451';
     const fillColor = style.fillColor || style.color || '#2b6451';
 
-    console.log('[GeoNote][setNoteStyle] Nouvelles couleurs - stroke:', strokeColor, 'fill:', fillColor);
+    console.log('[GeoNote][setNoteStyle] Nouvelles couleurs - stroke:', color, 'fill:', fillColor);
 
-    // Utiliser la nouvelle approche avec des icônes précolorées
-    this.updateIconForColor(fillColor);
+    // Au lieu de remplacer l'icône entière, mettons à jour la couleur de l'icône existante
+    // pour éviter les problèmes pendant l'animation de zoom
+    const element = this.getElement();
+    if (element) {
+      try {
+        // Trouver le path SVG et mettre à jour sa couleur
+        const svgPath = element.querySelector('svg path');
+        if (svgPath) {
+          svgPath.setAttribute('fill', fillColor);
+          console.log('[GeoNote][setNoteStyle] Couleur mise à jour directement sur le SVG existant');
+        } else {
+          console.warn('[GeoNote][setNoteStyle] Impossible de trouver le path SVG dans l\'élément');
+          // Fallback: créer une nouvelle icône
+          this._updateIconWithNewColor(fillColor);
+        }
+      } catch (e) {
+        console.warn('[GeoNote][setNoteStyle] Erreur lors de la mise à jour directe du SVG:', e);
+        // Fallback: créer une nouvelle icône
+        this._updateIconWithNewColor(fillColor);
+      }
+    } else {
+      // Si l'élément n'existe pas encore, mettre à jour les propriétés pour une utilisation ultérieure
+      this._updateIconWithNewColor(fillColor);
+    }
 
-    // Récupérer le niveau d'accès et la catégorie
+    // Récupérer les propriétés accessLevel et category depuis le style si disponibles
     const accessLevel = style._accessLevel || style.accessLevel || this.properties.accessLevel;
     const category = style.category || this.properties.category;
 
-    // Mettre à jour le style stocké dans les propriétés
+    // S'assurer que le style dans les propriétés est à jour
     if (this.properties && this.properties.style) {
       this.properties.style = {
         ...this.properties.style,
-        ...style,
-        color: strokeColor,
-        fillColor: fillColor
+        color: color,
+        weight: style.weight || this.properties.style.weight || 2,
+        fillColor: fillColor,
+        fillOpacity: style.fillOpacity !== undefined ? style.fillOpacity : this.properties.style.fillOpacity || 0.8,
+        radius: style.radius || this.properties.style.radius || 12,
+        // Préserver les propriétés importantes dans le style
+        _accessLevel: accessLevel,
+        accessLevel: accessLevel,
+        category: category
       };
     }
 
-    // Mettre à jour le niveau d'accès si nécessaire
-    if (accessLevel && this.properties.accessLevel !== accessLevel) {
-      this.properties.accessLevel = accessLevel;
-      console.log('[GeoNote][setNoteStyle] Niveau d\'accès mis à jour:', accessLevel);
+    // Mettre à jour les propriétés principales également
+    if (accessLevel) {
+      if (this.properties.accessLevel !== accessLevel) {
+        this.properties.accessLevel = accessLevel;
+        console.log('[GeoNote][setNoteStyle] Niveau d\'accès mis à jour:', accessLevel);
+      }
     }
 
-    // Mettre à jour la catégorie si nécessaire
-    if (category && this.properties.category !== category) {
-      this.properties.category = category;
-      console.log('[GeoNote][setNoteStyle] Catégorie mise à jour:', category);
+    if (category) {
+      if (this.properties.category !== category) {
+        this.properties.category = category;
+        console.log('[GeoNote][setNoteStyle] Catégorie mise à jour:', category);
+      }
     }
 
-    // Rafraîchir le style de l'icône
+    // Forcer un rafraîchissement de l'icône
     this.refreshIconStyle();
 
+    // Toujours mettre à jour le popup pour s'assurer que les changements sont reflétés
+    // même si les propriétés n'ont pas changé (pour résoudre le problème de mise à jour multiple)
     console.log('[GeoNote][setNoteStyle] Mise à jour du popup');
-
-    // Mettre à jour le popup pour refléter les changements
     this.bindPopup(this.createPopupContent());
   }
 
-  // Méthode pour rafraîchir le style de l'icône
+  // Méthode pour forcer le rafraîchissement de l'icône
   private refreshIconStyle(): void {
-    // Uniquement mettre à jour la position si nécessaire
-    this.updatePosition();
+    const element = this.getElement();
+    if (element) {
+      // Forcer un reflow pour réinitialiser le rendu
+      element.style.display = 'none';
+      void element.offsetHeight;
+      element.style.display = '';
+
+      // S'assurer que l'icône est correctement positionnée
+      if (this._map) {
+        try {
+          // Forcer une mise à jour de la position
+          const pos = this._map.latLngToLayerPoint(this.getLatLng());
+          L.DomUtil.setPosition(element, pos);
+        } catch (e) {
+          console.warn('[GeoNote][refreshIconStyle] Erreur lors de la mise à jour de la position:', e);
+        }
+      }
+    }
   }
 
-  // Méthode pour mettre à jour l'icône
-  private updateIconForColor(fillColor: string): void {
-    // Ne rien faire, on garde l'icône par défaut de Leaflet
-    console.log('[GeoNote][updateIconForColor] Conservation de l\'icône par défaut, aucune action nécessaire');
+  // Méthode pour protéger contre les erreurs d'animation de zoom
+  private _protectFromZoomAnimationErrors(map: L.Map): void {
+    try {
+      // Remplacer la méthode _animateZoom du marqueur pour éviter les erreurs
+      const originalAnimateZoom = this._animateZoom;
+
+      this._animateZoom = function(e: any) {
+        try {
+          // Vérifier que toutes les propriétés nécessaires existent
+          if (!this._map || !e.center || !e.zoom) {
+            console.warn('[GeoNote][_animateZoom] Animation de zoom ignorée: propriétés manquantes');
+            return;
+          }
+
+          // Appeler la méthode originale
+          originalAnimateZoom.call(this, e);
+        } catch (error) {
+          console.warn('[GeoNote][_animateZoom] Erreur lors de l\'animation de zoom:', error);
+          // En cas d'erreur, essayer de réinitialiser la position
+          try {
+            const element = this.getElement();
+            if (element && this._map) {
+              const pos = this._map.latLngToLayerPoint(this.getLatLng());
+              L.DomUtil.setPosition(element, pos);
+            }
+          } catch (e) {
+            console.error('[GeoNote][_animateZoom] Erreur lors de la récupération:', e);
+          }
+        }
+      };
+
+      console.log('[GeoNote][_protectFromZoomAnimationErrors] Protection contre les erreurs d\'animation de zoom activée');
+    } catch (e) {
+      console.error('[GeoNote][_protectFromZoomAnimationErrors] Erreur lors de la mise en place de la protection:', e);
+    }
+  }
+
+  // Méthode privée pour mettre à jour l'icône avec une nouvelle couleur
+  private _updateIconWithNewColor(fillColor: string): void {
+    try {
+      // Désactiver temporairement les animations pour éviter les problèmes
+      const map = this._map;
+      let zoomAnimationWasEnabled = false;
+
+      if (map) {
+        zoomAnimationWasEnabled = map.options.zoomAnimation || false;
+        map.options.zoomAnimation = false;
+      }
+
+      // Créer une nouvelle icône avec le SVG coloré
+      const iconHtml = `
+        <div class="geo-note-marker">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
+          </svg>
+        </div>
+      `;
+
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: 'geo-note-icon',
+        iconSize: [24, 36],
+        iconAnchor: [12, 36],
+        popupAnchor: [0, -36]
+      });
+
+      // Mettre à jour l'icône
+      this.setIcon(icon);
+
+      // Réactiver les animations après un court délai
+      if (map && zoomAnimationWasEnabled) {
+        setTimeout(() => {
+          map.options.zoomAnimation = true;
+        }, 100);
+      }
+
+      console.log('[GeoNote][_updateIconWithNewColor] Icône mise à jour avec la nouvelle couleur');
+    } catch (e) {
+      console.error('[GeoNote][_updateIconWithNewColor] Erreur lors de la mise à jour de l\'icône:', e);
+    }
   }
 
   // Convertir la note en format compatible avec le backend
@@ -789,24 +934,22 @@ export class GeoNote extends L.Marker {
       // Log de la couleur avant la sauvegarde
       console.log('[GeoNote][saveNote] Couleur avant sauvegarde:', {
         styleColor: this.properties.style?.color,
-        styleFillColor: this.properties.style?.fillColor
+        styleFillColor: this.properties.style?.fillColor,
+        iconColor: this.getElement()?.querySelector('.geo-note-marker svg path')?.getAttribute('fill') || 'non disponible'
       });
 
       // S'assurer que le style contient le niveau d'accès, la catégorie et la couleur correcte
       // Vérifier si la couleur est au format rgb et la convertir en hex si nécessaire
       let color = this.properties.style?.color || '#2b6451';
 
-      // Si la couleur est au format rgb, essayer de la convertir
+      // Si la couleur est au format rgb, essayer de récupérer la couleur depuis l'icône SVG
       if (color.startsWith('rgb')) {
-        const element = this.getElement();
-        if (element) {
-          const svg = element.querySelector('.geo-note-marker svg path');
-          if (svg) {
-            const fill = svg.getAttribute('fill');
-            if (fill) {
-              color = fill;
-              console.log('[GeoNote][saveNote] Couleur identifiée à partir du SVG:', color);
-            }
+        const svgPath = this.getElement()?.querySelector('.geo-note-marker svg path');
+        if (svgPath) {
+          const fillColor = svgPath.getAttribute('fill');
+          if (fillColor) {
+            color = fillColor;
+            console.log('[GeoNote][saveNote] Couleur récupérée depuis SVG pour remplacer RGB:', color);
           }
         }
       }
@@ -861,7 +1004,7 @@ export class GeoNote extends L.Marker {
           styleFillColor: savedNote.style?.fillColor,
           styleObject: savedNote.style
         });
-
+        
         // Forcer la mise à jour du popup après la sauvegarde
         this.bindPopup(this.createPopupContent());
       } else {
@@ -941,12 +1084,6 @@ export class GeoNote extends L.Marker {
     // Mettre à jour le popup pour refléter la nouvelle position
     this.bindPopup(this.createPopupContent());
 
-    // Forcer une mise à jour du rendu de la couche
-    if (this._map) {
-      // Forcer un rafraîchissement de la couche pour éviter les artefacts visuels
-      this._map.invalidateSize();
-    }
-
     // Déclencher la sauvegarde du plan
     this.triggerPlanSave();
   }
@@ -978,110 +1115,5 @@ export class GeoNote extends L.Marker {
   // Méthode pour vérifier si la note est en cours de déplacement
   isMoving(): boolean {
     return this._isMoving;
-  }
-
-  // Méthode pour mettre à jour la position pendant l'animation de zoom
-  private updatePositionDuringZoom(e: any): void {
-    try {
-      const element = this.getElement();
-      if (!element || !this._map) return;
-
-      // Vérifier que l'événement contient les données nécessaires
-      if (!e || !e.center || e.zoom === undefined) {
-        console.warn('[GeoNote][updatePositionDuringZoom] Événement de zoom incomplet');
-        return;
-      }
-
-      // Récupérer les données de zoom
-      const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
-      const position = this._map.latLngToLayerPoint(this.getLatLng());
-
-      // Utilisons une approche simplifiée qui fonctionne mieux avec notre marqueur
-      if (scale !== 1) {
-        // Pendant un changement d'échelle, utilisons une transformation simple
-        L.DomUtil.setTransform(element, position, 1);
-        // Masquer temporairement l'élément pendant le zoom pour éviter les artefacts
-        element.style.opacity = '0.6';
-        
-        // Rétablir l'opacité après la fin du zoom
-        setTimeout(() => {
-          element.style.opacity = '1';
-          this.updatePosition();
-        }, 300);
-      } else {
-        // Si pas de changement d'échelle, mettre à jour normalement
-        L.DomUtil.setPosition(element, position);
-      }
-    } catch (error) {
-      console.warn('[GeoNote][updatePositionDuringZoom] Erreur:', error);
-      // En cas d'erreur, essayer de mettre à jour la position après un délai
-      setTimeout(() => this.updatePosition(), 100);
-    }
-  }
-
-  // Méthode pour mettre à jour la position de l'icône
-  private updatePosition(): void {
-    try {
-      const element = this.getElement();
-      if (element && this._map) {
-        const pos = this._map.latLngToLayerPoint(this.getLatLng());
-        L.DomUtil.setPosition(element, pos);
-      }
-    } catch (e) {
-      console.warn('[GeoNote][updatePosition] Erreur lors de la mise à jour de la position:', e);
-    }
-  }
-
-  // Méthode pour protéger contre les erreurs d'animation de zoom
-  _protectFromZoomAnimationErrors(): void {
-    if (this._zoomProtectionActive) return;
-
-    console.log('[GeoNote][_protectFromZoomAnimationErrors] Protection contre les erreurs d\'animation de zoom activée');
-
-    // Remplacer la méthode _animateZoom de cette instance par une version sécurisée
-    this._animateZoom = (e: any) => {
-      try {
-        // Vérifier que la carte est disponible
-        if (!this._map) return;
-
-        // Récupérer les données de zoom
-        const scale = this._map.getZoomScale(e.zoom, this._map.getZoom());
-        const position = this._map.latLngToLayerPoint(this.getLatLng());
-        const element = this.getElement();
-
-        if (!element) return;
-
-        // Utiliser la même approche simplifiée que dans updatePositionDuringZoom
-        if (scale !== 1) {
-          // Pendant un changement d'échelle, utiliser une transformation simple
-          L.DomUtil.setTransform(element, position, 1);
-          // Masquer temporairement l'élément pendant le zoom pour éviter les artefacts
-          element.style.opacity = '0.6';
-          
-          // Rétablir l'opacité après la fin du zoom
-          setTimeout(() => {
-            element.style.opacity = '1';
-            this.updatePosition();
-          }, 300);
-        } else {
-          // Si pas de changement d'échelle, mettre à jour normalement
-          L.DomUtil.setPosition(element, position);
-        }
-      } catch (error) {
-        console.warn('[GeoNote][_animateZoom] Erreur d\'animation capturée:', error);
-        // En cas d'erreur, essayer de mettre à jour la position après un délai
-        setTimeout(() => this.updatePosition(), 100);
-      }
-    };
-
-    // Ajouter un écouteur pour l'événement zoomanim de la carte
-    this.on('add', () => {
-      if (this._map) {
-        this._map.on('zoomanim', this._animateZoom);
-      }
-    });
-
-    // Marquer la protection comme active
-    this._zoomProtectionActive = true;
   }
 }

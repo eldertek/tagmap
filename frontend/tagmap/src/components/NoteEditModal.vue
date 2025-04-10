@@ -93,6 +93,17 @@
                   </option>
                 </select>
               </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Couleur</label>
+                <div class="mt-1 flex space-x-2">
+                  <div v-for="color in colors" :key="color"
+                    class="w-8 h-8 rounded-full cursor-pointer border-2"
+                    :class="{ 'border-gray-400': editingNote.style.color !== color, 'border-black': editingNote.style.color === color }"
+                    :style="{ backgroundColor: color }"
+                    @click="updateNoteColor(color)">
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Onglet Commentaires -->
@@ -408,6 +419,65 @@ const accessLevels = [
   { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous' }
 ];
 
+// Couleurs disponibles
+const colors = [
+  '#3B82F6', // Bleu
+  '#10B981', // Vert
+  '#F59E0B', // Orange
+  '#EF4444', // Rouge
+  '#8B5CF6', // Violet
+  '#EC4899', // Rose
+  '#6B7280'  // Gris
+];
+
+// Mettre à jour la couleur de la note
+const updateNoteColor = (color: string) => {
+  if (!editingNote.value.style) {
+    editingNote.value.style = {
+      color: color,
+      weight: 2,
+      opacity: 1,
+      fillColor: color,
+      fillOpacity: 0.6,
+      radius: 8
+    };
+  } else {
+    editingNote.value.style.color = color;
+    editingNote.value.style.fillColor = color;
+  }
+  editingNote.value.color = color; // Sauvegarder la couleur dans la note elle-même
+
+  // Émettre un événement pour mettre à jour immédiatement le style sur la carte
+  if (props.note?.id) {
+    console.log('[NoteEditModal] Émission de l\'événement de mise à jour de couleur:', color);
+    const updateEvent = new CustomEvent('geonote:updateStyle', {
+      detail: {
+        noteId: props.note.id,
+        style: {
+          color: color,
+          fillColor: color
+        }
+      }
+    });
+    window.dispatchEvent(updateEvent);
+
+    // Émettre également l'événement de mise à jour complète pour le popup
+    const fullUpdateEvent = new CustomEvent('geonote:update', {
+      detail: {
+        noteId: props.note.id,
+        properties: {
+          name: editingNote.value.title,
+          description: editingNote.value.description,
+          columnId: editingNote.value.columnId,
+          accessLevel: editingNote.value.accessLevel,
+          style: editingNote.value.style
+        }
+      }
+    });
+    window.dispatchEvent(fullUpdateEvent);
+  }
+};
+
 // Initialiser la note avec les valeurs par défaut
 const initializeEditingNote = () => {
   editingNote.value = {
@@ -483,20 +553,17 @@ async function handlePhotoDeleted() {
 // Sauvegarder la note
 async function saveNote() {
   try {
-    // S'assurer que le style utilise la couleur standard
-    if (editingNote.value.style) {
-      editingNote.value.style.color = '#2b6451';
-      editingNote.value.style.fillColor = '#2b6451';
-    } else {
-      editingNote.value.style = {
-        color: '#2b6451',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#2b6451',
-        fillOpacity: 0.6,
-        radius: 8
-      };
-    }
+    // S'assurer que le style contient la couleur sélectionnée
+    const selectedColor = editingNote.value.style.color;
+    editingNote.value.style = {
+      ...editingNote.value.style,
+      color: selectedColor,
+      fillColor: selectedColor,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.6,
+      radius: 8
+    };
 
     // Préparer les données pour l'envoi
     const noteData: any = {
@@ -506,7 +573,8 @@ async function saveNote() {
       style: editingNote.value.style,
       access_level: editingNote.value.accessLevel,
       comments: editingNote.value.comments || [],
-      photos: editingNote.value.photos || []
+      photos: editingNote.value.photos || [],
+      color: selectedColor // Ajouter explicitement la couleur
     };
 
     // Ajouter la localisation seulement si elle existe
@@ -533,6 +601,7 @@ async function saveNote() {
         ...savedNote,
         accessLevel: editingNote.value.accessLevel,
         style: editingNote.value.style,
+        color: selectedColor, // S'assurer que la couleur est mise à jour dans le store
         updatedAt: new Date().toISOString()
       });
 
@@ -546,18 +615,12 @@ async function saveNote() {
             description: editingNote.value.description,
             columnId: editingNote.value.columnId,
             accessLevel: editingNote.value.accessLevel,
-            style: editingNote.value.style
+            style: editingNote.value.style,
+            color: selectedColor // Inclure la couleur dans l'événement de mise à jour
           }
         }
       });
       window.dispatchEvent(updateEvent);
-
-      // Ajouter un délai pour s'assurer que les composants ont eu le temps de traiter l'événement
-      setTimeout(() => {
-        // Ré-émettre l'événement après un court délai pour s'assurer que le popup est correctement mis à jour
-        window.dispatchEvent(updateEvent);
-        console.log('[NoteEditModal] Événement de mise à jour ré-émis pour garantir la mise à jour du popup');
-      }, 100);
 
       notificationStore.success('Note mise à jour avec succès');
     } else {
@@ -574,10 +637,11 @@ async function saveNote() {
       const defaultColumn = notesStore.getDefaultColumn;
       const storeNote = {
         ...noteData,
-        id: savedNote.id, // Utiliser l'ID fourni par le backend
+        id: savedNote.id,
         columnId: noteData.columnId || defaultColumn.id,
         accessLevel: editingNote.value.accessLevel,
-        style: noteData.style
+        style: noteData.style,
+        color: selectedColor // S'assurer que la couleur est incluse
       };
 
       console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);
@@ -588,14 +652,19 @@ async function saveNote() {
 
     // S'assurer que les commentaires et photos sont inclus dans la note sauvegardée
     if (savedNote) {
-      // Si les commentaires ou photos ne sont pas inclus dans la réponse du backend,
-      // utiliser ceux de l'objet d'édition
       if (!savedNote.comments && editingNote.value.comments) {
         savedNote.comments = editingNote.value.comments;
       }
       if (!savedNote.photos && editingNote.value.photos) {
         savedNote.photos = editingNote.value.photos;
       }
+      // S'assurer que la couleur est incluse dans la note sauvegardée
+      savedNote.color = selectedColor;
+      savedNote.style = {
+        ...savedNote.style,
+        color: selectedColor,
+        fillColor: selectedColor
+      };
     }
 
     // Émettre l'événement save avec la note sauvegardée complète
