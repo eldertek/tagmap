@@ -704,31 +704,36 @@ async function saveNote() {
 }
 
 @media (max-width: 768px) {
-  /* Assurer que le contenu est scrollable sur mobile */
-  .flex-1.overflow-y-auto {
-    /* Ajuster la hauteur max en fonction de la hauteur du footer (approximativement 70px + padding) */
-    max-height: calc(100vh - 70px - env(safe-area-inset-bottom, 10px) - 60px) !important; /* 60px pour le header du modal */
-    overflow-y: auto !important;
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 10px) + 20px) !important; /* Espace suffisant pour le footer + marge */
+  /* Fixer l'en-tête en haut */
+  .flex.justify-between.items-center.mb-4.border-b.pb-4 {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: white;
+    margin-bottom: 0;
+    padding: 1rem;
   }
 
-  /* S'assurer que le footer reste visible */
-  .sticky.bottom-0 {
+  /* Ajuster le contenu scrollable */
+  .p-4.md\:p-6.flex-1.overflow-y-auto.pb-16 {
+    max-height: calc(100vh - 120px) !important; /* 120px pour l'en-tête et le footer */
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  /* Fixer les boutons en bas */
+  .bg-gray-50.px-4.py-3.sm\:px-6.sm\:flex.sm\:flex-row-reverse.sticky.bottom-0.border-t.border-gray-200 {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 9999 !important; /* Augmenter le z-index pour être sûr qu'il est au premier plan */
-    background-color: #f9fafb !important; /* Fond solide */
-    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05) !important; /* Ombre subtile */
-    height: auto !important; /* S'assurer que la hauteur est calculée automatiquement */
-    padding-bottom: env(safe-area-inset-bottom, 10px) !important; /* Ajouter du padding pour les iPhones avec notch */
-    /* S'assurer que le padding haut/bas interne est correct */
-    padding-top: 0.75rem !important; /* py-3 */
+    z-index: 10;
+    background-color: #f9fafb;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 10px)) !important;
   }
 
-  /* Faire que le modal prenne tout l'écran sur mobile */
+  /* Ajuster le modal pour prendre tout l'écran */
   .fixed.z-\[9999\].inset-0 .relative.bg-white {
     width: 100vw !important;
     height: 100vh !important;
@@ -737,29 +742,16 @@ async function saveNote() {
     margin: 0 !important;
   }
 
-  /* Ajuster la hauteur du formulaire pour qu'il remplisse l'espace disponible */
+  /* Ajuster le formulaire */
   form.h-full.md\:h-auto {
-    height: 100% !important; /* Utiliser 100% pour remplir le conteneur */
+    height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
-    /* Pas besoin de padding-bottom ici, il est géré dans .flex-1.overflow-y-auto */
   }
 
-  /* S'assurer que les boutons sont visibles */
-  .sm\:flex.sm\:flex-row-reverse button {
-    display: inline-flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  /* Ajuster la position pour prendre tout l'écran */
+  /* Ajuster la position du conteneur principal */
   .fixed.z-\[9999\].inset-0 .flex.items-center.justify-center {
     padding: 0 !important;
-  }
-  
-  /* Réduire l'espace sous la section des couleurs */
-  .mb-4:last-of-type {
-    margin-bottom: 0 !important;
   }
 }
 </style>
