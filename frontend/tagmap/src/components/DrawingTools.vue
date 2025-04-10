@@ -1,187 +1,196 @@
 <!-- DrawingTools.vue -->
 <template>
-  <div class="drawing-tools-panel" :class="{ 'open': show }">
-    <!-- En-tête sur mobile -->
-    <div class="mobile-header">
-      <div class="header-content">
-        <div class="drag-handle">
-          <div class="handle-bar"></div>
+  <teleport to="body">
+    <!-- Overlay de fond -->
+    <div 
+      class="teleport-overlay" 
+      :class="{ 'show': show }" 
+      @click="$emit('update:show', false)"
+    ></div>
+    
+    <div class="drawing-tools-panel" :class="{ 'open': show }">
+      <!-- En-tête sur mobile -->
+      <div class="mobile-header">
+        <div class="header-content">
+          <div class="drag-handle">
+            <div class="handle-bar"></div>
+          </div>
+          <h3 class="header-title">Outils de dessin</h3>
+          <button @click="$emit('update:show', false)" class="close-button">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <h3 class="header-title">Outils de dessin</h3>
-        <button @click="$emit('update:show', false)" class="close-button">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
-    </div>
 
-    <!-- Navigation par onglets -->
-    <div class="tabs-navigation">
-      <button 
-        @click="activeTab = 'tools'"
-        :class="['tab-button', { 'active': activeTab === 'tools' }]"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-        </svg>
-        <span>Outils</span>
-      </button>
-      <button 
-        v-if="selectedShape && selectedShape.properties?.type !== 'Note'"
-        @click="activeTab = 'style'"
-        :class="['tab-button', { 'active': activeTab === 'style' }]"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-        </svg>
-        <span>Style</span>
-      </button>
-    </div>
-
-    <!-- Contenu scrollable -->
-    <div class="content-container">
-      <!-- Onglet Outils -->
-      <div v-if="activeTab === 'tools'" class="tab-content">
-        <!-- Outils de dessin -->
-        <div class="tools-grid">
-          <button 
-            v-for="tool in drawingTools.filter(t => t.type !== 'delete')" 
-            :key="tool.type"
-            class="tool-button"
-            :class="{ 'active': props.selectedTool === tool.type }"
-            @click="handleToolClick(tool.type)"
-            :title="tool.label"
-          >
-            <span class="icon" v-html="getToolIcon(tool.type)"></span>
-            <span class="tool-label">{{ tool.label }}</span>
-          </button>
-        </div>
-
-        <!-- Actions pour les GeoNotes -->
-        <div v-if="selectedShape && localProperties && localProperties.type === 'Note'" class="note-actions">
-          <button class="action-button edit" @click="editGeoNote">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            <span>Éditer</span>
-          </button>
-          <button class="action-button route" @click="openGeoNoteRoute">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            <span>Itinéraire</span>
-          </button>
-        </div>
-
-        <!-- Bouton de suppression -->
+      <!-- Navigation par onglets -->
+      <div class="tabs-navigation">
         <button 
-          v-if="selectedShape"
-          class="delete-button"
-          :class="{ 'active': props.selectedTool === 'delete' }"
-          @click="$emit('delete-shape')"
+          @click="activeTab = 'tools'"
+          :class="['tab-button', { 'active': activeTab === 'tools' }]"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
-          <span>Supprimer</span>
+          <span>Outils</span>
         </button>
-
-        <!-- Propriétés de la forme -->
-        <div v-if="selectedShape && localProperties" class="shape-properties">
-          <div class="property-group">
-            <h4 class="property-title">Propriétés</h4>
-            <div class="property-content">
-              <!-- Polygone -->
-              <template v-if="localProperties.type === 'Polygon'">
-                <div class="property-item">
-                  <span class="property-label">Surface</span>
-                  <span class="property-value">{{ formatArea(localProperties.surface || 0) }}</span>
-                </div>
-                <div class="property-item">
-                  <span class="property-label">Périmètre</span>
-                  <span class="property-value">{{ formatLength(localProperties.perimeter || 0) }}</span>
-                </div>
-              </template>
-
-              <!-- Ligne -->
-              <template v-else-if="localProperties.type === 'Line'">
-                <div class="property-item">
-                  <span class="property-label">Longueur</span>
-                  <span class="property-value">{{ formatLength(localProperties.length || 0) }}</span>
-                </div>
-              </template>
-
-              <!-- Ligne d'élévation -->
-              <template v-else-if="localProperties.type === 'ElevationLine'">
-                <div class="property-item">
-                  <span class="property-label">Longueur</span>
-                  <span class="property-value">{{ formatLength(localProperties.length || 0) }}</span>
-                </div>
-                <div class="property-item">
-                  <span class="property-label">Dénivelé</span>
-                  <span class="property-value">{{ formatLength(localProperties.elevation || 0) }}</span>
-                </div>
-                <div class="property-item">
-                  <span class="property-label">Pente</span>
-                  <span class="property-value">{{ formatSlope(localProperties.slope || 0) }}</span>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
+        <button 
+          v-if="selectedShape && selectedShape.properties?.type !== 'Note'"
+          @click="activeTab = 'style'"
+          :class="['tab-button', { 'active': activeTab === 'style' }]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          <span>Style</span>
+        </button>
       </div>
 
-      <!-- Onglet Style -->
-      <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="tab-content">
-        <!-- Couleurs prédéfinies -->
-        <div class="color-picker">
-          <div class="color-grid">
+      <!-- Contenu scrollable -->
+      <div class="content-container">
+        <!-- Onglet Outils -->
+        <div v-if="activeTab === 'tools'" class="tab-content">
+          <!-- Outils de dessin -->
+          <div class="tools-grid">
             <button 
-              v-for="color in predefinedColors" 
-              :key="color" 
-              class="color-button"
-              :style="{ backgroundColor: color }"
-              @click="selectPresetColor(color)"
-            ></button>
+              v-for="tool in drawingTools.filter(t => t.type !== 'delete')" 
+              :key="tool.type"
+              class="tool-button"
+              :class="{ 'active': props.selectedTool === tool.type }"
+              @click="handleToolClick(tool.type)"
+              :title="tool.label"
+            >
+              <span class="icon" v-html="getToolIcon(tool.type)"></span>
+              <span class="tool-label">{{ tool.label }}</span>
+            </button>
+          </div>
+
+          <!-- Actions pour les GeoNotes -->
+          <div v-if="selectedShape && localProperties && localProperties.type === 'Note'" class="note-actions">
+            <button class="action-button edit" @click="editGeoNote">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>Éditer</span>
+            </button>
+            <button class="action-button route" @click="openGeoNoteRoute">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span>Itinéraire</span>
+            </button>
+          </div>
+
+          <!-- Bouton de suppression -->
+          <button 
+            v-if="selectedShape"
+            class="delete-button"
+            :class="{ 'active': props.selectedTool === 'delete' }"
+            @click="$emit('delete-shape')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Supprimer</span>
+          </button>
+
+          <!-- Propriétés de la forme -->
+          <div v-if="selectedShape && localProperties" class="shape-properties">
+            <div class="property-group">
+              <h4 class="property-title">Propriétés</h4>
+              <div class="property-content">
+                <!-- Polygone -->
+                <template v-if="localProperties.type === 'Polygon'">
+                  <div class="property-item">
+                    <span class="property-label">Surface</span>
+                    <span class="property-value">{{ formatArea(localProperties.surface || 0) }}</span>
+                  </div>
+                  <div class="property-item">
+                    <span class="property-label">Périmètre</span>
+                    <span class="property-value">{{ formatLength(localProperties.perimeter || 0) }}</span>
+                  </div>
+                </template>
+
+                <!-- Ligne -->
+                <template v-else-if="localProperties.type === 'Line'">
+                  <div class="property-item">
+                    <span class="property-label">Longueur</span>
+                    <span class="property-value">{{ formatLength(localProperties.length || 0) }}</span>
+                  </div>
+                </template>
+
+                <!-- Ligne d'élévation -->
+                <template v-else-if="localProperties.type === 'ElevationLine'">
+                  <div class="property-item">
+                    <span class="property-label">Longueur</span>
+                    <span class="property-value">{{ formatLength(localProperties.length || 0) }}</span>
+                  </div>
+                  <div class="property-item">
+                    <span class="property-label">Dénivelé</span>
+                    <span class="property-value">{{ formatLength(localProperties.elevation || 0) }}</span>
+                  </div>
+                  <div class="property-item">
+                    <span class="property-label">Pente</span>
+                    <span class="property-value">{{ formatSlope(localProperties.slope || 0) }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Contrôles de style -->
-        <div class="style-controls">
-          <!-- Contour -->
-          <div class="style-group">
-            <h4 class="style-title">Contour</h4>
-            <div class="style-inputs">
-              <input type="color" v-model="strokeColor" @change="updateStyle({ strokeColor })" />
-              <input type="range" v-model="strokeWidth" min="1" max="10" @change="updateStyle({ strokeWidth })" />
-              <span class="value-label">{{ strokeWidth }}px</span>
+        <!-- Onglet Style -->
+        <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="tab-content">
+          <!-- Couleurs prédéfinies -->
+          <div class="color-picker">
+            <div class="color-grid">
+              <button 
+                v-for="color in predefinedColors" 
+                :key="color" 
+                class="color-button"
+                :style="{ backgroundColor: color }"
+                @click="selectPresetColor(color)"
+              ></button>
             </div>
           </div>
 
-          <!-- Style de trait -->
-          <div class="style-group">
-            <h4 class="style-title">Style de trait</h4>
-            <select v-model="strokeStyle" @change="updateStyle({ strokeStyle })" class="style-select">
-              <option v-for="style in strokeStyles" :key="style.value" :value="style.value">
-                {{ style.label }}
-              </option>
-            </select>
-          </div>
+          <!-- Contrôles de style -->
+          <div class="style-controls">
+            <!-- Contour -->
+            <div class="style-group">
+              <h4 class="style-title">Contour</h4>
+              <div class="style-inputs">
+                <input type="color" v-model="strokeColor" @change="updateStyle({ strokeColor })" />
+                <input type="range" v-model="strokeWidth" min="1" max="10" @change="updateStyle({ strokeWidth })" />
+                <span class="value-label">{{ strokeWidth }}px</span>
+              </div>
+            </div>
 
-          <!-- Remplissage -->
-          <div v-if="showFillOptions" class="style-group">
-            <h4 class="style-title">Remplissage</h4>
-            <div class="style-inputs">
-              <input type="color" v-model="fillColor" @change="updateStyle({ fillColor })" />
-              <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" @change="updateStyle({ fillOpacity })" />
-              <span class="value-label">{{ Math.round(fillOpacity * 100) }}%</span>
+            <!-- Style de trait -->
+            <div class="style-group">
+              <h4 class="style-title">Style de trait</h4>
+              <select v-model="strokeStyle" @change="updateStyle({ strokeStyle })" class="style-select">
+                <option v-for="style in strokeStyles" :key="style.value" :value="style.value">
+                  {{ style.label }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Remplissage -->
+            <div v-if="showFillOptions" class="style-group">
+              <h4 class="style-title">Remplissage</h4>
+              <div class="style-inputs">
+                <input type="color" v-model="fillColor" @change="updateStyle({ fillColor })" />
+                <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" @change="updateStyle({ fillOpacity })" />
+                <span class="value-label">{{ Math.round(fillOpacity * 100) }}%</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </teleport>
 </template>
 
 <script setup lang="ts">
@@ -1084,15 +1093,14 @@ const openGeoNoteRoute = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: fixed;
+  z-index: 9999; /* Z-index très élevé pour être au-dessus de tout */
 }
 
 /* En-tête mobile */
 .mobile-header {
   @apply bg-white border-b border-gray-200;
   padding: 0.75rem 1rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 .header-content {
@@ -1117,17 +1125,11 @@ const openGeoNoteRoute = () => {
 
 .close-button {
   @apply p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100;
-  position: relative;
-  z-index: 20;
 }
 
 /* Navigation par onglets */
 .tabs-navigation {
   @apply flex border-b border-gray-200;
-  position: sticky;
-  top: 3.5rem; /* Hauteur de l'en-tête mobile */
-  z-index: 10;
-  background-color: white;
 }
 
 .tab-button {
@@ -1272,14 +1274,13 @@ const openGeoNoteRoute = () => {
 /* Styles mobiles */
 @media (max-width: 767px) {
   .drawing-tools-panel {
-    @apply fixed bottom-0 left-0 right-0 z-[2000];
-    height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height) - env(safe-area-inset-bottom, 0));
+    @apply bottom-0 left-0 right-0;
+    height: 80vh;
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
-    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .drawing-tools-panel.open {
@@ -1288,71 +1289,53 @@ const openGeoNoteRoute = () => {
 
   .content-container {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    height: calc(100% - 3.5rem); /* Hauteur totale moins la hauteur de l'en-tête */
-  }
-
-  /* Ajuster la position des boutons pour éviter la superposition */
-  .tools-grid {
-    @apply grid grid-cols-2 gap-3 mb-4;
-    margin-top: 1rem;
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-
-  .tool-button {
-    @apply flex flex-col items-center justify-center gap-2 p-3 rounded-lg;
-    @apply border border-gray-200 bg-white;
-    @apply hover:bg-gray-50 hover:border-gray-300;
-    @apply transition-colors duration-200;
-    min-height: 4rem;
-  }
-
-  .note-actions {
-    @apply grid grid-cols-2 gap-3 mb-4;
-    margin-top: 1rem;
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-
-  .delete-button {
-    @apply flex items-center justify-center gap-2 p-3 rounded-lg w-full mb-4;
-    @apply bg-red-50 text-red-600 border border-red-200;
-    @apply hover:bg-red-100;
-    @apply transition-colors duration-200;
-    margin-top: 1rem;
-    margin-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
-  }
-
-  /* Ajuster l'en-tête mobile */
-  .mobile-header {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    background-color: white;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 0.75rem 1rem;
-    padding-top: calc(0.75rem + env(safe-area-inset-top, 0));
-  }
-
-  /* Ajuster la navigation par onglets */
-  .tabs-navigation {
-    position: sticky;
-    top: calc(3.5rem + env(safe-area-inset-top, 0));
-    z-index: 10;
-    background-color: white;
-    border-bottom: 1px solid #e5e7eb;
   }
 }
 
 /* Styles desktop */
 @media (min-width: 768px) {
   .drawing-tools-panel {
-    @apply relative border-l border-gray-200;
+    @apply right-0 top-0 bottom-0;
     width: 20rem;
+    height: 100vh;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 1px solid #e5e7eb;
+  }
+
+  .drawing-tools-panel.open {
+    transform: translateX(0);
   }
 
   .mobile-header {
-    display: none;
+    display: flex; /* Montrer l'en-tête aussi sur desktop pour pouvoir fermer */
   }
+  
+  /* Ajustement pour l'en-tête sur desktop */
+  .header-title {
+    @apply text-base font-semibold text-gray-800;
+  }
+  
+  /* Assurer que le contenu est scrollable sur desktop */
+  .content-container {
+    max-height: calc(100vh - 6rem); /* Hauteur totale moins la hauteur de l'en-tête et des onglets */
+    overflow-y: auto;
+  }
+}
+
+/* Overlay pour le fond lors de l'affichage du panneau sur mobile */
+:deep(.teleport-overlay) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998; /* Juste en dessous du panneau */
+  display: none;
+}
+
+:deep(.teleport-overlay.show) {
+  display: block;
 }
 </style>
