@@ -54,7 +54,7 @@ export class GeoNote extends L.Marker {
       className: 'geo-note-icon',
       iconSize: [24, 36],
       iconAnchor: [12, 36],
-      popupAnchor: [0, -36]
+      // popupAnchor: [0, -36] // Commenté : Configuration du popup
     });
 
     // Ajouter du CSS pour s'assurer que l'icône est correctement positionnée
@@ -116,8 +116,8 @@ export class GeoNote extends L.Marker {
 
     console.log('[GeoNote][constructor] Note créée avec columnId:', this.properties.columnId);
 
-    // Ajouter un popup pour afficher la description
-    this.bindPopup(this.createPopupContent());
+    // Commenté : Ajout du popup pour afficher la description
+    // this.bindPopup(this.createPopupContent());
 
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
@@ -159,7 +159,7 @@ export class GeoNote extends L.Marker {
         }
 
         // Mettre à jour le popup pour refléter les changements
-        this.bindPopup(this.createPopupContent());
+        // this.bindPopup(this.createPopupContent());
       }
     }) as EventListener);
 
@@ -189,7 +189,7 @@ export class GeoNote extends L.Marker {
         this.setNoteStyle(e.detail.properties.style);
 
         // Mettre à jour le popup pour refléter les changements
-        this.bindPopup(this.createPopupContent());
+        // this.bindPopup(this.createPopupContent());
 
         console.log('[GeoNote][update] Propriétés mises à jour:', this.properties);
       }
@@ -203,138 +203,12 @@ export class GeoNote extends L.Marker {
     });
   }
 
-  // Créer le contenu du popup
+  // Commenté : Méthode pour créer le contenu du popup
+  /*
   createPopupContent(): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'geo-note-popup';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-
-    // Créer l'en-tête
-    const header = document.createElement('div');
-    header.className = 'geo-note-header';
-    container.appendChild(header);
-
-    // Ajouter le titre
-    const title = document.createElement('div');
-    title.className = 'geo-note-title';
-    title.textContent = this.properties.name;
-    header.appendChild(title);
-
-    // Conteneur pour les badges
-    const badgesContainer = document.createElement('div');
-    badgesContainer.className = 'geo-note-badges';
-    header.appendChild(badgesContainer);
-
-    // Ajouter l'étiquette de colonne
-    const columnBadge = document.createElement('div');
-    columnBadge.className = 'geo-note-badge';
-    columnBadge.style.backgroundColor = this.getColumnColor(this.properties.columnId);
-
-    // Ajouter une icône pour la colonne
-    columnBadge.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5z" />
-        <path d="M11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-      </svg>
-      ${this.getColumnLabel(this.properties.columnId)}
-    `;
-    badgesContainer.appendChild(columnBadge);
-
-    // Ajouter l'étiquette de niveau d'accès
-    const accessBadge = document.createElement('div');
-    accessBadge.className = 'geo-note-badge';
-    accessBadge.style.backgroundColor = this.getAccessLevelColor(this.properties.accessLevel);
-
-    // Ajouter une icône pour le niveau d'accès
-    accessBadge.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-      </svg>
-      ${this.getAccessLevelLabel(this.properties.accessLevel)}
-    `;
-    badgesContainer.appendChild(accessBadge);
-
-    // Créer le contenu seulement si une description existe
-    if (this.properties.description && this.properties.description.trim() !== '') {
-      const content = document.createElement('div');
-      content.className = 'geo-note-content';
-      container.appendChild(content);
-
-      const description = document.createElement('div');
-      description.className = 'geo-note-description';
-      description.textContent = this.properties.description;
-      content.appendChild(description);
-    }
-
-    // Créer le pied de page avec les boutons directement intégrés
-    const buttonsContainer = document.createElement('div');
-    buttonsContainer.className = 'geo-note-buttons';
-    buttonsContainer.style.display = 'flex';
-    buttonsContainer.style.width = '100%';
-    buttonsContainer.style.marginTop = 'auto';
-    buttonsContainer.style.borderTop = '1px solid #E5E7EB';
-    container.appendChild(buttonsContainer);
-
-    // Ajouter le bouton d'édition
-    const editButton = document.createElement('button');
-    editButton.className = 'geo-note-edit-button';
-    editButton.style.flex = '1';
-    editButton.style.height = '36px';
-    editButton.style.border = 'none';
-    editButton.style.borderRight = '1px solid #E5E7EB';
-    editButton.style.background = 'transparent';
-    editButton.style.color = '#4B5563';
-    editButton.style.fontSize = '11px';
-    editButton.style.fontWeight = '500';
-    editButton.style.display = 'flex';
-    editButton.style.alignItems = 'center';
-    editButton.style.justifyContent = 'center';
-    editButton.style.cursor = 'pointer';
-    editButton.style.padding = '0';
-    editButton.style.margin = '0';
-    editButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 mr-1 inline-block align-text-bottom">
-        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-      </svg>
-      Éditer
-    `;
-    editButton.onclick = (e) => {
-      e.stopPropagation();
-      this.editNote();
-    };
-    buttonsContainer.appendChild(editButton);
-
-    // Ajouter le bouton pour ouvrir dans Google Maps
-    const openButton = document.createElement('button');
-    openButton.className = 'geo-note-open-button';
-    openButton.style.flex = '1';
-    openButton.style.height = '36px';
-    openButton.style.border = 'none';
-    openButton.style.background = 'transparent';
-    openButton.style.color = '#3B82F6';
-    openButton.style.fontSize = '11px';
-    openButton.style.fontWeight = '500';
-    openButton.style.display = 'flex';
-    openButton.style.alignItems = 'center';
-    openButton.style.justifyContent = 'center';
-    openButton.style.cursor = 'pointer';
-    openButton.style.padding = '0';
-    openButton.style.margin = '0';
-    openButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 mr-1 inline-block align-text-bottom">
-        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-      </svg>
-      Itinéraire
-    `;
-    openButton.onclick = (e) => {
-      e.stopPropagation();
-      this.openInGoogleMaps();
-    };
-    buttonsContainer.appendChild(openButton);
-
-    return container;
+    // ... code de création du popup ...
   }
+  */
 
   // Obtenir la couleur de la colonne en fonction de son ID
   getColumnColor(columnId: string): string {
@@ -400,8 +274,8 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour éditer la note
   editNote(): void {
-    // Fermer le popup
-    this.closePopup();
+    // Commenté : Fermeture du popup
+    // this.closePopup();
 
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
     // Priorité: _dbId (ID de la base de données), puis properties.id, puis _leaflet_id
@@ -451,8 +325,8 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour ouvrir Google Maps avec itinéraire
   openInGoogleMaps(): void {
-    // Fermer le popup
-    this.closePopup();
+    // Commenté : Fermeture du popup
+    // this.closePopup();
 
     // Récupérer les coordonnées de la note
     const lat = this.getLatLng().lat;
@@ -529,7 +403,7 @@ export class GeoNote extends L.Marker {
     console.log('[GeoNote][updateProperties] Style mis à jour:', this.properties.style);
 
     // Mettre à jour le popup pour refléter les changements
-    this.bindPopup(this.createPopupContent());
+    // this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour mettre à jour le style
@@ -608,7 +482,7 @@ export class GeoNote extends L.Marker {
     // Toujours mettre à jour le popup pour s'assurer que les changements sont reflétés
     // même si les propriétés n'ont pas changé (pour résoudre le problème de mise à jour multiple)
     console.log('[GeoNote][setNoteStyle] Mise à jour du popup');
-    this.bindPopup(this.createPopupContent());
+    // this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour forcer le rafraîchissement de l'icône
@@ -825,7 +699,7 @@ export class GeoNote extends L.Marker {
     this.setNoteStyle(styleWithMetadata);
 
     // Mettre à jour le popup
-    this.bindPopup(this.createPopupContent());
+    // this.bindPopup(this.createPopupContent());
 
     console.log('[GeoNote][updateFromBackendData] Note mise à jour:', {
       name: this.properties.name,
@@ -905,7 +779,7 @@ export class GeoNote extends L.Marker {
     }
 
     // Mettre à jour le popup
-    note.bindPopup(note.createPopupContent());
+    // note.bindPopup(note.createPopupContent());
 
     console.log('[GeoNote][fromBackendData] Note créée:', {
       location: latLng,
@@ -1006,7 +880,7 @@ export class GeoNote extends L.Marker {
         });
         
         // Forcer la mise à jour du popup après la sauvegarde
-        this.bindPopup(this.createPopupContent());
+        // this.bindPopup(this.createPopupContent());
       } else {
         // Création d'une nouvelle note
         const response = await noteService.createNote(noteData);
@@ -1019,7 +893,7 @@ export class GeoNote extends L.Marker {
         });
 
         // Forcer la mise à jour du popup après la sauvegarde
-        this.bindPopup(this.createPopupContent());
+        // this.bindPopup(this.createPopupContent());
 
         // Stocker l'ID de la base de données pour les futures mises à jour
         (this as any)._dbId = savedNote.id;
@@ -1081,8 +955,8 @@ export class GeoNote extends L.Marker {
       note: this
     });
 
-    // Mettre à jour le popup pour refléter la nouvelle position
-    this.bindPopup(this.createPopupContent());
+    // Commenté : Mise à jour du popup
+    // this.bindPopup(this.createPopupContent());
 
     // Déclencher la sauvegarde du plan
     this.triggerPlanSave();
@@ -1091,8 +965,8 @@ export class GeoNote extends L.Marker {
   // Méthode pour commencer le déplacement
   startMoving(): void {
     this._isMoving = true;
-    // Fermer le popup pendant le déplacement
-    this.closePopup();
+    // Commenté : Fermeture du popup pendant le déplacement
+    // this.closePopup();
     // Émettre un événement pour notifier du début du déplacement
     this.fire('note:movestart', {
       latlng: this.getLatLng(),
