@@ -107,19 +107,37 @@
             </div>
 
             <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
-            <DrawingTools
-              v-if="currentPlan && !isGeneratingSynthesis"
-              v-model:show="showDrawingTools"
-              :selected-tool="currentTool"
-              :selected-shape="selectedShape"
-              :is-drawing="isDrawing"
-              @tool-selected="setDrawingTool"
-              @filter-change="handleFilterChange"
-              @delete-shape="deleteSelectedShape"
-              @properties-update="updateShapeProperties"
-              @style-update="updateShapeStyle"
-              class="md:w-80 md:flex-shrink-0"
-            />
+            <template v-if="currentPlan && !isGeneratingSynthesis">
+              <!-- Sur mobile, téléporter le panneau en dehors du flux pour qu'il apparaisse au-dessus de tout -->
+              <Teleport v-if="isMobile" to="body">
+                <DrawingTools
+                  v-model:show="showDrawingTools"
+                  :selected-tool="currentTool"
+                  :selected-shape="selectedShape"
+                  :is-drawing="isDrawing"
+                  @tool-selected="setDrawingTool"
+                  @filter-change="handleFilterChange"
+                  @delete-shape="deleteSelectedShape"
+                  @properties-update="updateShapeProperties"
+                  @style-update="updateShapeStyle"
+                  class="md:w-80 md:flex-shrink-0"
+                />
+              </Teleport>
+              <!-- Sur desktop, garder le panneau dans le flux normal -->
+              <DrawingTools
+                v-else
+                v-model:show="showDrawingTools"
+                :selected-tool="currentTool"
+                :selected-shape="selectedShape"
+                :is-drawing="isDrawing"
+                @tool-selected="setDrawingTool"
+                @filter-change="handleFilterChange"
+                @delete-shape="deleteSelectedShape"
+                @properties-update="updateShapeProperties"
+                @style-update="updateShapeStyle"
+                class="md:w-80 md:flex-shrink-0"
+              />
+            </template>
 
             <!-- Barre d'outils compacte sur mobile -->
             <div
@@ -962,6 +980,10 @@ function getMapPosition(): { lat: number; lng: number; zoom: number } | null {
 }
 onMounted(async () => {
   console.log('[MapView][onMounted] Initialisation du composant MapView');
+  
+  // Ajouter un écouteur pour détecter les changements de taille d'écran
+  window.addEventListener('resize', checkMobile);
+  
   console.log('[MapView][onMounted] État initial des filtres dans le store:', JSON.stringify({
     accessLevels: { ...drawingStore.filters.accessLevels },
     categories: { ...drawingStore.filters.categories },
@@ -1453,6 +1475,10 @@ onBeforeUnmount(() => {
   if (map.value) {
     map.value.off('moveend');
   }
+  
+  // Supprimer l'écouteur d'événement pour la taille d'écran
+  window.removeEventListener('resize', checkMobile);
+  
   window.removeEventListener('shape:created', (() => { }) as EventListener);
 });
 // Fonction pour afficher/masquer les outils de dessin sur mobile
@@ -4478,6 +4504,17 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
   // Retourner la nouvelle position Y
   return startY + tableHeight + padding * 2;
 }
+
+// Après "const selectedLeafletShape = ref<L.Layer | null>(null);"
+const isMobile = ref(window.innerWidth < 768);
+
+// Fonction pour mettre à jour la détection mobile
+function checkMobile() {
+  isMobile.value = window.innerWidth < 768;
+}
+
+// Maintenant, je ne garde que la fonction checkMobile et la variable isMobile
+// Les modifications aux fonctions onMounted et onBeforeUnmount seront faites dans une édition distincte
 </script>
 <style>
 @import '../styles/MapView.css';

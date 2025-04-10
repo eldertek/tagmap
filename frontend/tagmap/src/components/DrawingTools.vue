@@ -1416,6 +1416,19 @@ div[v-if="activeTab === 'filters'"] {
     transform: translateY(0);
   }
 
+  /* Styles spécifiques pour le panneau téléporté */
+  :root body > .drawing-tools-panel {
+    /* Assurer que le panneau téléporté est au-dessus de tout en position fixe */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 2500; /* S'assurer qu'il est au-dessus du reste de l'interface */
+    margin: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
   /* Ajouter un espace en haut de l'en-tête pour mobile */
   .drawing-tools-panel .flex-mobile {
     padding-top: 15px !important;
@@ -2026,5 +2039,12 @@ canvas {
   .filters-tab {
     max-height: calc(100vh - 120px);
   }
+}
+
+/* Ajuster la hauteur du conteneur de la carte */
+.map-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
 }
 </style>
