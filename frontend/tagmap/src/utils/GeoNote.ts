@@ -132,8 +132,18 @@ export class GeoNote extends L.Marker {
         this._protectFromZoomAnimationErrors(map);
 
         // Ajouter des écouteurs pour rafraîchir l'icône après les événements de carte
-        map.on('zoomend', () => this.refreshIconStyle());
-        map.on('moveend', () => this.refreshIconStyle());
+        map.on('zoomend', () => {
+          // Mettre à jour la position après la fin de l'animation de zoom
+          this.updatePosition();
+          // Rafraîchir le style de l'icône
+          this.refreshIconStyle();
+        });
+        map.on('moveend', () => {
+          // Mettre à jour la position après la fin du déplacement
+          this.updatePosition();
+          // Rafraîchir le style de l'icône
+          this.refreshIconStyle();
+        });
       }
     });
 
@@ -494,12 +504,20 @@ export class GeoNote extends L.Marker {
       void element.offsetHeight;
       element.style.display = '';
 
+      // Réinitialiser les transformations CSS qui pourraient avoir été appliquées
+      // pendant l'animation de zoom
+      L.DomUtil.setTransform(element, new L.Point(0, 0), 1);
+
       // S'assurer que l'icône est correctement positionnée
       if (this._map) {
         try {
           // Forcer une mise à jour de la position
           const pos = this._map.latLngToLayerPoint(this.getLatLng());
           L.DomUtil.setPosition(element, pos);
+
+          // S'assurer que l'icône est visible
+          element.style.opacity = '1';
+          element.style.transition = 'opacity 0.2s';
         } catch (e) {
           console.warn('[GeoNote][refreshIconStyle] Erreur lors de la mise à jour de la position:', e);
         }
@@ -521,8 +539,14 @@ export class GeoNote extends L.Marker {
             return;
           }
 
-          // Appeler la méthode originale
-          originalAnimateZoom.call(this, e);
+          // Au lieu d'appeler la méthode originale, utiliser notre méthode personnalisée
+          // qui gère mieux les animations de zoom
+          if (typeof this.updatePositionDuringZoom === 'function') {
+            this.updatePositionDuringZoom(e);
+          } else {
+            // Fallback sur la méthode originale si notre méthode n'est pas disponible
+            originalAnimateZoom.call(this, e);
+          }
         } catch (error) {
           console.warn('[GeoNote][_animateZoom] Erreur lors de l\'animation de zoom:', error);
           // En cas d'erreur, essayer de réinitialiser la position
@@ -537,6 +561,12 @@ export class GeoNote extends L.Marker {
           }
         }
       };
+
+      // Ajouter un écouteur pour l'événement zoomanim de la carte
+      map.on('zoomanim', (e: any) => {
+        // Utiliser directement notre méthode personnalisée
+        this.updatePositionDuringZoom(e);
+      });
 
       console.log('[GeoNote][_protectFromZoomAnimationErrors] Protection contre les erreurs d\'animation de zoom activée');
     } catch (e) {
@@ -878,7 +908,7 @@ export class GeoNote extends L.Marker {
           styleFillColor: savedNote.style?.fillColor,
           styleObject: savedNote.style
         });
-        
+
         // Forcer la mise à jour du popup après la sauvegarde
         // this.bindPopup(this.createPopupContent());
       } else {
@@ -989,5 +1019,53 @@ export class GeoNote extends L.Marker {
   // Méthode pour vérifier si la note est en cours de déplacement
   isMoving(): boolean {
     return this._isMoving;
+  }
+
+  // Méthode pour gérer l'animation de zoom en masquant temporairement le marqueur
+  updatePositionDuringZoom(e: any): void {
+    try {
+      if (!this._map || !e.center || e.zoom === undefined) {
+        return;
+      }
+
+      // Récupérer l'élément DOM du marqueur
+      const element = this.getElement();
+      if (!element) {
+        return;
+      }
+
+      // Masquer simplement l'élément pendant l'animation de zoom
+      element.style.opacity = '0';
+      element.style.transition = 'opacity 0.01s';
+    } catch (error) {
+      console.warn('[GeoNote][updatePositionDuringZoom] Erreur lors de la gestion de l\'animation de zoom:', error);
+    }
+  }
+
+  // Méthode pour mettre à jour la position après un zoom ou un déplacement
+  updatePosition(): void {
+    try {
+      if (!this._map) {
+        return;
+      }
+
+      // Récupérer l'élément DOM du marqueur
+      const element = this.getElement();
+      if (!element) {
+        return;
+      }
+
+      // Calculer la position en pixels
+      const position = this._map.latLngToLayerPoint(this.getLatLng());
+
+      // Appliquer la position directement à l'élément DOM
+      L.DomUtil.setPosition(element, position);
+
+      // Réafficher le marqueur avec une transition douce
+      element.style.opacity = '1';
+      element.style.transition = 'opacity 0.2s';
+    } catch (error) {
+      console.warn('[GeoNote][updatePosition] Erreur lors de la mise à jour de la position:', error);
+    }
   }
 }
