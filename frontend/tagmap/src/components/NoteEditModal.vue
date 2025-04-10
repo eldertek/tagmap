@@ -1,147 +1,130 @@
 <template>
-  <div class="fixed z-[9999] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-center justify-center min-h-screen w-full">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-      <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-2xl md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden flex flex-col">
-        <form @submit.prevent="saveNote" class="h-full md:h-auto flex flex-col max-h-screen md:max-h-[90vh] overflow-hidden">
-          <div class="p-4 md:p-6 flex-1 overflow-y-auto pb-16" style="max-height: calc(100vh - 180px); overflow-y: auto;">
-            <div class="flex justify-between items-center mb-4 border-b pb-4">
-              <h3 class="text-xl font-semibold text-gray-900">{{ note?.id ? 'Modifier la note' : 'Nouvelle note' }}</h3>
-              <button type="button" @click="closeModal" class="text-gray-400 hover:text-gray-500">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+  <div class="modal-overlay" @click.self="closeModal">
+    <div class="modal-container">
+      <form @submit.prevent="saveNote" class="modal-form">
+        <!-- Header fixe -->
+        <div class="modal-header">
+          <h3 class="modal-title">{{ note?.id ? 'Modifier la note' : 'Nouvelle note' }}</h3>
+          <button type="button" @click="closeModal" class="close-button">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Onglets de navigation -->
+        <div class="modal-tabs">
+          <button
+            type="button"
+            @click="activeTab = 'info'"
+            class="tab-button"
+            :class="{ active: activeTab === 'info' }"
+          >
+            Informations
+          </button>
+          <button
+            type="button"
+            @click="activeTab = 'comments'"
+            class="tab-button"
+            :class="{ active: activeTab === 'comments' }"
+          >
+            Commentaires
+            <span v-if="commentsCount > 0" class="badge">{{ commentsCount }}</span>
+          </button>
+          <button
+            type="button"
+            @click="activeTab = 'photos'"
+            class="tab-button"
+            :class="{ active: activeTab === 'photos' }"
+          >
+            Photos
+            <span v-if="photosCount > 0" class="badge">{{ photosCount }}</span>
+          </button>
+        </div>
+
+        <!-- Contenu scrollable -->
+        <div class="modal-content">
+          <!-- Onglet Informations -->
+          <div v-if="activeTab === 'info'" class="tab-content">
+            <div class="form-group">
+              <label for="title">Titre</label>
+              <input type="text" id="title" v-model="editingNote.title" required />
+            </div>
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea id="description" v-model="editingNote.description" rows="3"></textarea>
             </div>
 
-            <!-- Onglets pour naviguer entre les sections -->
-            <div class="mb-4 border-b border-gray-200">
-              <nav class="flex space-x-4" aria-label="Tabs">
-                <button
-                  type="button"
-                  @click="activeTab = 'info'"
-                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
-                  :class="activeTab === 'info' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                >
-                  Informations
-                </button>
-                <button
-                  type="button"
-                  @click="activeTab = 'comments'"
-                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
-                  :class="activeTab === 'comments' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                >
-                  Commentaires
-                  <span v-if="commentsCount > 0" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
-                    {{ commentsCount }}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  @click="activeTab = 'photos'"
-                  class="px-3 py-2 text-sm font-medium border-b-2 focus:outline-none"
-                  :class="activeTab === 'photos' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                >
-                  Photos
-                  <span v-if="photosCount > 0" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
-                    {{ photosCount }}
-                  </span>
-                </button>
-              </nav>
+            <!-- Indicateur de géolocalisation -->
+            <div class="location-indicator" v-if="editingNote.location">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+              </svg>
+              <span>Note géolocalisée</span>
             </div>
 
-            <!-- Onglet Informations -->
-            <div v-if="activeTab === 'info'">
-              <div class="mb-4">
-                <label for="title" class="block text-sm font-medium text-gray-700">Titre</label>
-                <input type="text" id="title" v-model="editingNote.title" required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-              </div>
-              <div class="mb-4">
-                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" v-model="editingNote.description" rows="3"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
-              </div>
-
-              <!-- Indicateur de géolocalisation -->
-              <div class="mb-4 p-2 rounded bg-gray-50 flex items-center" v-if="editingNote.location">
-                <div class="text-primary-600 mr-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="text-sm text-gray-600">
-                  Note géolocalisée
-                </div>
-              </div>
-
-              <div class="mb-4">
-                <label for="column" class="block text-sm font-medium text-gray-700">État</label>
-                <select id="column" v-model="editingNote.columnId"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                  <option v-for="column in sortedColumns" :key="column.id" :value="column.id">
-                    {{ column.title }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label for="accessLevel" class="block text-sm font-medium text-gray-700">Niveau d'accès</label>
-                <select id="accessLevel" v-model="editingNote.accessLevel"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                  <option v-for="level in accessLevels" :key="level.id" :value="level.id">
-                    {{ level.title }} - {{ level.description }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Couleur</label>
-                <div class="mt-1 flex space-x-2">
-                  <div v-for="color in colors" :key="color"
-                    class="w-8 h-8 rounded-full cursor-pointer border-2"
-                    :class="{ 'border-gray-400': editingNote.style.color !== color, 'border-black': editingNote.style.color === color }"
-                    :style="{ backgroundColor: color }"
-                    @click="updateNoteColor(color)">
-                  </div>
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="column">État</label>
+              <select id="column" v-model="editingNote.columnId">
+                <option v-for="column in sortedColumns" :key="column.id" :value="column.id">
+                  {{ column.title }}
+                </option>
+              </select>
             </div>
 
-            <!-- Onglet Commentaires -->
-            <div v-else-if="activeTab === 'comments'" class="mt-4">
-              <!-- Déboguer les commentaires -->
-              <div class="hidden">
-                {{ console.log('[NoteEditModal] Commentaires passés au composant:', editingNote.comments) }}
-              </div>
-              <CommentThread
-                v-if="note"
-                :noteId="note.id"
-                :comments="editingNote.comments || []"
-                @comment-added="handleCommentAdded"
-                @comment-deleted="handleCommentDeleted"
-              />
+            <div class="form-group">
+              <label for="accessLevel">Niveau d'accès</label>
+              <select id="accessLevel" v-model="editingNote.accessLevel">
+                <option v-for="level in accessLevels" :key="level.id" :value="level.id">
+                  {{ level.title }} - {{ level.description }}
+                </option>
+              </select>
             </div>
 
-            <!-- Onglet Photos -->
-            <div v-else-if="activeTab === 'photos'" class="mt-4">
-              <PhotoGallery
-                v-if="note"
-                :noteId="note.id"
-                :photos="editingNote.photos || []"
-                @photo-added="handlePhotoAdded"
-                @photo-deleted="handlePhotoDeleted"
-              />
+            <div class="form-group">
+              <label>Couleur</label>
+              <div class="color-picker">
+                <div
+                  v-for="color in colors"
+                  :key="color"
+                  class="color-option"
+                  :class="{ selected: editingNote.style.color === color }"
+                  :style="{ backgroundColor: color }"
+                  @click="updateNoteColor(color)"
+                ></div>
+              </div>
             </div>
           </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse sticky bottom-0 border-t border-gray-200">
-            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm">
-              Enregistrer
-            </button>
-            <button @click="closeModal" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-              Annuler
-            </button>
+
+          <!-- Onglet Commentaires -->
+          <div v-else-if="activeTab === 'comments'" class="tab-content">
+            <CommentThread
+              v-if="note"
+              :noteId="note.id"
+              :comments="editingNote.comments || []"
+              @comment-added="handleCommentAdded"
+              @comment-deleted="handleCommentDeleted"
+            />
           </div>
-        </form>
-      </div>
+
+          <!-- Onglet Photos -->
+          <div v-else-if="activeTab === 'photos'" class="tab-content">
+            <PhotoGallery
+              v-if="note"
+              :noteId="note.id"
+              :photos="editingNote.photos || []"
+              @photo-added="handlePhotoAdded"
+              @photo-deleted="handlePhotoDeleted"
+            />
+          </div>
+        </div>
+
+        <!-- Footer fixe -->
+        <div class="modal-footer">
+          <button type="submit" class="primary-button">Enregistrer</button>
+          <button type="button" @click="closeModal" class="secondary-button">Annuler</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
@@ -678,80 +661,270 @@ async function saveNote() {
 </script>
 
 <style scoped>
-/* Styles spécifiques pour le modal */
-.overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+/* Styles de base */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
 }
 
-/* Styles pour les scrollbars */
-.overflow-y-auto::-webkit-scrollbar {
+.modal-container {
+  width: 100%;
+  height: 100%;
+  max-width: 42rem;
+  max-height: 90vh;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Header */
+.modal-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-button {
+  color: #6b7280;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+}
+
+/* Onglets */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: white;
+  position: sticky;
+  top: 4rem;
+  z-index: 10;
+}
+
+.tab-button {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.badge {
+  background-color: #eef2ff;
+  color: #3b82f6;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+
+/* Contenu */
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab-content {
+  max-width: 100%;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Indicateur de localisation */
+.location-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f3f4f6;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.location-indicator .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #3b82f6;
+}
+
+.location-indicator span {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+/* Sélecteur de couleur */
+.color-picker {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.color-option {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.color-option.selected {
+  border-color: #111827;
+  transform: scale(1.1);
+}
+
+/* Footer */
+.modal-footer {
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.primary-button,
+.secondary-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.primary-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+}
+
+.primary-button:hover {
+  background-color: #2563eb;
+}
+
+.secondary-button {
+  background-color: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.secondary-button:hover {
+  background-color: #f3f4f6;
+}
+
+/* Styles mobiles */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .modal-content {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  }
+
+  .modal-footer {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  }
+
+  .primary-button,
+  .secondary-button {
+    flex: 1;
+  }
+}
+
+/* Scrollbar personnalisée */
+.modal-content::-webkit-scrollbar {
   width: 6px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
+.modal-content::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 3px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
+.modal-content::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+.modal-content::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-@media (max-width: 768px) {
-  /* Fixer l'en-tête en haut */
-  .flex.justify-between.items-center.mb-4.border-b.pb-4 {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: white;
-    margin-bottom: 0;
-    padding: 1rem;
-  }
-
-  /* Ajuster le contenu scrollable */
-  .p-4.md\:p-6.flex-1.overflow-y-auto.pb-16 {
-    max-height: calc(100vh - 120px) !important; /* 120px pour l'en-tête et le footer */
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }
-
-  /* Fixer les boutons en bas */
-  .bg-gray-50.px-4.py-3.sm\:px-6.sm\:flex.sm\:flex-row-reverse.sticky.bottom-0.border-t.border-gray-200 {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 10;
-    background-color: #f9fafb;
-    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
-    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 10px)) !important;
-  }
-
-  /* Ajuster le modal pour prendre tout l'écran */
-  .fixed.z-\[9999\].inset-0 .relative.bg-white {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* Ajuster le formulaire */
-  form.h-full.md\:h-auto {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  /* Ajuster la position du conteneur principal */
-  .fixed.z-\[9999\].inset-0 .flex.items-center.justify-center {
-    padding: 0 !important;
-  }
 }
 </style>
