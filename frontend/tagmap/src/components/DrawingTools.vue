@@ -1273,12 +1273,13 @@ const openGeoNoteRoute = () => {
 @media (max-width: 767px) {
   .drawing-tools-panel {
     @apply fixed bottom-0 left-0 right-0 z-[2000];
-    height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height));
+    height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height) - env(safe-area-inset-bottom, 0));
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .drawing-tools-panel.open {
@@ -1289,12 +1290,14 @@ const openGeoNoteRoute = () => {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    height: calc(100% - 3.5rem); /* Hauteur totale moins la hauteur de l'en-tête */
   }
 
   /* Ajuster la position des boutons pour éviter la superposition */
   .tools-grid {
     @apply grid grid-cols-2 gap-3 mb-4;
     margin-top: 1rem;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .tool-button {
@@ -1308,6 +1311,7 @@ const openGeoNoteRoute = () => {
   .note-actions {
     @apply grid grid-cols-2 gap-3 mb-4;
     margin-top: 1rem;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .delete-button {
@@ -1316,6 +1320,27 @@ const openGeoNoteRoute = () => {
     @apply hover:bg-red-100;
     @apply transition-colors duration-200;
     margin-top: 1rem;
+    margin-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+  }
+
+  /* Ajuster l'en-tête mobile */
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0));
+  }
+
+  /* Ajuster la navigation par onglets */
+  .tabs-navigation {
+    position: sticky;
+    top: calc(3.5rem + env(safe-area-inset-top, 0));
+    z-index: 10;
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
   }
 }
 
