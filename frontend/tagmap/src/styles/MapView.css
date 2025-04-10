@@ -469,6 +469,11 @@
     padding-bottom: 50px !important; /* Espace pour la barre d'outils en bas */
   }
 
+  /* Ajouter un espace en haut du panneau de dessin pour éviter qu'il soit caché derrière MapToolbar.vue */
+  .drawing-tools-panel {
+    padding-top: 15px !important; /* Espace suffisant pour éviter le chevauchement */
+  }
+
   /* Animation pour le panneau d'outils sur mobile */
   @keyframes slideUp {
     0% { transform: translateY(100%); }

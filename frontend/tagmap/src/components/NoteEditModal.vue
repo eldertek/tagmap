@@ -708,7 +708,7 @@ async function saveNote() {
   .flex-1.overflow-y-auto {
     max-height: calc(100vh - 180px) !important;
     overflow-y: auto !important;
-    padding-bottom: 80px !important; /* Espace supplémentaire en bas pour éviter que le contenu soit caché derrière le footer */
+    padding-bottom: 30px !important; /* Réduire l'espace supplémentaire en bas */
   }
 
   /* S'assurer que le footer reste visible */
@@ -718,6 +718,32 @@ async function saveNote() {
     left: 0;
     right: 0;
     z-index: 10;
+    background-color: #f9fafb !important; /* Fond solide */
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05) !important; /* Ombre subtile */
+  }
+
+  /* Faire que le modal prenne tout l'écran sur mobile */
+  .fixed.z-\[9999\].inset-0 .relative.bg-white {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ajuster la hauteur du contenu pour éviter le dépassement */
+  form.h-full.md\:h-auto {
+    height: 100vh !important;
+  }
+
+  /* Ajuster la position pour prendre tout l'écran */
+  .fixed.z-\[9999\].inset-0 .flex.items-center.justify-center {
+    padding: 0 !important;
+  }
+  
+  /* Réduire l'espace sous la section des couleurs */
+  .mb-4:last-of-type {
+    margin-bottom: 0 !important;
   }
 }
 </style>

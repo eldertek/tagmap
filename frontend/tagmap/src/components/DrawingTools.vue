@@ -1416,6 +1416,11 @@ div[v-if="activeTab === 'filters'"] {
     transform: translateY(0);
   }
 
+  /* Ajouter un espace en haut de l'en-tête pour mobile */
+  .drawing-tools-panel .flex-mobile {
+    padding-top: 15px !important;
+  }
+
   /* Assurer que les contenus d'onglets défilent correctement sur mobile */
   div[v-if="activeTab === 'filters'"],
   div[v-if="activeTab === 'tools'"],
