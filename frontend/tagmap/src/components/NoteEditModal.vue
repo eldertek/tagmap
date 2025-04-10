@@ -706,9 +706,10 @@ async function saveNote() {
 @media (max-width: 768px) {
   /* Assurer que le contenu est scrollable sur mobile */
   .flex-1.overflow-y-auto {
-    max-height: calc(100vh - 180px) !important;
+    /* Ajuster la hauteur max en fonction de la hauteur du footer (approximativement 70px + padding) */
+    max-height: calc(100vh - 70px - env(safe-area-inset-bottom, 10px) - 60px) !important; /* 60px pour le header du modal */
     overflow-y: auto !important;
-    padding-bottom: 30px !important; /* Réduire l'espace supplémentaire en bas */
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 10px) + 20px) !important; /* Espace suffisant pour le footer + marge */
   }
 
   /* S'assurer que le footer reste visible */
@@ -717,9 +718,14 @@ async function saveNote() {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 10;
+    z-index: 9999 !important; /* Augmenter le z-index pour être sûr qu'il est au premier plan */
     background-color: #f9fafb !important; /* Fond solide */
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05) !important; /* Ombre subtile */
+    height: auto !important; /* S'assurer que la hauteur est calculée automatiquement */
+    padding-bottom: env(safe-area-inset-bottom, 10px) !important; /* Ajouter du padding pour les iPhones avec notch */
+    /* S'assurer que le padding haut/bas interne est correct */
+    padding-top: 0.75rem !important; /* py-3 */
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 10px)) !important;
   }
 
   /* Faire que le modal prenne tout l'écran sur mobile */
@@ -731,9 +737,19 @@ async function saveNote() {
     margin: 0 !important;
   }
 
-  /* Ajuster la hauteur du contenu pour éviter le dépassement */
+  /* Ajuster la hauteur du formulaire pour qu'il remplisse l'espace disponible */
   form.h-full.md\:h-auto {
-    height: 100vh !important;
+    height: 100% !important; /* Utiliser 100% pour remplir le conteneur */
+    display: flex !important;
+    flex-direction: column !important;
+    /* Pas besoin de padding-bottom ici, il est géré dans .flex-1.overflow-y-auto */
+  }
+
+  /* S'assurer que les boutons sont visibles */
+  .sm\:flex.sm\:flex-row-reverse button {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   /* Ajuster la position pour prendre tout l'écran */
