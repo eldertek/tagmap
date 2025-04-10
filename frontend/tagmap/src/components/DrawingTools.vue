@@ -1090,6 +1090,9 @@ const openGeoNoteRoute = () => {
 .mobile-header {
   @apply bg-white border-b border-gray-200;
   padding: 0.75rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .header-content {
@@ -1114,11 +1117,17 @@ const openGeoNoteRoute = () => {
 
 .close-button {
   @apply p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100;
+  position: relative;
+  z-index: 20;
 }
 
 /* Navigation par onglets */
 .tabs-navigation {
   @apply flex border-b border-gray-200;
+  position: sticky;
+  top: 3.5rem; /* Hauteur de l'en-tête mobile */
+  z-index: 10;
+  background-color: white;
 }
 
 .tab-button {
@@ -1264,7 +1273,7 @@ const openGeoNoteRoute = () => {
 @media (max-width: 767px) {
   .drawing-tools-panel {
     @apply fixed bottom-0 left-0 right-0 z-[2000];
-    height: 80vh;
+    height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height));
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-top-left-radius: 1rem;
@@ -1278,6 +1287,35 @@ const openGeoNoteRoute = () => {
 
   .content-container {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ajuster la position des boutons pour éviter la superposition */
+  .tools-grid {
+    @apply grid grid-cols-2 gap-3 mb-4;
+    margin-top: 1rem;
+  }
+
+  .tool-button {
+    @apply flex flex-col items-center justify-center gap-2 p-3 rounded-lg;
+    @apply border border-gray-200 bg-white;
+    @apply hover:bg-gray-50 hover:border-gray-300;
+    @apply transition-colors duration-200;
+    min-height: 4rem;
+  }
+
+  .note-actions {
+    @apply grid grid-cols-2 gap-3 mb-4;
+    margin-top: 1rem;
+  }
+
+  .delete-button {
+    @apply flex items-center justify-center gap-2 p-3 rounded-lg w-full mb-4;
+    @apply bg-red-50 text-red-600 border border-red-200;
+    @apply hover:bg-red-100;
+    @apply transition-colors duration-200;
+    margin-top: 1rem;
   }
 }
 
