@@ -5,7 +5,7 @@
     <div class="hidden md:hidden flex-mobile items-center justify-between p-4 border-b border-gray-200">
       <div class="flex items-center">
         <div class="w-10 h-1.5 bg-gray-300 rounded-full mr-3"></div>
-        <h3 class="text-sm font-semibold text-gray-700">Outils de dessin</h3>
+        <h3 class="text-sm font-semibold text-gray-700">Outils</h3>
       </div>
       <button
         @click="$emit('update:show', false)"
@@ -68,6 +68,28 @@
               <span class="icon" v-html="getToolIcon(tool.type)"></span>
             </button>
           </div>
+          <!-- Boutons spécifiques pour les GeoNotes -->
+          <div v-if="selectedShape && localProperties && localProperties.type === 'Note'" class="grid grid-cols-2 gap-2 mt-2 mb-2">
+            <!-- Bouton d'édition -->
+            <button
+              class="p-2 rounded-md border border-primary-200 bg-primary-50 text-primary-600 hover:bg-primary-100 flex items-center justify-center"
+              @click="editGeoNote" title="Éditer la note">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span class="text-sm">Éditer</span>
+            </button>
+            <!-- Bouton d'itinéraire -->
+            <button
+              class="p-2 rounded-md border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center"
+              @click="openGeoNoteRoute" title="Obtenir l'itinéraire">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span class="text-sm">Itinéraire</span>
+            </button>
+          </div>
+
           <!-- Bouton de suppression -->
           <button v-if="selectedShape"
             class="w-full mt-2 p-2 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"
@@ -1283,6 +1305,42 @@ const handleToolClick = (toolType: string) => {
   // Sur mobile, fermer le panneau d'outils après la sélection
   if (window.innerWidth < 768) {
     emit('update:show', false);
+  }
+}
+
+// Méthode pour éditer une GeoNote
+const editGeoNote = () => {
+  console.log('[DrawingTools][editGeoNote] Édition de la GeoNote');
+
+  if (props.selectedShape && props.selectedShape.properties?.type === 'Note') {
+    // Accéder à l'instance de GeoNote via la propriété layer
+    const geoNote = props.selectedShape.layer;
+
+    if (geoNote && typeof geoNote.editNote === 'function') {
+      // Appeler la méthode editNote de la GeoNote
+      geoNote.editNote();
+      console.log('[DrawingTools][editGeoNote] Méthode editNote appelée avec succès');
+    } else {
+      console.error('[DrawingTools][editGeoNote] La méthode editNote n\'est pas disponible sur la couche');
+    }
+  }
+}
+
+// Méthode pour ouvrir l'itinéraire Google Maps pour une GeoNote
+const openGeoNoteRoute = () => {
+  console.log('[DrawingTools][openGeoNoteRoute] Ouverture de l\'itinéraire pour la GeoNote');
+
+  if (props.selectedShape && props.selectedShape.properties?.type === 'Note') {
+    // Accéder à l'instance de GeoNote via la propriété layer
+    const geoNote = props.selectedShape.layer;
+
+    if (geoNote && typeof geoNote.openInGoogleMaps === 'function') {
+      // Appeler la méthode openInGoogleMaps de la GeoNote
+      geoNote.openInGoogleMaps();
+      console.log('[DrawingTools][openGeoNoteRoute] Méthode openInGoogleMaps appelée avec succès');
+    } else {
+      console.error('[DrawingTools][openGeoNoteRoute] La méthode openInGoogleMaps n\'est pas disponible sur la couche');
+    }
   }
 }
 </script>
