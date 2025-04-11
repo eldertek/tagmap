@@ -121,7 +121,7 @@
                   <div class="min-h-[100px] draggable-container">
                     <draggable
                       :list="getNotesByColumn(column.id)"
-                      class="space-y-2"
+                      class="space-y-2 empty-column-drop-zone"
                       group="notes"
                       item-key="id"
                       :handle="isMobile ? null : '.note-drag-handle'"
@@ -1007,5 +1007,26 @@ onBeforeUnmount(() => {
   border: 2px dashed #e5e7eb;
   border-radius: 0.5rem;
   margin: 0.5rem 0;
+}
+
+.empty-column-drop-zone:empty {
+  display: block;
+  min-height: 120px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  background-color: #f8fafc;
+  position: relative;
+}
+
+.empty-column-drop-zone:empty::after {
+  content: 'Déposer ici';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-style: italic;
 }
 </style>
