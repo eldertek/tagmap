@@ -631,14 +631,16 @@
   </div>
 
   <!-- Modal d'édition de note -->
-  <NoteEditModal
-    v-if="showNoteEditModal"
-    :note="editingMapNote"
-    :is-new-note="!editingMapNote?.id"
-    :location="editingMapNote?.location"
-    @close="closeNoteEditModal"
-    @save="handleNoteSave"
-  />
+  <Teleport to="body">
+    <NoteEditModal
+      v-if="showNoteEditModal"
+      :note="editingMapNote"
+      :is-new-note="!editingMapNote?.id"
+      :location="editingMapNote?.location"
+      @close="closeNoteEditModal"
+      @save="handleNoteSave"
+    />
+  </Teleport>
 </template>
 <script setup lang="ts">
 import { onMounted, ref, watch, onBeforeUnmount, onUnmounted, computed, nextTick } from 'vue';

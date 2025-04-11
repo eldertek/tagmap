@@ -43,6 +43,7 @@ export interface Photo {
 
 export interface Note {
   id: number;
+  backendId?: number; // ID explicite du backend, utilisé quand l'ID principal est un ID Leaflet
   title: string;
   description: string;
   location: [number, number] | {
@@ -556,7 +557,7 @@ export const useNotesStore = defineStore('notes', () => {
 
       const note = notes.value[noteIndex];
       const updatedPhotos = (note.photos || []).filter(photo => photo.id !== photoId);
-      
+
       // Créer une nouvelle référence pour la note avec les photos mises à jour
       notes.value[noteIndex] = {
         ...note,

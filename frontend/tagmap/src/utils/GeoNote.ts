@@ -326,11 +326,18 @@ export class GeoNote extends L.Marker {
 
     // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
     // Inclure la référence à cette couche Leaflet pour permettre de retrouver le dbId
-    const event = new CustomEvent('geonote:edit', { detail: { note, source: this } });
+    // S'assurer que l'ID backend est correctement transmis
+    const event = new CustomEvent('geonote:edit', {
+      detail: {
+        note,
+        source: this,
+        backendId: (this as any)._dbId // Transmettre explicitement l'ID backend
+      }
+    });
     window.dispatchEvent(event);
 
     // Également émettre l'événement Leaflet standard (pour compatibilité)
-    this.fire('note:edit', { note, source: this });
+    this.fire('note:edit', { note, source: this, backendId: (this as any)._dbId });
   }
 
   // Méthode pour ouvrir Google Maps avec itinéraire

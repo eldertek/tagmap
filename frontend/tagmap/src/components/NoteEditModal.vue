@@ -1,6 +1,6 @@
 <template>
-  <div class="modal-overlay" @click.self="closeModal">
-    <div class="modal-container">
+  <div class="modal-overlay" @click="closeOnOutsideClick">
+    <div class="modal-container" @click.stop>
       <form @submit.prevent="saveNote" class="modal-form">
         <!-- Header fixe -->
         <div class="modal-header">
@@ -657,6 +657,16 @@ async function saveNote() {
     console.error('[NoteEditModal] Erreur lors de la sauvegarde de la note:', error);
     notificationStore.error('Erreur lors de la sauvegarde de la note');
   }
+}
+
+// Décision si le modal doit se fermer en cliquant en dehors
+function closeOnOutsideClick(event: MouseEvent) {
+  // On désactive temporairement cette fermeture automatique pour éviter les fermetures accidentelles
+  // Commentez cette ligne si vous voulez réactiver la fermeture en cliquant en dehors
+  event.stopPropagation();
+  
+  // Décommentez cette ligne pour réactiver la fermeture en cliquant en dehors
+  // closeModal();
 }
 </script>
 
