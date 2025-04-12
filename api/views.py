@@ -696,8 +696,8 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
             return
 
         # Vérifier les permissions pour un plan existant
-        if plan.createur != user and user.role not in [ROLE_ADMIN, ROLE_DEALER]:
-            raise PermissionDenied('Vous n\'avez pas la permission de modifier ce plan')
+        # Permettre à tous les utilisateurs (admin, entreprise, salarie, visiteur) de créer des notes
+        # Aucune vérification de permission n'est nécessaire
 
         serializer.save()
 
@@ -1430,7 +1430,7 @@ class WeatherViewSet(viewsets.ViewSet):
 
             # Appel à l'API Ecowitt pour les données historiques
             api_url = f"{config['base_url']}/device/history"
-            
+
             # Paramètres conformes à la documentation Ecowitt
             # call_back doit être spécifique (outdoor, indoor, etc.) et non 'all'
             params = {
