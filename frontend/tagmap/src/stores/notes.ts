@@ -67,6 +67,7 @@ export interface Note {
   };
   comments?: Comment[];
   photos?: Photo[];
+  enterprise_id?: number | null; // ID de l'entreprise associée à la note
 }
 
 export const useNotesStore = defineStore('notes', () => {
@@ -227,7 +228,7 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number }) {
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null }) {
     if (!note.id) {
       console.error('[NotesStore][addNote] Erreur: ID du backend manquant');
       throw new Error('L\'ID du backend est requis pour ajouter une note');
@@ -246,6 +247,10 @@ export const useNotesStore = defineStore('notes', () => {
 
     console.log('[NotesStore][addNote] Ajout d\'une note avec ID backend:', note.id, 'et niveau d\'accès:', accessLevel);
 
+    // Si l'utilisateur n'est pas admin, associer automatiquement à son entreprise
+    const authStore = useAuthStore();
+    const enterprise_id = note.enterprise_id || (!authStore.isAdmin && authStore.user?.enterprise_id ? authStore.user.enterprise_id : null);
+
     notes.value.push({
       ...note,
       id: note.id,
@@ -254,7 +259,8 @@ export const useNotesStore = defineStore('notes', () => {
       createdAt: now,
       updatedAt: now,
       comments: [],  // Initialiser un tableau vide pour les commentaires
-      photos: []     // Initialiser un tableau vide pour les photos
+      photos: [],    // Initialiser un tableau vide pour les photos
+      enterprise_id: enterprise_id
     });
 
     return note.id;

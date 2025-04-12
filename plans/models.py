@@ -258,6 +258,15 @@ class GeoNote(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
     category = models.CharField(max_length=50, blank=True, db_index=True)
+    enterprise_id = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='enterprise_notes',
+        verbose_name='Entreprise associée',
+        limit_choices_to={'role': 'ENTREPRISE'},
+        null=True,
+        blank=True
+    )
 
     class Meta:
         ordering = ['column', 'order', '-updated_at']

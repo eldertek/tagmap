@@ -4,6 +4,7 @@ import type { DrawingElementType, NoteData } from '../types/drawing';
 import { noteService } from '../services/api';
 import { useNotesStore } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
+import { useAuthStore } from '../stores/auth';
 
 // Interface pour les options de création d'une GeoNote
 export interface GeoNoteOptions extends L.MarkerOptions {
@@ -17,6 +18,7 @@ export interface GeoNoteOptions extends L.MarkerOptions {
   fillColor?: string;
   fillOpacity?: number;
   radius?: number;
+  enterprise_id?: number | null;
 }
 
 export class GeoNote extends L.Marker {
@@ -111,7 +113,8 @@ export class GeoNote extends L.Marker {
       photos: [],
       order: 0,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      enterprise_id: options.enterprise_id || null
     };
 
     console.log('[GeoNote][constructor] Note créée avec columnId:', this.properties.columnId);
@@ -893,6 +896,17 @@ export class GeoNote extends L.Marker {
         comments: this.properties.comments || [],
         photos: this.properties.photos || []
       };
+
+      // Ajouter l'ID d'entreprise si disponible
+      if (this.properties.enterprise_id) {
+        noteData.enterprise_id = this.properties.enterprise_id;
+      } else {
+        // Si pas d'ID d'entreprise spécifié, utiliser celui de l'utilisateur connecté s'il n'est pas admin
+        const authStore = useAuthStore();
+        if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+          noteData.enterprise_id = authStore.user.enterprise_id;
+        }
+      }
 
       // Si un ID de plan est fourni, l'associer à la note
       if (planId) {

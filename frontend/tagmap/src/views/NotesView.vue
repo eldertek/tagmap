@@ -271,6 +271,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
+import { useAuthStore } from '../stores/auth';
 // import { useIrrigationStore } from '../stores/irrigation'; // Non utilisé pour l'instant
 import { useDrawingStore } from '../stores/drawing';
 import { noteService } from '../services/api';
@@ -283,6 +284,7 @@ import draggable from 'vuedraggable';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
+const authStore = useAuthStore();
 // L'irrigation store n'est pas utilisé dans ce composant
 const drawingStore = useDrawingStore();
 const loading = ref(true);
@@ -534,7 +536,17 @@ async function loadInitialData() {
 
     // Récupérer les notes depuis le backend
     console.log('[NotesView][loadInitialData] Chargement des notes...');
-    const response = await noteService.getNotes();
+
+    // Préparer les filtres pour les notes
+    const filters: any = {};
+
+    // Si l'utilisateur n'est pas admin, filtrer par son entreprise
+    if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+      filters.enterprise_id = authStore.user.enterprise_id;
+      console.log(`[NotesView][loadInitialData] Filtrage des notes par entreprise: ${filters.enterprise_id}`);
+    }
+
+    const response = await noteService.getNotes(filters);
     console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
 
     // Vérifier en détail les notes reçues
@@ -911,7 +923,8 @@ function createSimpleNote() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     comments: [],
-    photos: []
+    photos: [],
+    enterprise_id: !authStore.isAdmin && authStore.user?.enterprise_id ? authStore.user.enterprise_id : null
   };
 
   // Afficher le modal d'édition

@@ -72,6 +72,17 @@
               </select>
             </div>
 
+            <!-- Sélection d'entreprise pour les admins -->
+            <div class="form-group" v-if="authStore.isAdmin">
+              <label for="enterprise">Entreprise</label>
+              <select id="enterprise" v-model="selectedEnterprise">
+                <option :value="null">Sélectionner une entreprise</option>
+                <option v-for="enterprise in enterprises" :key="enterprise.id" :value="enterprise.id">
+                  {{ enterprise.company_name || `${enterprise.first_name} ${enterprise.last_name}` }}
+                </option>
+              </select>
+            </div>
+
             <div class="form-group">
               <label for="accessLevel">Niveau d'accès</label>
               <select id="accessLevel" v-model="editingNote.accessLevel">
@@ -133,7 +144,8 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
-import { noteService } from '../services/api';
+import { useAuthStore } from '../stores/auth';
+import { noteService, userService } from '../services/api';
 import CommentThread from './CommentThread.vue';
 import PhotoGallery from './PhotoGallery.vue';
 
@@ -150,7 +162,10 @@ const emit = defineEmits<{
 
 const notesStore = useNotesStore();
 const notificationStore = useNotificationStore();
+const authStore = useAuthStore();
 const activeTab = ref('info');
+const enterprises = ref<any[]>([]);
+const selectedEnterprise = ref<number | null>(null);
 
 // Pour le débogage dans le template
 const console = window.console;
@@ -191,7 +206,8 @@ const editingNote = ref<any>({
     radius: 8
   },
   comments: [],
-  photos: []
+  photos: [],
+  enterprise_id: null
 });
 
 // Fonction utilitaire pour traiter les différents formats de localisation
@@ -299,6 +315,20 @@ async function loadNotePhotos(noteId: number) {
   }
 }
 
+// Fonction pour charger les entreprises (pour les admins)
+async function loadEnterprises() {
+  if (authStore.isAdmin) {
+    try {
+      const response = await userService.getEntreprises();
+      enterprises.value = response.data;
+      console.log('[NoteEditModal] Entreprises chargées:', enterprises.value);
+    } catch (error) {
+      console.error('[NoteEditModal] Erreur lors du chargement des entreprises:', error);
+      notificationStore.error('Erreur lors du chargement des entreprises');
+    }
+  }
+}
+
 // Initialiser les données d'édition
 onMounted(async () => {
   console.log('[NoteEditModal] onMounted - props:', props);
@@ -306,6 +336,9 @@ onMounted(async () => {
   // S'assurer que les colonnes sont chargées
   await notesStore.loadColumns();
   console.log('[NoteEditModal] Colonnes chargées:', notesStore.columns);
+
+  // Charger les entreprises si l'utilisateur est admin
+  await loadEnterprises();
 
   if (props.note) {
     // Édition d'une note existante
@@ -317,6 +350,11 @@ onMounted(async () => {
     noteCopy.updatedAt = safeDate(noteCopy.updatedAt);
 
     editingNote.value = noteCopy;
+
+    // Si l'utilisateur est admin et que la note a une entreprise associée
+    if (authStore.isAdmin && noteCopy.enterprise_id) {
+      selectedEnterprise.value = noteCopy.enterprise_id;
+    }
 
     // Charger les commentaires et photos si la note existe
     if (props.note.id) {
@@ -359,8 +397,14 @@ onMounted(async () => {
       comments: [],
       photos: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      enterprise_id: null
     };
+
+    // Si l'utilisateur n'est pas admin, on associe automatiquement à son entreprise
+    if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+      editingNote.value.enterprise_id = authStore.user.enterprise_id;
+    }
 
     // Si une localisation est fournie, l'ajouter à la note
     if (props.location) {
@@ -478,8 +522,19 @@ const initializeEditingNote = () => {
     },
     location: props.location || props.note?.location || null,
     comments: props.note?.comments || [],
-    photos: props.note?.photos || []
+    photos: props.note?.photos || [],
+    enterprise_id: props.note?.enterprise_id || null
   };
+
+  // Si l'utilisateur est admin et que la note a une entreprise associée
+  if (authStore.isAdmin && props.note?.enterprise_id) {
+    selectedEnterprise.value = props.note.enterprise_id;
+  }
+
+  // Si l'utilisateur n'est pas admin et n'a pas d'entreprise associée, on associe automatiquement à son entreprise
+  if (!authStore.isAdmin && !editingNote.value.enterprise_id && authStore.user?.enterprise_id) {
+    editingNote.value.enterprise_id = authStore.user.enterprise_id;
+  }
 };
 
 // Appeler l'initialisation au montage du composant
@@ -557,8 +612,14 @@ async function saveNote() {
       access_level: editingNote.value.accessLevel,
       comments: editingNote.value.comments || [],
       photos: editingNote.value.photos || [],
-      color: selectedColor // Ajouter explicitement la couleur
+      color: selectedColor, // Ajouter explicitement la couleur
+      enterprise_id: authStore.isAdmin ? selectedEnterprise.value : editingNote.value.enterprise_id
     };
+
+    // Si l'utilisateur n'est pas admin, on associe automatiquement à son entreprise
+    if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+      noteData.enterprise_id = authStore.user.enterprise_id;
+    }
 
     // Ajouter la localisation seulement si elle existe
     if (editingNote.value.location) {

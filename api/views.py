@@ -635,38 +635,47 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         """
         Ne retourne que les notes des plans accessibles à l'utilisateur
         Si un plan spécifique est demandé, ne retourne que les notes de ce plan
+        Pour les utilisateurs non-admin, filtre également par entreprise
         """
         user = self.request.user
 
         # Vérifier si un plan spécifique est demandé
         plan_id = self.request.query_params.get('plan')
+        # Vérifier si une entreprise spécifique est demandée
+        enterprise_id = self.request.query_params.get('enterprise_id')
 
         # Base queryset selon le rôle de l'utilisateur
         if user.role == ROLE_ADMIN:
             base_queryset = GeoNote.objects.all()
+            # Si une entreprise est spécifiée, filtrer par cette entreprise
+            if enterprise_id:
+                base_queryset = base_queryset.filter(enterprise_id=enterprise_id)
         elif user.role == ROLE_USINE:
             # Une entreprise peut voir les notes où elle est assignée directement
             # ou liées à ses salaries et leurs visiteurs
-            # ainsi que les notes sans plan
+            # ainsi que les notes sans plan mais associées à son entreprise
             base_queryset = GeoNote.objects.filter(
-                Q(plan__isnull=True) |
+                Q(enterprise_id=user) |
+                Q(plan__isnull=True, enterprise_id=user) |
                 Q(plan__entreprise=user) |
                 Q(plan__salarie__entreprise=user) |
                 Q(plan__visiteur__salarie__entreprise=user)
             )
         elif user.role == ROLE_DEALER:
             # Un salarie peut voir ses notes et celles de ses visiteurs
-            # ainsi que les notes sans plan
+            # ainsi que les notes sans plan mais associées à son entreprise
             base_queryset = GeoNote.objects.filter(
-                Q(plan__isnull=True) |
+                Q(enterprise_id=user.entreprise) |
+                Q(plan__isnull=True, enterprise_id=user.entreprise) |
                 Q(plan__salarie=user) |
                 Q(plan__visiteur__salarie=user)
             )
         else:  # visiteur
             # Un visiteur peut voir les notes de ses plans
-            # ainsi que les notes sans plan
+            # ainsi que les notes sans plan mais associées à son entreprise
             base_queryset = GeoNote.objects.filter(
-                Q(plan__isnull=True) |
+                Q(enterprise_id=user.entreprise) |
+                Q(plan__isnull=True, enterprise_id=user.entreprise) |
                 Q(plan__visiteur=user)
             )
 
@@ -685,21 +694,36 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Vérifie que l'utilisateur a le droit de créer une note sur ce plan
+        Assigne automatiquement l'entreprise pour les utilisateurs non-admin
         """
         plan = serializer.validated_data.get('plan')
         user = self.request.user
+        enterprise_id = serializer.validated_data.get('enterprise_id')
 
         # Si c'est une note simple sans plan, on peut créer directement
         if plan is None:
             print(f"[GeoNoteViewSet][perform_create] Création d'une note simple sans plan par {user.username}")
-            serializer.save()
+
+            # Si l'utilisateur n'est pas admin et qu'aucune entreprise n'est définie, utiliser celle de l'utilisateur
+            if not enterprise_id and user.role != ROLE_ADMIN:
+                if user.role == ROLE_USINE:
+                    enterprise_id = user
+                elif hasattr(user, 'entreprise') and user.entreprise:
+                    enterprise_id = user.entreprise
+
+            serializer.save(enterprise_id=enterprise_id)
             return
 
         # Vérifier les permissions pour un plan existant
         # Permettre à tous les utilisateurs (admin, entreprise, salarie, visiteur) de créer des notes
         # Aucune vérification de permission n'est nécessaire
 
-        serializer.save()
+        # Si l'utilisateur n'est pas admin et qu'aucune entreprise n'est définie, utiliser celle du plan
+        if not enterprise_id and user.role != ROLE_ADMIN:
+            if plan.entreprise:
+                enterprise_id = plan.entreprise
+
+        serializer.save(enterprise_id=enterprise_id)
 
 class NoteCommentViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des commentaires sur les notes."""

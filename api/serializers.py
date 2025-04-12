@@ -325,6 +325,7 @@ class GeoNoteSerializer(serializers.ModelSerializer):
     column_details = NoteColumnSerializer(source='column', read_only=True)
     column_id = serializers.CharField(write_only=True, required=False)
     is_geolocated = serializers.SerializerMethodField(read_only=True)
+    enterprise_name = serializers.CharField(source='enterprise_id.company_name', read_only=True)
 
     # Ajouter des logs pour le style
 
@@ -334,11 +335,12 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             'id', 'plan', 'title', 'description', 'location',
             'column', 'column_id', 'column_details',
             'access_level', 'style', 'order', 'created_at', 'updated_at',
-            'category', 'comments', 'photos', 'is_geolocated'
+            'category', 'comments', 'photos', 'is_geolocated', 'enterprise_id', 'enterprise_name'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
         extra_kwargs = {
             'plan': {'required': False, 'allow_null': True},
+            'enterprise_id': {'required': False, 'allow_null': True},
         }
 
     def get_is_geolocated(self, obj):
@@ -353,6 +355,13 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'plan': 'Le plan spécifié n\'existe pas.'
             })
+
+        # Vérifier que l'entreprise existe si elle est fournie
+        if 'enterprise_id' in data and data['enterprise_id'] is not None:
+            if not User.objects.filter(id=data['enterprise_id'].id, role='ENTREPRISE').exists():
+                raise serializers.ValidationError({
+                    'enterprise_id': 'L\'entreprise spécifiée n\'existe pas.'
+                })
 
         # Gérer la colonne
         # Priorité 1: utiliser 'column' s'il est déjà défini dans data
@@ -371,6 +380,15 @@ class GeoNoteSerializer(serializers.ModelSerializer):
 
         if 'column' in data:
             print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
+
+        # Si l'utilisateur n'est pas admin, on associe automatiquement à son entreprise
+        request = self.context.get('request')
+        if request and request.user and request.user.role != 'ADMIN':
+            if request.user.role == 'ENTREPRISE':
+                data['enterprise_id'] = request.user
+            elif request.user.role in ['SALARIE', 'VISITEUR'] and hasattr(request.user, 'entreprise') and request.user.entreprise:
+                data['enterprise_id'] = request.user.entreprise
+
         return data
 
     def create(self, validated_data):
@@ -383,9 +401,17 @@ class GeoNoteSerializer(serializers.ModelSerializer):
         if 'column' not in validated_data:
             validated_data['column'] = '1'  # Colonne "Idées" par défaut
 
+        # Si l'utilisateur n'est pas admin et qu'aucune entreprise n'est définie, utiliser celle de l'utilisateur
+        request = self.context.get('request')
+        if request and request.user and 'enterprise_id' not in validated_data:
+            if request.user.role == 'ENTREPRISE':
+                validated_data['enterprise_id'] = request.user
+            elif request.user.role in ['SALARIE', 'VISITEUR'] and hasattr(request.user, 'entreprise') and request.user.entreprise:
+                validated_data['enterprise_id'] = request.user.entreprise
+
         print(f"[GeoNoteSerializer][create] Données finales pour création: {validated_data}")
         instance = super().create(validated_data)
-        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column}")
+        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column}, Entreprise: {instance.enterprise_id}")
         return instance
 
 class PlanDetailSerializer(serializers.ModelSerializer):
