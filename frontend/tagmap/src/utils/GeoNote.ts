@@ -289,13 +289,15 @@ export class GeoNote extends L.Marker {
 
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
     // Priorité: _dbId (ID de la base de données), puis properties.id, puis _leaflet_id
-    const noteId = (this as any)._dbId || this.properties.id || (this as any)._leaflet_id;
+    const backendId = (this as any)._dbId;
+    const leafletId = (this as any)._leaflet_id;
 
-    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${(this as any)._dbId}, ID properties: ${this.properties.id}, ID Leaflet: ${(this as any)._leaflet_id}, ID utilisé: ${noteId}`);
+    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${backendId}, ID properties: ${this.properties.id}, ID Leaflet: ${leafletId}`);
 
     // Créer un objet note à partir des propriétés
     const note = {
-      id: noteId,
+      id: leafletId, // Utiliser l'ID Leaflet pour l'identification de la couche
+      backendId: backendId, // Stocker l'ID backend séparément pour les appels API
       title: this.properties.name,
       description: this.properties.description,
       location: {
@@ -331,13 +333,13 @@ export class GeoNote extends L.Marker {
       detail: {
         note,
         source: this,
-        backendId: (this as any)._dbId // Transmettre explicitement l'ID backend
+        backendId: backendId // Transmettre explicitement l'ID backend
       }
     });
     window.dispatchEvent(event);
 
     // Également émettre l'événement Leaflet standard (pour compatibilité)
-    this.fire('note:edit', { note, source: this, backendId: (this as any)._dbId });
+    this.fire('note:edit', { note, source: this, backendId: backendId });
   }
 
   // Méthode pour ouvrir Google Maps avec itinéraire

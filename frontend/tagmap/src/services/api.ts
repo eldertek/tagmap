@@ -427,26 +427,26 @@ async function retryWithBackoff<T>(
   maxDelay: number = 10000  // Délai maximum en ms
 ): Promise<T> {
   let retries = 0;
-  
+
   while (true) {
     try {
       return await operation();
     } catch (error: any) {
       retries++;
-      
+
       // Si on a atteint le nombre maximum de tentatives, on propage l'erreur
       if (retries >= maxRetries) {
         throw error;
       }
-      
+
       // Calculer le délai avec backoff exponentiel
       const delay = Math.min(baseDelay * Math.pow(2, retries - 1), maxDelay);
-      
+
       // Ajouter un peu de "jitter" pour éviter que tous les clients retentent en même temps
       const jitter = Math.random() * 200;
-      
+
       console.log(`Tentative ${retries}/${maxRetries} échouée, nouvelle tentative dans ${delay + jitter}ms`);
-      
+
       // Attendre avant la prochaine tentative
       await new Promise(resolve => setTimeout(resolve, delay + jitter));
     }
@@ -622,6 +622,9 @@ export const noteService = {
     console.log('[noteService][updateNote] Mise à jour de la note:', { noteId, noteData });
     const endMeasure = performanceMonitor.startMeasure('update_note', 'NoteService');
     try {
+      // Utiliser l'ID backend si disponible
+      const backendId = noteData.backendId || noteId;
+
       // Préparer les données pour la mise à jour
       const updateData = {
         ...noteData
@@ -641,16 +644,19 @@ export const noteService = {
         updateData.column = noteData.columnId;
       }
 
-      // Supprimer les champs redondants
+      // Supprimer les champs redondants et techniques
       delete updateData.columnId;
       delete updateData.column_id;
       delete updateData.column_details;
+      delete updateData.backendId; // Supprimer l'ID backend des données envoyées
+      delete updateData.leafletId; // Supprimer l'ID Leaflet des données envoyées
 
       console.log('[noteService][updateNote] Données formatées:', updateData);
+      console.log(`[noteService][updateNote] Utilisation de l'ID backend ${backendId} pour la mise à jour`);
 
       const response = await performanceMonitor.measureAsync(
         'update_note_request',
-        () => api.patch(`/notes/${noteId}/`, updateData),
+        () => api.patch(`/notes/${backendId}/`, updateData),
         'NoteService'
       );
 

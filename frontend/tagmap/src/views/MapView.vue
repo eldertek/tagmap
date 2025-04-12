@@ -982,10 +982,10 @@ function getMapPosition(): { lat: number; lng: number; zoom: number } | null {
 }
 onMounted(async () => {
   console.log('[MapView][onMounted] Initialisation du composant MapView');
-  
+
   // Ajouter un écouteur pour détecter les changements de taille d'écran
   window.addEventListener('resize', checkMobile);
-  
+
   console.log('[MapView][onMounted] État initial des filtres dans le store:', JSON.stringify({
     accessLevels: { ...drawingStore.filters.accessLevels },
     categories: { ...drawingStore.filters.categories },
@@ -1290,15 +1290,22 @@ onMounted(async () => {
       const note = event.detail.note;
       console.log('[MapView] Note à éditer (global):', note);
 
-      // Convertir la note en note compatible avec le store
-      // Rechercher la forme dans shapes.value pour obtenir le dbId correct
-      const shape = shapes.value.find(s => s.layer === event.detail.source);
-      const dbId = shape ? shape.id : note.id;
+      // Utiliser l'ID backend transmis explicitement dans l'événement
+      // ou récupérer l'ID backend de la note si disponible
+      const backendId = event.detail.backendId || note.backendId;
 
-      console.log('[MapView] ID de la note pour l\'API:', dbId, 'Source:', event.detail.source ? 'Couche Leaflet' : 'Autre');
+      // Si aucun ID backend n'est disponible, essayer de le trouver dans shapes.value
+      let dbId = backendId;
+      if (!dbId) {
+        const shape = shapes.value.find(s => s.layer === event.detail.source);
+        dbId = shape ? shape.id : note.id;
+      }
+
+      console.log('[MapView] ID backend de la note pour l\'API:', dbId, 'Source:', event.detail.source ? 'Couche Leaflet' : 'Autre');
 
       editingMapNote.value = {
-        id: dbId, // Utiliser l'ID de la base de données
+        id: dbId, // Utiliser l'ID de la base de données pour l'API
+        leafletId: note.id, // Conserver l'ID Leaflet pour référence
         title: note.title || note.name,
         description: note.description,
         location: note.location,
@@ -1318,6 +1325,8 @@ onMounted(async () => {
         comments: note.comments || [],
         photos: note.photos || []
       };
+
+      console.log('[MapView] Note préparée pour édition:', editingMapNote.value);
 
       // Ouvrir le modal d'édition
       showNoteEditModal.value = true;
@@ -1477,10 +1486,10 @@ onBeforeUnmount(() => {
   if (map.value) {
     map.value.off('moveend');
   }
-  
+
   // Supprimer l'écouteur d'événement pour la taille d'écran
   window.removeEventListener('resize', checkMobile);
-  
+
   window.removeEventListener('shape:created', (() => { }) as EventListener);
 });
 // Fonction pour afficher/masquer les outils de dessin sur mobile
