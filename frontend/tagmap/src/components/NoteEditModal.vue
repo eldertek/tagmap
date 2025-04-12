@@ -575,11 +575,18 @@ async function saveNote() {
     let savedNote;
     if (props.note?.id) {
       // Mise à jour d'une note existante
-      const response = await noteService.updateNote(props.note.id, noteData);
+      // Utiliser l'ID backend si disponible, sinon utiliser l'ID fourni
+      const noteId = props.note.backendId || props.note.id;
+      console.log(`[NoteEditModal] Mise à jour de la note avec ID backend: ${noteId}`);
+
+      // Ajouter l'ID backend aux données pour que le service API puisse l'utiliser
+      noteData.backendId = props.note.backendId;
+
+      const response = await noteService.updateNote(noteId, noteData);
       savedNote = response.data;
 
       // Mettre à jour le store avec les données modifiées
-      notesStore.updateNote(props.note.id, {
+      notesStore.updateNote(noteId, {
         ...editingNote.value,
         ...savedNote,
         accessLevel: editingNote.value.accessLevel,
@@ -589,10 +596,11 @@ async function saveNote() {
       });
 
       // Émettre un événement pour mettre à jour le style sur la carte
-      const noteId = props.note.id;
+      // Utiliser l'ID Leaflet pour la mise à jour visuelle sur la carte
+      const leafletId = props.note.leafletId || props.note.id;
       const updateEvent = new CustomEvent('geonote:update', {
         detail: {
-          noteId: noteId,
+          noteId: leafletId,
           properties: {
             name: editingNote.value.title,
             description: editingNote.value.description,
@@ -664,7 +672,7 @@ function closeOnOutsideClick(event: MouseEvent) {
   // On désactive temporairement cette fermeture automatique pour éviter les fermetures accidentelles
   // Commentez cette ligne si vous voulez réactiver la fermeture en cliquant en dehors
   event.stopPropagation();
-  
+
   // Décommentez cette ligne pour réactiver la fermeture en cliquant en dehors
   // closeModal();
 }

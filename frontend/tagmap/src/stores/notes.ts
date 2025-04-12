@@ -44,6 +44,7 @@ export interface Photo {
 export interface Note {
   id: number;
   backendId?: number; // ID explicite du backend, utilisé quand l'ID principal est un ID Leaflet
+  leafletId?: number; // ID Leaflet pour référence et mise à jour visuelle
   title: string;
   description: string;
   location: [number, number] | {
