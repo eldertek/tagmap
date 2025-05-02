@@ -243,4 +243,20 @@ The core database models include:
 - Application logging with rotating file handlers
 - Database query logging for performance analysis
 - Error tracking and reporting
-- Performance monitoring 
+- Performance monitoring
+
+## Frontend : gestion avancée de l'interactivité Leaflet
+
+### Sélection tolérante (Leaflet.AlmostOver)
+- Utilisation du plugin Leaflet.AlmostOver pour améliorer la sélection des entités cartographiques (lignes, polygones, GeoNotes) avec une tolérance personnalisée.
+- Correction des types TypeScript pour la compatibilité avec les événements AlmostOver.
+- Gestion des survols, clics et sorties avec des effets visuels (surlignage, pulsation, curseur pointer).
+
+### Robustesse de l'affichage des GeoNotes
+- Ajout de méthodes `forceVisible()` et `recreateIcon()` dans la classe GeoNote pour garantir la visibilité de l'icône même en cas de bug d'affichage ou de disparition DOM.
+- Vérification automatique de la taille de l'élément DOM après chaque interaction critique (survol, zoom, déplacement) et recréation de l'icône si nécessaire.
+- Application de styles CSS globaux pour forcer la visibilité et la non-disparition des notes.
+
+### Gestion des erreurs et logs
+- Ajout de logs détaillés pour le debug (état du DOM, actions de recréation, etc.).
+- Gestion robuste des erreurs lors de la manipulation du DOM (try/catch, fallback sur recréation d'icône). 

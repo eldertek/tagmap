@@ -74,7 +74,11 @@ export class GeoNote extends L.Marker {
           justify-content: center;
           width: 100%;
           height: 100%;
-          transform-origin: center bottom;
+          position: relative;
+          transition: filter 0.2s ease-in-out;
+        }
+        .geo-note-marker.hover {
+          filter: brightness(1.2) drop-shadow(0 0 4px rgba(59, 130, 246, 0.7));
         }
       `;
       document.head.appendChild(style);
@@ -140,13 +144,20 @@ export class GeoNote extends L.Marker {
           this.updatePosition();
           // Rafraîchir le style de l'icône
           this.refreshIconStyle();
+          // Forcer la visibilité après le zoom
+          this.forceVisible();
         });
         map.on('moveend', () => {
           // Mettre à jour la position après la fin du déplacement
           this.updatePosition();
           // Rafraîchir le style de l'icône
           this.refreshIconStyle();
+          // Forcer la visibilité après le déplacement
+          this.forceVisible();
         });
+        
+        // Forcer la visibilité immédiatement après l'ajout
+        setTimeout(() => this.forceVisible(), 100);
       }
     });
 
@@ -214,6 +225,210 @@ export class GeoNote extends L.Marker {
       type: this.properties.type,
       style: this.properties.style
     });
+
+    // Ajouter des écouteurs pour les événements de survol
+    this.on('mouseover', this.highlight);
+    this.on('mouseout', this.unhighlight);
+  }
+
+  /**
+   * Force la visibilité de la note, utile en cas de problème d'affichage
+   */
+  forceVisible(): void {
+    try {
+      // Obtenir l'élément DOM
+      const element = this.getElement();
+      if (!element) {
+        console.warn('[GeoNote][forceVisible] Élément DOM introuvable, recréation de l\'icône');
+        // Recréer complètement l'icône si l'élément n'est pas trouvé
+        this.recreateIcon();
+        return;
+      }
+      
+      console.log('[GeoNote][forceVisible] Forçage de la visibilité de la note');
+      
+      // Forcer la visibilité de l'élément principal
+      element.style.display = 'block';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      
+      // Forcer la visibilité du conteneur marker
+      const markerElement = element.querySelector('.geo-note-marker');
+      if (markerElement) {
+        (markerElement as HTMLElement).style.display = 'flex';
+        (markerElement as HTMLElement).style.visibility = 'visible';
+        (markerElement as HTMLElement).style.opacity = '1';
+      }
+      
+      // Forcer la visibilité du SVG
+      const svgElement = element.querySelector('svg');
+      if (svgElement) {
+        (svgElement as SVGElement).style.display = 'block';
+        (svgElement as SVGElement).style.visibility = 'visible';
+        (svgElement as SVGElement).style.opacity = '1';
+      }
+      
+      // Forcer un reflow pour garantir l'affichage
+      void element.offsetHeight;
+      
+      console.log('[GeoNote][forceVisible] Note maintenant visible');
+    } catch (error) {
+      console.error('[GeoNote][forceVisible] Erreur:', error);
+      // Comme dernier recours, recréer complètement l'icône
+      this.recreateIcon();
+    }
+  }
+  
+  /**
+   * Recrée complètement l'icône en cas de problème d'affichage
+   */
+  recreateIcon(): void {
+    try {
+      console.log('[GeoNote][recreateIcon] Recréation de l\'icône');
+      
+      // Récupérer la position actuelle
+      const currentLatLng = this.getLatLng();
+      
+      // Récupérer la couleur à utiliser
+      const fillColor = this.properties.style?.fillColor || this.properties.style?.color || '#2b6451';
+      
+      // Créer une nouvelle icône avec le SVG coloré
+      const iconHtml = `
+        <div class="geo-note-marker" style="display: flex; visibility: visible; opacity: 1;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" style="display: block; visibility: visible; opacity: 1;">
+            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" fill="${fillColor}" />
+          </svg>
+        </div>
+      `;
+      
+      // Créer une nouvelle icône avec des styles forcés pour la visibilité
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: 'geo-note-icon forced-visible',
+        iconSize: [24, 36],
+        iconAnchor: [12, 36],
+        popupAnchor: [0, -36]
+      });
+      
+      // Mettre à jour l'icône
+      this.setIcon(icon);
+      
+      // Rafraîchir la position pour s'assurer qu'elle est correcte
+      if (this._map) {
+        const point = this._map.latLngToLayerPoint(currentLatLng);
+        const element = this.getElement();
+        if (element) {
+          L.DomUtil.setPosition(element, point);
+        }
+      }
+      
+      // Ajouter un style global pour garantir la visibilité
+      if (!document.getElementById('geo-note-forced-style')) {
+        const style = document.createElement('style');
+        style.id = 'geo-note-forced-style';
+        style.textContent = `
+          .forced-visible {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+          }
+          .forced-visible * {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .geo-note-marker {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      console.log('[GeoNote][recreateIcon] Icône recréée avec succès');
+    } catch (error) {
+      console.error('[GeoNote][recreateIcon] Erreur lors de la recréation de l\'icône:', error);
+    }
+  }
+
+  /**
+   * Applique un effet de surbrillance à la note
+   */
+  highlight(): void {
+    const element = this.getElement();
+    if (element) {
+      console.log('[GeoNote][highlight] Avant application de l\'effet:', {
+        element,
+        display: element.style.display,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      });
+      
+      // Forcer la visibilité d'abord
+      this.forceVisible();
+      
+      // S'assurer que l'élément est visible
+      element.style.visibility = 'visible';
+      element.style.display = '';
+      element.style.opacity = '1';
+      
+      // Augmenter le z-index
+      element.style.zIndex = '1000';
+      
+      // Appliquer la classe d'effet
+      const markerElement = element.querySelector('.geo-note-marker');
+      if (markerElement) {
+        markerElement.classList.add('hover');
+      }
+      
+      console.log('[GeoNote][highlight] Après application de l\'effet:', {
+        element,
+        display: element.style.display,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      });
+    }
+  }
+
+  /**
+   * Retire l'effet de surbrillance de la note
+   */
+  unhighlight(): void {
+    const element = this.getElement();
+    if (element) {
+      console.log('[GeoNote][unhighlight] Avant retrait de l\'effet:', {
+        element,
+        display: element.style.display,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      });
+      
+      // Forcer la visibilité d'abord
+      this.forceVisible();
+      
+      // Retirer la classe d'effet
+      const markerElement = element.querySelector('.geo-note-marker');
+      if (markerElement) {
+        markerElement.classList.remove('hover');
+      }
+      
+      // Réinitialiser le z-index sans toucher aux autres propriétés
+      element.style.zIndex = '';
+      
+      // S'assurer que l'élément reste visible
+      element.style.visibility = 'visible';
+      element.style.display = '';
+      element.style.opacity = '1';
+      
+      console.log('[GeoNote][unhighlight] Après retrait de l\'effet:', {
+        element,
+        display: element.style.display,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      });
+    }
   }
 
   // Commenté : Méthode pour créer le contenu du popup
@@ -1075,6 +1290,8 @@ export class GeoNote extends L.Marker {
       // Récupérer l'élément DOM du marqueur
       const element = this.getElement();
       if (!element) {
+        console.warn('[GeoNote][updatePosition] Élément DOM introuvable, recréation de l\'icône');
+        this.recreateIcon();
         return;
       }
 
@@ -1087,8 +1304,32 @@ export class GeoNote extends L.Marker {
       // Réafficher le marqueur avec une transition douce
       element.style.opacity = '1';
       element.style.transition = 'opacity 0.2s';
+
+      // S'assurer que l'élément est visible
+      element.style.visibility = 'visible';
+      element.style.display = 'block';
+      
+      // Log pour déboguer
+      console.log('[GeoNote][updatePosition] Position mise à jour:', {
+        latLng: this.getLatLng(),
+        pixelPosition: position,
+        element
+      });
+      
+      // En dernier recours, recréer complètement l'icône si elle semble ne pas s'afficher correctement
+      // Vérifier le état de l'élément pour détecter un problème d'affichage
+      const boundingRect = element.getBoundingClientRect();
+      if (boundingRect.width === 0 || boundingRect.height === 0) {
+        console.warn('[GeoNote][updatePosition] L\'élément a une taille nulle, recréation de l\'icône');
+        this.recreateIcon();
+      } else {
+        // Forcer la visibilité pour s'assurer que l'élément reste visible
+        setTimeout(() => this.forceVisible(), 50);
+      }
     } catch (error) {
       console.warn('[GeoNote][updatePosition] Erreur lors de la mise à jour de la position:', error);
+      // Recréer l'icône comme dernière solution
+      this.recreateIcon();
     }
   }
 }

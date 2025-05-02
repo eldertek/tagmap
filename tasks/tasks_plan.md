@@ -60,6 +60,11 @@
    - [ ] Implement layer switching UI
    - [ ] Create map controls
    - [ ] Test map rendering on different devices
+   - [x] Intégrer Leaflet.AlmostOver pour la sélection tolérante des lignes, polygones et GeoNotes (tolérance 25px, gestion des événements almost:over, almost:out, almost:click)
+   - [x] Ajouter forceVisible() et recreateIcon() à GeoNote pour garantir la visibilité même en cas de bug d'affichage
+   - [x] Corriger les types TypeScript pour la compatibilité avec les événements AlmostOver
+   - [x] Appliquer des styles CSS globaux pour forcer la visibilité des notes
+   - [x] Ajouter une gestion robuste des erreurs et des logs détaillés pour le debug frontend
 
 ### Phase 2: Core Features (Priority: Medium)
 

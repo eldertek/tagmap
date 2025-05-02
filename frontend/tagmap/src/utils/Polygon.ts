@@ -16,6 +16,10 @@ interface ExtendedPolylineOptions extends L.PolylineOptions {
  */
 export class Polygon extends L.Polygon {
   properties: any;
+  // Ajouter les propriétés pour le hover effet
+  _originalStyle?: L.PathOptions;
+  _path?: SVGPathElement;
+  
   constructor(
     latlngs: L.LatLngExpression[] | L.LatLngExpression[][] | L.LatLngExpression[][][],
     options: ExtendedPolylineOptions = {}
@@ -40,6 +44,10 @@ export class Polygon extends L.Polygon {
         name: options.name || ''
       }
     }));
+    
+    // Ajouter des écouteurs pour le survol
+    this.on('mouseover', this.highlight);
+    this.on('mouseout', this.unhighlight);
 
     this.updateProperties();
     this.on({
@@ -293,5 +301,54 @@ export class Polygon extends L.Polygon {
       }
       return distances;
     });
+  }
+  /**
+   * Met en surbrillance le polygone lorsqu'il est survolé
+   */
+  highlight(): void {
+    if (!this._originalStyle) {
+      this._originalStyle = {...this.options};
+      
+      // Appliquer un style plus visible pour le survol
+      const newWeight = (this._originalStyle.weight || 3) * 1.5;
+      
+      this.setStyle({
+        weight: newWeight,
+        opacity: 1,
+        fillOpacity: Math.min((this._originalStyle.fillOpacity || 0.2) + 0.1, 0.4),
+        className: 'polygon-hover-effect'
+      });
+      
+      // Ajouter un effet visuel au chemin SVG si accessible
+      try {
+        if (this._path) {
+          // Ajouter un effet de lueur avec CSS
+          this._path.style.filter = 'drop-shadow(0 0 3px rgba(43, 100, 81, 0.7))';
+          this._path.style.transition = 'all 0.2s ease-in-out';
+        }
+      } catch (error) {
+        console.warn('Impossible d\'appliquer l\'effet de lueur au polygone', error);
+      }
+    }
+  }
+  
+  /**
+   * Restaure le style original du polygone
+   */
+  unhighlight(): void {
+    if (this._originalStyle) {
+      this.setStyle(this._originalStyle);
+      this._originalStyle = undefined;
+      
+      // Restaurer le style du chemin SVG
+      try {
+        if (this._path) {
+          this._path.style.filter = '';
+          this._path.style.transition = '';
+        }
+      } catch (error) {
+        console.warn('Impossible de restaurer le style du polygone', error);
+      }
+    }
   }
 }

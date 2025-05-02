@@ -58,6 +58,10 @@ The project is currently in the initialization phase. Documentation is being set
 - Integrated Google Maps via leaflet.gridlayer.googlemutant for improved hybrid satellite/labels view
 - Implemented dynamic Google Maps API loading for better performance
 - Created configuration system for map services with API key management
+- Integrated Leaflet.AlmostOver plugin to improve line selection with a tolerance area around lines
+- Enhanced line interaction with visual feedback on hover when mouse is near a line
+- Added automatic line detection to make it easier to select lines on the map
+- Amélioration de la fonction AlmostOver : possibilité de survoler et sélectionner d'autres formes même lorsqu'une forme est déjà sélectionnée, ce qui permet une navigation plus fluide entre les différentes entités de la carte.
 
 ## Next Actions
 

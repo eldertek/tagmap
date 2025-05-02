@@ -82,4 +82,11 @@ Organizations need a centralized way to:
 - Enhanced filtering capabilities
 - Additional map visualization options
 - Expanded API integration options
-- Advanced reporting and analytics features 
+- Advanced reporting and analytics features
+
+## Expérience utilisateur cartographique améliorée
+
+- La sélection des lignes, polygones et notes géolocalisées sur la carte est désormais tolérante grâce à Leaflet.AlmostOver : il n'est plus nécessaire de cliquer précisément sur la géométrie.
+- Les notes géolocalisées (GeoNotes) restent toujours visibles, même en cas de bug d'affichage ou de disparition DOM, grâce à une gestion avancée de la visibilité et à la recréation dynamique de l'icône si besoin.
+- Les effets visuels (surlignage, pulsation, curseur pointer) guident l'utilisateur lors de l'interaction avec la carte.
+- Robustesse accrue sur mobile et desktop pour la manipulation des entités cartographiques. 

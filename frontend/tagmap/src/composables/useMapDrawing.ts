@@ -1,6 +1,8 @@
 import { ref, onUnmounted, nextTick, type Ref } from 'vue';
 import * as L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
+import 'leaflet-geometryutil';
+import 'leaflet-almostover';
 import { Circle } from '../utils/Circle';
 import { Rectangle } from '../utils/Rectangle';
 import { Line } from '../utils/Line';
@@ -19,17 +21,38 @@ import { featureCollection } from '@turf/helpers';
 import { useDrawingStore } from '../stores/drawing';
 // import { performanceMonitor } from '@/utils/usePerformanceMonitor'; // Supprimé car non utilisé
 
-// Interfaces supprimées car non utilisées
-// interface FrozenState {
-//   draggable?: boolean;
-//   pmEnabled?: boolean;
-// }
-//
-// interface ExtendedLayer extends L.Layer {
-//   pm?: any;
-//   options: L.LayerOptions & Partial<L.PathOptions>;
-//   setStyle?: (style: L.PathOptions) => void;
-// }
+// Interface pour les événements AlmostOver de Leaflet
+interface AlmostOverEvent extends L.LeafletEvent {
+  latlng: L.LatLng;
+  layer: L.Layer;
+}
+
+// Declare le type pour almostOver sur l'instance de Map
+declare module 'leaflet' {
+  interface Map {
+    almostOver: {
+      addLayer: (layer: L.Layer) => void;
+      removeLayer: (layer: L.Layer) => void;
+      options: {
+        tolerance: number;
+      };
+    };
+    options: {
+      almostOnMouseMove?: boolean;
+      zoomAnimation?: boolean;
+      fadeAnimation?: boolean;
+      markerZoomAnimation?: boolean;
+    }
+  }
+  
+  // Étendre la définition des événements Leaflet pour les événements AlmostOver
+  namespace LeafletEvent {
+    interface AlmostOverEvent extends L.LeafletEvent {
+      latlng: L.LatLng;
+      layer: L.Layer;
+    }
+  }
+}
 
 // Ajouter cette interface avant la déclaration du module 'leaflet'
 interface CustomIconOptions extends L.DivIconOptions {
@@ -169,6 +192,8 @@ interface MapDrawingReturn {
   hideCoverageOverlay: () => void;                   // Nouvelle fonction
   calculateConnectedCoverageArea: (layers: L.Layer[], startLayer: L.Layer) => number;
   getConnectedShapes: (layers: L.Layer[], startLayer: L.Layer) => L.Layer[];
+  disableAlmostOver: () => () => void;
+  addLinesToAlmostOver: () => void;
 }
 // Ajouter cette fonction en haut du fichier, après les imports
 const debounce = (fn: Function, delay: number) => {
@@ -594,8 +619,40 @@ export function useMapDrawing(): MapDrawingReturn {
       updateTextStyle(element, textMarker.properties.style);
     }
   };
+  // Fonction pour ajouter les lignes existantes à almostOver
+  const addLinesToAlmostOver = () => {
+    if (!map.value || !map.value.almostOver || !featureGroup.value) {
+      return;
+    }
+    
+    // Récupérer toutes les lignes existantes
+    const lines = featureGroup.value.getLayers().filter((layer: L.Layer) => 
+      layer instanceof Line || 
+      (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) ||
+      layer instanceof Polygon ||
+      layer instanceof GeoNote
+    );
+    
+    // Ajouter chaque ligne au almostOver
+    lines.forEach((line: L.Layer) => {
+      map.value?.almostOver.addLayer(line);
+      console.log('[useMapDrawing] Couche ajoutée à almostOver:', line);
+    });
+    
+    console.log(`[useMapDrawing] ${lines.length} couches ajoutées à almostOver`);
+  };
+
   const initMap = (element: HTMLElement, center: L.LatLngExpression, zoom: number): L.Map => {
-    const mapInstance = L.map(element).setView(center, zoom);
+    // Créer les options étendues de la carte qui incluent nos options personnalisées
+    // Utiliser une assertion de type pour éviter l'erreur TypeScript
+    const mapOptions = {
+      almostOnMouseMove: true, // Enable almostOver for mousemove events
+      zoomAnimation: true,
+      fadeAnimation: true,
+      markerZoomAnimation: true
+    } as any; // Assertion de type pour éviter l'erreur TypeScript
+    
+    const mapInstance = L.map(element, mapOptions).setView(center, zoom);
     map.value = mapInstance;
     L.tileLayer(import.meta.env.VITE_OSM_TILES_URL, {
       attribution: '© OpenStreetMap contributors',
@@ -608,9 +665,19 @@ export function useMapDrawing(): MapDrawingReturn {
     const fg = new L.FeatureGroup();
     fg.addTo(mapInstance);
     featureGroup.value = fg;
+    
+    // Initialize almostOver with a tolerance of 25 pixels
+    if (!mapInstance.almostOver) {
+      console.warn('Leaflet.AlmostOver plugin not loaded properly');
+    } else {
+      // Set the click tolerance in pixels
+      mapInstance.almostOver.options.tolerance = 25;
+    }
+    
     // Initialiser les groupes de points de contrôle
     controlPointsGroup.value = L.featureGroup().addTo(mapInstance);
     tempControlPointsGroup.value = L.featureGroup().addTo(mapInstance);
+    
     // Configuration de Leaflet-Geoman
     mapInstance.pm.setGlobalOptions({
       snappable: true,
@@ -635,6 +702,13 @@ export function useMapDrawing(): MapDrawingReturn {
         radius: 6
       } as L.CircleMarkerOptions
     } as ExtendedGlobalOptions);
+    
+    // Ajouter les lignes existantes à almostOver
+    // Utiliser un timeout pour s'assurer que les lignes sont chargées
+    setTimeout(addLinesToAlmostOver, 500);
+    
+    // ... existing code ...
+
     // Événements de dessin
     mapInstance.on('pm:drawstart', (e: any) => {
       isDrawing.value = true;
@@ -881,6 +955,271 @@ export function useMapDrawing(): MapDrawingReturn {
         document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
       }
     });
+    
+    // Setup AlmostOver event listeners
+    mapInstance.on('almost:over', (function(e: L.LeafletEvent) {
+      // Assertion de type pour éviter l'erreur TypeScript
+      const almostEvent = e as unknown as AlmostOverEvent;
+      const layer = almostEvent.layer;
+      
+      // Enlever la condition !selectedShape.value pour permettre le survol même avec une forme sélectionnée
+      if (layer) {
+        // Si la forme est déjà sélectionnée, ne pas appliquer l'effet de survol
+        if (selectedShape.value === layer) {
+          return;
+        }
+        
+        // Highlight the line when the mouse is almost over it
+        if (layer instanceof Line) {
+          const originalStyle = { ...layer.options };
+          layer._originalStyle = originalStyle;
+          layer.setStyle({ 
+            weight: (originalStyle.weight || 3) + 2,
+            opacity: Math.min((originalStyle.opacity || 1) + 0.2, 1)
+          });
+          
+          // Afficher un message d'aide indiquant que l'utilisateur peut cliquer pour sélectionner la ligne
+          document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
+          showHelpMessage('Cliquez pour sélectionner cette ligne');
+          
+          // Changer le curseur en pointeur pour indiquer que l'élément est cliquable
+          if (mapInstance.getContainer()) {
+            mapInstance.getContainer().style.cursor = 'pointer';
+          }
+        } 
+        // Support pour les polygones
+        else if (layer instanceof Polygon) {
+          const originalStyle = { ...layer.options };
+          (layer as any)._originalStyle = originalStyle;
+          layer.setStyle({ 
+            weight: (originalStyle.weight || 3) + 2,
+            opacity: Math.min((originalStyle.opacity || 1) + 0.2, 1),
+            fillOpacity: Math.min((originalStyle.fillOpacity || 0.2) + 0.1, 0.4)
+          });
+          
+          document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
+          showHelpMessage('Cliquez pour sélectionner ce polygone');
+          
+          if (mapInstance.getContainer()) {
+            mapInstance.getContainer().style.cursor = 'pointer';
+          }
+        }
+        // Support pour les notes géolocalisées
+        else if (layer instanceof GeoNote) {
+          const element = layer.getElement();
+          if (element) {
+            console.log('[almost:over] État initial de la GeoNote', {
+              display: element.style.display,
+              visibility: element.style.visibility,
+              opacity: element.style.opacity,
+              filter: element.style.filter
+            });
+            
+            // Ajouter la classe pour l'effet de pulsation
+            element.classList.add('geo-note-pulse');
+            
+            // Augmenter le z-index pour placer au-dessus des autres éléments
+            element.style.zIndex = '1000';
+            
+            // S'assurer que l'élément est visible
+            element.style.visibility = 'visible';
+            element.style.display = 'flex';
+            element.style.opacity = '1';
+            
+            // Utiliser un filtre explicite (pas d'animation dans le style inline)
+            element.style.filter = 'drop-shadow(0 0 5px rgba(59, 130, 246, 0.7))';
+            
+            console.log('[almost:over] GeoNote après application de l\'effet', element);
+          }
+          
+          document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
+          showHelpMessage('Cliquez pour sélectionner cette note');
+          
+          if (mapInstance.getContainer()) {
+            mapInstance.getContainer().style.cursor = 'pointer';
+          }
+        }
+      }
+    }) as L.LeafletEventHandlerFn);
+    
+    mapInstance.on('almost:out', (function(e: L.LeafletEvent) {
+      // Assertion de type pour éviter l'erreur TypeScript
+      const almostEvent = e as unknown as AlmostOverEvent;
+      const layer = almostEvent.layer;
+      
+      // Enlever la condition !selectedShape.value pour permettre le survol même avec une forme sélectionnée
+      if (layer) {
+        // Si la forme est déjà sélectionnée, ne pas réinitialiser son style
+        if (selectedShape.value === layer) {
+          return;
+        }
+        
+        // Restore original style when mouse moves away
+        if (layer instanceof Line && layer._originalStyle) {
+          layer.setStyle(layer._originalStyle);
+          layer._originalStyle = undefined;
+        }
+        // Support pour les polygones
+        else if (layer instanceof Polygon) {
+          if ((layer as any)._originalStyle) {
+            layer.setStyle((layer as any)._originalStyle);
+            (layer as any)._originalStyle = undefined;
+          }
+        }
+        // Support pour les notes géolocalisées
+        else if (layer instanceof GeoNote) {
+          const element = layer.getElement();
+          if (element) {
+            console.log('[almost:out] État de la GeoNote avant réinitialisation', {
+              display: element.style.display,
+              visibility: element.style.visibility,
+              opacity: element.style.opacity,
+              filter: element.style.filter
+            });
+            
+            // Retirer la classe de pulsation
+            element.classList.remove('geo-note-pulse');
+            
+            // Réinitialiser le z-index
+            element.style.zIndex = '';
+            
+            // Réinitialiser le filtre sans le supprimer complètement
+            element.style.filter = 'none';
+            
+            // S'assurer que l'opacité est maintenue à 1
+            element.style.opacity = '1';
+            
+            // Forcer un rafraîchissement de l'affichage
+            element.style.display = 'block';
+            element.style.visibility = 'visible';
+            
+            // S'assurer que tous les descendants sont également visibles
+            Array.from(element.querySelectorAll('*')).forEach(el => {
+              (el as HTMLElement).style.visibility = 'visible';
+              (el as HTMLElement).style.display = 'block';
+              (el as HTMLElement).style.opacity = '1';
+            });
+            
+            console.log('[almost:out] GeoNote après réinitialisation', element);
+            
+            // Utiliser recreateIcon en dernier recours, uniquement si après un délai court l'élément est toujours invisible
+            setTimeout(() => {
+              try {
+                const boundingRect = element.getBoundingClientRect();
+                if (boundingRect.width === 0 || boundingRect.height === 0) {
+                  console.warn('[almost:out] L\'élément a une taille nulle après sortie, recréation de l\'icône');
+                  layer.recreateIcon();
+                }
+              } catch (error) {
+                console.error('[almost:out] Erreur lors de la vérification de la taille:', error);
+                layer.recreateIcon();
+              }
+            }, 100);
+          } else {
+            // Si l'élément est introuvable, recréer l'icône
+            console.warn('[almost:out] Élément DOM introuvable, recréation de l\'icône');
+            layer.recreateIcon();
+          }
+        }
+        
+        // Supprimer le message d'aide uniquement si ce n'est pas lié à la forme sélectionnée
+        // (ainsi le message d'aide pour la forme sélectionnée reste affiché)
+        if (!selectedShape.value || 
+            (selectedShape.value && selectedShape.value !== layer)) {
+          document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
+        }
+        
+        // Restaurer le curseur par défaut seulement si aucune forme n'est survollée
+        if (mapInstance.getContainer() && 
+            (!document.querySelectorAll('.geo-note-pulse').length && 
+             !document.querySelectorAll('.line-hover-effect').length)) {
+          mapInstance.getContainer().style.cursor = '';
+        }
+      }
+    }) as L.LeafletEventHandlerFn);
+    
+    mapInstance.on('almost:click', (function(e: L.LeafletEvent) {
+      // Assertion de type pour éviter l'erreur TypeScript
+      const almostEvent = e as unknown as AlmostOverEvent;
+      console.log('[almost:click] Clic à proximité d\'une couche', almostEvent);
+      
+      const layer = almostEvent.layer;
+      
+      // Si la forme cliquée est déjà sélectionnée, ne rien faire
+      if (layer && selectedShape.value === layer) {
+        return;
+      }
+      
+      // Si une forme est déjà sélectionnée, nettoyer les points de contrôle existants
+      if (selectedShape.value) {
+        clearActiveControlPoints();
+      }
+      
+      // Gestion des lignes
+      if (layer && layer instanceof Line) {
+        // Sélectionner la ligne
+        selectedShape.value = layer;
+        
+        // Nettoyer les points de contrôle actuels
+        tempControlPointsGroup.value?.clearLayers();
+        clearActiveControlPoints();
+        
+        // Mettre à jour les points de contrôle de la ligne
+        updateLineControlPoints(layer);
+        
+        // Afficher le message d'aide
+        showHelpMessage('Utilisez les points de contrôle pour modifier la ligne');
+      }
+      // Gestion des polygones
+      else if (layer && layer instanceof Polygon) {
+        // Sélectionner le polygone
+        selectedShape.value = layer;
+        
+        // Nettoyer les points de contrôle actuels
+        tempControlPointsGroup.value?.clearLayers();
+        clearActiveControlPoints();
+        
+        // Mettre à jour les points de contrôle du polygone
+        updatePolygonControlPoints(layer);
+        
+        // Afficher le message d'aide
+        showHelpMessage('Utilisez les points de contrôle pour modifier le polygone');
+      }
+      // Gestion des notes géolocalisées
+      else if (layer && layer instanceof GeoNote) {
+        // Sélectionner la note
+        selectedShape.value = layer;
+
+        // Ouvrir la note pour édition
+        layer.editNote();
+      }
+    }) as L.LeafletEventHandlerFn);
+    
+    // Pour les événements layeradd et layerremove, utilisez le type correct
+    fg.on('layeradd', function(e: L.LayerEvent) {
+      if (mapInstance.almostOver && (
+        e.layer instanceof Line || 
+        (e.layer instanceof L.Polyline && !(e.layer instanceof L.Polygon)) ||
+        e.layer instanceof Polygon ||
+        e.layer instanceof GeoNote
+      )) {
+        mapInstance.almostOver.addLayer(e.layer);
+        console.log('[useMapDrawing] Nouvelle couche ajoutée à almostOver');
+      }
+    });
+    
+    fg.on('layerremove', function(e: L.LayerEvent) {
+      if (mapInstance.almostOver && (
+        e.layer instanceof Line || 
+        (e.layer instanceof L.Polyline && !(e.layer instanceof L.Polygon)) ||
+        e.layer instanceof Polygon ||
+        e.layer instanceof GeoNote
+      )) {
+        mapInstance.almostOver.removeLayer(e.layer);
+        console.log('[useMapDrawing] Couche supprimée de almostOver');
+      }
+    });
+    
     return mapInstance;
   };
   const adjustView = () => {
@@ -984,6 +1323,8 @@ export function useMapDrawing(): MapDrawingReturn {
     // Si aucun outil n'est sélectionné
     if (!tool) {
       clearActiveControlPoints();
+      // Réactualiser almostOver après changement d'outil
+      addLinesToAlmostOver();
       return;
     }
 
@@ -3494,6 +3835,10 @@ export function useMapDrawing(): MapDrawingReturn {
       updatePolygonControlPoints(polygon);
     } else if (layer instanceof Line) {
       updateLineControlPoints(layer);
+      // Ajouter la ligne au almostOver pour la détection améliorée
+      if (map.value && map.value.almostOver) {
+        map.value.almostOver.addLayer(layer);
+      }
     } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
       // Pour la compatibilité avec les polylines standard de Leaflet
       // Convertir en notre Line personnalisée
@@ -3506,6 +3851,11 @@ export function useMapDrawing(): MapDrawingReturn {
       featureGroup.value?.addLayer(line);
       selectedShape.value = line;
       updateLineControlPoints(line);
+      
+      // Ajouter la ligne au almostOver pour la détection améliorée
+      if (map.value && map.value.almostOver) {
+        map.value.almostOver.addLayer(line);
+      }
     }
 
     // Afficher le message d'aide
@@ -3519,6 +3869,34 @@ export function useMapDrawing(): MapDrawingReturn {
       map.value.on('pm:create', defaultCreateHandler);
     }
   };
+
+  // Ajouter une méthode pour activer/désactiver temporairement AlmostOver
+  const disableAlmostOver = () => {
+    if (map.value && map.value.almostOver) {
+      // Sauvegarder la tolérance actuelle
+      const currentTolerance = map.value.almostOver.options.tolerance;
+      map.value.almostOver.options.tolerance = 0; // Désactiver en mettant à 0
+      
+      // Retourner une fonction pour réactiver
+      return () => {
+        if (map.value && map.value.almostOver) {
+          map.value.almostOver.options.tolerance = currentTolerance;
+        }
+      };
+    }
+    return () => {}; // Fonction vide si almostOver n'est pas disponible
+  };
+  
+  // Ajouter un écouteur global pour temporairement désactiver almostOver pendant l'édition
+  window.addEventListener('edit:start', () => {
+    const restore = disableAlmostOver();
+    // Réactiver après l'édition
+    const onEditEnd = () => {
+      restore();
+      window.removeEventListener('edit:end', onEditEnd);
+    };
+    window.addEventListener('edit:end', onEditEnd);
+  });
 
   return {
     map,
@@ -3540,5 +3918,7 @@ export function useMapDrawing(): MapDrawingReturn {
     hideCoverageOverlay,
     calculateConnectedCoverageArea,
     getConnectedShapes,
+    disableAlmostOver,
+    addLinesToAlmostOver
   };
 }

@@ -212,4 +212,20 @@ The current implementation status of the system workflows is as follows:
 | Media Management | To be implemented | |
 | Route Planning | To be implemented | |
 | PDF Generation | To be implemented | |
-| API Integrations | Future work | | 
+| API Integrations | Future work | |
+
+## Amélioration de l'interactivité cartographique : sélection tolérante et robustesse des GeoNotes
+
+### Sélection tolérante avec Leaflet.AlmostOver
+- Intégration du plugin Leaflet.AlmostOver pour permettre la sélection des lignes, polygones et notes géolocalisées (GeoNotes) même si le curseur n'est pas exactement sur la géométrie.
+- Utilisation d'une tolérance de 25 pixels pour améliorer l'expérience utilisateur, notamment sur mobile.
+- Les événements `almost:over`, `almost:out` et `almost:click` sont utilisés pour surligner, désélectionner et sélectionner les entités cartographiques.
+
+### Robustesse de l'affichage des GeoNotes
+- Ajout d'une méthode `forceVisible()` et `recreateIcon()` dans la classe GeoNote pour garantir que les notes restent visibles même en cas de bug d'affichage ou de disparition DOM.
+- Après chaque interaction critique (survol, déplacement, zoom), la visibilité de l'icône est vérifiée et, si besoin, l'icône est recréée dynamiquement.
+- Tous les styles CSS nécessaires sont appliqués pour garantir la visibilité et la non-disparition des notes, même en cas de conflits avec Leaflet ou d'autres plugins.
+
+### Résilience face aux bugs d'affichage
+- Vérification automatique de la taille de l'élément DOM après chaque interaction : si la taille est nulle, l'icône est recréée.
+- Gestion robuste des erreurs et logs détaillés pour faciliter le debug frontend. 

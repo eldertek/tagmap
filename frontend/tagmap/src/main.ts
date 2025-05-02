@@ -1,4 +1,6 @@
 import './assets/main.css'
+import './assets/styles/line-hover.css'
+import './assets/styles/polygon-hover.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'

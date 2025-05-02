@@ -1,0 +1,63 @@
+/* Effet de survol pour les polygones */
+.polygon-hover-effect {
+  /* SVG filter for glow effect */
+  animation: polygon-pulse 1.5s infinite alternate;
+  cursor: pointer;
+}
+
+@keyframes polygon-pulse {
+  from {
+    filter: drop-shadow(0 0 2px rgba(43, 100, 81, 0.6));
+  }
+  to {
+    filter: drop-shadow(0 0 4px rgba(43, 100, 81, 0.8));
+  }
+}
+
+/* Effet de survol pour les GeoNotes */
+.geo-note-hover {
+  /* Retirer la transformation d'échelle */
+  /* transform: scale(1.1); */
+  transition: filter 0.2s ease-in-out;
+  z-index: 1000;
+  filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.7));
+}
+
+/* Effet de pulsation pour les GeoNotes */
+.geo-note-pulse {
+  animation: note-pulse 1.5s infinite alternate;
+  cursor: pointer !important; /* Force le curseur à être un pointeur */
+  visibility: visible !important;
+  display: flex !important;
+  opacity: 1 !important;
+}
+
+@keyframes note-pulse {
+  from {
+    filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.5)) brightness(1);
+  }
+  to {
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.9)) brightness(1.2);
+  }
+}
+
+/* Assurer que les notes sont toujours visibles */
+.geo-note-icon, .geo-note-marker {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+/* Styles spécifiques pour les conteneurs de notes */
+.leaflet-marker-icon.geo-note-icon {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important; /* Les marqueurs Leaflet sont généralement des blocs */
+}
+
+/* S'assurer que le conteneur parent est également visible */
+.leaflet-marker-pane {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+} 

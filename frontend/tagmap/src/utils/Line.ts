@@ -23,6 +23,11 @@ export class Line extends L.Polyline {
     center?: L.LatLng;
   } = {};
   private needsUpdate: boolean = true;
+  // Original style properties for restoring after hover
+  _originalStyle?: L.PathOptions;
+  // Accès au path SVG interne de Leaflet (normalement privé)
+  _path?: SVGPathElement;
+  
   constructor(
     latlngs: L.LatLngExpression[] | L.LatLngExpression[][],
     options: ExtendedPolylineOptions = {}
@@ -47,6 +52,86 @@ export class Line extends L.Polyline {
     this.on('add', () => {
       this.updateProperties();
     });
+    
+    // Enhanced interaction behavior - highlight on mouseover
+    this.on('mouseover', this.highlight);
+    this.on('mouseout', this.unhighlight);
+  }
+
+  /**
+   * Highlight the line when hovering
+   */
+  highlight(): void {
+    if (!this._originalStyle) {
+      this._originalStyle = {...this.options};
+      
+      // Appliquer un style plus visible pour le survol
+      const newWeight = (this._originalStyle.weight || 3) * 1.75; // Augmentation plus importante de l'épaisseur
+      const newColor = this._originalStyle.color || '#2b6451';
+      
+      this.setStyle({
+        weight: newWeight,
+        opacity: 1,
+        // Ajouter un effet de "glow" léger avec shadow
+        className: 'line-hover-effect'
+      });
+      
+      // Ajouter une classe CSS pour l'effet de lueur si on peut accéder à l'élément DOM
+      try {
+        if (this._path) {
+          // Ajouter un effet de lueur avec CSS
+          this._path.style.filter = `drop-shadow(0 0 4px ${newColor})`;
+          this._path.style.transition = 'all 0.2s ease-in-out';
+        }
+      } catch (error) {
+        console.warn('Impossible d\'appliquer l\'effet de lueur à la ligne');
+      }
+    }
+  }
+  
+  /**
+   * Restore original style when no longer hovering
+   */
+  unhighlight(): void {
+    if (this._originalStyle) {
+      this.setStyle(this._originalStyle);
+      this._originalStyle = undefined;
+      
+      // Retirer l'effet de lueur si on peut accéder à l'élément DOM
+      try {
+        if (this._path) {
+          this._path.style.filter = '';
+          this._path.style.transition = '';
+        }
+      } catch (error) {
+        console.warn('Impossible de retirer l\'effet de lueur de la ligne');
+      }
+    }
+  }
+  
+  /**
+   * Check if a point is close to this line within the given tolerance
+   * This is useful for better click detection
+   */
+  isPointNearLine(latlng: L.LatLng, tolerance: number = 10): boolean {
+    if (!this._map) return false;
+    
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (latLngs.length < 2) return false;
+    
+    for (let i = 0; i < latLngs.length - 1; i++) {
+      const p1 = this._map.latLngToLayerPoint(latLngs[i]);
+      const p2 = this._map.latLngToLayerPoint(latLngs[i + 1]);
+      const clickPoint = this._map.latLngToLayerPoint(latlng);
+      
+      // Calculate distance between click and line segment
+      const distance = L.LineUtil.pointToSegmentDistance(clickPoint, p1, p2);
+      if (distance <= tolerance) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   updateProperties(): void {

@@ -114,4 +114,21 @@ mapInstance.options.preferCanvas = true;
 mapInstance.options.renderer = L.canvas();
 ```
 
+## [2024-06-XX] Disparition des GeoNotes après survol ou interaction
+
+### Problème
+- Les notes géolocalisées (GeoNotes) pouvaient disparaître de la carte après un survol, un zoom ou un déplacement, malgré des propriétés CSS correctes et des logs indiquant une visibilité normale.
+- Ce bug était lié à des conflits d'affichage DOM avec Leaflet et à la gestion dynamique des classes/styles.
+
+### Solution
+- Ajout de méthodes forceVisible() et recreateIcon() dans la classe GeoNote pour forcer la visibilité de l'icône ou la recréer dynamiquement si l'élément DOM disparaît ou a une taille nulle.
+- Vérification automatique de la taille de l'élément DOM après chaque interaction critique (survol, zoom, déplacement) et recréation de l'icône si nécessaire.
+- Application de styles CSS globaux pour garantir la visibilité et la non-disparition des notes.
+- Correction des types TypeScript pour la compatibilité avec les événements AlmostOver.
+- Gestion robuste des erreurs et logs détaillés pour faciliter le debug frontend.
+
+### Résultat
+- Les GeoNotes restent toujours visibles et interactives, même en cas de bug d'affichage ou de disparition DOM.
+- L'expérience utilisateur est nettement améliorée sur desktop et mobile.
+
 Ce document sera mis à jour au fur et à mesure que de nouveaux problèmes et solutions sont identifiés.

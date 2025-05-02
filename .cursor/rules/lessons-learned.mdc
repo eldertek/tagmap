@@ -100,4 +100,19 @@ This document captures important patterns, preferences, and project intelligence
 - **Graceful Degradation**: The application should gracefully handle service failures, particularly for map layer services.
 - **User Experience**: Error states should be handled without breaking the user experience or requiring page refreshes.
 
+## [2024-06-XX] Robustesse d'affichage des entités Leaflet personnalisées
+
+### Contexte
+- Les entités interactives Leaflet (notamment les icônes personnalisées comme GeoNote) peuvent disparaître du DOM ou devenir invisibles malgré des propriétés CSS correctes, surtout après des interactions complexes (survol, zoom, déplacement, etc.).
+
+### Leçon
+- Toujours vérifier la visibilité réelle (taille, présence dans le DOM) des éléments interactifs après chaque interaction critique.
+- Prévoir une méthode de recréation dynamique de l'icône ou de l'élément DOM si celui-ci disparaît ou devient invisible (forceVisible, recreateIcon).
+- Appliquer des styles CSS globaux et explicites pour garantir la visibilité, en complément des classes Leaflet.
+- Utiliser des logs détaillés pour faciliter le debug et la compréhension des problèmes d'affichage frontend.
+- Ne pas bloquer les interactions multiples : permettre le survol et la sélection d'une entité même lorsqu'une autre est déjà sélectionnée, en évitant les conditions restrictives (comme `if (layer && !selectedShape.value)`) qui empêchent la navigation fluide entre les éléments cartographiques.
+
+### Impact
+- Cette approche garantit une expérience utilisateur robuste et évite les bugs d'affichage difficiles à diagnostiquer, en particulier sur des stacks frontend riches en interactions (Leaflet, plugins, etc.).
+
 This document will be updated continuously as development progresses and new insights are gained.

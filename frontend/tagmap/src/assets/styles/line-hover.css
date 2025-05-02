@@ -1,0 +1,15 @@
+/* Effet de survol pour les lignes */
+.line-hover-effect {
+  /* SVG filter for glow effect */
+  animation: pulse 1.5s infinite alternate;
+  cursor: pointer;
+}
+
+@keyframes pulse {
+  from {
+    filter: drop-shadow(0 0 2px rgba(43, 100, 81, 0.7));
+  }
+  to {
+    filter: drop-shadow(0 0 4px rgba(43, 100, 81, 0.9));
+  }
+} 
