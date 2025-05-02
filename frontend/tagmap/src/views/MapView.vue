@@ -88,7 +88,6 @@
             @load-plan="openLoadPlanModal"
             @save-plan="savePlan"
             @adjust-view="handleAdjustView"
-            @generate-summary="generateSynthesis"
             class="flex-shrink-0"
           />
 

@@ -65,12 +65,6 @@
             </svg>
             <span class="hidden lg:inline ml-1">Ajuster</span>
           </button>
-          <button @click="generateSummary" class="btn-toolbar" title="Générer une synthèse">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-            </svg>
-            <span class="hidden lg:inline ml-1">Synthèse</span>
-          </button>
         </div>
       </div>
       <!-- Information de sauvegarde -->
@@ -173,7 +167,7 @@
           <!-- Outils de plan -->
           <div class="flex flex-col">
             <span class="text-sm font-medium text-gray-700 mb-2">Outils de plan</span>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-2 gap-2">
               <button @click="createNewPlan" class="px-3 py-2 text-sm rounded-md border shadow-sm flex items-center justify-center bg-white">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clip-rule="evenodd" />
@@ -187,12 +181,6 @@
                   <path fill-rule="evenodd" d="M13 5a1 1 0 011 1v4a1 1 0 11-2 0V6a1 1 0 011-1z" clip-rule="evenodd" />
                 </svg>
                 Charger
-              </button>
-              <button @click="generateSummary" class="px-3 py-2 text-sm rounded-md border shadow-sm flex items-center justify-center bg-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-                </svg>
-                Synthèse
               </button>
             </div>
           </div>
@@ -242,7 +230,6 @@ const emit = defineEmits<{
   (e: 'load-plan'): void;
   (e: 'save-plan'): void;
   (e: 'adjust-view'): void;
-  (e: 'generate-summary'): void;
 }>();
 const props = defineProps<{
   lastSave?: Date;
@@ -303,10 +290,6 @@ const savePlan = () => {
 };
 const adjustView = () => {
   emit('adjust-view');
-  closeMobileMenu();
-};
-const generateSummary = () => {
-  emit('generate-summary');
   closeMobileMenu();
 };
 const closeMobileMenu = () => {

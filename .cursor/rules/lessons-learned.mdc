@@ -8,3 +8,54 @@ description: Stores important patterns, preferences, and project intelligence, l
 globs: 
 alwaysApply: true
 ---
+
+# Lessons Learned for TagMap
+
+This document captures important patterns, preferences, and project intelligence for the TagMap application. It serves as a living document that evolves as development progresses.
+
+## Development Patterns
+
+### Architecture Patterns
+
+- Client-server architecture with clear separation of concerns
+- RESTful API design following resource-oriented principles
+- Component-based frontend with Vue.js
+- Geospatial data handling with GeoDjango and PostGIS
+
+### Code Organization
+
+- Django models organized by functional domain (authentication, plans, etc.)
+- Vue components follow feature-based organization
+- Reusable components kept separate from page-specific components
+
+## Technical Insights
+
+### GeoDjango & PostGIS
+
+- Use spatial indexing for query performance
+- Store geometry data in appropriate format (Point, LineString, Polygon)
+- Use proper SRID for accurate calculations
+- Consider performance implications of complex spatial queries
+
+### Leaflet Integration
+
+- Use custom controls for better user experience
+- Implement layer groups for organized map layers
+- Optimize rendering for mobile devices
+- Consider memory usage when handling large datasets
+
+## User Experience Preferences
+
+- Responsive design adapting to different screen sizes
+- Clear visual hierarchy of interface elements
+- Intuitive map controls with minimal learning curve
+- Consistent visual language throughout the application
+
+## Project Management Insights
+
+- Documentation-first approach to ensure clarity and alignment
+- Test-driven development for critical components
+- Feature-based organization of tasks
+- Phased development approach
+
+This document will be updated continuously as development progresses and new insights are gained.

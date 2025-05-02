@@ -7,3 +7,34 @@ alwaysApply: false
 description: Document major failure points in this project and they were solved.  To be filled by AI. 
 globs: 
 ---
+
+# Error Documentation for TagMap
+
+This document tracks significant issues encountered during the development of TagMap and their resolutions.
+
+## Issue Tracking Format
+
+Each issue should be documented with the following structure:
+
+```
+## [Issue Date] Issue Title
+
+### Problem Description
+Detailed description of the issue encountered.
+
+### Investigation
+Steps taken to diagnose the issue.
+
+### Root Cause
+The identified source of the problem.
+
+### Solution
+The approach used to resolve the issue.
+
+### Prevention
+Measures to prevent similar issues in the future.
+```
+
+## Issues
+
+No issues have been documented yet as the project is still in the initialization phase.
