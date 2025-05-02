@@ -49,8 +49,9 @@ The project is currently in the initialization phase. Documentation is being set
    - Ensuring cross-platform compatibility
 
 ## Recent Changes
-
-No code changes have been made yet, as the project is still in the planning and documentation phase.
+- Updated DrawingTools.vue to use map pin icon for Note tool
+- Improved Note icon with an additional circle underneath to better represent location drop pin
+- Enhanced the visibility of the drop pin circle by increasing its size and adding slight fill
 
 ## Next Actions
 
@@ -69,6 +70,10 @@ No code changes have been made yet, as the project is still in the planning and 
    - Establish foundation components (Phase 1 from task plan)
    - Create development environment setup documentation
    - Implement initial database schema
+
+4. **Current Code Updates**
+   - Replace Note icon in DrawingTools.vue with map pin SVG
+   - Improve visibility of the location pin drop effect with better styling
 
 ## Blockers and Dependencies
 

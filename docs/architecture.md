@@ -66,6 +66,9 @@ flowchart TD
    - Polygon creation with area calculation
    - Line drawing with altimetric profiling
    - Shape persistence and editing
+   - Note tool icon updated to map pin SVG for better geolocation representation
+   - Enhanced location pin with circle underneath to represent drop shadow
+   - Improved visibility of the drop shadow with larger dimensions and subtle fill
 
 6. **Media Management**
    - Photo capture interface

@@ -58,4 +58,10 @@ This document captures important patterns, preferences, and project intelligence
 - Feature-based organization of tasks
 - Phased development approach
 
+## UI Improvements
+
+- Replaced default Note tool icon with map pin SVG to better represent geolocation and improve UX
+- Enhanced Note icon with a circle underneath to create a drop pin effect, improving visual metaphor and recognition
+- Improved visibility of the drop pin shadow with increased size and subtle fill for better distinction
+
 This document will be updated continuously as development progresses and new insights are gained.
