@@ -1258,6 +1258,13 @@ class WeatherViewSet(viewsets.ViewSet):
                 devices = data['data']['devices']
             elif 'list' in data.get('data', {}):
                 devices = data['data']['list']
+            
+            # S'assurer que tous les appareils ont un identifiant (mac ou imei)
+            for device in devices:
+                # Si l'appareil n'a pas de MAC, utiliser l'IMEI comme identifiant primaire pour le frontend
+                if not device.get('mac') and device.get('imei'):
+                    device['mac'] = device['imei']
+                    print(f"[WeatherViewSet][get_devices] Appareil sans MAC, IMEI utilisé: {device['imei']}")
 
             print(f"[WeatherViewSet][get_devices] Nombre d'appareils trouvés: {len(devices)}")
             return devices
@@ -1300,12 +1307,12 @@ class WeatherViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """Récupère les données météo en temps réel pour un appareil spécifique."""
-        device_mac = request.query_params.get('mac')
+        device_id = request.query_params.get('mac')  # On garde 'mac' comme paramètre pour compatibilité
         print(f"\n[WeatherViewSet][list] 🌤 Récupération des données météo en temps réel")
-        print(f"MAC demandé: {device_mac}")
+        print(f"Identifiant demandé: {device_id}")
 
-        # Si aucun MAC n'est spécifié, récupérer la liste des appareils
-        if not device_mac:
+        # Si aucun identifiant n'est spécifié, récupérer la liste des appareils
+        if not device_id:
             devices = self.get_devices()
             if not devices:
                 return Response(
@@ -1314,14 +1321,15 @@ class WeatherViewSet(viewsets.ViewSet):
                 )
 
             # Utiliser le premier appareil de la liste
-            device_mac = devices[0].get('mac')
-            if not device_mac:
+            device = devices[0]
+            device_id = device.get('mac') or device.get('imei')
+            if not device_id:
                 return Response(
-                    {'error': 'Identifiant MAC manquant pour l\'appareil'},
+                    {'error': 'Identifiant (MAC ou IMEI) manquant pour l\'appareil'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print(f"Utilisation du premier appareil disponible: {device_mac}")
+            print(f"Utilisation du premier appareil disponible: {device_id}")
 
         try:
             config, error_message = self.get_ecowitt_config()
@@ -1336,15 +1344,20 @@ class WeatherViewSet(viewsets.ViewSet):
 
             # Appel à l'API Ecowitt pour les données en temps réel
             api_url = f"{config['base_url']}/device/real_time"  # Endpoint real_time
+            
+            # Déterminer s'il s'agit d'un MAC ou d'un IMEI
+            param_key = 'mac' if ':' in device_id else 'imei'
+            
             params = {
                 'application_key': config['application_key'],
                 'api_key': config['api_key'],
-                'mac': device_mac,
+                param_key: device_id,
                 'call_back': 'all'
             }
 
             print(f"URL: {api_url}")
             print(f"Paramètres: {params}")
+            print(f"Type d'identifiant utilisé: {param_key}")
 
             response = requests.get(api_url, params=params)
 
@@ -1378,22 +1391,22 @@ class WeatherViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def history(self, request):
         """Récupère les données historiques pour un appareil spécifique."""
-        device_mac = request.query_params.get('mac')
+        device_id = request.query_params.get('mac')  # On garde 'mac' comme paramètre pour compatibilité
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         cycle_type = request.query_params.get('cycle_type', '5min')
         entreprise_id = request.query_params.get('entreprise')
 
         print(f"\n[WeatherViewSet][history] 📊 Récupération des données historiques")
-        print(f"MAC demandé: {device_mac}")
+        print(f"Identifiant demandé: {device_id}")
         print(f"Période: {start_date} - {end_date}")
         print(f"Type de cycle: {cycle_type}")
         print(f"Entreprise ID: {entreprise_id}")
 
         # Vérifier les paramètres obligatoires
-        if not device_mac:
+        if not device_id:
             return Response(
-                {'error': 'Le paramètre MAC est obligatoire'},
+                {'error': 'Le paramètre identifiant (MAC ou IMEI) est obligatoire'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1455,12 +1468,15 @@ class WeatherViewSet(viewsets.ViewSet):
             # Appel à l'API Ecowitt pour les données historiques
             api_url = f"{config['base_url']}/device/history"
 
+            # Déterminer s'il s'agit d'un MAC ou d'un IMEI
+            param_key = 'mac' if ':' in device_id else 'imei'
+
             # Paramètres conformes à la documentation Ecowitt
             # call_back doit être spécifique (outdoor, indoor, etc.) et non 'all'
             params = {
                 'application_key': config['application_key'],
                 'api_key': config['api_key'],
-                'mac': device_mac,
+                param_key: device_id,
                 'start_date': f"{start_date} 00:00:00",  # Format ISO8601 requis
                 'end_date': f"{end_date} 23:59:59",      # Format ISO8601 requis
                 'cycle_type': cycle_type,
@@ -1469,6 +1485,7 @@ class WeatherViewSet(viewsets.ViewSet):
 
             print(f"URL: {api_url}")
             print(f"Paramètres: {params}")
+            print(f"Type d'identifiant utilisé: {param_key}")
 
             response = requests.get(api_url, params=params)
 
@@ -1502,7 +1519,7 @@ class WeatherViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def chart(self, request):
         """Récupère les données pour générer des graphiques."""
-        device_mac = request.query_params.get('mac')
+        device_id = request.query_params.get('mac')  # On garde 'mac' comme paramètre pour compatibilité
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         cycle_type = request.query_params.get('cycle_type', '5min')
@@ -1510,16 +1527,16 @@ class WeatherViewSet(viewsets.ViewSet):
         entreprise_id = request.query_params.get('entreprise')
 
         print(f"\n[WeatherViewSet][chart] 📈 Récupération des données pour graphiques")
-        print(f"MAC demandé: {device_mac}")
+        print(f"Identifiant demandé: {device_id}")
         print(f"Période: {start_date} - {end_date}")
         print(f"Type de cycle: {cycle_type}")
         print(f"Type de données: {data_type}")
         print(f"Entreprise ID: {entreprise_id}")
 
         # Vérifier les paramètres obligatoires
-        if not device_mac:
+        if not device_id:
             return Response(
-                {'error': 'Le paramètre MAC est obligatoire'},
+                {'error': 'Le paramètre identifiant (MAC ou IMEI) est obligatoire'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1577,11 +1594,14 @@ class WeatherViewSet(viewsets.ViewSet):
             # Convertir le type de données en chemin complet pour l'API Ecowitt
             call_back = data_type_mapping[data_type]
 
+            # Déterminer s'il s'agit d'un MAC ou d'un IMEI
+            param_key = 'mac' if ':' in device_id else 'imei'
+
             api_url = f"{config['base_url']}/device/history"
             params = {
                 'application_key': config['application_key'],
                 'api_key': config['api_key'],
-                'mac': device_mac,
+                param_key: device_id,
                 'start_date': f"{start_date} 00:00:00",
                 'end_date': f"{end_date} 23:59:59",
                 'cycle_type': cycle_type,
@@ -1590,6 +1610,7 @@ class WeatherViewSet(viewsets.ViewSet):
 
             print(f"URL: {api_url}")
             print(f"Paramètres: {params}")
+            print(f"Type d'identifiant utilisé: {param_key}")
 
             response = requests.get(api_url, params=params)
 

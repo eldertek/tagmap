@@ -88,7 +88,7 @@
               <p class="font-medium">{{ selectedDeviceInfo.id }}</p>
             </div>
             <div>
-              <span class="text-gray-500">MAC:</span>
+              <span class="text-gray-500">{{ selectedDeviceInfo.mac?.includes(':') ? 'MAC:' : 'IMEI:' }}</span>
               <p class="font-medium">{{ selectedDeviceInfo.mac }}</p>
             </div>
             <div>
@@ -142,9 +142,18 @@
       <!-- Contenu des onglets -->
       <div v-if="currentTab === 'realtime'" class="mb-8">
         <!-- Dernière mise à jour -->
-        <p class="text-sm text-gray-600 mb-4">
-          Dernière mise à jour : {{ lastUpdate ? new Date(lastUpdate).toLocaleString() : 'Jamais' }}
-        </p>
+        <div class="flex justify-between items-center mb-4">
+          <p class="text-sm text-gray-600">
+            Dernière mise à jour : {{ lastUpdate ? new Date(lastUpdate).toLocaleString() : 'Jamais' }}
+          </p>
+          <div v-if="isLoadingWeather" class="flex items-center">
+            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-primary-600">Chargement des données...</span>
+          </div>
+        </div>
 
         <!-- Grille de widgets météo -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,17 +233,23 @@
       </div>
 
       <div v-else-if="currentTab === 'history'" class="mb-8">
-        <!-- Sélecteurs de période et type de données -->
+        <!-- En-tête de l'onglet historique -->
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Données historiques</h2>
-          <div class="flex items-center gap-4">
-            <div v-if="lastRefresh" class="text-sm text-gray-600">
-              Dernière mise à jour: {{ lastRefresh }}
+          <p class="text-sm text-gray-600">
+            Dernière mise à jour : {{ lastRefresh ? lastRefresh : 'Jamais' }}
+          </p>
+          <div class="flex items-center">
+            <div v-if="isUpdatingCharts" class="flex items-center mr-3">
+              <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span class="text-sm text-primary-600">Chargement des données...</span>
             </div>
             <button
               @click="updateAllCharts"
               class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-              :disabled="!selectedDevice"
+              :disabled="!selectedDevice || isUpdatingCharts"
             >
               Actualiser
             </button>
@@ -376,6 +391,7 @@ const companies = ref<any[]>([]);
 const selectedCompany = ref<number | null>(null);
 const apiError = ref<string>('');
 const periodIntervalError = ref('');
+const isLoadingWeather = ref(false);
 
 // Vérifier si l'utilisateur est admin
 const isAdmin = computed(() => authStore.isAdmin);
@@ -453,10 +469,13 @@ async function fetchDevices() {
     
     // Traiter les données des appareils pour normaliser leur format
     devices.value = devicesData.map((device: any) => {
+      // Utiliser l'IMEI comme identifiant si le MAC n'est pas disponible
+      const deviceId = device.mac || device.imei;
+      
       return {
         id: device.id,
-        name: device.name || `Station ${device.mac}`,
-        mac: device.mac,
+        name: device.name || `Station ${deviceId}`,
+        mac: deviceId, // Stocker l'IMEI dans le champ mac si pas de MAC disponible
         model: device.stationtype?.split('_')[0] || 'Inconnu',
         firmware_version: device.stationtype?.includes('_V') ? device.stationtype.split('_V')[1] : '1.0',
         timezone: device.date_zone_id || 'UTC',
@@ -469,10 +488,13 @@ async function fetchDevices() {
     console.log('[fetchDevices] Appareils normalisés:', devices.value);
     
     if (devices.value.length > 0) {
+      // Sélectionner le premier appareil
+      // Note: Pas besoin d'appeler fetchWeatherData() ici, le watcher sur selectedDevice le fera
       selectedDevice.value = devices.value[0].mac;
-      await fetchWeatherData();
     } else {
       console.warn('[fetchDevices] Aucun appareil disponible');
+      // Réinitialiser les données
+      weatherData.value = {};
     }
   } catch (error: any) {
     console.error('[fetchDevices] Erreur lors de la récupération des appareils:', error);
@@ -494,11 +516,18 @@ async function fetchDevices() {
 
 // Fonction pour récupérer les données météo
 async function fetchWeatherData() {
-  if (!selectedDevice.value) return;
-
   try {
+    // Si aucun appareil n'est sélectionné, ne rien faire
+    if (!selectedDevice.value) {
+      console.warn('[fetchWeatherData] Aucun appareil sélectionné');
+      return;
+    }
+
     // Réinitialiser l'erreur API
     apiError.value = '';
+
+    // Indiquer que les données sont en cours de chargement
+    isLoadingWeather.value = true;
 
     // Préparer les paramètres de la requête
     const params: any = {
@@ -535,14 +564,16 @@ async function fetchWeatherData() {
       extractedData = {};
       console.warn('[fetchWeatherData] Format de réponse non reconnu');
     }
-    
+
     // Mettre à jour les données météo
     weatherData.value = extractedData;
     lastUpdate.value = new Date();
-    
-    console.log('[fetchWeatherData] Données météo extraites:', weatherData.value);
+    lastRefresh.value = new Date().toLocaleString();
+
+    // Réinitialiser l'erreur API
+    apiError.value = '';
   } catch (error: any) {
-    console.error('[fetchWeatherData] Erreur:', error);
+    console.error('[fetchWeatherData] Erreur lors de la récupération des données météo:', error);
 
     // Vérifier si l'erreur contient un message spécifique de l'API
     if (error.response && error.response.data && error.response.data.error) {
@@ -554,6 +585,9 @@ async function fetchWeatherData() {
 
     // Réinitialiser les données
     weatherData.value = {};
+  } finally {
+    // Indiquer que le chargement est terminé
+    isLoadingWeather.value = false;
   }
 }
 
@@ -661,6 +695,8 @@ async function fetchDevicesWithCompany() {
     charts = {};
 
     // Récupérer les appareils
+    // Note: fetchDevices sélectionnera automatiquement le premier appareil
+    // et le watcher sur selectedDevice déclenchera fetchWeatherData et updateAllCharts
     await fetchDevices();
   } catch (error) {
     console.error('Erreur lors de la récupération des appareils avec l\'entreprise:', error);
@@ -1433,6 +1469,8 @@ onMounted(async () => {
 
   // Récupérer la liste des appareils après avoir chargé les entreprises
   // pour s'assurer que l'ID de l'entreprise est disponible pour les admins
+  // Note: fetchDevices va sélectionner automatiquement le premier appareil,
+  // et le watcher sur selectedDevice va déclencher le chargement des données
   await fetchDevices();
 
   // Mise à jour toutes les 5 minutes
@@ -1440,17 +1478,27 @@ onMounted(async () => {
 });
 
 // Ajouter un watcher pour selectedCompany
-watch(selectedCompany, (newValue) => {
-  if (isAdmin.value && newValue) {
-    fetchDevicesWithCompany();
+watch(selectedCompany, async (newValue) => {
+  if (isAdmin.value) {
+    console.log('[watch selectedCompany] Nouvelle entreprise sélectionnée:', newValue);
+    await fetchDevices();
   }
 });
 
 // Ajouter un watcher pour selectedDevice
 watch(selectedDevice, (newValue) => {
-  if (newValue && currentTab.value === 'history') {
-    // Mettre à jour les graphiques lorsque l'appareil change
-    updateAllCharts();
+  if (newValue) {
+    console.log('[watch selectedDevice] Nouvelle station sélectionnée:', newValue);
+    // Charger les données temps réel
+    fetchWeatherData();
+    
+    // Également charger les données historiques si on est dans l'onglet historique
+    if (currentTab.value === 'history') {
+      updateAllCharts();
+    }
+  } else {
+    console.log('[watch selectedDevice] Aucune station sélectionnée');
+    weatherData.value = {};
   }
 });
 
