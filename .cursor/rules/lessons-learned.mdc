@@ -64,4 +64,40 @@ This document captures important patterns, preferences, and project intelligence
 - Enhanced Note icon with a circle underneath to create a drop pin effect, improving visual metaphor and recognition
 - Improved visibility of the drop pin shadow with increased size and subtle fill for better distinction
 
+## Map Integration
+
+### Google Maps Integration
+- **Dynamic API Loading**: For third-party services like Google Maps, we prefer dynamic loading over static script tags to improve initial page load performance and handle failures gracefully.
+- **API Key Security**: Google Maps API keys should be managed centrally in configuration files, not hardcoded in multiple places.
+- **Fallback Strategy**: Always implement a fallback strategy for external services. For maps, we default to IGN layer when Google Maps fails to load.
+- **Layer Structure**: Layer management in Leaflet works best with a layerGroup approach, even for single layers, as it provides consistency across different map providers.
+
+### Performance Optimization
+- **Monitoring Performance**: The project uses a custom performance monitoring system (`usePerformanceMonitor`) to track and optimize critical operations.
+- **Async Layer Management**: Map layer changes are handled asynchronously with careful state management to prevent UI glitches.
+- **Error Handling**: Robust error handling is essential for map operations, with multiple recovery attempts before falling back.
+
+## Frontend Architecture
+
+### Vue.js Patterns
+- **Composables Pattern**: The project uses Vue 3 composables (like `useMapState`) for reusable stateful logic.
+- **Configuration Files**: External services and configuration values should be centralized in the `config/` directory.
+- **Utils Structure**: Utilities that handle external services are placed in the `utils/` directory.
+
+## Tools and Libraries
+
+### Leaflet Extensions
+- **Plugin Integration**: When integrating Leaflet plugins (like GoogleMutant), careful type handling is required due to TypeScript limitations.
+- **CSS and Styling**: Custom map controls and elements should follow the established styling patterns for consistency.
+
+## Development Practices
+
+### Documentation 
+- **Task Documentation**: Significant feature implementations should be documented in both code comments and dedicated documentation files.
+- **API Key Management**: Instructions for obtaining and configuring API keys should be clearly documented for other developers.
+
+### Error Handling
+- **Graceful Degradation**: The application should gracefully handle service failures, particularly for map layer services.
+- **User Experience**: Error states should be handled without breaking the user experience or requiring page refreshes.
+
 This document will be updated continuously as development progresses and new insights are gained.

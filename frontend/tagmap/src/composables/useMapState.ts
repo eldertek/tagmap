@@ -2,6 +2,8 @@ import { ref } from 'vue';
 import type { Map as LeafletMap } from 'leaflet';
 import * as L from 'leaflet';
 import { performanceMonitor, usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
+import 'leaflet.gridlayer.googlemutant';
+import { loadGoogleMapsApi } from '@/utils/googleMapsLoader';
 
 export function useMapState() {
   const { isEnabled, startMeasure } = usePerformanceMonitor();
@@ -10,6 +12,7 @@ export function useMapState() {
   const searchQuery = ref('');
   const currentBaseMap = ref('Hybride');
   const activeLayer = ref<any>(null);
+  const isGoogleMapsLoaded = ref(false);
 
   // Configuration commune pour toutes les couches de base
   const commonTileOptions = {
@@ -34,19 +37,9 @@ export function useMapState() {
   const endBaseMapsCreation = startMeasure('createBaseMaps', 'useMapState');
   const baseMaps = {
     'Hybride': L.layerGroup([
-      L.tileLayer('/osm_tiles/{z}/{x}/{y}.png', {
-        ...commonTileOptions,
-        attribution: '© OpenStreetMap contributors',
-        opacity: 0.6,
-        // Optimisations spécifiques pour les tuiles locales
-        subdomains: ['a', 'b', 'c'], // Utiliser plusieurs sous-domaines si disponibles
-        crossOrigin: true
-      }),
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        ...commonTileOptions,
-        attribution: '© Esri',
-        maxNativeZoom: 20,
-        opacity: 0.6,
+      (L.gridLayer as any).googleMutant({
+        type: 'hybrid',           // satellite + labels
+        maxZoom: commonTileOptions.maxZoom ?? 20
       })
     ]),
     'Cadastre': L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
@@ -62,8 +55,30 @@ export function useMapState() {
   };
   endBaseMapsCreation();
 
+  // Ensure Google Maps API is loaded before initializing the map
+  const loadGoogleMaps = async () => {
+    try {
+      await loadGoogleMapsApi();
+      isGoogleMapsLoaded.value = true;
+    } catch (error) {
+      console.error('Failed to load Google Maps API:', error);
+      // Fallback to non-Google layers if Google Maps fails to load
+      isGoogleMapsLoaded.value = false;
+      // Switch to a different base map if Hybride is selected
+      if (currentBaseMap.value === 'Hybride') {
+        currentBaseMap.value = 'IGN';
+      }
+    }
+  };
+
+  // Modified initMap to ensure Google Maps is loaded first
   const initMap = performanceMonitor.createPerformanceTracker(
-    (mapInstance: LeafletMap) => {
+    async (mapInstance: LeafletMap) => {
+      // Load Google Maps if not already loaded
+      if (!isGoogleMapsLoaded.value) {
+        await loadGoogleMaps();
+      }
+
       performanceMonitor.measure('initMap:setOptions', () => {
         map.value = mapInstance;
         // Optimisation du zoom
@@ -236,9 +251,19 @@ export function useMapState() {
     'useMapState'
   );
 
-  // Implémentation simplifiée et robuste du changement de carte de base
+  // Update changeBaseMap to ensure Google Maps is loaded when switching to Hybride
   const changeBaseMap = performanceMonitor.createAsyncPerformanceTracker(
     async (baseMapName: keyof typeof baseMaps) => {
+      // Load Google Maps if switching to Hybride and not already loaded
+      if (baseMapName === 'Hybride' && !isGoogleMapsLoaded.value) {
+        await loadGoogleMaps();
+        // If Google Maps failed to load, abort switching to Hybride
+        if (!isGoogleMapsLoaded.value) {
+          console.warn('Cannot switch to Hybride: Google Maps API not loaded');
+          return;
+        }
+      }
+
       if (!map.value || !baseMaps[baseMapName]) {
         console.warn(`Impossible de changer la carte de base: ${!map.value ? 'carte non initialisée' : 'type de carte non disponible'}`);
         return;
@@ -425,6 +450,8 @@ export function useMapState() {
     changeBaseMap,
     cleanup,
     // Exposer les métriques de performance
-    isPerformanceEnabled: isEnabled
+    isPerformanceEnabled: isEnabled,
+    // Expose Google Maps loading state
+    isGoogleMapsLoaded
   };
 }

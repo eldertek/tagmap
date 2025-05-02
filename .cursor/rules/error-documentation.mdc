@@ -38,3 +38,80 @@ Measures to prevent similar issues in the future.
 ## Issues
 
 No issues have been documented yet as the project is still in the initialization phase.
+
+# Documentation des erreurs et solutions
+
+Ce document recense les problèmes rencontrés durant le développement et leurs solutions pour éviter de répéter les mêmes erreurs.
+
+## Intégration de cartes
+
+### Problème : Erreurs de référence Leaflet avec plugins tiers
+
+**Contexte** : Lors de l'intégration du plugin `leaflet.gridlayer.googlemutant` avec TypeScript, des erreurs de type peuvent apparaître car le plugin n'est pas correctement typé.
+
+**Solution** : Utiliser le cast `(L.gridLayer as any).googleMutant()` pour éviter les erreurs de compilation TypeScript. Idéalement, créer des définitions de type appropriées dans un fichier de déclaration si le plugin est utilisé fréquemment.
+
+### Problème : Chargement non-sécurisé de l'API Google Maps
+
+**Contexte** : L'inclusion directe de l'API Google Maps via une balise script dans le HTML peut causer des problèmes de sécurité, notamment dans les environnements de production utilisant une politique de sécurité stricte (CSP).
+
+**Solution** : Implémenter un chargeur dynamique qui ajoute le script de manière programmatique et gère les erreurs potentielles. Cette approche permet également d'appliquer des stratégies de fallback en cas d'échec.
+
+### Problème : Erreurs liées à la clé API Google Maps
+
+**Contexte** : Des erreurs peuvent survenir si la clé API Google Maps est invalide, a expiré, ou n'a pas les bonnes restrictions/permissions.
+
+**Messages d'erreur typiques** :
+- `MissingKeyMapError`
+- `RefererNotAllowedMapError`
+- `InvalidKeyMapError`
+
+**Solution** : 
+1. Vérifier que la clé API est active dans la console Google Cloud
+2. S'assurer que les API Maps JavaScript et Places sont activées
+3. Configurer correctement les restrictions HTTP Referrer si nécessaire
+4. Implémenter un mécanisme de fallback vers une autre couche de carte (comme IGN)
+
+## Gestion des couches de carte
+
+### Problème : Conflits entre les couches de carte
+
+**Contexte** : Lors du changement entre différentes couches de base (Hybride, Cadastre, IGN), des résidus visuels ou des superpositions indésirables peuvent apparaître.
+
+**Solution** : Toujours supprimer complètement la couche précédente avant d'ajouter la nouvelle, et désactiver temporairement les animations pendant cette transition :
+
+```typescript
+// Désactiver les animations
+mapInstance.options.fadeAnimation = false;
+
+// Supprimer l'ancienne couche
+if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
+  mapInstance.removeLayer(activeLayer.value);
+}
+
+// Ajouter la nouvelle couche
+newLayer.addTo(mapInstance);
+
+// Réactiver les animations après un délai
+setTimeout(() => {
+  mapInstance.options.fadeAnimation = true;
+}, 500);
+```
+
+## Performance et ressources
+
+### Problème : Consommation excessive de mémoire
+
+**Contexte** : Les applications cartographiques peuvent consommer beaucoup de mémoire, particulièrement avec de multiples couches et des changements fréquents de vue.
+
+**Solution** : 
+1. Utiliser `mapInstance.remove()` pour nettoyer correctement les ressources lors de la destruction des composants
+2. Limiter la mise en cache des tuiles avec les options appropriées
+3. Utiliser le renderer Canvas plutôt que SVG pour de meilleures performances mémoire
+
+```typescript
+mapInstance.options.preferCanvas = true;
+mapInstance.options.renderer = L.canvas();
+```
+
+Ce document sera mis à jour au fur et à mesure que de nouveaux problèmes et solutions sont identifiés.
