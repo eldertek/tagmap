@@ -140,7 +140,8 @@
 
 ## Known Issues
 
-No issues have been identified yet as development has not started.
+- Fallback reload of the last consulted plan (`loadLastPlan`) fails when `loadPlan` returns a 404 for an invalid `planId`, because `lastPlanId` was being removed before fallback. Fixed by preserving `lastPlanId` in `loadPlan` catch blocks.
+- Tests: Manual verification of fallback loading after API 404.
 
 ## Next Steps
 

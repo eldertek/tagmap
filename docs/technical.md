@@ -261,6 +261,8 @@ The core database models include:
 ### Gestion des erreurs et logs
 - Ajout de logs détaillés pour le debug (état du DOM, actions de recréation, etc.).
 - Gestion robuste des erreurs lors de la manipulation du DOM (try/catch, fallback sur recréation d'icône).
+- Ajout d'une logique de repli (`loadLastPlan`) dans `MapView.vue` : si le chargement d'un plan spécifié dans l'URL échoue (404), le composant tente de recharger automatiquement le **dernier plan consulté**, en conservant l'ID (`lastPlanId`) dans `localStorage`.
+- Mise à jour des hooks de gestion d'erreur pour préserver `lastPlanId` lors des échecs initiaux et permettre le rechargement de secours.
 
 ## Règle de scroll pour les tabs de DrawingTools.vue (correctif final)
 
@@ -323,82 +325,4 @@ Dans `api/views.py`, la classe `GeoNoteViewSet` centralise la logique des permis
         return qs.filter(private_q | company_q | employee_q | visitor_q)
 ```
 
-Aussi, `perform_create` assigne désormais le champ `createur` automatiquement à `request.user` lors de la création d'une note. 
-
-## Frontend
-### Notes Management
-- Creation and editing of geolocated notes
-- Permission management for notes
-- Filtering and searching
-- Side panel dialog box interface for note management
-- Display enterprise name on notes when logged in as Administrator (utilises `enterprise_name` from API)
-- Enterprise data preservation during note editing (enterprise_id, enterprise_name) ensures consistent display for administrators 
-
-## Gestion des relations entre utilisateurs et notes
-
-### Modèle de permissions
-
-Le système TagMap utilise un modèle de permissions hiérarchique basé sur les rôles des utilisateurs et l'association aux entreprises:
-
-1. **Admin**: Accès complet à toutes les notes
-2. **Entreprise**: Accès à toutes les notes associées à son ID d'entreprise
-3. **Salarié**: Accès aux notes associées à l'entreprise du salarié
-4. **Visiteur**: Accès aux notes en fonction de l'entreprise du salarié associé
-
-### Traitement des objets enterprise_id
-
-Pour garantir une comparaison correcte entre les objets enterprise_id, qui sont des références à des objets User plutôt que de simples IDs numériques, le système:
-
-1. Extrait l'ID numérique de l'objet enterprise_id lors des comparaisons
-2. Compare les valeurs numériques plutôt que les objets complets
-3. Évite les avertissements de comparaison incorrecte dans les logs
-
-### Filtrage par rôle utilisateur
-
-Le système applique des filtres spécifiques selon le rôle de l'utilisateur pour garantir l'accès correct aux notes:
-
-| Rôle        | Filtre appliqué                                                 |
-|-------------|----------------------------------------------------------------|
-| ADMIN       | Aucun filtre (accès complet)                                   |
-| ENTREPRISE  | `private(createur=user) OR company(enterprise_id) OR employee(enterprise_id) OR visitor(enterprise_id)` |
-| SALARIÉ     | `private(createur=user) OR employee(enterprise_id) OR visitor(enterprise_id)` |
-| VISITEUR    | `private(createur=user) OR visitor(enterprise_id)`             |
-
-Cette différenciation garantit que chaque utilisateur n'a accès qu'aux notes appropriées à son rôle, avec une stricte conformité aux exigences de confidentialité du projet.
-
-Cette approche résout les problèmes de comparaison entre objets qui pouvaient apparaître dans les logs sous forme d'avertissements:
-```
-⚠️ ATTENTION: Entreprise de la note ([object]) différente de celle de l'utilisateur ([id])
-```
-
-### Debugging avancé des permissions
-
-Le système inclut des logs détaillés pour le debugging des permissions:
-- Informations sur l'utilisateur (ID, nom, rôle)
-- Détails sur les critères d'accès appliqués
-- Liste des notes avant et après filtrage
-- Validation des IDs d'entreprise pour vérifier la cohérence
-
-Ces journaux sont particulièrement utiles pour diagnostiquer les problèmes de visibilité des notes entre différents utilisateurs. 
-
-## Dynamic Google Maps API Key Management
-
-A dedicated admin-only settings page (`ParametresView.vue`) allows administrators to securely configure the Google Maps API key. The implementation uses a secure backend-centric approach:
-
-### Backend Implementation
-- The `ApplicationSetting` model stores configuration parameters with key-value pairs in the database.
-- The key 'google_maps_api_key' stores the Google Maps API key.
-- Two API endpoints manage the key:
-  - `GET /api/settings/get_google_maps_api_key/` (public) - Returns the current API key
-  - `POST /api/settings/set_google_maps_api_key/` (admin only) - Updates the API key
-
-### Frontend Implementation
-- The map loader (`googleMapsLoader.ts`) fetches the key from the backend endpoint on demand.
-- A fallback empty key in the static configuration prevents errors if the backend is unavailable.
-- The admin settings page provides a secure interface for updating the key.
-
-### Security Benefits
-- API keys remain secure on the server, never stored in client-side storage.
-- Admin-only permission checks protect modification endpoints.
-- Clear separation between public (read-only) and protected (write) endpoints.
-- All API accesses are logged and can be audited. 
+Aussi, `perform_create` assigne désormais le champ `createur` automatiquement à `

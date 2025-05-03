@@ -1162,11 +1162,11 @@ onMounted(async () => {
       } catch (error) {
         console.error('[MapView][onMounted] Erreur chargement plan depuis URL:', error);
         // Fallback sur le dernier plan consulté
-        loadLastPlan();
+        await loadLastPlan();
       }
     } else {
       // Si pas de paramètres d'URL, charger le dernier plan consulté
-      loadLastPlan();
+      await loadLastPlan();
     }
 
     // Fonction pour charger le dernier plan consulté
@@ -1892,8 +1892,8 @@ async function loadPlan(planId: number) {
           }, 'MapView');
         } catch (error: any) {
           if (error.response?.status === 404) {
-            console.warn('[MapView][loadPlan] Plan non trouvé - Nettoyage du localStorage');
-            localStorage.removeItem('lastPlanId');
+            console.warn('[MapView][loadPlan] Plan non trouvé - conservation de lastPlanId pour fallback');
+//                localStorage.removeItem('lastPlanId'); // Commented out to preserve lastPlanId for fallback
             currentPlan.value = null;
             irrigationStore.clearCurrentPlan();
             drawingStore.clearCurrentPlan();
@@ -1921,11 +1921,11 @@ async function loadPlan(planId: number) {
       console.error('Erreur lors du chargement du plan:', error);
       // En cas d'erreur, réinitialiser complètement l'état
       performanceMonitor.measure('loadPlan:errorRecovery', () => {
-        currentPlan.value = null;
-        irrigationStore.clearCurrentPlan();
-        drawingStore.clearCurrentPlan();
-        clearMap();
-        localStorage.removeItem('lastPlanId');
+          currentPlan.value = null;
+          irrigationStore.clearCurrentPlan();
+          drawingStore.clearCurrentPlan();
+          clearMap();
+//              localStorage.removeItem('lastPlanId'); // Commented out to preserve lastPlanId for fallback
       }, 'MapView');
       throw error;
     }

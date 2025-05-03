@@ -38,6 +38,8 @@
    - Adaptation aux différentes tailles d'écran
    - Gestion optimale des performances sur appareils mobiles
 
+4. **Assurer un rechargement de secours du dernier plan consulté (fonction `loadLastPlan`) si le chargement du plan initial échoue (404). Correction appliquée pour préserver `lastPlanId` et attendre l'appel.**
+
 ## Progression actuelle
 
 ### Front-end
@@ -46,7 +48,7 @@
 - ✅ Système de filtrage par colonnes
 - ✅ Système d'authentification
 - ✅ Interface de gestion des utilisateurs pour les administrateurs
-- 🔄 Optimisation des performances sur mobile
+- ✅ Correction du bug de rechargement automatique du dernier plan consulté (`loadLastPlan`) lorsque le plan spécifié dans l'URL est introuvable (404).
 - ✅ Page Paramètres admin accessible uniquement aux administrateurs avec stockage sécurisé côté serveur de la clé d'API Google Maps (modèle ApplicationSetting) et API dédiée pour sa récupération/mise à jour.
 - ✅ Service settings.ts créé pour encapsuler les appels API liés aux paramètres, et implémentation dans ParametresView.vue pour utiliser ce service au lieu de l'API directement.
 
