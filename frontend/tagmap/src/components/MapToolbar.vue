@@ -318,10 +318,17 @@ watch(saveStatus, (status) => {
   z-index: 1500;
   overflow: visible;
   flex-shrink: 0;
-  min-height: var(--mobile-toolbar-height);
-  position: relative;
-  top: 0;
+  height: var(--toolbar-height, 49px);
+  min-height: var(--toolbar-height, 49px);
 }
+
+@media (max-width: 767px) {
+  .map-toolbar {
+    min-height: var(--mobile-toolbar-height);
+    height: var(--mobile-toolbar-height);
+  }
+}
+
 .dropdown {
   position: relative;
   display: inline-block;

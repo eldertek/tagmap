@@ -1355,11 +1355,11 @@ const openGeoNoteRoute = () => {
 /* Styles de base */
 .drawing-tools-panel {
   height: 100%;
-  overflow: hidden;
-  @apply bg-white flex flex-col;
-  min-height: 0;
   display: flex;
   flex-direction: column;
+  @apply bg-white;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Structure flex pour permettre le défilement */
@@ -1376,8 +1376,7 @@ const openGeoNoteRoute = () => {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  height: 100%;
-  overflow: hidden; /* S'assurer que l'overflow est bien hidden */
+  overflow: hidden;
 }
 
 /* Contenu scrollable des tabs */
@@ -1390,8 +1389,8 @@ const openGeoNoteRoute = () => {
 
 /* Tabs navigation container */
 .tabs-container {
-  height: 40px; /* Réduire la hauteur des tabs */
-  flex-shrink: 0; /* Empêcher les tabs de rétrécir */
+  height: 40px;
+  flex-shrink: 0;
 }
 
 /* Style d'onglet */
@@ -1419,7 +1418,6 @@ const openGeoNoteRoute = () => {
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
-    overflow: hidden;
   }
 
   .drawing-tools-panel.open {
@@ -1452,11 +1450,8 @@ const openGeoNoteRoute = () => {
 @media (min-width: 768px) {
   .drawing-tools-panel {
     @apply relative border-l border-gray-200;
-    width: 20rem;
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - var(--header-height));
-    overflow: hidden;
+    width: var(--drawing-tools-width-desktop, 20rem);
+    height: calc(100vh - var(--header-height) - var(--toolbar-height));
   }
 }
 

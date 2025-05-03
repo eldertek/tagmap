@@ -265,9 +265,9 @@ watchEffect(() => {
 })
 </script>
 <template>
-  <div class="h-screen flex flex-col">
+  <div class="app-container">
     <!-- NavToolbar -->
-    <header v-if="isAuthenticated" class="bg-white shadow-sm z-[2500] flex-shrink-0">
+    <header v-if="isAuthenticated" class="app-header bg-white shadow-sm z-[2500] flex-shrink-0">
       <nav class="mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
           <!-- Logo et navigation -->
@@ -511,11 +511,7 @@ watchEffect(() => {
       </nav>
     </header>
     <!-- Main content -->
-    <main :class="[
-      $route.path === '/' && !isMobile ? 'overflow-hidden' : 'overflow-auto',
-      'flex-1 flex flex-col',
-      'md:h-[calc(100vh-64px)]'
-    ]">
+    <main class="app-main">
       <router-view></router-view>
     </main>
 
@@ -528,19 +524,55 @@ watchEffect(() => {
   </div>
 </template>
 <style>
-/* Styles de base */
+/* Consistent layout variables */
+:root {
+  --header-height: 64px;
+  --toolbar-height: 49px; /* MapToolbar height */
+  --mobile-toolbar-height: 50px;
+  --mobile-bottom-toolbar-height: 48px;
+  --drawing-tools-width-desktop: 20rem;
+}
+
+/* Base layout */
+.app-container {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent any scrolling on the main container */
+}
+
+.app-header {
+  height: var(--header-height);
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* General styles */
 body {
   @apply bg-gray-50;
 }
 
-/* Sur desktop, on garde le overflow hidden */
+/* Desktop specific styles */
 @media (min-width: 768px) {
   body, #app {
     @apply h-screen overflow-hidden;
   }
+  
+  /* Ensure content scrolling works in tabs while preserving overall layout */
+  .tab-content {
+    overflow-y: auto;
+  }
 }
 
-/* Sur mobile, on permet le scroll mais on garde une structure fixe */
+/* Mobile specific styles */
 @media (max-width: 767px) {
   body, #app {
     @apply min-h-screen overflow-hidden;
@@ -550,6 +582,24 @@ body {
     top: 0;
     left: 0;
   }
+}
+
+/* Map layout components */
+.map-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.map-toolbar {
+  flex-shrink: 0;
+  height: var(--toolbar-height);
+}
+
+.map-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* Animation de la cloche de notification */
@@ -642,40 +692,5 @@ body {
 .message-leave-to {
   opacity: 0;
   transform: translateX(10px);
-}
-
-/* Ajout d'une variable CSS pour la hauteur du header et de la barre d'outils mobile */
-:root {
-  --header-height: 64px; /* 4rem = 64px */
-  --mobile-toolbar-height: 50px; /* Hauteur de la barre d'outils mobile */
-  --mobile-bottom-toolbar-height: 48px; /* Hauteur de la barre d'outils en bas sur mobile */
-}
-
-/* Ajuster la hauteur de main */
-main {
-  height: calc(100vh - var(--header-height)) !important;
-  min-height: calc(100vh - var(--header-height)) !important;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Ajuster le contenu principal pour qu'il prenne l'espace restant */
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Assurer que la barre d'outils ne crée pas de débordement */
-.map-toolbar {
-  flex-shrink: 0;
-}
-
-/* Ajuster la hauteur du conteneur de la carte */
-.map-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
 }
 </style>
