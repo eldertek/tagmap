@@ -811,15 +811,15 @@ const selectedShape = computed((): ShapeType | null => {
     shapeType = rawProperties.type;
   } else if (selectedLeafletShape.value instanceof L.Circle) {
     shapeType = 'Circle';
-  } else if (selectedLeafletShape.value instanceof Rectangle) {
+  } else if (rawProperties.shapeType === 'Rectangle') {
     shapeType = 'Rectangle';
   } else if (selectedLeafletShape.value instanceof L.Rectangle) {
     shapeType = 'Rectangle';
-  } else if (selectedLeafletShape.value instanceof Polygon) {
+  } else if (rawProperties.shapeType === 'Polygon') {
     shapeType = 'Polygon';
   } else if (selectedLeafletShape.value instanceof L.Polygon) {
     shapeType = 'Polygon';
-  } else if (selectedLeafletShape.value instanceof Line) {
+  } else if (rawProperties.shapeType === 'Line') {
     shapeType = 'Line';
   } else if (selectedLeafletShape.value instanceof L.Polyline && !(selectedLeafletShape.value instanceof L.Polygon)) {
     shapeType = 'Line';
@@ -4611,4 +4611,4 @@ function checkMobile() {
     padding-bottom: var(--mobile-bottom-toolbar-height) !important; /* Utiliser la variable CSS */
   }
 }
-</style>F
+</style>
