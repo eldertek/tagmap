@@ -447,6 +447,18 @@ async function fetchAllSalaries() {
       salaries.value = await authStore.fetchUsersByRole({ role: 'SALARIE' })
     } else if (isEntreprise.value) {
       salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id!)
+    } else if (isSalarie.value) {
+      // Si c'est un salarie, ajouter soi-même à la liste pour pouvoir s'auto-associer des visiteurs
+      if (authStore.user) {
+        salaries.value = [{
+          id: authStore.user.id,
+          first_name: authStore.user.first_name,
+          last_name: authStore.user.last_name,
+          username: authStore.user.username,
+          role: 'SALARIE',
+          company_name: authStore.user.company_name
+        }]
+      }
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des salaries:', error)
