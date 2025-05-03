@@ -1119,7 +1119,8 @@ onMounted(async () => {
         // Si des coordonnées sont spécifiées, centrer la carte sur ces coordonnées
         if (urlParams.value.lat && urlParams.value.lng && map.value) {
           console.log('[MapView][onMounted] Centrage de la carte sur les coordonnées:', urlParams.value.lat, urlParams.value.lng);
-          map.value.flyTo([urlParams.value.lat, urlParams.value.lng], 16);
+          // Zoom plus fort pour mieux mettre en valeur la note
+          map.value.flyTo([urlParams.value.lat, urlParams.value.lng], 30);
         }
 
         // Si un noteId est spécifié, mettre en évidence la note correspondante
@@ -1135,6 +1136,17 @@ onMounted(async () => {
                 // Sélectionner la couche
                 if (typeof layer.fire === 'function') {
                   layer.fire('click');
+                }
+                // Mettre la couche sélectionnée au premier plan pour la distinguer
+                if (typeof layer.bringToFront === 'function') {
+                  layer.bringToFront();
+                }
+                // Recentrer et zoomer sur la note après ajustement de la vue globale
+                if (map.value) {
+                  const coords = typeof layer.getLatLng === 'function'
+                    ? layer.getLatLng()
+                    : [urlParams.value.lat, urlParams.value.lng];
+                  map.value.flyTo(coords, 18);
                 }
                 break;
               }
