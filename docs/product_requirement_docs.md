@@ -30,6 +30,7 @@ Organizations need a centralized way to:
 - Multiple map layers: Hybrid (satellite + city), Cadastral, IGN
 - Selective layer visibility through a checkbox filtering system
 - Custom filtering for specific elements (Drilling, Clients, Warehouses, etc.)
+- **Administrators can configure the Google Maps API key dynamically via a secure settings page. The key is stored securely in the database and retrieved by the frontend when needed, with no client-side storage of sensitive keys.**
 
 ### Geospatial Annotation Features
 - Creation of geolocated notes with customizable permissions

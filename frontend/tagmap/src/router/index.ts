@@ -7,6 +7,7 @@ import UserListView from '@/views/UserListView.vue'
 import PlansView from '../views/PlansView.vue'
 import NotesView from '../views/NotesView.vue'
 import MeteoView from '../views/MeteoView.vue'
+import ParametresView from '../views/ParametresView.vue'
 
 const router = createRouter({
   history: createWebHistory('/'),
@@ -97,6 +98,15 @@ const router = createRouter({
       name: 'map',
       component: MapView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/parametres',
+      name: 'parametres',
+      component: ParametresView,
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['admin']
+      }
     },
     {
       path: '/:pathMatch(.*)*',

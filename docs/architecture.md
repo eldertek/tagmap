@@ -297,3 +297,29 @@ Pour garantir une comparaison correcte lors du filtrage des notes:
 3. Cette approche résout les avertissements de comparaison incorrecte qui apparaissaient dans les logs.
 
 Ces mécanismes permettent de maintenir une architecture de permissions robuste tout en facilitant le diagnostic des problèmes d'accès. 
+
+## Admin Settings Page: Google Maps API Key
+
+A dedicated admin-only settings page (`ParametresView.vue`) allows administrators to securely configure the Google Maps API key. The key is stored in the database through the `ApplicationSetting` model and is accessed via a secure API endpoint.
+
+**Workflow:**
+- Admin navigates to `/parametres` (visible only to admins).
+- The page displays a password-type input for the Google Maps API key.
+- On save, the key is securely stored in the database via the backend API.
+- The frontend loads Google Maps via a backend-generated URL with the key already embedded.
+- The backend-only handles the actual API key, never exposing it to the client.
+- A secure public endpoint `/api/settings/get_google_maps_api_key/` provides only a pre-constructed URL with the key embedded.
+- The admin-only endpoint `/api/settings/set_google_maps_api_key/` allows updating the key.
+
+**Security Features:**
+- The key is never transmitted to the client or exposed in network requests.
+- Admin-only access to the settings page and modification endpoints.
+- The Google Maps API key is securely stored server-side only.
+- The frontend only receives a complete script URL, not the key itself.
+- Key status indicator shows if key is configured without revealing the key.
+
+**Impact:**
+- No redeployment is needed to update the API key.
+- Hybrid map layer (Google Maps) uses the latest key from the server.
+- Maximized security by keeping sensitive API keys completely server-side.
+- No possibility of API key extraction from client-side code or network requests. 

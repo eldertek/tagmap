@@ -1,4 +1,5 @@
 import mapConfig from '@/config/maps.config';
+import { settingsService } from '@/services/api';
 
 let isLoaded = false;
 let loadPromise: Promise<void> | null = null;
@@ -18,7 +19,7 @@ export function loadGoogleMapsApi(): Promise<void> {
     return loadPromise;
   }
 
-  loadPromise = new Promise<void>((resolve, reject) => {
+  loadPromise = new Promise<void>(async (resolve, reject) => {
     try {
       // Check if already loaded
       if (window.google && window.google.maps) {
@@ -27,26 +28,40 @@ export function loadGoogleMapsApi(): Promise<void> {
         return;
       }
 
-      // Create script element
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapConfig.googleMapsApiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
+      // Récupérer la clé API depuis le backend
+      try {
+        // Appel au backend pour obtenir l'URL complète avec la clé
+        const response = await settingsService.getGoogleMapsApiKey();
+        
+        // Le backend génère l'URL complète avec la clé
+        const googleMapsURL = response?.data?.url || 'https://maps.googleapis.com/maps/api/js?libraries=places';
+        
+        // Create script element
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = googleMapsURL;
+        script.async = true;
+        script.defer = true;
 
-      // Setup handlers
-      script.onload = () => {
-        isLoaded = true;
-        resolve();
-      };
+        // Handle script load event
+        script.onload = () => {
+          isLoaded = true;
+          resolve();
+        };
 
-      script.onerror = (error) => {
+        // Handle script error event
+        script.onerror = () => {
+          loadPromise = null;
+          reject(new Error('Failed to load Google Maps API'));
+        };
+
+        // Add script to document
+        document.head.appendChild(script);
+      } catch (error) {
+        console.warn('Error loading Google Maps API:', error);
         loadPromise = null;
-        reject(new Error(`Failed to load Google Maps API: ${error}`));
-      };
-
-      // Add to document
-      document.head.appendChild(script);
+        reject(error);
+      }
     } catch (error) {
       loadPromise = null;
       reject(error);

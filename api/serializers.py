@@ -8,6 +8,7 @@ import uuid
 from PIL import Image
 from io import BytesIO
 from rest_framework import viewsets
+from .models import ApplicationSetting
 
 User = get_user_model()  # Ceci pointera vers authentication.Utilisateur
 
@@ -791,4 +792,14 @@ class MapFilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = MapFilter
         fields = ['id', 'name', 'category', 'description', 'entreprise', 'entreprise_name', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+class ApplicationSettingSerializer(serializers.ModelSerializer):
+    """
+    Sérialiseur pour le modèle ApplicationSetting.
+    Permet de gérer les paramètres globaux de l'application.
+    """
+    class Meta:
+        model = ApplicationSetting
+        fields = ['id', 'key', 'value', 'description', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']

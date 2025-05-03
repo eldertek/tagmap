@@ -7,6 +7,7 @@
    - Création et gestion des notes géolocalisées
    - Système de permissions par niveau d'accès
    - Gestion des médias (photos)
+   - **Permettre à l'administrateur de configurer de manière sécurisée la clé d'API Google Maps via une page Paramètres dédiée, avec stockage côté serveur dans un modèle ApplicationSetting et récupération par le frontend via une API dédiée.**
 
 2. **Amélioration de l'expérience utilisateur**
    - Interface responsive pour mobile et desktop
@@ -46,6 +47,8 @@
 - ✅ Système d'authentification
 - ✅ Interface de gestion des utilisateurs pour les administrateurs
 - 🔄 Optimisation des performances sur mobile
+- ✅ Page Paramètres admin accessible uniquement aux administrateurs avec stockage sécurisé côté serveur de la clé d'API Google Maps (modèle ApplicationSetting) et API dédiée pour sa récupération/mise à jour.
+- ✅ Service settings.ts créé pour encapsuler les appels API liés aux paramètres, et implémentation dans ParametresView.vue pour utiliser ce service au lieu de l'API directement.
 
 ### Back-end
 - ✅ API REST pour la gestion des notes

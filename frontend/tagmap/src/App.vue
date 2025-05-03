@@ -117,6 +117,11 @@ const navigationItems = computed(() => {
     items.push({ name: 'Utilisateurs', to: '/users' })
   }
 
+  // Ajouter l'accès aux paramètres pour les admins
+  if (isAdmin.value) {
+    items.push({ name: 'Paramètres', to: '/parametres' })
+  }
+
   return items
 })
 // Items du menu profil

@@ -967,4 +967,35 @@ export const mapFilterService = {
   }
 };
 
+// Service pour les paramètres de l'application
+export const settingsService = {
+  // Récupérer la clé API Google Maps
+  async getGoogleMapsApiKey() {
+    const endMeasure = performanceMonitor.startMeasure('get_google_maps_api_key', 'SettingsService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'get_google_maps_api_key_request',
+        () => api.get('/settings/get_google_maps_api_key/'),
+        'SettingsService'
+      );
+    } finally {
+      endMeasure();
+    }
+  },
+
+  // Enregistrer la clé API Google Maps
+  async setGoogleMapsApiKey(key: string) {
+    const endMeasure = performanceMonitor.startMeasure('set_google_maps_api_key', 'SettingsService');
+    try {
+      return await performanceMonitor.measureAsync(
+        'set_google_maps_api_key_request',
+        () => api.post('/settings/set_google_maps_api_key/', { key }),
+        'SettingsService'
+      );
+    } finally {
+      endMeasure();
+    }
+  }
+};
+
 export default api;

@@ -14,7 +14,8 @@ from .views import (
     NoteColumnViewSet,
     MapFilterViewSet,
     WeatherViewSet,
-    elevation_proxy
+    elevation_proxy,
+    ApplicationSettingViewSet,
 )
 
 # Router principal
@@ -29,7 +30,8 @@ router.register(r'notes', GeoNoteViewSet, basename='note')
 router.register(r'note-comments', NoteCommentViewSet, basename='note-comment')
 router.register(r'note-photos', NotePhotoViewSet, basename='note-photo')
 router.register(r'columns', NoteColumnViewSet, basename='column')
-router.register(r'map-filters', MapFilterViewSet, basename='map-filter')
+router.register(r'map-filters', MapFilterViewSet, basename='map-filters')
+router.register(r'settings', ApplicationSettingViewSet, basename='settings')
 
 # Routes pour l'API météo (séparer les endpoints)
 router.register(r'weather', WeatherViewSet, basename='weather')

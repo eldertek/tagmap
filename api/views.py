@@ -15,6 +15,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.views import APIView
 
 # Imports tiers
 import requests
@@ -28,12 +29,13 @@ from .serializers import (
     TexteAnnotationSerializer, PlanDetailSerializer, GeoNoteSerializer,
     NoteCommentSerializer, NotePhotoSerializer, NoteColumnSerializer,
     WeatherDataSerializer, WeatherHistoryDataSerializer, WeatherChartDataSerializer,
-    EcowittDeviceSerializer, MapFilterSerializer
+    EcowittDeviceSerializer, MapFilterSerializer, ApplicationSettingSerializer
 )
 from plans.models import (
     Plan, FormeGeometrique, Connexion, TexteAnnotation,
     GeoNote, NoteComment, NotePhoto, MapFilter
 )
+from .models import ApplicationSetting
 
 # Configuration
 User = get_user_model()
@@ -2115,3 +2117,88 @@ class MapFilterViewSet(viewsets.ModelViewSet):
         # Sinon, erreur
         else:
             raise PermissionDenied("Seules les entreprises peuvent créer des filtres de carte.")
+
+class ApplicationSettingViewSet(viewsets.ModelViewSet):
+    """ViewSet pour la gestion des paramètres globaux de l'application."""
+    queryset = ApplicationSetting.objects.all()
+    serializer_class = ApplicationSettingSerializer
+    
+    # Définir les permissions au niveau de la méthode plutôt qu'au niveau de la classe
+    def get_permissions(self):
+        """Attribuer les permissions selon l'action."""
+        if self.action == 'get_google_maps_api_key':
+            return []  # Aucune permission requise pour cet endpoint public
+        else:
+            return [permissions.IsAuthenticated(), IsAdmin()]
+    
+    def get_queryset(self):
+        """Filtre les paramètres selon le rôle - seuls les admins voient tout."""
+        user = self.request.user
+        
+        # Ne pas filtrer pour l'action get_google_maps_api_key
+        if self.action == 'get_google_maps_api_key':
+            return ApplicationSetting.objects.all()
+        
+        if not hasattr(user, 'role') or user.role != ROLE_ADMIN:
+            # Si action est list/retrieve mais pas admin, ne rien retourner
+            if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
+                return ApplicationSetting.objects.none()
+        
+        return ApplicationSetting.objects.all()
+    
+    @action(detail=False, methods=['get'], permission_classes=[])
+    def get_google_maps_api_key(self, request):
+        """
+        Endpoint public pour récupérer l'URL Google Maps avec la clé API.
+        Au lieu de retourner la clé directement, nous retournons l'URL complète
+        pour éviter toute exposition de la clé dans le code client.
+        """
+        try:
+            setting = ApplicationSetting.objects.get(key='google_maps_api_key')
+            # Générer l'URL complète avec la clé
+            google_maps_url = f"https://maps.googleapis.com/maps/api/js?key={setting.value}&libraries=places"
+            return Response({
+                'url': google_maps_url,
+                # Indiquer si une clé est présente sans l'exposer
+                'key_status': 'configured' if setting.value else 'missing'
+            })
+        except ApplicationSetting.DoesNotExist:
+            # URL sans clé
+            return Response({
+                'url': 'https://maps.googleapis.com/maps/api/js?libraries=places',
+                'key_status': 'missing'
+            })
+    
+    @action(detail=False, methods=['post'])
+    def set_google_maps_api_key(self, request):
+        """
+        Endpoint pour définir la clé API Google Maps.
+        Réservé aux administrateurs.
+        """
+        if not hasattr(request.user, 'role') or request.user.role != ROLE_ADMIN:
+            return Response(
+                {'detail': 'Vous n\'avez pas les permissions nécessaires pour effectuer cette action.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        key_value = request.data.get('key')
+        if not key_value:
+            return Response(
+                {'detail': 'La clé API est requise.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        setting, created = ApplicationSetting.objects.update_or_create(
+            key='google_maps_api_key',
+            defaults={
+                'value': key_value,
+                'description': 'Clé API Google Maps pour la carte hybride'
+            }
+        )
+        
+        return Response({
+            'id': setting.id,
+            'key': setting.key,
+            'value': setting.value,
+            'created': created
+        })

@@ -380,3 +380,25 @@ Le système inclut des logs détaillés pour le debugging des permissions:
 - Validation des IDs d'entreprise pour vérifier la cohérence
 
 Ces journaux sont particulièrement utiles pour diagnostiquer les problèmes de visibilité des notes entre différents utilisateurs. 
+
+## Dynamic Google Maps API Key Management
+
+A dedicated admin-only settings page (`ParametresView.vue`) allows administrators to securely configure the Google Maps API key. The implementation uses a secure backend-centric approach:
+
+### Backend Implementation
+- The `ApplicationSetting` model stores configuration parameters with key-value pairs in the database.
+- The key 'google_maps_api_key' stores the Google Maps API key.
+- Two API endpoints manage the key:
+  - `GET /api/settings/get_google_maps_api_key/` (public) - Returns the current API key
+  - `POST /api/settings/set_google_maps_api_key/` (admin only) - Updates the API key
+
+### Frontend Implementation
+- The map loader (`googleMapsLoader.ts`) fetches the key from the backend endpoint on demand.
+- A fallback empty key in the static configuration prevents errors if the backend is unavailable.
+- The admin settings page provides a secure interface for updating the key.
+
+### Security Benefits
+- API keys remain secure on the server, never stored in client-side storage.
+- Admin-only permission checks protect modification endpoints.
+- Clear separation between public (read-only) and protected (write) endpoints.
+- All API accesses are logged and can be audited. 
