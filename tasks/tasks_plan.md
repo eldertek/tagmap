@@ -76,8 +76,13 @@
    - [ ] Implement note filtering
    - [ ] Create side panel dialog box
    - [ ] Connect notes to backend API
+   - [x] Centraliser la permission GeoNote côté backend (get_queryset & perform_create)
+   - [x] Supprimer la logique de permission dans le store frontend
+   - [x] Display enterprise name on each note for Administrators only in NotesView.vue
+   - [x] Fix enterprise_name preservation when editing notes
+   - [ ] Écrire tests automatisés pour chaque niveau d'accès GeoNote
    - [ ] Write note feature tests
-   - [ ] **Test : Vérifier que les dates de modification (`updatedAt`) des notes ne changent que lors d'une modification réelle et restent cohérentes après rechargement de la page.**
+   - [ ] **Test : Vérifier que les dates de modification (`updatedAt`) des notes ne changent que lors d'une modification réelle et restent cohérentes après rechargement de la page**
 
 6. **Drawing Tools**
    - [ ] Implement polygon drawing

@@ -267,6 +267,12 @@ class GeoNote(models.Model):
         null=True,
         blank=True
     )
+    createur = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_notes',
+        verbose_name='Créateur'
+    )
 
     class Meta:
         ordering = ['column', 'order', '-updated_at']

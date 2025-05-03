@@ -633,63 +633,121 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Ne retourne que les notes des plans accessibles à l'utilisateur
-        Si un plan spécifique est demandé, ne retourne que les notes de ce plan
-        Pour les utilisateurs non-admin, filtre également par entreprise
+        Filtre les GeoNotes selon le niveau d'accès :
+        - private  : créateur uniquement
+        - company  : entreprise uniquement
+        - employee : entreprise & salariés
+        - visitor  : toute l'entreprise
+        Admin voit tout.
         """
         user = self.request.user
+        qs = GeoNote.objects.all()
 
-        # Vérifier si un plan spécifique est demandé
-        plan_id = self.request.query_params.get('plan')
-        # Vérifier si une entreprise spécifique est demandée
-        enterprise_id = self.request.query_params.get('enterprise_id')
-
-        # Base queryset selon le rôle de l'utilisateur
+        print(f"\n[GeoNoteViewSet][get_queryset] ==================== DÉBUT REQUÊTE NOTES ====================")
+        print(f"User ID: {user.id}, Username: {user.username}, Role: {user.role}")
+        
+        if hasattr(user, 'entreprise'):
+            print(f"Entreprise associée: ID={user.entreprise.id if user.entreprise else 'None'}, Nom={user.entreprise.username if user.entreprise else 'None'}")
+        elif hasattr(user, 'enterprise_id'):
+            print(f"Enterprise ID: {user.enterprise_id}")
+        
+        if hasattr(user, 'salarie'):
+            print(f"Salarié associé: ID={user.salarie.id if user.salarie else 'None'}, Nom={user.salarie.username if user.salarie else 'None'}")
+            if user.salarie and hasattr(user.salarie, 'entreprise'):
+                print(f"Entreprise du salarié: ID={user.salarie.entreprise.id if user.salarie.entreprise else 'None'}, Nom={user.salarie.entreprise.username if user.salarie.entreprise else 'None'}")
+        
+        # Paramètres de requête
+        print("\nParamètres de requête:")
+        for key, value in self.request.query_params.items():
+            print(f"- {key}: {value}")
+        
+        # Nombre total de notes avant filtrage
+        all_notes_count = qs.count()
+        print(f"\nNombre total de notes dans la base: {all_notes_count}")
+        
+        # Liste des 10 premières notes pour debugging
+        if all_notes_count > 0:
+            first_notes = qs[:min(10, all_notes_count)]
+            print("\nLes 10 premières notes (ou moins) avant filtrage:")
+            for note in first_notes:
+                print(f"- ID: {note.id}, Titre: {note.title}, Niveau d'accès: {note.access_level}, Créateur: {note.createur.username if note.createur else 'None'}, Enterprise: {note.enterprise_id}")
+        
+        # Admin : toutes les notes
         if user.role == ROLE_ADMIN:
-            base_queryset = GeoNote.objects.all()
-            # Si une entreprise est spécifiée, filtrer par cette entreprise
-            if enterprise_id:
-                base_queryset = base_queryset.filter(enterprise_id=enterprise_id)
-        elif user.role == ROLE_USINE:
-            # Une entreprise peut voir les notes où elle est assignée directement
-            # ou liées à ses salaries et leurs visiteurs
-            # ainsi que les notes sans plan mais associées à son entreprise
-            base_queryset = GeoNote.objects.filter(
-                Q(enterprise_id=user) |
-                Q(plan__isnull=True, enterprise_id=user) |
-                Q(plan__entreprise=user) |
-                Q(plan__salarie__entreprise=user) |
-                Q(plan__visiteur__salarie__entreprise=user)
-            )
+            print("\nUtilisateur ADMIN - Aucun filtrage appliqué")
+            print(f"[GeoNoteViewSet][get_queryset] ==================== FIN REQUÊTE NOTES ====================\n")
+            return qs
+
+        # Déterminer l'ID d'entreprise à utiliser pour le filtrage
+        if user.role == ROLE_USINE:
+            entreprise_pk = user.id
+            print(f"\nUtilisateur ENTREPRISE - Utilisation de son propre ID pour le filtrage: {entreprise_pk}")
         elif user.role == ROLE_DEALER:
-            # Un salarie peut voir ses notes et celles de ses visiteurs
-            # ainsi que les notes sans plan mais associées à son entreprise
-            base_queryset = GeoNote.objects.filter(
-                Q(enterprise_id=user.entreprise) |
-                Q(plan__isnull=True, enterprise_id=user.entreprise) |
-                Q(plan__salarie=user) |
-                Q(plan__visiteur__salarie=user)
-            )
-        else:  # visiteur
-            # Un visiteur peut voir les notes de ses plans
-            # ainsi que les notes sans plan mais associées à son entreprise
-            base_queryset = GeoNote.objects.filter(
-                Q(enterprise_id=user.entreprise) |
-                Q(plan__isnull=True, enterprise_id=user.entreprise) |
-                Q(plan__visiteur=user)
-            )
+            entreprise_pk = getattr(user, 'entreprise_id', None)
+            print(f"\nUtilisateur SALARIÉ - Utilisation de l'ID entreprise: {entreprise_pk}")
+        elif user.role == ROLE_AGRICULTEUR:
+            # Pour les visiteurs, chercher l'entreprise via leur salarié
+            if hasattr(user, 'salarie') and user.salarie and hasattr(user.salarie, 'entreprise') and user.salarie.entreprise:
+                entreprise_pk = user.salarie.entreprise.id
+                print(f"\nUtilisateur VISITEUR - Utilisation de l'ID entreprise du salarié: {entreprise_pk}")
+            else:
+                print("\nUtilisateur VISITEUR - Impossible de déterminer l'entreprise!")
+                entreprise_pk = None
+        else:
+            entreprise_pk = getattr(user, 'entreprise_id', None)
+            print(f"\nUtilisateur {user.role} - Utilisation de l'ID entreprise: {entreprise_pk}")
 
-        # Si un plan spécifique est demandé, filtrer uniquement par ce plan
-        if plan_id:
-            print(f"[GeoNoteViewSet][get_queryset] Filtrage des notes pour le plan {plan_id}")
-            # Retourner uniquement les notes associées à ce plan spécifique
-            # (sans inclure les notes sans plan)
-            return base_queryset.filter(plan_id=plan_id)
+        # Ajouter un log pour aider au debugging
+        print(f"Entreprise PK final pour filtrage: {entreprise_pk}")
 
-        # Sinon, inclure toutes les notes accessibles à l'utilisateur
-        # y compris celles sans plan (plan__isnull=True) et celles avec plan
-        print(f"[GeoNoteViewSet][get_queryset] Aucun plan spécifié, retour de toutes les notes accessibles")
-        return base_queryset.distinct()
+        # Conditions de base
+        private_q = Q(access_level='private', createur=user)
+        company_q = Q(access_level='company', enterprise_id=entreprise_pk)
+        employee_q = Q(access_level='employee', enterprise_id=entreprise_pk)
+        visitor_q = Q(access_level='visitor', enterprise_id=entreprise_pk)
+        
+        # Construction du filtre final selon le rôle de l'utilisateur
+        if user.role == ROLE_USINE:  # Entreprise
+            query_filter = private_q | company_q | employee_q | visitor_q
+            print("\nFiltres appliqués (ENTREPRISE):")
+            print(f"- Notes privées: access_level='private' AND createur={user.id}")
+            print(f"- Notes niveau 'company': access_level='company' AND enterprise_id={entreprise_pk}")
+            print(f"- Notes niveau 'employee': access_level='employee' AND enterprise_id={entreprise_pk}")
+            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
+        elif user.role == ROLE_DEALER:  # Salarié
+            query_filter = private_q | employee_q | visitor_q
+            print("\nFiltres appliqués (SALARIÉ):")
+            print(f"- Notes privées: access_level='private' AND createur={user.id}")
+            print(f"- Notes niveau 'employee': access_level='employee' AND enterprise_id={entreprise_pk}")
+            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
+        else:  # ROLE_AGRICULTEUR (Visiteur)
+            query_filter = private_q | visitor_q
+            print("\nFiltres appliqués (VISITEUR):")
+            print(f"- Notes privées: access_level='private' AND createur={user.id}")
+            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
+
+        # Filtrer selon les règles spécifiques au rôle
+        filtered_qs = qs.filter(query_filter)
+        filtered_count = filtered_qs.count()
+        
+        print(f"\nNombre de notes après filtrage: {filtered_count}")
+        
+        # Liste des notes filtrées
+        if filtered_count > 0:
+            filtered_notes = filtered_qs[:min(10, filtered_count)]
+            print("\nLes 10 premières notes (ou moins) après filtrage:")
+            for note in filtered_notes:
+                # Obtenir l'ID numérique de l'entreprise pour la comparaison
+                note_enterprise_id = note.enterprise_id.id if note.enterprise_id else None
+                print(f"- ID: {note.id}, Titre: {note.title}, Niveau d'accès: {note.access_level}, Créateur: {note.createur.username if note.createur else 'None'}, Enterprise: {note.enterprise_id}")
+                print(f"  → Critères d'accès: privé={note.createur_id == user.id}, enterprise_id={note_enterprise_id}, entreprise_pk={entreprise_pk}")
+                
+                # Pour la comparaison, utiliser l'ID numérique plutôt que l'objet complet
+                if note.enterprise_id and isinstance(entreprise_pk, int) and note_enterprise_id != entreprise_pk:
+                    print(f"  ⚠️ ATTENTION: ID d'entreprise de la note ({note_enterprise_id}) différent de celui utilisé pour le filtrage ({entreprise_pk})")
+        
+        print(f"[GeoNoteViewSet][get_queryset] ==================== FIN REQUÊTE NOTES ====================\n")
+        return filtered_qs
 
     def perform_create(self, serializer):
         """
@@ -700,30 +758,46 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         enterprise_id = serializer.validated_data.get('enterprise_id')
 
+        print(f"\n[GeoNoteViewSet][perform_create] Création de note par {user.username} (role: {user.role})")
+        print(f"Enterprise ID reçu: {enterprise_id}")
+        print(f"Plan associé: {plan.id if plan else 'Aucun'}")
+
+        # Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
+        if not enterprise_id:
+            if user.role == ROLE_ADMIN:
+                # Admin: peut être null
+                print("[GeoNoteViewSet][perform_create] Utilisateur admin, entreprise peut rester null")
+                pass
+            elif user.role == ROLE_USINE:
+                # Entreprise: utiliser son propre ID
+                enterprise_id = user
+                print(f"[GeoNoteViewSet][perform_create] Utilisateur entreprise, utilisation de son ID: {enterprise_id.id}")
+            elif user.role == ROLE_DEALER and hasattr(user, 'entreprise') and user.entreprise:
+                # Salarié: utiliser l'ID de son entreprise
+                enterprise_id = user.entreprise
+                print(f"[GeoNoteViewSet][perform_create] Utilisateur salarié, utilisation de l'ID entreprise: {enterprise_id.id}")
+            elif user.role == ROLE_AGRICULTEUR and hasattr(user, 'salarie') and user.salarie and hasattr(user.salarie, 'entreprise') and user.salarie.entreprise:
+                # Visiteur: utiliser l'ID de l'entreprise de son salarié
+                enterprise_id = user.salarie.entreprise
+                print(f"[GeoNoteViewSet][perform_create] Utilisateur visiteur, utilisation de l'ID entreprise du salarié: {enterprise_id.id}")
+            elif plan and plan.entreprise:
+                # Fallback: utiliser l'entreprise du plan si disponible
+                enterprise_id = plan.entreprise
+                print(f"[GeoNoteViewSet][perform_create] Fallback au plan, utilisation de l'ID entreprise: {enterprise_id.id}")
+            else:
+                print("[GeoNoteViewSet][perform_create] Impossible de déterminer l'entreprise, enterprise_id reste null")
+
+        print(f"[GeoNoteViewSet][perform_create] Enterprise ID final: {enterprise_id.id if enterprise_id else 'Null'}")
+        
         # Si c'est une note simple sans plan, on peut créer directement
         if plan is None:
-            print(f"[GeoNoteViewSet][perform_create] Création d'une note simple sans plan par {user.username}")
-
-            # Si l'utilisateur n'est pas admin et qu'aucune entreprise n'est définie, utiliser celle de l'utilisateur
-            if not enterprise_id and user.role != ROLE_ADMIN:
-                if user.role == ROLE_USINE:
-                    enterprise_id = user
-                elif hasattr(user, 'entreprise') and user.entreprise:
-                    enterprise_id = user.entreprise
-
-            serializer.save(enterprise_id=enterprise_id)
+            print(f"[GeoNoteViewSet][perform_create] Création d'une note simple sans plan")
+            serializer.save(createur=user, enterprise_id=enterprise_id)
             return
 
-        # Vérifier les permissions pour un plan existant
-        # Permettre à tous les utilisateurs (admin, entreprise, salarie, visiteur) de créer des notes
-        # Aucune vérification de permission n'est nécessaire
-
-        # Si l'utilisateur n'est pas admin et qu'aucune entreprise n'est définie, utiliser celle du plan
-        if not enterprise_id and user.role != ROLE_ADMIN:
-            if plan.entreprise:
-                enterprise_id = plan.entreprise
-
-        serializer.save(enterprise_id=enterprise_id)
+        # Pour un plan existant, aucune vérification de permission n'est nécessaire
+        # car le filtrage est déjà fait au niveau de l'API
+        serializer.save(createur=user, enterprise_id=enterprise_id)
 
 class NoteCommentViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des commentaires sur les notes."""

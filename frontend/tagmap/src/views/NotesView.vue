@@ -153,11 +153,14 @@
                             <div class="px-3 py-2">
                               <p class="text-sm text-gray-500 line-clamp-2">{{ note.description || 'Aucune description' }}</p>
                             </div>
-                            <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center space-x-2">
                               <span class="text-xs text-gray-500">
                                 {{ note.updatedAt ? formatDate(note.updatedAt) : (note.createdAt ? formatDate(note.createdAt) : 'Date non définie') }}
                               </span>
-                              <div class="flex space-x-1">
+                              <span v-if="authStore.isAdmin" class="text-xs text-gray-700">
+                                {{ note.enterprise_name || 'Non assignée' }}
+                              </span>
+                              <div class="flex space-x-1 ml-auto">
                                 <!-- Indicateur de note géolocalisée ou non -->
                                 <span v-if="note.location" class="text-xs text-primary-500 flex items-center mr-1" title="Note géolocalisée">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -271,13 +274,16 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
-import { useAuthStore } from '../stores/auth';
+import { useAuthStore, formatUserName } from '../stores/auth';
 // import { useIrrigationStore } from '../stores/irrigation'; // Non utilisé pour l'instant
 import { useDrawingStore } from '../stores/drawing';
-import { noteService } from '../services/api';
+import { noteService, userService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
 
 import draggable from 'vuedraggable';
+
+// Liste des entreprises (pour affichage admin)
+const entreprisesList = ref<Array<{ id: number; first_name?: string; last_name?: string; company_name?: string }>>([]);
 
 // Utilisation du type Note importé depuis le store
 
@@ -343,6 +349,8 @@ interface BackendNote {
   created_at: string;
   updated_at: string;
   column?: any;
+  enterprise_id?: number | null;
+  enterprise_name?: string;
 }
 
 // Interface pour les notes transformées
@@ -359,6 +367,8 @@ interface TransformedNote {
   order: number;
   createdAt: string;
   updatedAt: string;
+  enterprise_id?: number | null;
+  enterprise_name?: string;
 }
 
 // Ajouter cette fonction pour formater les dates de manière sécurisée
@@ -533,6 +543,16 @@ async function loadInitialData() {
     await notesStore.loadColumns();
     console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
 
+    // Si admin, charger la liste des entreprises pour affichage
+    if (authStore.isAdmin) {
+      try {
+        const entResp = await userService.getEntreprises();
+        entreprisesList.value = entResp.data;
+        console.log('[NotesView][loadInitialData] Entreprises chargées:', entreprisesList.value);
+      } catch (error) {
+        console.error('[NotesView][loadInitialData] Erreur chargement entreprises:', error);
+      }
+    }
     // Récupérer les notes depuis le backend
     console.log('[NotesView][loadInitialData] Chargement des notes...');
 
@@ -587,20 +607,36 @@ async function loadInitialData() {
     }
 
     // Transformer les notes pour le store
-    const transformedNotes = response.data.map((note: BackendNote): TransformedNote => ({
-      id: note.id, // Utiliser l'ID exact du backend
-      title: note.title,
-      description: note.description,
-      location: note.location,
-      columnId: (note.column || note.column_id || '2').toString(), // Utiliser la colonne À faire par défaut
-      access_level: note.access_level,
-      style: note.style || {},
-      comments: note.comments || [],
-      photos: note.photos || [],
-      order: note.order || 0,
-      createdAt: note.created_at,
-      updatedAt: note.updated_at
-    }));
+    const transformedNotes = response.data.map((note: BackendNote & { enterprise_id?: number | null; enterprise_name?: string }): TransformedNote => {
+      // Déterminer le nom de l'entreprise pour les admins
+      let entName: string | undefined;
+      if (authStore.isAdmin && note.enterprise_id != null) {
+        // Si back-end fournit enterprise_name, l'utiliser
+        if ((note as any).enterprise_name) {
+          entName = (note as any).enterprise_name;
+        } else {
+          // Sinon, chercher localement
+          const ent = entreprisesList.value.find(e => e.id === note.enterprise_id);
+          entName = ent ? formatUserName(ent) : undefined;
+        }
+      }
+      return {
+        id: note.id, // Utiliser l'ID exact du backend
+        title: note.title,
+        description: note.description,
+        location: note.location,
+        columnId: (note.column || note.column_id || '2').toString(), // Utiliser la colonne À faire par défaut
+        access_level: note.access_level,
+        style: note.style || {},
+        comments: note.comments || [],
+        photos: note.photos || [],
+        order: note.order || 0,
+        createdAt: note.created_at,
+        updatedAt: note.updated_at,
+        enterprise_id: note.enterprise_id,
+        enterprise_name: entName,
+      };
+    });
 
     // Vider le store avant d'ajouter les nouvelles notes
     notesStore.notes.length = 0;
@@ -700,72 +736,59 @@ function editNote(note: Note) {
   showEditModal.value = true;
 }
 
-// Gérer la sauvegarde d'une note depuis le modal
-async function handleNoteSave(savedNote: Note) {
+// Fonction pour gérer l'enregistrement d'une note (création ou mise à jour)
+async function handleNoteSave(savedNote: any) {
   console.log('[NotesView][handleNoteSave] Note sauvegardée:', savedNote);
 
-  // S'assurer que les commentaires et photos sont conservés
-  if (savedNote && savedNote.id) {
-    // Vérifier si la note existe dans le store
-    const noteInStore = notesStore.notes.find(note => note.id === savedNote.id);
-    if (noteInStore) {
-      // S'assurer que les commentaires et photos sont présents
-      if (!savedNote.comments && noteInStore.comments) {
-        savedNote.comments = noteInStore.comments;
-      }
-      if (!savedNote.photos && noteInStore.photos) {
-        savedNote.photos = noteInStore.photos;
+  // S'assurer que l'enterprise_id est défini correctement
+  let enterprise_id = savedNote.enterprise_id;
+  
+  // Si l'enterprise_id est manquant, essayer de le déterminer automatiquement
+  if (enterprise_id === undefined || enterprise_id === null) {
+    if (authStore.isAdmin) {
+      // Admin: peut rester null
+      enterprise_id = null;
+    } else if (authStore.isEntreprise && authStore.user) {
+      // Entreprise: utiliser son propre ID
+      enterprise_id = authStore.user.id;
+    } else if (authStore.isSalarie && authStore.user?.enterprise_id) {
+      // Salarié: utiliser l'ID de son entreprise
+      enterprise_id = authStore.user.enterprise_id;
+    } else if (authStore.isVisiteur && authStore.user) {
+      // Visiteur: utiliser l'ID de l'entreprise associée (déjà fourni par le backend)
+      enterprise_id = authStore.user.enterprise_id ?? null;
+    } else if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+      // Fallback: utiliser l'enterprise_id de l'utilisateur si disponible
+      enterprise_id = authStore.user.enterprise_id;
+    }
+    
+    console.log('[NotesView][handleNoteSave] Enterprise ID déterminé automatiquement:', enterprise_id);
+    
+    // Mettre à jour la note avec l'enterprise_id déterminé
+    if (enterprise_id !== null && savedNote.id) {
+      notesStore.updateNote(savedNote.id, {
+        enterprise_id: enterprise_id
+      });
+    }
+  }
+
+  // Préserver ou mettre à jour le nom de l'entreprise pour tous les utilisateurs
+  if (enterprise_id !== null && savedNote.id) {
+    const noteIndex = notesStore.notes.findIndex(n => n.id === savedNote.id);
+    if (noteIndex !== -1) {
+      // Si le nom d'entreprise n'est pas retourné par l'API, le rechercher localement
+      if (!savedNote.enterprise_name) {
+        const enterprise = entreprisesList.value.find(e => e.id === enterprise_id);
+        if (enterprise) {
+          // Mettre à jour la propriété enterprise_name en local (cast pour éviter erreur TypeScript)
+          (notesStore.notes[noteIndex] as any).enterprise_name = formatUserName(enterprise);
+        }
       }
     }
   }
 
-  // La note est déjà sauvegardée dans le store par le composant NoteEditModal
-  showEditModal.value = false;
-
-  // Si un plan est actif, mettre à jour les éléments du plan
-  if (currentPlanId.value && editingNote.value) {
-    try {
-      // Convertir la note en format compatible avec le backend
-      const noteData: any = {
-        location: editingNote.value.location,
-        name: editingNote.value.title,
-        description: editingNote.value.description,
-        columnId: editingNote.value.columnId,
-        accessLevel: editingNote.value.accessLevel,
-        style: editingNote.value.style,
-        comments: editingNote.value.comments || [],
-        photos: editingNote.value.photos || [],
-        order: editingNote.value.order,
-        createdAt: editingNote.value.createdAt,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Trouver l'élément correspondant dans le store de dessin ou en créer un nouveau
-      const existingElementIndex = drawingStore.elements.findIndex(el =>
-        el.type_forme === 'Note' && el.id === editingNote.value?.id
-      );
-
-      if (existingElementIndex !== -1) {
-        // Mettre à jour l'élément existant
-        drawingStore.elements[existingElementIndex].data = noteData;
-      } else {
-        // Ajouter un nouvel élément
-        drawingStore.elements.push({
-          id: editingNote.value.id,
-          type_forme: 'Note',
-          data: noteData
-        });
-      }
-
-      // Sauvegarder le plan
-      await drawingStore.saveToPlan(currentPlanId.value);
-
-      notificationStore.success('Note sauvegardée et plan mis à jour avec succès');
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde de la note:', error);
-      notificationStore.error('Erreur lors de la sauvegarde de la note');
-    }
-  }
+  // Mettre à jour directement la vue sans recharger toutes les données
+  // Les modifications sont déjà reflétées dans le store par le modal
 }
 
 // Confirmer la suppression d'une note
@@ -902,6 +925,27 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
 
 // Créer une note simple (non géolocalisée)
 function createSimpleNote() {
+  // Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
+  let enterprise_id: number | null = null;
+  
+  if (authStore.isAdmin) {
+    // Admin: peut être null ou défini manuellement dans l'interface d'édition
+    enterprise_id = null;
+  } else if (authStore.isEntreprise && authStore.user) {
+    // Entreprise: utiliser son propre ID
+    enterprise_id = authStore.user.id;
+  } else if (authStore.isSalarie && authStore.user?.enterprise_id) {
+    // Salarié: utiliser l'ID de son entreprise
+    enterprise_id = authStore.user.enterprise_id;
+  } else if (authStore.isVisiteur && authStore.user) {
+    // Visiteur: essayer d'obtenir l'ID de l'entreprise via le salarié ou directement
+    // Utiliser l'opérateur de nullish coalescing pour éviter les erreurs de typage
+    console.log('[NotesView][createSimpleNote] Utilisateur visiteur - recherche ID entreprise');
+    enterprise_id = authStore.user.enterprise_id ?? null;
+  }
+  
+  console.log('[NotesView][createSimpleNote] Enterprise ID déterminé:', enterprise_id);
+  
   // Créer une note vide
   editingNote.value = {
     id: '' as unknown as number, // L'ID sera généré par le backend
@@ -923,7 +967,7 @@ function createSimpleNote() {
     updatedAt: new Date().toISOString(),
     comments: [],
     photos: [],
-    enterprise_id: !authStore.isAdmin && authStore.user?.enterprise_id ? authStore.user.enterprise_id : null
+    enterprise_id: enterprise_id
   };
 
   // Afficher le modal d'édition

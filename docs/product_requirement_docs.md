@@ -36,6 +36,7 @@ Organizations need a centralized way to:
 - Drawing tools for creating polygons with automatic area calculation
 - Line drawing with altimetric profile generation
 - Side panel dialog box interface for note management
+- Display enterprise name on each note for Administrators only
 
 ### Media Management
 - In-app photo capture capability
@@ -78,6 +79,9 @@ Organizations need a centralized way to:
 - User feedback on interface usability
 - System performance under load
 
+### UI/UX Enhancements
++ - Display enterprise name visibly on each note card for Administrators only
+
 ## 5. Future Considerations
 - Enhanced filtering capabilities
 - Additional map visualization options
@@ -108,4 +112,36 @@ Chaque onglet du panneau DrawingTools.vue (Outils, Style, Filtres) doit offrir u
    - L'utilisation de hauteurs fixes en pixels pour les conteneurs de contenu
    - Les sélecteurs CSS par attribut (type `div[v-if="..."]`) qui sont fragiles
 
-Cette exigence est critique pour l'ergonomie de l'application, particulièrement sur mobile où tout le contenu doit rester accessible. 
+Cette exigence est critique pour l'ergonomie de l'application, particulièrement sur mobile où tout le contenu doit rester accessible.
+
+## 3. Gestion des accès
+
+### Règles de visibilité des GeoNotes par rôle
+| Niveau d'accès | Visible par                          | 
+|----------------|--------------------------------------|
+| private        | Créateur uniquement                  |
+| company        | Entreprise + Admin                   |
+| employee       | Entreprise + Salariés + Admin        | 
+| visitor        | Tous les utilisateurs de l'entreprise|
+
+#### Implémentation technique par rôle
+
+| Rôle        | Notes accessibles                                                       |
+|-------------|------------------------------------------------------------------------|
+| ADMIN       | Toutes les notes sans restriction                                       |
+| ENTREPRISE  | Notes privées + company + employee + visitor liées à cette entreprise   |
+| SALARIÉ     | Notes privées + employee + visitor liées à son entreprise               |
+| VISITEUR    | Notes privées + visitor liées à l'entreprise de son salarié             |
+
+*Les permissions sont centralisées côté backend dans `GeoNoteViewSet.get_queryset`.*
+
+#### Traitement des enterprise_id
+
+L'implémentation du système de permissions repose sur une gestion précise des identifiants d'entreprise:
+
+1. **Stockage**: Chaque note stocke l'ID de l'entreprise associée dans le champ `enterprise_id`.
+2. **Comparaison**: Pour éviter les problèmes de comparaison d'objets, le système extrait l'ID numérique.
+3. **Assignation**: Lors de la création d'une note, l'`enterprise_id` est automatiquement défini selon le rôle de l'utilisateur.
+4. **Affichage**: Pour les administrateurs, le nom de l'entreprise associée est affiché sur chaque note.
+
+Cette approche garantit que les utilisateurs ne peuvent voir que les notes auxquelles ils devraient avoir accès selon leur rôle et l'entreprise à laquelle ils sont associés. 

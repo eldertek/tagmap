@@ -99,45 +99,11 @@ export const useNotesStore = defineStore('notes', () => {
     return [...columns.value].sort((a, b) => a.order - b.order);
   });
 
-  // Vérifier si l'utilisateur a accès à une note en fonction de son niveau d'accès
-  const hasAccessToNote = computed(() => (note: Note) => {
-    const authStore = useAuthStore();
-    const user = authStore.user;
+  // Toutes les notes reçues du backend sont considérées comme accessibles (permissions centralisées côté backend)
+  const getAccessibleNotes = computed(() => notes.value);
 
-    if (!user) return false;
-
-    // Les administrateurs ont accès à toutes les notes
-    if (authStore.isAdmin) return true;
-
-    // L'accès dépend du niveau d'accès de la note et du rôle de l'utilisateur
-    switch (note.accessLevel) {
-      case NoteAccessLevel.PRIVATE:
-        // Seul le créateur peut voir les notes privées (à implémenter avec l'ID du créateur)
-        return true; // Temporairement, tout le monde peut voir les notes privées
-
-      case NoteAccessLevel.COMPANY:
-        // Uniquement l'entreprise peut voir
-        return authStore.isAdmin || authStore.isEntreprise;
-
-      case NoteAccessLevel.EMPLOYEE:
-        // L'entreprise et ses salariés peuvent voir
-        return authStore.isAdmin || authStore.isEntreprise || authStore.isSalarie;
-
-      case NoteAccessLevel.VISITOR:
-        // Tout le monde (entreprise, salariés et visiteurs) peut voir
-        return authStore.isAdmin || authStore.isEntreprise || authStore.isSalarie || authStore.isVisiteur;
-
-      default:
-        return false;
-    }
-  });
-
-  // Filtrer les notes accessibles à l'utilisateur actuel
-  const getAccessibleNotes = computed(() => {
-    return notes.value.filter(note => hasAccessToNote.value(note));
-  });
-
-  // Obtenir les notes accessibles par colonne
+  // Obtenir les notes par colonne (sans filtrage de permission supplémentaire)
+  // Utiliser getAccessibleNotes pour rester compatible avec la vue NotesView.vue
   const getAccessibleNotesByColumn = computed(() => (columnId: string) => {
     return getAccessibleNotes.value
       .filter(note => note.columnId === columnId)
@@ -228,7 +194,7 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null, createdAt?: string, updatedAt?: string }) {
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null, createdAt?: string, updatedAt?: string, created_at?: string, updated_at?: string }) {
     if (!note.id) {
       console.error('[NotesStore][addNote] Erreur: ID du backend manquant');
       throw new Error('L\'ID du backend est requis pour ajouter une note');
@@ -247,9 +213,31 @@ export const useNotesStore = defineStore('notes', () => {
 
     console.log('[NotesStore][addNote] Ajout d\'une note avec ID backend:', note.id, 'et niveau d\'accès:', accessLevel);
 
-    // Si l'utilisateur n'est pas admin, associer automatiquement à son entreprise
+    // Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
     const authStore = useAuthStore();
-    const enterprise_id = note.enterprise_id || (!authStore.isAdmin && authStore.user?.enterprise_id ? authStore.user.enterprise_id : null);
+    let enterprise_id = note.enterprise_id;
+    
+    // Si aucun enterprise_id n'est fourni, essayer de le déterminer automatiquement
+    if (enterprise_id === undefined || enterprise_id === null) {
+      if (authStore.isAdmin) {
+        // Admin: peut être null si non spécifié
+        enterprise_id = null;
+      } else if (authStore.isEntreprise && authStore.user) {
+        // Entreprise: utiliser son propre ID
+        enterprise_id = authStore.user.id;
+      } else if (authStore.isSalarie && authStore.user?.enterprise_id) {
+        // Salarié: utiliser l'ID de son entreprise
+        enterprise_id = authStore.user.enterprise_id;
+      } else if (authStore.isVisiteur && authStore.user?.salarie?.enterprise_id) {
+        // Visiteur: utiliser l'ID de l'entreprise de son salarié
+        enterprise_id = authStore.user.salarie.enterprise_id;
+      } else if (!authStore.isAdmin && authStore.user?.enterprise_id) {
+        // Fallback: utiliser l'enterprise_id de l'utilisateur si disponible
+        enterprise_id = authStore.user.enterprise_id;
+      }
+    }
+    
+    console.log('[NotesStore][addNote] Enterprise ID final:', enterprise_id);
 
     notes.value.push({
       ...note,
@@ -612,7 +600,6 @@ export const useNotesStore = defineStore('notes', () => {
     getNotesByColumn,
     getDefaultColumn,
     getSortedColumns,
-    hasAccessToNote,
     getAccessibleNotes,
     getAccessibleNotesByColumn,
     getAccessLevelLabel,

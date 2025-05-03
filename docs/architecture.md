@@ -61,6 +61,8 @@ flowchart TD
    - Creation and editing of geolocated notes
    - Permission management for notes
    - Filtering and searching
+   - Side panel dialog box interface for note management
+   - Display enterprise name on notes for administrators
 
 5. **Drawing Tools**
    - Polygon creation with area calculation
@@ -242,3 +244,56 @@ Pour garantir un scroll fiable dans tous les onglets de DrawingTools.vue (Outils
   - Un padding-bottom plus important sur mobile pour éviter les problèmes avec la barre d'outils
 
 Cette architecture évite les problèmes de scroll couramment rencontrés avec les conteneurs flex imbriqués et fonctionne de manière cohérente sur tous les appareils. 
+
+## Architecture des permissions GeoNotes
+
+Le système de permissions de TagMap repose sur une architecture en couches qui garantit à la fois la sécurité et la flexibilité:
+
+```mermaid
+flowchart TD
+    User[Utilisateur] --> Role[Rôle Utilisateur]
+    Role --> Access[Niveau d'accès]
+    
+    subgraph "Rôles"
+        Admin[Administrateur]
+        Enterprise[Entreprise]
+        Employee[Salarié]
+        Visitor[Visiteur]
+    end
+    
+    subgraph "Niveaux d'accès Notes"
+        Private[Private: Créateur uniquement]
+        Company[Company: Entreprise + Admin]
+        EmployeeAccess[Employee: Entreprise + Salariés + Admin]
+        VisitorAccess[Visitor: Tous]
+    end
+    
+    Admin --> AllNotes[Toutes les notes]
+    
+    Enterprise --> EnterpriseFilter[private | company | employee | visitor]
+    EnterpriseFilter --> EnterpriseNotes[Notes liées à l'entreprise]
+    
+    Employee --> EmployeeFilter[private | employee | visitor]
+    EmployeeFilter --> EmployeeNotes[Notes accessibles au salarié]
+    
+    Visitor --> VisitorFilter[private | visitor]
+    VisitorFilter --> VisitorNotes[Notes accessibles au visiteur]
+```
+
+### Modèle de données clé
+
+La relation entre entreprises et utilisateurs est gérée par un modèle où:
+
+1. Chaque **GeoNote** contient un champ `enterprise_id` qui est une référence à un objet `User` avec le rôle ENTREPRISE.
+2. Pour les utilisateurs SALARIÉ, l'entreprise associée est stockée dans le champ `entreprise` qui est une référence à l'utilisateur ENTREPRISE.
+3. Pour les utilisateurs VISITEUR, l'entreprise est accessible via le salarié associé (`user.salarie.entreprise`).
+
+### Traitement des IDs
+
+Pour garantir une comparaison correcte lors du filtrage des notes:
+
+1. Le système extrait l'ID numérique (`note.enterprise_id.id`) au lieu de comparer directement les objets.
+2. La comparaison se fait entre valeurs numériques pour éviter les problèmes d'égalité d'objets.
+3. Cette approche résout les avertissements de comparaison incorrecte qui apparaissaient dans les logs.
+
+Ces mécanismes permettent de maintenir une architecture de permissions robuste tout en facilitant le diagnostic des problèmes d'accès. 

@@ -653,7 +653,9 @@ async function saveNote() {
         accessLevel: editingNote.value.accessLevel,
         style: editingNote.value.style,
         color: selectedColor, // S'assurer que la couleur est mise à jour dans le store
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        enterprise_id: noteData.enterprise_id, // Préserver l'ID de l'entreprise
+        enterprise_name: editingNote.value.enterprise_name // Préserver le nom de l'entreprise
       });
 
       // Émettre un événement pour mettre à jour le style sur la carte

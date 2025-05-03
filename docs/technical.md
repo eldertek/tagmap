@@ -292,4 +292,91 @@ Les entités Note disposent de deux champs de date principaux :
 - Lorsqu'une note est modifiée, seul le backend met à jour le champ `updatedAt`.
 - L'affichage des dates dans l'UI reflète toujours la valeur réelle du backend, garantissant la cohérence des historiques de modification.
 
-Cette règle évite que toutes les notes affichent la même date/heure après un rechargement de page et garantit la traçabilité des modifications. 
+Cette règle évite que toutes les notes affichent la même date/heure après un rechargement de page et garantit la traçabilité des modifications.
+
+### GeoNote API
+
+Dans `api/views.py`, la classe `GeoNoteViewSet` centralise la logique des permissions dans la méthode `get_queryset` :
+
+```python
+    def get_queryset(self):
+        """
+        Filtre les GeoNotes selon le niveau d'accès :
+        - private  : créateur uniquement
+        - company  : entreprise uniquement
+        - employee : entreprise & salariés
+        - visitor  : toute l'entreprise
+        Admin voit tout
+        """
+        user = self.request.user
+        qs = GeoNote.objects.all()
+
+        if user.role == ROLE_ADMIN:
+            return qs
+
+        entreprise_id = getattr(user, 'entreprise_id', None)
+        private_q = Q(access_level='private', createur=user)
+        company_q = Q(access_level='company', enterprise_id=entreprise_id)
+        employee_q = Q(access_level='employee', enterprise_id=entreprise_id)
+        visitor_q = Q(access_level='visitor', enterprise_id=entreprise_id)
+
+        return qs.filter(private_q | company_q | employee_q | visitor_q)
+```
+
+Aussi, `perform_create` assigne désormais le champ `createur` automatiquement à `request.user` lors de la création d'une note. 
+
+## Frontend
+### Notes Management
+- Creation and editing of geolocated notes
+- Permission management for notes
+- Filtering and searching
+- Side panel dialog box interface for note management
+- Display enterprise name on notes when logged in as Administrator (utilises `enterprise_name` from API)
+- Enterprise data preservation during note editing (enterprise_id, enterprise_name) ensures consistent display for administrators 
+
+## Gestion des relations entre utilisateurs et notes
+
+### Modèle de permissions
+
+Le système TagMap utilise un modèle de permissions hiérarchique basé sur les rôles des utilisateurs et l'association aux entreprises:
+
+1. **Admin**: Accès complet à toutes les notes
+2. **Entreprise**: Accès à toutes les notes associées à son ID d'entreprise
+3. **Salarié**: Accès aux notes associées à l'entreprise du salarié
+4. **Visiteur**: Accès aux notes en fonction de l'entreprise du salarié associé
+
+### Traitement des objets enterprise_id
+
+Pour garantir une comparaison correcte entre les objets enterprise_id, qui sont des références à des objets User plutôt que de simples IDs numériques, le système:
+
+1. Extrait l'ID numérique de l'objet enterprise_id lors des comparaisons
+2. Compare les valeurs numériques plutôt que les objets complets
+3. Évite les avertissements de comparaison incorrecte dans les logs
+
+### Filtrage par rôle utilisateur
+
+Le système applique des filtres spécifiques selon le rôle de l'utilisateur pour garantir l'accès correct aux notes:
+
+| Rôle        | Filtre appliqué                                                 |
+|-------------|----------------------------------------------------------------|
+| ADMIN       | Aucun filtre (accès complet)                                   |
+| ENTREPRISE  | `private(createur=user) OR company(enterprise_id) OR employee(enterprise_id) OR visitor(enterprise_id)` |
+| SALARIÉ     | `private(createur=user) OR employee(enterprise_id) OR visitor(enterprise_id)` |
+| VISITEUR    | `private(createur=user) OR visitor(enterprise_id)`             |
+
+Cette différenciation garantit que chaque utilisateur n'a accès qu'aux notes appropriées à son rôle, avec une stricte conformité aux exigences de confidentialité du projet.
+
+Cette approche résout les problèmes de comparaison entre objets qui pouvaient apparaître dans les logs sous forme d'avertissements:
+```
+⚠️ ATTENTION: Entreprise de la note ([object]) différente de celle de l'utilisateur ([id])
+```
+
+### Debugging avancé des permissions
+
+Le système inclut des logs détaillés pour le debugging des permissions:
+- Informations sur l'utilisateur (ID, nom, rôle)
+- Détails sur les critères d'accès appliqués
+- Liste des notes avant et après filtrage
+- Validation des IDs d'entreprise pour vérifier la cohérence
+
+Ces journaux sont particulièrement utiles pour diagnostiquer les problèmes de visibilité des notes entre différents utilisateurs. 

@@ -650,6 +650,9 @@ export const noteService = {
       delete updateData.column_details;
       delete updateData.backendId; // Supprimer l'ID backend des données envoyées
       delete updateData.leafletId; // Supprimer l'ID Leaflet des données envoyées
+      // Conserver explicitement enterprise_id mais supprimer enterprise_name qui est juste pour affichage
+      const enterpriseId = updateData.enterprise_id;
+      delete updateData.enterprise_name; // Supprimer le nom de l'entreprise qui n'est pas attendu par l'API
 
       console.log('[noteService][updateNote] Données formatées:', updateData);
       console.log(`[noteService][updateNote] Utilisation de l'ID backend ${backendId} pour la mise à jour`);
@@ -661,6 +664,12 @@ export const noteService = {
       );
 
       console.log('[noteService][updateNote] Réponse du serveur:', response.data);
+      
+      // Réinjecter enterprise_id si présent, car il pourrait ne pas être retourné par le serveur
+      if (enterpriseId !== undefined) {
+        response.data.enterprise_id = enterpriseId;
+      }
+      
       return response;
     } catch (error) {
       console.error('[noteService][updateNote] Erreur lors de la mise à jour:', error);
