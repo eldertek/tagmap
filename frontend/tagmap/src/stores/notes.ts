@@ -228,7 +228,7 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null }) {
+  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null, createdAt?: string, updatedAt?: string }) {
     if (!note.id) {
       console.error('[NotesStore][addNote] Erreur: ID du backend manquant');
       throw new Error('L\'ID du backend est requis pour ajouter une note');
@@ -256,8 +256,8 @@ export const useNotesStore = defineStore('notes', () => {
       id: note.id,
       order,
       accessLevel,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: note.createdAt || note.created_at || now,
+      updatedAt: note.updatedAt || note.updated_at || now,
       comments: [],  // Initialiser un tableau vide pour les commentaires
       photos: [],    // Initialiser un tableau vide pour les photos
       enterprise_id: enterprise_id

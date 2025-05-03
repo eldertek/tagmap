@@ -277,4 +277,19 @@ Pour garantir un scroll fiable dans tous les onglets (Outils, Style, Filtres) de
 
 3. Éviter les valeurs fixes en `vh` qui sont peu fiables sur mobile et préférer des valeurs relatives en pourcentage.
 
-Cette approche permet un scroll fiable sur tous les appareils, sans dépendre de la taille de l'écran ou de l'interface. 
+Cette approche permet un scroll fiable sur tous les appareils, sans dépendre de la taille de l'écran ou de l'interface.
+
+## Gestion des dates de création et de modification des notes
+
+Les entités Note disposent de deux champs de date principaux :
+- **createdAt** : date de création de la note (fournie par le backend)
+- **updatedAt** : date de dernière modification de la note (fournie par le backend)
+
+**Règle : le frontend ne doit jamais écraser ces valeurs lors du chargement des notes depuis l'API.**
+
+- Lors de l'ajout d'une note dans le store Pinia, si les champs `createdAt` ou `updatedAt` sont présents dans la donnée reçue du backend, ils sont utilisés tels quels.
+- Si ces champs sont absents (cas d'une création locale temporaire), la date courante est utilisée en fallback.
+- Lorsqu'une note est modifiée, seul le backend met à jour le champ `updatedAt`.
+- L'affichage des dates dans l'UI reflète toujours la valeur réelle du backend, garantissant la cohérence des historiques de modification.
+
+Cette règle évite que toutes les notes affichent la même date/heure après un rechargement de page et garantit la traçabilité des modifications. 

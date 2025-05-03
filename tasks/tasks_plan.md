@@ -77,6 +77,7 @@
    - [ ] Create side panel dialog box
    - [ ] Connect notes to backend API
    - [ ] Write note feature tests
+   - [ ] **Test : Vérifier que les dates de modification (`updatedAt`) des notes ne changent que lors d'une modification réelle et restent cohérentes après rechargement de la page.**
 
 6. **Drawing Tools**
    - [ ] Implement polygon drawing
