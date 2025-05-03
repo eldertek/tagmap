@@ -91,12 +91,12 @@
       </div>
 
       <div v-else class="mt-6 overflow-x-auto pb-4">
-        <div v-if="filteredNotes.length === 0 && columnsForDrag.length === 0" class="p-6 text-center bg-white shadow rounded-lg mb-4">
-          <p class="text-sm text-gray-500">Aucune note ni colonne trouvée</p>
+        <div v-if="filteredNotes.length === 0" class="p-6 text-center bg-white shadow rounded-lg mb-4">
+          <p class="text-sm text-gray-500">Aucune note trouvée</p>
         </div>
 
         <!-- Colonnes de notes (drag and drop désactivé) -->
-        <div class="flex space-x-4 min-w-max">
+        <div v-if="filteredNotes.length > 0" class="flex space-x-4 min-w-max">
           <div v-for="column in columnsForDrag" :key="column.id" class="column-wrapper w-80 flex-shrink-0">
               <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- En-tête de colonne (sans poignée de drag) -->
@@ -462,10 +462,9 @@ const filteredNotes = computed(() => {
   return filtered;
 });
 
-// Obtenir les notes d'une colonne
+// Obtenir les notes d'une colonne, après application des filtres
 const getNotesByColumn = computed(() => (columnId: string) => {
-  const notes = notesStore.getNotesByColumn(columnId);
-  return notes;
+  return filteredNotes.value.filter(note => note.columnId === columnId);
 });
 
 // Obtenir le libellé du niveau d'accès
