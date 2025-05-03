@@ -1349,12 +1349,28 @@ onMounted(async () => {
     localStorage.removeItem('lastPlanId');
   }
 });
-// Surveiller les changements dans le dessin
-watch(() => drawingStore.hasUnsavedChanges, (newValue) => {
-  console.log('[MapView][watch drawingStore.hasUnsavedChanges]', newValue);
-  if (newValue && currentPlan.value) {
+// Surveiller les changements dans le dessin et auto-save on modifications
+watch(() => drawingStore.hasUnsavedChanges, (hasUnsaved) => {
+  console.log('[MapView][watch drawingStore.hasUnsavedChanges]', hasUnsaved);
+  if (hasUnsaved && currentPlan.value) {
     irrigationStore.markUnsavedChanges();
+    savePlan();
   }
+});
+
+// Auto-save: trigger savePlan every minute on unsaved changes
+let autoSaveInterval: ReturnType<typeof setInterval>;
+onMounted(() => {
+  autoSaveInterval = setInterval(() => {
+    if (drawingStore.hasUnsavedChanges && currentPlan.value) {
+      savePlan();
+    }
+  }, 60000);
+});
+
+// Clear the auto-save interval when component is unmounted
+onUnmounted(() => {
+  clearInterval(autoSaveInterval);
 });
 
 // Surveiller les changements dans la liste des plans du store

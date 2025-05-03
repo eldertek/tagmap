@@ -92,6 +92,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 - **State Management**: Vuex or Pinia
 - **HTTP Client**: Axios
 - **CSS Framework**: Custom styling with responsive design
+- **Auto-Save Feature**: Frontend now automatically triggers plan save every minute and upon any drawing modification (creation, deletion, update).
 
 ### Testing
 - **Backend**: Django Test Framework, pytest-django

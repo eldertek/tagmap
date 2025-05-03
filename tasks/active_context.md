@@ -88,6 +88,7 @@ The project is currently in the initialization phase. Documentation is being set
    - Replace Note icon in DrawingTools.vue with map pin SVG
    - Improve visibility of the location pin drop effect with better styling
    - Configure Google Maps integration for high-quality satellite view with labels
+   - Add auto-save mechanism: plan saves automatically every minute and on any modification (shape creation, property/style changes).
 
 ## Blockers and Dependencies
 

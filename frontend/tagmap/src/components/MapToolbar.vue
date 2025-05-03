@@ -223,7 +223,17 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, toRefs } from 'vue';
+
+// Define props
+const props = defineProps<{
+  lastSave?: Date;
+  planName?: string;
+  planDescription?: string;
+  saveStatus?: 'saving' | 'success' | null;
+}>();
+
+// Define emits
 const emit = defineEmits<{
   (e: 'change-map-type', type: 'Hybride' | 'Cadastre' | 'IGN'): void;
   (e: 'create-new-plan'): void;
@@ -231,17 +241,15 @@ const emit = defineEmits<{
   (e: 'save-plan'): void;
   (e: 'adjust-view'): void;
 }>();
-const props = defineProps<{
-  lastSave?: Date;
-  planName?: string;
-  planDescription?: string;
-  saveStatus?: 'saving' | 'success' | null;
-}>();
-// État
+
+// Destructure props into refs
+const { lastSave, planName, planDescription, saveStatus } = toRefs(props);
+
+// State
 const selectedMapType = ref<'Hybride' | 'Cadastre' | 'IGN'>('Hybride');
 const showMobileMenu = ref(false);
 
-// Ajout du positionnement du dropdown
+// Dropdown position helper
 const updateDropdownPosition = (event: MouseEvent) => {
   const button = event.currentTarget as HTMLElement;
   const dropdown = button.nextElementSibling as HTMLElement;
@@ -252,17 +260,17 @@ const updateDropdownPosition = (event: MouseEvent) => {
   }
 };
 
-// Types de carte disponibles
+// Map types
 const mapTypes: Record<'Hybride' | 'Cadastre' | 'IGN', string> = {
   Hybride: 'Hybride',
   Cadastre: 'Cadastre',
   IGN: 'IGN'
 };
-// Formater la date de dernière sauvegarde
+
+// Format last save date
 const lastSaveFormatted = computed(() => {
-  if (!props.lastSave) return 'Jamais';
-  const date = new Date(props.lastSave);
-  return date.toLocaleString('fr-FR', {
+  if (!lastSave.value) return 'Jamais';
+  return new Date(lastSave.value).toLocaleString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -270,31 +278,34 @@ const lastSaveFormatted = computed(() => {
     minute: '2-digit'
   });
 });
-// Méthodes
+
+// Methods
 const changeMapType = (type: 'Hybride' | 'Cadastre' | 'IGN') => {
   selectedMapType.value = type;
   emit('change-map-type', type);
-  closeMobileMenu();
-};
-const createNewPlan = () => {
-  emit('create-new-plan');
-  closeMobileMenu();
-};
-const loadPlan = () => {
-  emit('load-plan');
-  closeMobileMenu();
-};
-const savePlan = () => {
-  emit('save-plan');
-  closeMobileMenu();
-};
-const adjustView = () => {
-  emit('adjust-view');
-  closeMobileMenu();
-};
-const closeMobileMenu = () => {
   showMobileMenu.value = false;
 };
+const createNewPlan = () => { emit('create-new-plan'); showMobileMenu.value = false; };
+const loadPlan = () => { emit('load-plan'); showMobileMenu.value = false; };
+const savePlan = () => { emit('save-plan'); showMobileMenu.value = false; };
+const adjustView = () => { emit('adjust-view'); showMobileMenu.value = false; };
+
+// Auto-save interval
+onMounted(() => {
+  const interval = setInterval(() => {
+    window.dispatchEvent(new CustomEvent('geonote:savePlan'));
+  }, 60000);
+  onUnmounted(() => {
+    clearInterval(interval);
+  });
+});
+
+// Watch saveStatus and auto-dispatch
+watch(saveStatus, (status) => {
+  if (status === 'saving') {
+    window.dispatchEvent(new CustomEvent('geonote:savePlan'));
+  }
+});
 </script>
 <style scoped>
 .map-toolbar {
