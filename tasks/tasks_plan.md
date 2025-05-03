@@ -65,6 +65,7 @@
    - [x] Corriger les types TypeScript pour la compatibilité avec les événements AlmostOver
    - [x] Appliquer des styles CSS globaux pour forcer la visibilité des notes
    - [x] Ajouter une gestion robuste des erreurs et des logs détaillés pour le debug frontend
+   - [x] Correction UI : scroll fiable dans tous les tabs de DrawingTools.vue avec architecture flex optimisée (parent flex avec height: 100%, barre d'onglets hauteur fixe, .tab-content avec flex: 1 et max-height en pourcentage, padding-bottom adapté sur mobile). Documentation technique mise à jour.
 
 ### Phase 2: Core Features (Priority: Medium)
 

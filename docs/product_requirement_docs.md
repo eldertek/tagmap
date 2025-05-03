@@ -89,4 +89,23 @@ Organizations need a centralized way to:
 - La sélection des lignes, polygones et notes géolocalisées sur la carte est désormais tolérante grâce à Leaflet.AlmostOver : il n'est plus nécessaire de cliquer précisément sur la géométrie.
 - Les notes géolocalisées (GeoNotes) restent toujours visibles, même en cas de bug d'affichage ou de disparition DOM, grâce à une gestion avancée de la visibilité et à la recréation dynamique de l'icône si besoin.
 - Les effets visuels (surlignage, pulsation, curseur pointer) guident l'utilisateur lors de l'interaction avec la carte.
-- Robustesse accrue sur mobile et desktop pour la manipulation des entités cartographiques. 
+- Robustesse accrue sur mobile et desktop pour la manipulation des entités cartographiques.
+
+### Exigence UI : Scroll garanti dans les tabs DrawingTools.vue (solution finale)
+
+Chaque onglet du panneau DrawingTools.vue (Outils, Style, Filtres) doit offrir un scroll complet du contenu sur tous les appareils :
+
+1. **Exigence structurelle** : Utiliser une architecture flex avec :
+   - Conteneur parent : `flex: 1; min-height: 0; height: 100%; overflow: hidden`
+   - Barre d'onglets : hauteur fixe avec `flex-shrink: 0`
+   - Contenu d'onglet : `flex: 1; min-height: 0; overflow-y: auto`
+
+2. **Hauteurs adaptatives** :
+   - Utiliser des valeurs en pourcentage (`max-height: calc(100% - Xpx)`) plutôt que des valeurs viewport (`vh`) 
+   - Ajouter un padding inférieur sur mobile (60px minimum) pour éviter que le contenu ne soit masqué
+
+3. **Éviter** :
+   - L'utilisation de hauteurs fixes en pixels pour les conteneurs de contenu
+   - Les sélecteurs CSS par attribut (type `div[v-if="..."]`) qui sont fragiles
+
+Cette exigence est critique pour l'ergonomie de l'application, particulièrement sur mobile où tout le contenu doit rester accessible. 

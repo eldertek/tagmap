@@ -62,6 +62,13 @@ The project is currently in the initialization phase. Documentation is being set
 - Enhanced line interaction with visual feedback on hover when mouse is near a line
 - Added automatic line detection to make it easier to select lines on the map
 - Amélioration de la fonction AlmostOver : possibilité de survoler et sélectionner d'autres formes même lorsqu'une forme est déjà sélectionnée, ce qui permet une navigation plus fluide entre les différentes entités de la carte.
+- [x] Correction UI : Le scroll des tabs (Outils, Style, Filtres) de DrawingTools.vue est maintenant fiable avec une architecture flex optimisée :
+  - Utilisation d'une classe .tab-content avec `flex: 1; min-height: 0; overflow-y: auto`
+  - Hauteurs relatives `max-height: calc(100% - Xpx)` au lieu de `vh` fixes 
+  - Barre d'onglets de hauteur fixe avec `flex-shrink: 0`
+  - Padding-bottom plus important sur mobile (60px)
+  - Structure parent-enfant adaptée aux spécificités de flexbox imbriqués
+  Voir documentation mise à jour dans docs/technical.md, docs/architecture.md et docs/product_requirement_docs.md.
 
 ## Next Actions
 

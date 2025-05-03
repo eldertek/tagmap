@@ -115,4 +115,6 @@ This document captures important patterns, preferences, and project intelligence
 ### Impact
 - Cette approche garantit une expérience utilisateur robuste et évite les bugs d'affichage difficiles à diagnostiquer, en particulier sur des stacks frontend riches en interactions (Leaflet, plugins, etc.).
 
+## [UI/Scroll] Pour garantir un scroll fiable dans les composants Vue à onglets, appliquer une architecture flex précise : (1) conteneur parent avec `flex: 1; min-height: 0; height: 100%; overflow: hidden`, (2) barre d'onglets avec hauteur fixe et `flex-shrink: 0`, (3) contenu d'onglet `.tab-content` avec `flex: 1; min-height: 0; overflow-y: auto` et `max-height` en pourcentage (pas en vh). Sur mobile, ajouter un `padding-bottom` important (60px minimum) pour éviter les problèmes avec la barre d'outils fixe. Cette structure évite tous les bugs de scroll dans les conteneurs flex imbriqués.
+
 This document will be updated continuously as development progresses and new insights are gained.

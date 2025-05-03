@@ -260,4 +260,21 @@ The core database models include:
 
 ### Gestion des erreurs et logs
 - Ajout de logs détaillés pour le debug (état du DOM, actions de recréation, etc.).
-- Gestion robuste des erreurs lors de la manipulation du DOM (try/catch, fallback sur recréation d'icône). 
+- Gestion robuste des erreurs lors de la manipulation du DOM (try/catch, fallback sur recréation d'icône).
+
+## Règle de scroll pour les tabs de DrawingTools.vue (correctif final)
+
+Pour garantir un scroll fiable dans tous les onglets (Outils, Style, Filtres) de DrawingTools.vue :
+
+1. Structure flex correcte :
+   - Le conteneur parent `.overflow-hidden.flex.flex-col` doit avoir `flex: 1; min-height: 0; height: 100%; overflow: hidden`
+   - La barre d'onglets `.tabs-container` doit avoir `height: 40px; flex-shrink: 0` pour une taille fixe
+   - Chaque tab `.tab-content` doit avoir `flex: 1; min-height: 0; overflow-y: auto`
+
+2. Max-height responsive :
+   - Sur mobile : `max-height: calc(100% - 50px); padding-bottom: 60px` pour éviter que le contenu soit masqué par la barre inférieure
+   - Sur desktop : `max-height: calc(100% - 60px)` pour tenir compte de la barre d'onglets
+
+3. Éviter les valeurs fixes en `vh` qui sont peu fiables sur mobile et préférer des valeurs relatives en pourcentage.
+
+Cette approche permet un scroll fiable sur tous les appareils, sans dépendre de la taille de l'écran ou de l'interface. 

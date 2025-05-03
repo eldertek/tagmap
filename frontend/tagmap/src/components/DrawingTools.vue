@@ -18,7 +18,7 @@
         </div>
 
         <!-- Contenu principal -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Navigation par onglets -->
           <div class="border-b border-gray-200">
             <nav class="flex -mb-px">
@@ -55,7 +55,7 @@
           <!-- Contenu des onglets -->
           <div class="flex-1 overflow-hidden flex flex-col">
             <!-- Onglet Outils -->
-            <div v-if="activeTab === 'tools'" class="p-3 overflow-y-auto flex-1">
+            <div v-if="activeTab === 'tools'" class="tab-content">
               <!-- Outils de dessin - version compacte avec icônes -->
               <div class="grid grid-cols-3 gap-1.5 mb-4">
                 <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
@@ -218,7 +218,7 @@
             </div>
 
             <!-- Onglet Style -->
-            <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="p-3 overflow-y-auto flex-1">
+            <div v-if="activeTab === 'style' && selectedShape && selectedShape.properties?.type !== 'Note'" class="tab-content">
               <!-- Couleurs prédéfinies - compact -->
               <div class="grid grid-cols-6 gap-2 mb-4">
                 <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
@@ -280,7 +280,7 @@
             </div>
 
             <!-- Onglet Filtres -->
-            <div v-if="activeTab === 'filters'" class="filters-tab">
+            <div v-if="activeTab === 'filters'" class="tab-content filters-tab">
               <div class="filters-content">
                 <!-- Section des niveaux d'accès avec liste déroulante -->
                 <div class="space-y-2">
@@ -1354,39 +1354,20 @@ const openGeoNoteRoute = () => {
 <style scoped>
 /* Styles de base */
 .drawing-tools-panel {
-  @apply bg-white flex flex-col;
   height: 100%;
+  overflow: hidden;
+  @apply bg-white flex flex-col;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-/* Nouvelle structure pour permettre le défilement dans l'onglet filtres */
+/* Structure flex pour permettre le défilement */
 .flex-1 {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-/* Style spécifique pour l'onglet filtres */
-div[v-if="activeTab === 'filters'"] {
-  overflow-y: auto;
-  max-height: 100%;
-  flex: 1;
-}
-
-/* Style spécifique pour les autres onglets */
-div[v-if="activeTab === 'tools'"],
-div[v-if="activeTab === 'style'"] {
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* Tous les conteneurs d'onglets ont besoin de flex-1 pour prendre toute la hauteur disponible */
-div[v-if].flex-1,
-div[v-if="activeTab === 'tools'"],
-div[v-if="activeTab === 'style'"],
-div[v-if="activeTab === 'filters'"] {
-  min-height: 0;
 }
 
 /* Contenu principal des onglets */
@@ -1395,19 +1376,41 @@ div[v-if="activeTab === 'filters'"] {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  height: 100%;
+  overflow: hidden; /* S'assurer que l'overflow est bien hidden */
 }
 
+/* Contenu scrollable des tabs */
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* Tabs navigation container */
+.tabs-container {
+  height: 40px; /* Réduire la hauteur des tabs */
+  flex-shrink: 0; /* Empêcher les tabs de rétrécir */
+}
+
+/* Style d'onglet */
+.tab-item {
+  @apply font-medium text-gray-500 py-1;
+  user-select: none;
+}
+
+/* Style d'onglet actif */
+.active-tab {
+  @apply text-primary-600 border-b-2 border-primary-500;
+}
+
+/* Ajustements responsive */
 @media (max-width: 767px) {
-  /* Ajouter un padding au bas des onglets sur mobile pour éviter que le contenu ne soit caché */
-  div[v-if="activeTab === 'filters'"],
-  div[v-if="activeTab === 'tools'"],
-  div[v-if="activeTab === 'style'"] {
-    padding-bottom: 80px; /* Plus d'espace pour éviter que le contenu soit caché par la barre d'outils mobile */
+  .tab-content {
+    padding-bottom: 60px;
   }
-}
-
-/* Styles pour mobile */
-@media (max-width: 767px) {
+  
   .drawing-tools-panel {
     @apply fixed bottom-0 left-0 right-0 z-[2000];
     height: 80vh;
@@ -1416,7 +1419,7 @@ div[v-if="activeTab === 'filters'"] {
     border-top-left-radius: 1rem;
     border-top-right-radius: 1rem;
     box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
-    overflow: hidden; /* Assurer que le contenu ne déborde pas du panneau */
+    overflow: hidden;
   }
 
   .drawing-tools-panel.open {
@@ -1425,12 +1428,11 @@ div[v-if="activeTab === 'filters'"] {
 
   /* Styles spécifiques pour le panneau téléporté */
   :root body > .drawing-tools-panel {
-    /* Assurer que le panneau téléporté est au-dessus de tout en position fixe */
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 2500; /* S'assurer qu'il est au-dessus du reste de l'interface */
+    z-index: 2500;
     margin: 0;
     max-width: 100%;
     width: 100%;
@@ -1441,33 +1443,20 @@ div[v-if="activeTab === 'filters'"] {
     padding-top: 15px !important;
   }
 
-  /* Assurer que les contenus d'onglets défilent correctement sur mobile */
-  div[v-if="activeTab === 'filters'"],
-  div[v-if="activeTab === 'tools'"],
-  div[v-if="activeTab === 'style'"] {
-    overflow-y: auto;
-    max-height: calc(80vh - 50px); /* Hauteur du panneau moins la hauteur de l'en-tête */
-    padding-bottom: 60px; /* Ajouter un espace en bas pour éviter que le contenu ne soit caché */
-  }
-
   /* Afficher flex uniquement sur mobile */
   .flex-mobile {
     display: flex !important;
   }
 }
 
-/* Styles pour desktop */
 @media (min-width: 768px) {
   .drawing-tools-panel {
     @apply relative border-l border-gray-200;
     width: 20rem;
     display: flex;
     flex-direction: column;
-  }
-
-  /* Assurer que le contenu défile correctement sur desktop */
-  div[v-if="activeTab === 'filters'"] {
-    max-height: calc(100vh - 150px); /* Ajustez cette valeur selon la hauteur des éléments au-dessus */
+    height: calc(100vh - var(--header-height));
+    overflow: hidden;
   }
 }
 

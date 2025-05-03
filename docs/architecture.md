@@ -228,4 +228,17 @@ The current implementation status of the system workflows is as follows:
 
 ### Résilience face aux bugs d'affichage
 - Vérification automatique de la taille de l'élément DOM après chaque interaction : si la taille est nulle, l'icône est recréée.
-- Gestion robuste des erreurs et logs détaillés pour faciliter le debug frontend. 
+- Gestion robuste des erreurs et logs détaillés pour faciliter le debug frontend.
+
+### UI/UX : Structure des tabs DrawingTools.vue (solution finale)
+
+Pour garantir un scroll fiable dans tous les onglets de DrawingTools.vue (Outils, Style, Filtres), une architecture flex précise est utilisée :
+
+- Le container parent `overflow-hidden.flex.flex-col` utilise `flex: 1; min-height: 0; height: 100%`
+- La navigation des onglets `.tabs-container` a une hauteur fixe de 40px avec `flex-shrink: 0`
+- Chaque panneau d'onglet utilise la classe `.tab-content` avec :
+  - `flex: 1; min-height: 0; overflow-y: auto` (structure de base)
+  - Des `max-height` en pourcentage et non en `vh` pour s'adapter à tous les contextes
+  - Un padding-bottom plus important sur mobile pour éviter les problèmes avec la barre d'outils
+
+Cette architecture évite les problèmes de scroll couramment rencontrés avec les conteneurs flex imbriqués et fonctionne de manière cohérente sur tous les appareils. 
