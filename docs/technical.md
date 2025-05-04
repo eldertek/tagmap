@@ -326,3 +326,16 @@ Dans `api/views.py`, la classe `GeoNoteViewSet` centralise la logique des permis
 ```
 
 Aussi, `perform_create` assigne désormais le champ `createur` automatiquement à `
+
+## Mobile Editing Support (2024-06)
+
+TagMap now supports full mobile editing for all map shapes (polygons, lines, GeoNotes):
+- Control points are touch-friendly: you can drag, move, and edit shapes with your finger on mobile devices.
+- Control points are larger on mobile for easier interaction.
+- All drag/move logic is unified for mouse and touch events, ensuring a consistent experience across devices.
+- Mobile UX best practices: only one control point can be dragged at a time, and the UI avoids accidental map pans during editing.
+
+### Technical Details
+- All control point event handlers now listen to both mouse and touch events.
+- A utility function normalizes event coordinates for both input types.
+- This enables a Figma/Google Maps/Procreate-like editing experience on mobile.

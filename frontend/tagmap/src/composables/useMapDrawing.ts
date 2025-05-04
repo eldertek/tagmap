@@ -507,8 +507,9 @@ export function useMapDrawing(): MapDrawingReturn {
   };
   // Fonction pour créer un point de contrôle
   const createControlPoint = (position: L.LatLng, color: string = '#2563EB'): L.CircleMarker => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const point = L.circleMarker(position, {
-      radius: 6,
+      radius: isMobile ? 14 : 6, // Larger on mobile
       color: color,
       fillColor: color,
       fillOpacity: 1,
@@ -3897,6 +3898,21 @@ export function useMapDrawing(): MapDrawingReturn {
     };
     window.addEventListener('edit:end', onEditEnd);
   });
+
+  // Utility: Normalize mouse/touch event to map coordinates
+  function getLatLngFromEvent(e: MouseEvent | TouchEvent, map: L.Map): L.LatLng {
+    if ((e as TouchEvent).touches && (e as TouchEvent).touches.length > 0) {
+      const touch = (e as TouchEvent).touches[0];
+      const containerPoint = map.mouseEventToContainerPoint(touch);
+      return map.containerPointToLatLng(containerPoint);
+    } else if ((e as TouchEvent).changedTouches && (e as TouchEvent).changedTouches.length > 0) {
+      const touch = (e as TouchEvent).changedTouches[0];
+      const containerPoint = map.mouseEventToContainerPoint(touch);
+      return map.containerPointToLatLng(containerPoint);
+    } else {
+      return map.mouseEventToLatLng(e as MouseEvent);
+    }
+  }
 
   return {
     map,
