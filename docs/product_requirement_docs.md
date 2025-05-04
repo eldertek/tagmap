@@ -145,4 +145,12 @@ L'implémentation du système de permissions repose sur une gestion précise des
 3. **Assignation**: Lors de la création d'une note, l'`enterprise_id` est automatiquement défini selon le rôle de l'utilisateur.
 4. **Affichage**: Pour les administrateurs, le nom de l'entreprise associée est affiché sur chaque note.
 
-Cette approche garantit que les utilisateurs ne peuvent voir que les notes auxquelles ils devraient avoir accès selon leur rôle et l'entreprise à laquelle ils sont associés. 
+Cette approche garantit que les utilisateurs ne peuvent voir que les notes auxquelles ils devraient avoir accès selon leur rôle et l'entreprise à laquelle ils sont associés.
+
+## Mobile Map Editing (2024-06)
+
+- Users can now edit polygons, lines, and move GeoNotes directly on mobile devices using touch gestures.
+- The editing experience is designed to be as intuitive as Google Maps, Figma, or Procreate.
+- Control points are larger on mobile for easier touch interaction.
+- All drag/move logic is unified for mouse and touch events.
+- See `docs/technical.md` for implementation details. 
