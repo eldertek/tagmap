@@ -3,7 +3,6 @@ import * as L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
 import 'leaflet-geometryutil';
 import 'leaflet-almostover';
-import { Circle } from '../utils/Circle';
 import { Rectangle } from '../utils/Rectangle';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
@@ -16,7 +15,6 @@ import area from '@turf/area';
 import length from '@turf/length';
 import intersect from '@turf/intersect';
 import centroid from '@turf/centroid';
-import circle from '@turf/circle';
 import { featureCollection } from '@turf/helpers';
 import { useDrawingStore } from '../stores/drawing';
 // import { performanceMonitor } from '@/utils/usePerformanceMonitor'; // Supprimé car non utilisé
@@ -758,68 +756,7 @@ export function useMapDrawing(): MapDrawingReturn {
       clearActiveControlPoints();
       selectedShape.value = clickedLayer;
 
-      if (clickedLayer instanceof Circle) {
-        updateCircleControlPoints(clickedLayer);
-      } else if (clickedLayer instanceof L.Circle) {
-        // Pour la compatibilité avec les cercles standard de Leaflet
-        // Convertir en notre cercle personnalisé
-        console.log('[useMapDrawing] Création du cercle personnalisé:', {
-          propertyDescriptor: Object.getOwnPropertyDescriptor(clickedLayer, 'name'),
-          directName: (clickedLayer as any).name,
-          propertiesName: (clickedLayer as any).properties?.name,
-          styleNameBeforeTransfer: (clickedLayer as any).properties?.style?.name,
-          nameIsEnumerable: Object.keys(clickedLayer).includes('name'),
-          allProperties: Object.keys((clickedLayer as any).properties || {}),
-          _dbId: (clickedLayer as any)._dbId
-        });
-
-        // Sauvegarder les propriétés importantes avant conversion
-        const layerName = (clickedLayer as any).name;
-        const propertiesName = (clickedLayer as any).properties?.name;
-        const stylePropertyName = (clickedLayer as any).properties?.style?.name;
-        const dbId = (clickedLayer as any)._dbId;
-
-        const circle = new Circle(clickedLayer.getLatLng(), {
-          ...clickedLayer.options,
-          radius: clickedLayer.getRadius()
-        });
-
-        // Restaurer toutes les propriétés du layer d'origine
-        if ((clickedLayer as any).properties) {
-          circle.properties = { ...((clickedLayer as any).properties || {}) };
-        } else {
-          circle.updateProperties();
-        }
-
-        // S'assurer explicitement que le nom est conservé dans tous les emplacements
-        const preservedName = layerName || propertiesName || stylePropertyName;
-        if (preservedName) {
-          circle.properties.name = preservedName;
-          if (!circle.properties.style) {
-            circle.properties.style = {};
-          }
-          circle.properties.style.name = preservedName;
-          (circle as any).name = preservedName;
-        }
-
-        // Restaurer l'ID de base de données
-        if (dbId) {
-          (circle as any)._dbId = dbId;
-        }
-
-        // Log final pour vérifier l'état
-        console.log('[useMapDrawing] Cercle après conversion:', {
-          name: (circle as any).name,
-          propertiesName: circle.properties.name,
-          stylePropertyName: circle.properties.style?.name,
-          allProperties: Object.keys(circle.properties || {})
-        });
-
-        featureGroup.value?.removeLayer(clickedLayer);
-        featureGroup.value?.addLayer(circle);
-        selectedShape.value = circle;
-        updateCircleControlPoints(circle);
-      } else if (clickedLayer instanceof Rectangle) {
+      if (clickedLayer instanceof Rectangle) {
         updateRectangleControlPoints(clickedLayer);
       } else if (clickedLayer instanceof L.Rectangle) {
         // Pour la compatibilité avec les rectangles standard de Leaflet
@@ -859,9 +796,7 @@ export function useMapDrawing(): MapDrawingReturn {
           selectedShape: selectedShape.value
         });
         // Mise à jour des points de contrôle
-        if (layer instanceof Circle) {
-          updateCircleControlPoints(layer);
-        } else if (layer instanceof Rectangle) {
+        if (layer instanceof Rectangle) {
           updateRectangleControlPoints(layer);
         } else if (layer instanceof L.Rectangle) {
           // Si c'est un rectangle standard Leaflet, le convertir en notre Rectangle personnalisé
@@ -1988,144 +1923,6 @@ export function useMapDrawing(): MapDrawingReturn {
       (p1.lng + p2.lng) / 2
     );
   };
-  // Fonction pour mettre à jour les points de contrôle d'un cercle
-  const updateCircleControlPoints = (layer: Circle) => {
-    if (!map.value || !featureGroup.value) return;
-    clearActiveControlPoints();
-    const center = layer.getLatLng();
-    const radius = layer.getRadius();
-
-
-    // Point central (vert)
-    const centerPoint = createControlPoint(center, '#059669') as ControlPoint;
-    activeControlPoints.push(centerPoint);
-    // Ajouter les mesures au point central
-    addMeasureEvents(centerPoint, layer, () => {
-      return [
-        formatMeasure(radius, 'm', 'Rayon'),
-        formatMeasure(radius * 2, 'm', 'Diamètre'),
-        formatMeasure(Math.PI * Math.pow(radius, 2), 'm²', 'Surface')
-      ].join('<br>');
-    });
-    // Points cardinaux (bleu)
-    const cardinalPoints: ControlPoint[] = [];
-    const cardinalAngles = [0, 45, 90, 135, 180, 225, 270, 315];
-    cardinalAngles.forEach((angle) => {
-      const point = layer.calculatePointOnCircle(angle);
-      const controlPoint = createControlPoint(point, '#2563EB') as ControlPoint;
-      cardinalPoints.push(controlPoint);
-      activeControlPoints.push(controlPoint);
-      // Ajouter les mesures aux points cardinaux
-      addMeasureEvents(controlPoint, layer, () => {
-        return formatMeasure(radius, 'm', 'Rayon');
-      });
-      // Gestion du redimensionnement via les points cardinaux
-      controlPoint.on('mousedown', (e: L.LeafletMouseEvent) => {
-        if (!map.value) return;
-        L.DomEvent.stopPropagation(e);
-        map.value.dragging.disable();
-        let isDragging = true;
-
-        const onMouseMove = (e: L.LeafletMouseEvent) => {
-          if (!isDragging) return;
-          // Utiliser la méthode pour redimensionner le cercle sans mise à jour des propriétés
-          layer.resizeFromControlPoint(e.latlng);
-          // Mettre à jour les positions de tous les points de contrôle
-          cardinalPoints.forEach((point, i) => {
-            const newPoint = layer.calculatePointOnCircle(cardinalAngles[i]);
-            point.setLatLng(newPoint);
-          });
-          // Mettre à jour le point central
-          centerPoint.setLatLng(layer.getLatLng());
-          // Mettre à jour la mesure affichée si elle existe
-          if (controlPoint.measureDiv) {
-            controlPoint.measureDiv.innerHTML = formatMeasure(layer.getRadius(), 'm', 'Rayon');
-          }
-        };
-        const onMouseUp = () => {
-          isDragging = false;
-          if (!map.value) return;
-          map.value.off('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
-          map.value.dragging.enable();
-          // Mettre à jour les propriétés UNIQUEMENT à la fin du redimensionnement
-          layer.updateProperties();
-
-          // Mise à jour de selectedShape pour déclencher la réactivité
-          selectedShape.value = null; // Forcer un reset
-          nextTick(() => {
-            selectedShape.value = layer;
-          });
-          // Mettre à jour les propriétés via la méthode globale aussi
-          updateLayerProperties(layer, 'Circle');
-        };
-        map.value.on('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      });
-    });
-    // Gestion du déplacement via le point central
-    centerPoint.on('mousedown', (e: L.LeafletMouseEvent) => {
-      if (!map.value) return;
-      L.DomEvent.stopPropagation(e);
-      map.value.dragging.disable();
-      let isDragging = true;
-      const startLatLng = layer.getLatLng();
-      const startMouseLatLng = e.latlng;
-
-      const onMouseMove = (e: L.LeafletMouseEvent) => {
-        if (!isDragging) return;
-        // Calculer le déplacement
-        const dx = e.latlng.lng - startMouseLatLng.lng;
-        const dy = e.latlng.lat - startMouseLatLng.lat;
-        // Déplacer le cercle sans mise à jour des propriétés
-        const newLatLng = L.latLng(
-          startLatLng.lat + dy,
-          startLatLng.lng + dx
-        );
-        // Utiliser directement setLatLng du prototype de L.Circle pour éviter notre surcharge
-        L.Circle.prototype.setLatLng.call(layer, newLatLng);
-        centerPoint.setLatLng(newLatLng);
-        // Mettre à jour les positions des points cardinaux
-        cardinalPoints.forEach((point, i) => {
-          const newPoint = layer.calculatePointOnCircle(cardinalAngles[i]);
-          point.setLatLng(newPoint);
-        });
-        // Mettre à jour la mesure affichée si elle existe
-        if (centerPoint.measureDiv) {
-          centerPoint.measureDiv.innerHTML = [
-            formatMeasure(layer.getRadius(), 'm', 'Rayon'),
-            formatMeasure(layer.getRadius() * 2, 'm', 'Diamètre'),
-            formatMeasure(Math.PI * Math.pow(layer.getRadius(), 2), 'm²', 'Surface')
-          ].join('<br>');
-        }
-      };
-      const onMouseUp = () => {
-        isDragging = false;
-        if (!map.value) return;
-        map.value.off('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        map.value.dragging.enable();
-        // Mettre à jour les propriétés UNIQUEMENT à la fin du déplacement
-        layer.updateProperties();
-
-        // Mise à jour de selectedShape pour déclencher la réactivité
-        selectedShape.value = null; // Forcer un reset
-        nextTick(() => {
-          selectedShape.value = layer;
-        });
-        // Mettre à jour les propriétés via la méthode globale
-        updateLayerProperties(layer, 'Circle');
-      };
-      map.value.on('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
-    // Écouter l'événement circle:resized pour mettre à jour les propriétés
-    layer.on('circle:resized', () => {
-      updateLayerProperties(layer, 'Circle');
-    });
-    // Synchroniser selectedShape au démarrage de la fonction
-    selectedShape.value = layer;
-  };
   // Fonction pour mettre à jour les points de contrôle d'un rectangle
   const updateRectangleControlPoints = (layer: any) => {
     if (!map.value || !featureGroup.value) return;
@@ -3009,13 +2806,6 @@ export function useMapDrawing(): MapDrawingReturn {
     };
     updateMidPoints();
   };
-  // Fonction pour mettre à jour les points de contrôle d'un demi-cercle - supprimée selon les exigences
-  // Cette fonction est conservée pour maintenir la compatibilité avec le code existant
-  const updateSemicircleControlPoints = (_: any) => {
-    // Fonction supprimée selon les exigences
-    console.log('updateSemicircleControlPoints est désactivé selon les exigences');
-  };
-
   // Fonction pour mettre à jour les points de contrôle d'une note géolocalisée
   const updateGeoNoteControlPoints = (layer: GeoNote) => {
     if (!map.value || !featureGroup.value) return;

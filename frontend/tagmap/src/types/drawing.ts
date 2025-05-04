@@ -38,11 +38,6 @@ export interface BaseData {
   category?: ElementCategory;
   accessLevel?: AccessLevel;
 }
-export interface CircleData extends BaseData {
-  center: [number, number];  // [longitude, latitude]
-  radius: number;
-}
-
 export interface RectangleData extends BaseData {
   bounds: {
     southWest: [number, number];
@@ -125,13 +120,11 @@ export type ShapeData =
   | PolygonData
   | LineData
   | RectangleData
-  | CircleData
   | ElevationLineData
   | NoteData;
 
 // Type pour les types de formes possibles
 export type DrawingElementType =
-  | 'Circle'
   | 'Rectangle'
   | 'Line'
   | 'Polygon'

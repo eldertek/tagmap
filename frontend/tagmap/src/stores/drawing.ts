@@ -7,7 +7,6 @@ import type {
   ElevationLineData,
   LineData,
   DrawingElementType,
-  CircleData,
   AccessLevel,
   ElementCategory,
   NoteData
