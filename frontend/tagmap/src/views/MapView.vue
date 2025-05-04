@@ -1209,7 +1209,7 @@ onMounted(async () => {
 
     // Écouter l'événement de sauvegarde automatique du plan lors de la création d'une note géolocalisée
     window.addEventListener('geonote:savePlan', (() => {
-      console.log('[MapView] Événement geonote:savePlan reçu - Sauvegarde automatique du plan');
+      console.log('[ISSUE01][MapView] Événement geonote:savePlan reçu - Sauvegarde automatique du plan');
       savePlan();
     }) as EventListener);
 
@@ -1362,8 +1362,9 @@ onMounted(async () => {
   }
 });
 // Surveiller les changements dans le dessin et auto-save on modifications
+
 watch(() => drawingStore.hasUnsavedChanges, (hasUnsaved) => {
-  console.log('[MapView][watch drawingStore.hasUnsavedChanges]', hasUnsaved);
+  console.log('[ISSUE01][MapView][watch drawingStore.hasUnsavedChanges]', hasUnsaved);
   if (hasUnsaved && currentPlan.value) {
     irrigationStore.markUnsavedChanges();
     savePlan();
@@ -1375,7 +1376,8 @@ let autoSaveInterval: ReturnType<typeof setInterval>;
 onMounted(() => {
   autoSaveInterval = setInterval(() => {
     if (drawingStore.hasUnsavedChanges && currentPlan.value) {
-      savePlan();
+      console.log('[ISSUE01][MapView] Sauvegarde déclenchée par intervalle');
+      savePlan(); // Utiliser la version debounced aussi
     }
   }, 60000);
 });
@@ -1526,6 +1528,13 @@ function toggleDrawingTools() {
 
 // Fonction pour nettoyer la carte
 function clearMap() {
+  console.log('[ISSUE01][MapView][clearMap] Début du nettoyage de la carte', {
+    featureGroupExists: !!featureGroup.value,
+    featureGroupLayersCount: featureGroup.value?.getLayers().length || 0,
+    shapesCount: shapes.value.length,
+    shapesIds: shapes.value.map(s => s.id)
+  });
+  
   if (featureGroup.value) {
     // Réinitialiser l'état de sauvegarde du plan pour toutes les notes géolocalisées
     featureGroup.value.eachLayer((layer: any) => {
@@ -1536,23 +1545,40 @@ function clearMap() {
 
     // Supprimer toutes les couches
     featureGroup.value.clearLayers();
+    console.log('[ISSUE01][MapView][clearMap] Toutes les couches ont été supprimées');
   }
+  
   shapes.value = [];
   clearActiveControlPoints();
   selectedLeafletShape.value = null;
   currentTool.value = '';
+  
+  console.log('[ISSUE01][MapView][clearMap] Fin du nettoyage de la carte', {
+    featureGroupLayersCount: featureGroup.value?.getLayers().length || 0,
+    shapesCount: shapes.value.length
+  });
 }
 // Fonction pour rafraîchir la carte avec un nouveau plan
 async function refreshMapWithPlan(planId: number) {
   return await performanceMonitor.measureAsync('refreshMapWithPlan', async () => {
     try {
+      console.log('[ISSUE01][MapView][refreshMapWithPlan] Début du refreshMapWithPlan', {
+        planId,
+        currentPlanId: currentPlan.value?.id,
+        mapInitialized: !!map.value,
+        featureGroupExists: !!featureGroup.value,
+        featureGroupLayersCount: featureGroup.value?.getLayers().length || 0
+      });
+
       // Nettoyer la carte actuelle
       performanceMonitor.measure('refreshMapWithPlan:clearMap', () => {
+        console.log('[ISSUE01][MapView][refreshMapWithPlan] Nettoyage de la carte avant chargement');
         clearMap();
       }, 'MapView');
 
       // Charger les éléments du plan (formes géométriques sans les notes)
       await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanElements', async () => {
+        console.log('[ISSUE01][MapView][refreshMapWithPlan] Chargement des éléments du plan');
         await drawingStore.loadPlanElements(planId);
       }, 'MapView');
 
@@ -1561,9 +1587,20 @@ async function refreshMapWithPlan(planId: number) {
         return irrigationStore.getPlanById(planId);
       }, 'MapView');
 
+      console.log('[ISSUE01][MapView][refreshMapWithPlan] Plan chargé depuis le store', {
+        planFound: !!loadedPlan,
+        planId: loadedPlan?.id,
+        drawingElementsCount: drawingStore.getCurrentElements.length,
+        drawingElementsIds: drawingStore.getCurrentElements.map(el => el.id)
+      });
+
       if (loadedPlan) {
         // Mettre à jour le plan courant
         performanceMonitor.measure('refreshMapWithPlan:updateCurrentPlan', () => {
+          console.log('[ISSUE01][MapView][refreshMapWithPlan] Mise à jour du plan courant', {
+            oldPlanId: currentPlan.value?.id,
+            newPlanId: loadedPlan.id
+          });
           currentPlan.value = loadedPlan;
           irrigationStore.setCurrentPlan(loadedPlan);
           drawingStore.setCurrentPlan(loadedPlan.id);
@@ -1651,13 +1688,11 @@ async function refreshMapWithPlan(planId: number) {
         // Ajouter les formes à la carte
         if (map.value && featureGroup.value) {
           await performanceMonitor.measureAsync('refreshMapWithPlan:addShapesToMap', async () => {
-            console.log('[MapView][refreshMapWithPlan] Éléments disponibles:', {
+            console.log('[ISSUE01][MapView][refreshMapWithPlan:addShapesToMap] Éléments disponibles:', {
               count: drawingStore.getCurrentElements.length,
               elements: drawingStore.getCurrentElements.map(e => ({
                 id: e.id,
-                type: e.type_forme,
-                hasName: e.data && 'name' in e.data,
-                name: e.data?.name
+                type: e.type_forme
               }))
             });
 
@@ -1705,6 +1740,11 @@ async function refreshMapWithPlan(planId: number) {
                 await Promise.all(batch.map(async (element) => {
                   await performanceMonitor.measureAsync(`refreshMapWithPlan:createElement:${element.type_forme}`, async () => {
                     if (!featureGroup.value || !element.data) return;
+                    console.log(`[ISSUE01][MapView][refreshMapWithPlan:createElement] Création d'un élément de type ${element.type_forme}`, {
+                      id: element.id,
+                      hasFeatureGroup: !!featureGroup.value,
+                      hasData: !!element.data
+                    });
                     let layer: L.Layer | null = null;
 
                     switch (element.type_forme) {
@@ -1933,6 +1973,14 @@ async function loadPlan(planId: number) {
 }
 // Modifier la fonction savePlan
 async function savePlan() {
+  // Ajouter un débounce pour éviter les doubles appels
+  console.log('[ISSUE01][MapView][savePlan] POINT D\'ENTRÉE - Call Stack:', new Error().stack);
+  
+  // On utilise une variable pour empêcher les appels multiples
+  if (saving.value) {
+    console.log('[ISSUE01][MapView][savePlan] Sauvegarde déjà en cours, ignorer l\'appel');
+    return;
+  }
   if (!currentPlan.value || !featureGroup.value) {
     console.warn('Aucun plan actif ou groupe de formes à sauvegarder');
     return;
@@ -1949,16 +1997,17 @@ async function savePlan() {
     const currentLayerIds = new Set<number>();
 
     // Log pour le debug
-    console.log('[savePlan] Début de la sauvegarde', {
+    console.log('[ISSUE01][MapView][savePlan] Début de la sauvegarde', {
       featureGroupLayers: featureGroup.value.getLayers().length,
       existingIds: Array.from(existingIds),
-      currentElements: drawingStore.getCurrentElements
+      currentElements: drawingStore.getCurrentElements.length,
+      currentElementsIds: drawingStore.getCurrentElements.map(el => el.id)
     });
 
     featureGroup.value.eachLayer((layer: L.Layer) => {
-      console.log('[savePlan] Traitement de la couche', {
+      console.log('[ISSUE01][MapView][savePlan] Traitement de la couche', {
         type: (layer as any).properties?.type,
-        name: (layer as any).properties?.name,
+        id: (layer as any)._dbId || (layer as any)._elementId,
         isPolygon: layer instanceof L.Polygon,
         properties: (layer as any).properties
       });
@@ -2163,32 +2212,54 @@ async function savePlan() {
     });
 
     // Log pour le debug
-    console.log('[savePlan] Éléments à sauvegarder', {
+    console.log('[ISSUE01][MapView][savePlan] Éléments à sauvegarder', {
       totalElements: elements.length,
-      elements: elements.map(el => ({
-        type: el.type_forme,
-        hasPoints: 'points' in el.data,
-        hasStyle: 'style' in el.data
-      }))
+      elementsIds: elements.map(el => el.id),
+      elementTypes: elements.map(el => el.type_forme)
     });
 
     // Identifier les éléments supprimés
     const elementsToDelete = Array.from(existingIds).filter(id => !currentLayerIds.has(id));
 
-    console.log('[savePlan] Éléments supprimés:', {
+    console.log('[ISSUE01][MapView][savePlan] Éléments supprimés:', {
       existingIds: Array.from(existingIds),
       currentLayerIds: Array.from(currentLayerIds),
       elementsToDelete
     });
 
     // Mettre à jour les éléments dans le store en excluant les éléments supprimés
-    drawingStore.elements = elements.filter(el => {
+    const filteredElements = elements.filter(el => {
       // Garder les éléments sans ID (nouveaux) ou ceux qui ne sont pas dans la liste des éléments à supprimer
       return !el.id || !elementsToDelete.includes(el.id);
     });
+    
+    console.log('[ISSUE01][MapView][savePlan] Elements après filtrage:', {
+      totalBefore: elements.length,
+      totalAfter: filteredElements.length,
+      elementsIdsAfter: filteredElements.map(el => el.id)
+    });
+    
+    drawingStore.elements = filteredElements;
 
     // Passer les éléments à supprimer au store
     const updatedPlan = await drawingStore.saveToPlan(currentPlan.value.id, { elementsToDelete });
+    
+    console.log('[ISSUE01][MapView][savePlan] Plan mis à jour par le serveur:', {
+      formesCount: updatedPlan.formes?.length || 0,
+      formesIds: updatedPlan.formes?.map((f: any) => f.id) || []
+    });
+    
+    // Log supplémentaire pour comprendre le double comptage
+    console.log('[ISSUE01][MapView][savePlan] Vérification du contenu détaillé des formes:', {
+      currentLayerCount: featureGroup.value.getLayers().length,
+      currentElements: drawingStore.getCurrentElements.length,
+      serverElementCount: updatedPlan.formes?.length || 0,
+      detailedFormes: updatedPlan.formes?.map((f: any) => ({
+        id: f.id,
+        type: f.type_forme,
+        dataSize: f.data ? Object.keys(f.data).length : 0
+      }))
+    });
 
     // Mettre à jour le plan courant avec les nouvelles données
     if (updatedPlan && currentPlan.value?.id) {
@@ -3683,15 +3754,6 @@ function handleFilterChange(filters: {
   categories: { [key: string]: boolean };
   shapeTypes: { [key: string]: boolean };
 }) {
-  console.log('[MapView][handleFilterChange] Nouveaux filtres reçus:', JSON.stringify(filters, null, 2));
-
-  // Vérifier l'état actuel des filtres dans le store
-  console.log('[MapView][handleFilterChange] Filtres actuels dans le store:', JSON.stringify({
-    accessLevels: { ...drawingStore.filters.accessLevels },
-    categories: { ...drawingStore.filters.categories },
-    shapeTypes: { ...drawingStore.filters.shapeTypes }
-  }, null, 2));
-
   // Toujours mettre à jour les filtres dans le store
   console.log('[MapView][handleFilterChange] Mise à jour des filtres dans le store');
   drawingStore.updateFilters(filters);
@@ -3743,8 +3805,6 @@ function updateMapDisplay() {
     categories: { ...drawingStore.filters.categories },
     shapeTypes: { ...drawingStore.filters.shapeTypes }
   };
-  console.log('[MapView][updateMapDisplay] Mise à jour de l\'affichage avec filtres:', JSON.stringify(filtersLog, null, 2));
-
   // Log détaillé des éléments du store
   const elementsLog = {
     count: drawingStore.elements.length,
@@ -3876,7 +3936,6 @@ function updateMapDisplay() {
     const accessLevel = properties.accessLevel || 'visitor';
 
     console.log(`[MapView][updateMapDisplay] Couche ${leafletId} (dbId: ${layer._dbId}): type=${type}, category=${category}, accessLevel=${accessLevel}`);
-    console.log(`[MapView][updateMapDisplay] Filtres actuels:`, JSON.stringify(drawingStore.filters));
 
     // Vérifier si le type, la catégorie et le niveau d'accès sont activés dans les filtres
     let typeVisible = false; // Par défaut, non visible
@@ -3966,11 +4025,7 @@ function updateMapDisplay() {
     const isVisible = typeVisible && categoryVisible && accessLevelVisible;
     console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
     console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
-    console.log(`[MapView][updateMapDisplay] Filtres actuels:`, JSON.stringify({
-      accessLevels: drawingStore.filters.accessLevels,
-      categories: drawingStore.filters.categories,
-      shapeTypes: drawingStore.filters.shapeTypes
-    }, null, 2));
+
 
     // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
     // Cela évite de réinitialiser à 'forages' quand on filtre puis défiltre
