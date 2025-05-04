@@ -244,9 +244,7 @@ export class GeoNote extends L.Marker {
         this.recreateIcon();
         return;
       }
-      
-      console.log('[GeoNote][forceVisible] Forçage de la visibilité de la note');
-      
+            
       // Forcer la visibilité de l'élément principal
       element.style.display = 'block';
       element.style.visibility = 'visible';
@@ -270,8 +268,6 @@ export class GeoNote extends L.Marker {
       
       // Forcer un reflow pour garantir l'affichage
       void element.offsetHeight;
-      
-      console.log('[GeoNote][forceVisible] Note maintenant visible');
     } catch (error) {
       console.error('[GeoNote][forceVisible] Erreur:', error);
       // Comme dernier recours, recréer complètement l'icône
@@ -283,9 +279,7 @@ export class GeoNote extends L.Marker {
    * Recrée complètement l'icône en cas de problème d'affichage
    */
   recreateIcon(): void {
-    try {
-      console.log('[GeoNote][recreateIcon] Recréation de l\'icône');
-      
+    try {      
       // Récupérer la position actuelle
       const currentLatLng = this.getLatLng();
       
@@ -346,8 +340,6 @@ export class GeoNote extends L.Marker {
         `;
         document.head.appendChild(style);
       }
-      
-      console.log('[GeoNote][recreateIcon] Icône recréée avec succès');
     } catch (error) {
       console.error('[GeoNote][recreateIcon] Erreur lors de la recréation de l\'icône:', error);
     }
@@ -382,13 +374,6 @@ export class GeoNote extends L.Marker {
       if (markerElement) {
         markerElement.classList.add('hover');
       }
-      
-      console.log('[GeoNote][highlight] Après application de l\'effet:', {
-        element,
-        display: element.style.display,
-        visibility: element.style.visibility,
-        opacity: element.style.opacity
-      });
     }
   }
 
@@ -398,13 +383,6 @@ export class GeoNote extends L.Marker {
   unhighlight(): void {
     const element = this.getElement();
     if (element) {
-      console.log('[GeoNote][unhighlight] Avant retrait de l\'effet:', {
-        element,
-        display: element.style.display,
-        visibility: element.style.visibility,
-        opacity: element.style.opacity
-      });
-      
       // Forcer la visibilité d'abord
       this.forceVisible();
       
@@ -421,22 +399,8 @@ export class GeoNote extends L.Marker {
       element.style.visibility = 'visible';
       element.style.display = '';
       element.style.opacity = '1';
-      
-      console.log('[GeoNote][unhighlight] Après retrait de l\'effet:', {
-        element,
-        display: element.style.display,
-        visibility: element.style.visibility,
-        opacity: element.style.opacity
-      });
     }
   }
-
-  // Commenté : Méthode pour créer le contenu du popup
-  /*
-  createPopupContent(): HTMLElement {
-    // ... code de création du popup ...
-  }
-  */
 
   // Obtenir la couleur de la colonne en fonction de son ID
   getColumnColor(columnId: string): string {
@@ -502,15 +466,11 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour éditer la note
   editNote(): void {
-    // Commenté : Fermeture du popup
-    // this.closePopup();
 
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
     // Priorité: _dbId (ID de la base de données), puis properties.id, puis _leaflet_id
     const backendId = (this as any)._dbId;
     const leafletId = (this as any)._leaflet_id;
-
-    console.log(`[GeoNote][editNote] Édition de note - ID backend: ${backendId}, ID properties: ${this.properties.id}, ID Leaflet: ${leafletId}`);
 
     // Créer un objet note à partir des propriétés
     const note = {
@@ -538,12 +498,6 @@ export class GeoNote extends L.Marker {
       comments: this.properties.comments || [],
       photos: this.properties.photos || []
     };
-
-    console.log('[GeoNote][editNote] Édition de note avec columnId:', note.columnId);
-
-    // Émettre un événement pour ouvrir le modal d'édition
-    console.log('[GeoNote] Émission de l\'événement note:edit avec', note);
-
     // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
     // Inclure la référence à cette couche Leaflet pour permettre de retrouver le dbId
     // S'assurer que l'ID backend est correctement transmis
@@ -608,19 +562,13 @@ export class GeoNote extends L.Marker {
         const fillColor = svgPath.getAttribute('fill');
         if (fillColor) {
           color = fillColor;
-          console.log('[GeoNote][updateProperties] Couleur récupérée depuis SVG:', color);
         }
       }
     }
-
     // Si toujours pas de couleur, utiliser la couleur par défaut
     if (!color) {
       color = '#2b6451';
-      console.log('[GeoNote][updateProperties] Utilisation de la couleur par défaut:', color);
     }
-
-    console.log('[GeoNote][updateProperties] Couleur finale utilisée:', color);
-
     // Conserver le radius existant s'il existe
     const existingRadius = existingStyle.radius || 12;
 
@@ -636,23 +584,13 @@ export class GeoNote extends L.Marker {
       accessLevel: this.properties.accessLevel,
       category: this.properties.category
     };
-
-    console.log('[GeoNote][updateProperties] Style mis à jour:', this.properties.style);
-
-    // Mettre à jour le popup pour refléter les changements
-    // this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour mettre à jour le style
   setNoteStyle(style: any): void {
-    console.log('[GeoNote][setNoteStyle] Mise à jour du style:', style);
-
     // S'assurer que nous avons des valeurs pour color et fillColor
     const color = style.color || style.fillColor || '#2b6451';
     const fillColor = style.fillColor || style.color || '#2b6451';
-
-    console.log('[GeoNote][setNoteStyle] Nouvelles couleurs - stroke:', color, 'fill:', fillColor);
-
     // Au lieu de remplacer l'icône entière, mettons à jour la couleur de l'icône existante
     // pour éviter les problèmes pendant l'animation de zoom
     const element = this.getElement();
@@ -662,9 +600,7 @@ export class GeoNote extends L.Marker {
         const svgPath = element.querySelector('svg path');
         if (svgPath) {
           svgPath.setAttribute('fill', fillColor);
-          console.log('[GeoNote][setNoteStyle] Couleur mise à jour directement sur le SVG existant');
         } else {
-          console.warn('[GeoNote][setNoteStyle] Impossible de trouver le path SVG dans l\'élément');
           // Fallback: créer une nouvelle icône
           this._updateIconWithNewColor(fillColor);
         }
@@ -702,24 +638,17 @@ export class GeoNote extends L.Marker {
     if (accessLevel) {
       if (this.properties.accessLevel !== accessLevel) {
         this.properties.accessLevel = accessLevel;
-        console.log('[GeoNote][setNoteStyle] Niveau d\'accès mis à jour:', accessLevel);
       }
     }
 
     if (category) {
       if (this.properties.category !== category) {
         this.properties.category = category;
-        console.log('[GeoNote][setNoteStyle] Catégorie mise à jour:', category);
       }
     }
 
     // Forcer un rafraîchissement de l'icône
     this.refreshIconStyle();
-
-    // Toujours mettre à jour le popup pour s'assurer que les changements sont reflétés
-    // même si les propriétés n'ont pas changé (pour résoudre le problème de mise à jour multiple)
-    console.log('[GeoNote][setNoteStyle] Mise à jour du popup');
-    // this.bindPopup(this.createPopupContent());
   }
 
   // Méthode pour forcer le rafraîchissement de l'icône
@@ -794,8 +723,6 @@ export class GeoNote extends L.Marker {
         // Utiliser directement notre méthode personnalisée
         this.updatePositionDuringZoom(e);
       });
-
-      console.log('[GeoNote][_protectFromZoomAnimationErrors] Protection contre les erreurs d\'animation de zoom activée');
     } catch (e) {
       console.error('[GeoNote][_protectFromZoomAnimationErrors] Erreur lors de la mise en place de la protection:', e);
     }
@@ -839,8 +766,6 @@ export class GeoNote extends L.Marker {
           map.options.zoomAnimation = true;
         }, 100);
       }
-
-      console.log('[GeoNote][_updateIconWithNewColor] Icône mise à jour avec la nouvelle couleur');
     } catch (e) {
       console.error('[GeoNote][_updateIconWithNewColor] Erreur lors de la mise à jour de l\'icône:', e);
     }
@@ -869,7 +794,6 @@ export class GeoNote extends L.Marker {
 
     // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
     const columnId = this.properties.columnId || '1';
-    console.log('[GeoNote][toBackendFormat] Sauvegarde de note avec columnId:', columnId);
 
     // Créer l'objet de données pour le backend
     return {
@@ -898,13 +822,6 @@ export class GeoNote extends L.Marker {
 
   // Mettre à jour les propriétés de la note à partir des données du backend
   updateFromBackendData(data: NoteData): void {
-    console.log('[GeoNote][updateFromBackendData] Début de la mise à jour avec les données:', data);
-    console.log('[GeoNote][updateFromBackendData] Couleur dans les données reçues:', {
-      styleColor: data.style?.color,
-      styleFillColor: data.style?.fillColor,
-      styleObject: data.style
-    });
-
     // S'assurer que le type est correctement défini
     this.properties.type = 'Note';
 
@@ -1308,13 +1225,6 @@ export class GeoNote extends L.Marker {
       // S'assurer que l'élément est visible
       element.style.visibility = 'visible';
       element.style.display = 'block';
-      
-      // Log pour déboguer
-      console.log('[GeoNote][updatePosition] Position mise à jour:', {
-        latLng: this.getLatLng(),
-        pixelPosition: position,
-        element
-      });
       
       // En dernier recours, recréer complètement l'icône si elle semble ne pas s'afficher correctement
       // Vérifier le état de l'élément pour détecter un problème d'affichage

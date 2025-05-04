@@ -760,13 +760,6 @@ const isLoadingPlans = ref(false);
 const newPlanModalRef = ref<InstanceType<typeof NewPlanModal> | null>(null);
 // Computed pour les clients filtrés selon le salarie
 const filteredClients = computed(() => {
-  console.log('[MapView][filteredClients] Computing with:', {
-    userType: authStore.user?.user_type,
-    selectedSalarie: selectedSalarie.value,
-    salarieVisiteurs: salarieVisiteurs.value,
-    visiteurCount: salarieVisiteurs.value?.length || 0
-  });
-
   // Si l'utilisateur est un salarie, retourner directement ses visiteurs
   if (authStore.isSalarie) {
     return salarieVisiteurs.value;
@@ -782,21 +775,6 @@ const filteredClients = computed(() => {
 // Computed property to transform Leaflet Layer to ShapeType
 const selectedShape = computed((): ShapeType | null => {
   if (!selectedLeafletShape.value) return null;
-
-  // Log the complete state of the selected layer
-  console.log('[MapView][selectedShape] Initial layer state:', {
-    layer: selectedLeafletShape.value,
-    hasName: 'name' in selectedLeafletShape.value,
-    name: selectedLeafletShape.value.name,
-    hasProperties: 'properties' in selectedLeafletShape.value,
-    propertiesName: selectedLeafletShape.value.properties?.name,
-    allLayerKeys: Object.keys(selectedLeafletShape.value),
-    allPropertiesKeys: selectedLeafletShape.value.properties ? Object.keys(selectedLeafletShape.value.properties) : [],
-    _leaflet_id: selectedLeafletShape.value._leaflet_id,
-    _dbId: selectedLeafletShape.value._dbId,
-    // Essayer de détecter le nom même s'il n'est pas énumérable
-    descriptor: Object.getOwnPropertyDescriptor(selectedLeafletShape.value, 'name')
-  });
 
   // Get the raw properties object and ensure we're capturing all properties
   const rawProperties = selectedLeafletShape.value.properties || {};
@@ -816,8 +794,6 @@ const selectedShape = computed((): ShapeType | null => {
     shapeType = 'Line';
   }
 
-  console.log(`[MapView][selectedShape] Type de forme détecté: ${shapeType}`);
-
   // S'assurer que le type est défini dans les propriétés
   if (!rawProperties.type) {
     if (!selectedLeafletShape.value.properties) {
@@ -832,17 +808,14 @@ const selectedShape = computed((): ShapeType | null => {
   // Check in style.name which is the most reliable place
   if (rawProperties.style && rawProperties.style.name) {
     shapeName = rawProperties.style.name;
-    console.log('[MapView][selectedShape] Using name from style:', shapeName);
   }
   // Fall back to direct name on properties
   else if (rawProperties.name) {
     shapeName = rawProperties.name;
-    console.log('[MapView][selectedShape] Using name from properties:', shapeName);
   }
   // Fall back to name on the layer itself
   else if (selectedLeafletShape.value.name) {
     shapeName = selectedLeafletShape.value.name;
-    console.log('[MapView][selectedShape] Using name from layer:', shapeName);
   }
   // Last resort: check for non-enumerable properties
   else {
@@ -850,7 +823,6 @@ const selectedShape = computed((): ShapeType | null => {
     const layerDescriptor = Object.getOwnPropertyDescriptor(selectedLeafletShape.value, 'name');
     if (layerDescriptor && layerDescriptor.value) {
       shapeName = layerDescriptor.value;
-      console.log('[MapView][selectedShape] Found name in non-enumerable layer property:', shapeName);
     }
 
     // Check if there's a direct _name or similar property
@@ -858,7 +830,6 @@ const selectedShape = computed((): ShapeType | null => {
     for (const prop of possibleNameProps) {
       if ((selectedLeafletShape.value as any)[prop]) {
         shapeName = (selectedLeafletShape.value as any)[prop];
-        console.log(`[MapView][selectedShape] Found name in ${prop}:`, shapeName);
         break;
       }
     }
@@ -866,7 +837,6 @@ const selectedShape = computed((): ShapeType | null => {
 
   // Force l'attribution du nom aux deux endroits
   if (shapeName) {
-    console.log(`[MapView][selectedShape] Ensuring name "${shapeName}" is set everywhere`);
     // Ensure properties exists
     if (!selectedLeafletShape.value.properties) {
       selectedLeafletShape.value.properties = {};
@@ -887,7 +857,6 @@ const selectedShape = computed((): ShapeType | null => {
     // Utiliser la méthode setName si disponible
     if (typeof selectedLeafletShape.value.setName === 'function') {
       selectedLeafletShape.value.setName(shapeName);
-      console.log(`[MapView][selectedShape] Used setName method to set name "${shapeName}"`);
     }
   }
 
@@ -900,19 +869,6 @@ const selectedShape = computed((): ShapeType | null => {
   if (!selectedLeafletShape.value.properties.accessLevel) {
     selectedLeafletShape.value.properties.accessLevel = 'visitor';
   }
-
-  // Log detailed information about the properties
-  console.log('[MapView][selectedShape] Preparing properties for DrawingTools:', {
-    type: shapeType,
-    name: rawProperties.name,
-    foundName: shapeName,
-    hasNameProperty: 'name' in rawProperties,
-    allPropertiesKeys: Object.keys(rawProperties),
-    layerId: selectedLeafletShape.value._leaflet_id,
-    rawProperties,
-    layerName: selectedLeafletShape.value.name,
-    layerPropertiesName: selectedLeafletShape.value.properties?.name
-  });
 
   // Create a fresh copy of the properties with explicit name handling
   const properties = {
@@ -934,14 +890,6 @@ const selectedShape = computed((): ShapeType | null => {
     layer: selectedLeafletShape.value,
     options: selectedLeafletShape.value.options || {}
   };
-
-  console.log('[MapView][selectedShape] Final shape object for DrawingTools:', {
-    type: shape.type,
-    hasName: 'name' in shape.properties,
-    name: shape.properties.name,
-    layerName: shape.layer.name,
-    layerPropertiesName: shape.layer.properties?.name
-  });
 
   return shape;
 });
@@ -971,16 +919,8 @@ function getMapPosition(): { lat: number; lng: number; zoom: number } | null {
   return null;
 }
 onMounted(async () => {
-  console.log('[MapView][onMounted] Initialisation du composant MapView');
-
   // Ajouter un écouteur pour détecter les changements de taille d'écran
   window.addEventListener('resize', checkMobile);
-
-  console.log('[MapView][onMounted] État initial des filtres dans le store:', JSON.stringify({
-    accessLevels: { ...drawingStore.filters.accessLevels },
-    categories: { ...drawingStore.filters.categories },
-    shapeTypes: { ...drawingStore.filters.shapeTypes }
-  }, null, 2));
 
   try {
     // Charger les plans
@@ -1065,7 +1005,6 @@ onMounted(async () => {
 
             // Si la couche n'existe pas dans shapes.value, l'ajouter
             if (existingShapeIndex === -1) {
-              console.log(`[MapView][featureGroup.layeradd] Ajout de la couche ${layer._leaflet_id} à shapes.value`);
               shapes.value.push({ layer, id: layer._dbId || layer._leaflet_id });
             }
           }
@@ -1080,17 +1019,13 @@ onMounted(async () => {
 
             if (isTemporaryLayer) {
               // Pour les couches temporaires, les supprimer complètement de shapes.value
-              console.log(`[MapView][featureGroup.layerremove] Couche temporaire ${layer._leaflet_id} supprimée définitivement`);
               const index = shapes.value.findIndex(shape =>
                 shape.layer && shape.layer._leaflet_id === layer._leaflet_id
               );
               if (index !== -1) {
                 shapes.value.splice(index, 1);
               }
-            } else {
-              // Pour les couches normales, conserver dans shapes.value pour restauration ultérieure
-              console.log(`[MapView][featureGroup.layerremove] Couche ${layer._leaflet_id} supprimée du featureGroup mais conservée dans shapes.value pour restauration ultérieure`);
-            }
+            } 
           }
         });
       }
@@ -1099,7 +1034,6 @@ onMounted(async () => {
     // Gérer les paramètres d'URL s'ils existent
     if (urlParams.value.planId) {
       try {
-        console.log('[MapView][onMounted] Chargement du plan depuis les paramètres d\'URL:', urlParams.value.planId);
         await loadPlan(urlParams.value.planId);
 
         // Forcer l'affichage de la carte et cacher l'écran d'accueil
@@ -1110,21 +1044,18 @@ onMounted(async () => {
 
         // Si des coordonnées sont spécifiées, centrer la carte sur ces coordonnées
         if (urlParams.value.lat && urlParams.value.lng && map.value) {
-          console.log('[MapView][onMounted] Centrage de la carte sur les coordonnées:', urlParams.value.lat, urlParams.value.lng);
           // Zoom plus fort pour mieux mettre en valeur la note
           map.value.flyTo([urlParams.value.lat, urlParams.value.lng], 30);
         }
 
         // Si un noteId est spécifié, mettre en évidence la note correspondante
         if (urlParams.value.noteId && featureGroup.value) {
-          console.log('[MapView][onMounted] Recherche de la note:', urlParams.value.noteId);
           // Attendre que toutes les couches soient chargées
           setTimeout(() => {
             // Rechercher la note dans les couches de la carte
             const layers = featureGroup.value?.getLayers() || [];
             for (const layer of layers) {
               if (layer._dbId === urlParams.value.noteId || layer.id === urlParams.value.noteId) {
-                console.log('[MapView][onMounted] Note trouvée:', layer);
                 // Sélectionner la couche
                 if (typeof layer.fire === 'function') {
                   layer.fire('click');
@@ -1148,7 +1079,6 @@ onMounted(async () => {
 
         // Si un outil est spécifié, l'activer
         if (urlParams.value.tool) {
-          console.log('[MapView][onMounted] Activation de l\'outil:', urlParams.value.tool);
           setDrawingTool(urlParams.value.tool);
         }
       } catch (error) {
@@ -1166,7 +1096,6 @@ onMounted(async () => {
       const lastPlanId = localStorage.getItem('lastPlanId');
       if (lastPlanId) {
         try {
-          console.log('[MapView][loadLastPlan] Chargement du dernier plan:', lastPlanId);
           await loadPlan(parseInt(lastPlanId));
           // Forcer l'affichage de la carte et cacher l'écran d'accueil
           const mapParent = document.querySelector('.map-parent');
@@ -1182,7 +1111,6 @@ onMounted(async () => {
           localStorage.removeItem('lastPlanId');
         }
       } else {
-        console.log('[MapView][loadLastPlan] Aucun dernier plan à charger');
         currentPlan.value = null;
         irrigationStore.clearCurrentPlan();
         drawingStore.clearCurrentPlan();
@@ -1193,7 +1121,6 @@ onMounted(async () => {
     // Écouter l'événement de création de forme
     window.addEventListener('shape:created', ((event: CustomEvent) => {
       const { shape, type, properties } = event.detail;
-      console.log('[MapView] Nouvelle forme créée', { shape, type, properties });
       drawingStore.addElement(shape);
       // Désélectionner l'outil de dessin après la création
       setDrawingTool('');
@@ -1201,56 +1128,39 @@ onMounted(async () => {
 
     // Écouter l'événement de sauvegarde automatique du plan lors de la création d'une note géolocalisée
     window.addEventListener('geonote:savePlan', (() => {
-      console.log('[ISSUE01][MapView] Événement geonote:savePlan reçu - Sauvegarde automatique du plan');
       savePlan();
     }) as EventListener);
 
     // Écouter l'événement de sélection d'une note géolocalisée
     window.addEventListener('geonote:select', ((event: CustomEvent) => {
-      console.log('[MapView] Événement geonote:select reçu', event.detail);
-
       if (event.detail && event.detail.geoNote) {
         // Sélectionner la note dans l'interface
         const geoNote = event.detail.geoNote;
-
         // Mettre à jour selectedLeafletShape pour que la note soit sélectionnée dans DrawingTools
         selectedLeafletShape.value = geoNote;
-
         // Forcer la mise à jour de l'interface pour afficher les propriétés de la note
-        nextTick(() => {
-          console.log('[MapView] Note géolocalisée sélectionnée:', geoNote);
-        });
+        nextTick(() => {});
       }
     }) as EventListener);
 
     // Écouter les événements de réactivation des catégories
     window.addEventListener('categoriesReactivated', ((e: CustomEvent) => {
-      console.log('[MapView][categoriesReactivated] Événement reçu:', e.detail);
-      // Forcer une mise à jour de l'affichage pour s'assurer que les catégories sont correctement restaurées
       updateMapDisplay();
     }) as EventListener);
 
     // Écouter les événements de réactivation des types de formes
     window.addEventListener('shapeTypesReactivated', ((e: CustomEvent) => {
-      console.log('[MapView][shapeTypesReactivated] Événement reçu:', e.detail);
-      // Forcer une mise à jour de l'affichage pour s'assurer que les types de formes sont correctement restaurés
       updateMapDisplay();
     }) as EventListener);
 
     // Écouter l'événement d'édition de note (via Leaflet)
     const handleNoteEdit = (e: any) => {
-      console.log('[MapView] Édition de note via Leaflet', e);
-      console.log('[MapView] Type de e:', typeof e, 'Contenu de e:', JSON.stringify(e));
-
       // Vérifier si e.note existe
       if (!e || !e.note) {
         console.error('[MapView] Erreur: e.note est undefined ou null', e);
         return;
       }
-
       const note = e.note;
-      console.log('[MapView] Note à éditer:', note);
-
       // Convertir la note Leaflet en note compatible avec le store
       editingMapNote.value = {
         id: note.id,
@@ -1273,39 +1183,26 @@ onMounted(async () => {
         comments: note.comments || [],
         photos: note.photos || []
       };
-
-      console.log('[MapView] editingMapNote.value après conversion:', editingMapNote.value);
-
       // Ouvrir le modal d'édition
       showNoteEditModal.value = true;
-      console.log('[MapView] showNoteEditModal.value:', showNoteEditModal.value);
     };
 
     // Écouter l'événement d'édition de note (via événement global)
     const handleGlobalNoteEdit = (event: CustomEvent) => {
-      console.log('[MapView] Édition de note via événement global', event);
-
       if (!event.detail || !event.detail.note) {
         console.error('[MapView] Erreur: event.detail.note est undefined ou null', event);
         return;
       }
-
       const note = event.detail.note;
-      console.log('[MapView] Note à éditer (global):', note);
-
       // Utiliser l'ID backend transmis explicitement dans l'événement
       // ou récupérer l'ID backend de la note si disponible
       const backendId = event.detail.backendId || note.backendId;
-
       // Si aucun ID backend n'est disponible, essayer de le trouver dans shapes.value
       let dbId = backendId;
       if (!dbId) {
         const shape = shapes.value.find(s => s.layer === event.detail.source);
         dbId = shape ? shape.id : note.id;
       }
-
-      console.log('[MapView] ID backend de la note pour l\'API:', dbId, 'Source:', event.detail.source ? 'Couche Leaflet' : 'Autre');
-
       editingMapNote.value = {
         id: dbId, // Utiliser l'ID de la base de données pour l'API
         leafletId: note.id, // Conserver l'ID Leaflet pour référence
@@ -1328,9 +1225,6 @@ onMounted(async () => {
         comments: note.comments || [],
         photos: note.photos || []
       };
-
-      console.log('[MapView] Note préparée pour édition:', editingMapNote.value);
-
       // Ouvrir le modal d'édition
       showNoteEditModal.value = true;
     };
@@ -1356,7 +1250,6 @@ onMounted(async () => {
 // Surveiller les changements dans le dessin et auto-save on modifications
 
 watch(() => drawingStore.hasUnsavedChanges, (hasUnsaved) => {
-  console.log('[ISSUE01][MapView][watch drawingStore.hasUnsavedChanges]', hasUnsaved);
   if (hasUnsaved && currentPlan.value) {
     irrigationStore.markUnsavedChanges();
     savePlan();
@@ -1368,7 +1261,6 @@ let autoSaveInterval: ReturnType<typeof setInterval>;
 onMounted(() => {
   autoSaveInterval = setInterval(() => {
     if (drawingStore.hasUnsavedChanges && currentPlan.value) {
-      console.log('[ISSUE01][MapView] Sauvegarde déclenchée par intervalle');
       savePlan(); // Utiliser la version debounced aussi
     }
   }, 60000);
@@ -1381,48 +1273,33 @@ onUnmounted(() => {
 
 // Surveiller les changements dans la liste des plans du store
 watch(() => irrigationStore.plans, (newPlans) => {
-  console.log('[MapView][watch irrigationStore.plans] Mise à jour de la liste des plans:', newPlans.length);
   // Si le modal de chargement de plan est ouvert, s'assurer que l'interface est à jour
   if (showLoadPlanModal.value) {
     // Si on est dans l'interface client simple (pas de client sélectionné)
     if (!selectedClient.value) {
-      console.log('[MapView][watch irrigationStore.plans] Mise à jour de l\'interface client');
     }
   }
 }, { deep: true });
 
 // Surveiller les changements dans les filtres
 watch(() => drawingStore.filters, (newFilters, oldFilters) => {
-  console.log('[MapView][watch drawingStore.filters] Changement de filtres détecté:', JSON.stringify(newFilters, null, 2));
-
   // Vérifier si les filtres ont réellement changé
   if (oldFilters) {
     const accessLevelsChanged = JSON.stringify(oldFilters.accessLevels) !== JSON.stringify(newFilters.accessLevels);
     const categoriesChanged = JSON.stringify(oldFilters.categories) !== JSON.stringify(newFilters.categories);
     const shapeTypesChanged = JSON.stringify(oldFilters.shapeTypes) !== JSON.stringify(newFilters.shapeTypes);
-
-    console.log('[MapView][watch drawingStore.filters] Changements détectés:', {
-      accessLevelsChanged,
-      categoriesChanged,
-      shapeTypesChanged
-    });
-
     // Ne mettre à jour l'affichage que si les filtres ont réellement changé
     if (accessLevelsChanged || categoriesChanged || shapeTypesChanged) {
-      console.log('[MapView][watch drawingStore.filters] Mise à jour de l\'affichage suite au changement de filtres');
       updateMapDisplay();
     } else {
-      console.log('[MapView][watch drawingStore.filters] Aucun changement réel, pas de mise à jour');
     }
   } else {
-    console.log('[MapView][watch drawingStore.filters] Mise à jour de l\'affichage suite au changement de filtres');
     updateMapDisplay();
   }
 }, { deep: true });
 
 // Écouter l'événement filtersChanged
 const handleFiltersChanged = (event: any) => {
-  console.log('[MapView][filtersChanged] Événement reçu:', event.detail);
   updateMapDisplay();
 };
 
@@ -1432,25 +1309,15 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('filtersChanged', handleFiltersChanged);
-  console.log('[MapView][filtersChanged] Événement désactivé');
 });
 
 // Surveiller les changements dans les éléments filtrés
 watch(() => drawingStore.getFilteredElements, (newElements, oldElements) => {
-  console.log('[MapView][watch drawingStore.getFilteredElements] Mise à jour de l\'affichage, éléments filtrés:', {
-    nouveaux: newElements.length,
-    anciens: oldElements ? oldElements.length : 'aucun',
-    ids: newElements.map(e => e.id)
-  });
-
-  console.log('[MapView][watch drawingStore.getFilteredElements] Mise à jour de l\'affichage suite au changement d\'elements filtrés');
   updateMapDisplay();
 }, { deep: true });
 // Surveiller l'initialisation de la carte
 watch(map, async (newMap) => {
-  console.log('\n[MapView][watch map] Nouvelle carte:', !!newMap);
   if (newMap && irrigationStore.currentPlan && !featureGroup.value?.getLayers().length) {
-    console.log('[MapView][watch map] Chargement initial des éléments du plan:', irrigationStore.currentPlan.id);
     clearMap();
     await drawingStore.loadPlanElements(irrigationStore.currentPlan.id);
   }
@@ -1459,16 +1326,11 @@ watch(map, async (newMap) => {
 watch(() => irrigationStore.currentPlan, async (newPlan, oldPlan) => {
   // Éviter les rechargements inutiles si le plan n'a pas changé
   if (newPlan?.id === oldPlan?.id) {
-    console.log('[MapView][watch currentPlan] Plan identique, pas de rechargement nécessaire');
     return;
   }
 
-  console.log('\n[MapView][watch currentPlan] ====== CHANGEMENT DE PLAN ======');
-  console.log('[MapView][watch currentPlan] Nouveau plan:', newPlan?.id);
-
   try {
     if (newPlan) {
-      console.log('[MapView][watch currentPlan] Mise à jour du plan courant...');
       currentPlan.value = newPlan;
 
       // Forcer l'affichage de la carte et cacher l'écran d'accueil
@@ -1476,9 +1338,7 @@ watch(() => irrigationStore.currentPlan, async (newPlan, oldPlan) => {
       if (mapParent instanceof HTMLElement) {
         mapParent.style.display = 'block';
       }
-      console.log('[MapView][watch currentPlan] Plan mis à jour avec succès');
     } else {
-      console.log('[MapView][watch currentPlan] Nettoyage du plan courant...');
       currentPlan.value = null;
       clearMap();
 
