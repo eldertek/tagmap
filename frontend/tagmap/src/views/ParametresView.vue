@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page max-w-xl mx-auto py-10 px-4">
+  <div class="settings-page max-w-xl mx-auto py-10 px-4 min-h-full">
     <h1 class="text-2xl font-bold mb-6">Paramètres de l'application</h1>
     
     <!-- Indicateur de chargement -->

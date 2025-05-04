@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full bg-gray-50">
+  <div class="min-h-full bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
@@ -90,14 +90,14 @@
         <p class="mt-2 text-sm text-gray-500">Chargement des notes...</p>
       </div>
 
-      <div v-else class="mt-6 overflow-x-auto pb-4">
+      <div v-else class="mt-6 pb-4">
         <div v-if="filteredNotes.length === 0" class="p-6 text-center bg-white shadow rounded-lg mb-4">
           <p class="text-sm text-gray-500">Aucune note trouvée</p>
         </div>
 
         <!-- Colonnes de notes (drag and drop désactivé) -->
-        <div v-if="filteredNotes.length > 0" class="flex space-x-4 min-w-max">
-          <div v-for="column in columnsForDrag" :key="column.id" class="column-wrapper w-80 flex-shrink-0">
+        <div v-if="filteredNotes.length > 0" class="md:flex md:space-x-4 md:overflow-x-auto gap-4 grid grid-cols-1">
+          <div v-for="column in columnsForDrag" :key="column.id" class="column-wrapper md:w-80 md:flex-shrink-0 mb-4 md:mb-0">
               <div class="bg-white rounded-lg shadow overflow-hidden">
                 <!-- En-tête de colonne (sans poignée de drag) -->
                 <div
@@ -117,7 +117,7 @@
                 </div>
 
                 <!-- Liste des notes dans cette colonne -->
-                <div class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto">
+                <div class="p-2">
                   <div class="min-h-[100px] draggable-container">
                     <draggable
                       :list="getNotesByColumn(column.id)"
@@ -223,7 +223,7 @@
     <div v-if="showDeleteModal" class="fixed z-[3001] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-center justify-center min-h-screen w-full">
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <div class="relative bg-white w-full h-full md:rounded-lg md:max-w-lg md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden">
+        <div class="relative bg-white w-full md:rounded-lg md:max-w-lg md:h-auto md:max-h-[90vh] md:my-8 shadow-xl transform transition-all overflow-hidden mx-auto my-auto">
           <div class="p-4 md:p-6">
             <div class="flex items-start">
               <div class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
