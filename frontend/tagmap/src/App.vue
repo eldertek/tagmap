@@ -5,7 +5,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 import SearchBar from '@/components/SearchBar.vue'
-import PerformancePanel from '@/components/PerformancePanel.vue'
 import PWAUpdateNotification from '@/components/PWAUpdateNotification.vue'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt.vue'
 
@@ -525,8 +524,6 @@ watchEffect(() => {
       </router-view>
     </main>
 
-    <!-- Panneau de performance (visible si le paramètre URL perf=true est présent) -->
-    <PerformancePanel position="bottom-left" />
 
     <!-- Composants PWA -->
     <PWAUpdateNotification ref="pwaUpdateNotification" />

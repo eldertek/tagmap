@@ -13,7 +13,6 @@ import L from 'leaflet';
 import { Polygon } from '@/utils/Polygon';
 import { Line } from '@/utils/Line';
 import { GeoNote } from '@/utils/GeoNote';
-import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 
 // Interface pour les filtres de la carte
 interface MapFilters {
@@ -47,7 +46,6 @@ interface DrawingState {
     fillOpacity?: number;
   };
   lastUsedType: string | null;
-  performanceMonitor: ReturnType<typeof usePerformanceMonitor>;
 }
 
 // TextData function removed as per requirements
@@ -297,8 +295,7 @@ export const useDrawingStore = defineStore('drawing', {
       fillColor: '#3B82F6',
       fillOpacity: 0.2
     },
-    lastUsedType: null,
-    performanceMonitor: usePerformanceMonitor()
+    lastUsedType: null
   }),
   getters: {
     hasUnsavedChanges: (state) => state.unsavedChanges,
@@ -451,40 +448,31 @@ export const useDrawingStore = defineStore('drawing', {
       this.error = null;
     },
     addElement(element: DrawingElement | any) {
-      const endMeasure = this.performanceMonitor.startMeasure('addElement', 'DrawingStore');
-      try {
-        console.log('[DrawingStore] Ajout d\'un élément', {
-          element,
-          isLeafletLayer: element instanceof L.Layer,
-          hasProperties: !!element.properties,
-          properties: element.properties,
-          type: element.properties?.type
+      console.log('[DrawingStore] Ajout d\'un élément', {
+        element,
+        isLeafletLayer: element instanceof L.Layer,
+        hasProperties: !!element.properties,
+        properties: element.properties,
+        type: element.properties?.type
+      });
+
+      if (element instanceof L.Layer && element.properties) {
+        const convertedElement = convertShapeToDrawingElement(element);
+        console.log('[DrawingStore] Élément converti avant ajout', {
+          original: element,
+          converted: convertedElement,
+          type: convertedElement.type_forme,
+          data: convertedElement.data
         });
-
-        if (element instanceof L.Layer && element.properties) {
-          const convertedElement = this.performanceMonitor.measure(
-            'addElement_convert',
-            () => convertShapeToDrawingElement(element),
-            'DrawingStore'
-          );
-          console.log('[DrawingStore] Élément converti avant ajout', {
-            original: element,
-            converted: convertedElement,
-            type: convertedElement.type_forme,
-            data: convertedElement.data
-          });
-          this.elements.push(convertedElement);
-        } else {
-          if (!element.type_forme && this.lastUsedType) {
-            element.type_forme = this.lastUsedType;
-          }
-          this.elements.push(element);
+        this.elements.push(convertedElement);
+      } else {
+        if (!element.type_forme && this.lastUsedType) {
+          element.type_forme = this.lastUsedType;
         }
-
-        this.unsavedChanges = true;
-      } finally {
-        endMeasure();
+        this.elements.push(element);
       }
+
+      this.unsavedChanges = true;
     },
     updateElement(element: DrawingElement) {
       const index = this.elements.findIndex(e => e.id === element.id);
@@ -607,12 +595,9 @@ export const useDrawingStore = defineStore('drawing', {
       }));
     },
     async loadPlanElements(planId: number) {
-      const endMeasure = this.performanceMonitor.startMeasure('loadPlanElements', 'DrawingStore');
-
       // Si le plan est déjà chargé avec des éléments, ne pas recharger
       if (this.currentMapId === planId && this.elements.length > 0) {
         console.log(`[ISSUE01][DrawingStore] Plan ${planId} déjà chargé avec ${this.elements.length} éléments, ne pas recharger`);
-        endMeasure();
         return this.elements;
       }
 
@@ -623,11 +608,7 @@ export const useDrawingStore = defineStore('drawing', {
           currentMapId: this.currentMapId,
           currentElements: this.elements.length
         });
-        const response = await this.performanceMonitor.measureAsync(
-          'loadPlanElements_apiCall',
-          () => api.get(`/plans/${planId}/`),
-          'DrawingStore'
-        );
+        const response = await api.get(`/plans/${planId}/`);
         const plan = response.data;
         console.log('[ISSUE01][DrawingStore] Données du plan reçues', {
           formesCount: plan.formes?.length || 0,
@@ -715,11 +696,9 @@ export const useDrawingStore = defineStore('drawing', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
     async saveToPlan(planId?: number, options?: { elementsToDelete?: number[] }) {
-      const endMeasure = this.performanceMonitor.startMeasure('saveToPlan', 'DrawingStore');
       this.loading = true;
       try {
         const targetPlanId = planId || this.currentMapId;
@@ -735,14 +714,10 @@ export const useDrawingStore = defineStore('drawing', {
           throw new Error('Aucun plan sélectionné pour la sauvegarde');
         }
 
-        const formesAvecType = this.performanceMonitor.measure(
-          'saveToPlan_prepareElements',
-          () => this.elements.map(element => ({
-            ...element,
-            type_forme: element.type_forme || this.lastUsedType
-          })),
-          'DrawingStore'
-        );
+        const formesAvecType = this.elements.map(element => ({
+          ...element,
+          type_forme: element.type_forme || this.lastUsedType
+        }));
 
         console.log('[ISSUE01][DrawingStore][saveToPlan] Formes préparées pour sauvegarde:', {
           formesCount: formesAvecType.length,
@@ -752,21 +727,17 @@ export const useDrawingStore = defineStore('drawing', {
         const elementsToDelete = options?.elementsToDelete || [];
         const requestUrl = `/plans/${targetPlanId}/save_with_elements/`;
 
-        const response = await this.performanceMonitor.measureAsync(
-          'saveToPlan_apiCall',
-          () => api.post(requestUrl, {
-            formes: formesAvecType,
-            connexions: [],
-            annotations: [],
-            elementsToDelete: elementsToDelete,
-            preferences: {
-              currentTool: this.currentTool,
-              currentStyle: this.currentStyle,
-              lastUsedType: this.lastUsedType
-            }
-          }),
-          'DrawingStore'
-        );
+        const response = await api.post(requestUrl, {
+          formes: formesAvecType,
+          connexions: [],
+          annotations: [],
+          elementsToDelete: elementsToDelete,
+          preferences: {
+            currentTool: this.currentTool,
+            currentStyle: this.currentStyle,
+            lastUsedType: this.lastUsedType
+          }
+        });
 
         console.log('[ISSUE01][DrawingStore][saveToPlan] Réponse reçue du serveur:', {
           formesCount: response.data.formes?.length || 0,
@@ -793,20 +764,14 @@ export const useDrawingStore = defineStore('drawing', {
           }
         });
 
-        this.elements = this.performanceMonitor.measure(
-          'saveToPlan_processResponse',
-          () => {
-            // Filtrer les éléments supprimés de la réponse
-            const deletedIds = new Set(elementsToDelete);
-            return response.data.formes
-              .filter((forme: any) => !deletedIds.has(forme.id))
-              .map((forme: any) => ({
-                ...forme,
-                type_forme: forme.type_forme
-              }));
-          },
-          'DrawingStore'
-        );
+        // Filtrer les éléments supprimés de la réponse
+        const deletedIds = new Set(elementsToDelete);
+        this.elements = response.data.formes
+          .filter((forme: any) => !deletedIds.has(forme.id))
+          .map((forme: any) => ({
+            ...forme,
+            type_forme: forme.type_forme
+          }));
 
         console.log('[ISSUE01][DrawingStore][saveToPlan] Éléments après filtrage:', {
           totalElements: this.elements.length,
@@ -823,7 +788,6 @@ export const useDrawingStore = defineStore('drawing', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     }
   }

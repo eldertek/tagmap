@@ -1,7 +1,6 @@
 import L from 'leaflet';
 import { lineString, length } from '@turf/turf';
 import along from '@turf/along';
-import { performanceMonitor } from './usePerformanceMonitor';
 
 // Interface étendue pour inclure name, category et accessLevel
 interface ExtendedPolylineOptions extends L.PolylineOptions {
@@ -38,7 +37,7 @@ export class Line extends L.Polyline {
       interactive: true
     });
 
-    this.properties = performanceMonitor.measure('Line.constructor.initProperties', () => ({
+    this.properties = {
       type: 'Line',
       category: options.category || 'forages',
       accessLevel: options.accessLevel || 'visitor',
@@ -46,7 +45,7 @@ export class Line extends L.Polyline {
         ...(options || {}),
         name: options.name || ''
       }
-    }));
+    };
 
     this.updateProperties();
     this.on('add', () => {
@@ -135,102 +134,94 @@ export class Line extends L.Polyline {
   }
 
   updateProperties(): void {
-    performanceMonitor.measure('Line.updateProperties', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (!latLngs || latLngs.length < 2) {
-        console.warn('Line has less than 2 points, cannot calculate properties');
-        return;
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (!latLngs || latLngs.length < 2) {
+      console.warn('Line has less than 2 points, cannot calculate properties');
+      return;
+    }
+
+    const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
+    try {
+      const line = lineString(coordinates);
+      const lengthValue = length(line, { units: 'meters' });
+      let center: L.LatLng;
+
+      if (latLngs.length === 2) {
+        center = L.latLng(
+          (latLngs[0].lat + latLngs[1].lat) / 2,
+          (latLngs[0].lng + latLngs[1].lng) / 2
+        );
+      } else {
+        const alongPoint = along(line, lengthValue / 2, { units: 'meters' });
+        center = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
       }
 
-      const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
-      try {
-        const line = lineString(coordinates);
-        const lengthValue = length(line, { units: 'meters' });
-        let center: L.LatLng;
+      const influenceWidth = 10;
+      const existingName = this.properties?.style?.name || '';
+      const existingCategory = this.properties?.category || 'forages';
+      const existingAccessLevel = this.properties?.accessLevel || 'visitor';
 
-        if (latLngs.length === 2) {
-          center = L.latLng(
-            (latLngs[0].lat + latLngs[1].lat) / 2,
-            (latLngs[0].lng + latLngs[1].lng) / 2
-          );
-        } else {
-          const alongPoint = along(line, lengthValue / 2, { units: 'meters' });
-          center = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
+      this.properties = {
+        type: 'Line',
+        length: lengthValue,
+        coordinates: latLngs.map(ll => ({
+          lat: ll.lat,
+          lng: ll.lng
+        })),
+        center: {
+          lat: center.lat,
+          lng: center.lng
+        },
+        vertices: latLngs.length,
+        surfaceInfluence: lengthValue * influenceWidth,
+        dimensions: {
+          width: influenceWidth
+        },
+        category: existingCategory,
+        accessLevel: existingAccessLevel,
+        style: {
+          ...this.options,
+          color: this.options.color || '#2b6451',
+          weight: this.options.weight || 3,
+          opacity: this.options.opacity || 1,
+          dashArray: (this.options as any)?.dashArray || '',
+          name: existingName
         }
+      };
 
-        const influenceWidth = 10;
-        const existingName = this.properties?.style?.name || '';
-        const existingCategory = this.properties?.category || 'forages';
-        const existingAccessLevel = this.properties?.accessLevel || 'visitor';
+      this.cachedProperties.length = lengthValue;
+      this.cachedProperties.center = center;
+      this.cachedProperties.midPoints = undefined;
+      this.cachedProperties.segmentLengths = undefined;
+      this.needsUpdate = false;
 
-        this.properties = {
-          type: 'Line',
-          length: lengthValue,
-          coordinates: latLngs.map(ll => ({
-            lat: ll.lat,
-            lng: ll.lng
-          })),
-          center: {
-            lat: center.lat,
-            lng: center.lng
-          },
-          vertices: latLngs.length,
-          surfaceInfluence: lengthValue * influenceWidth,
-          dimensions: {
-            width: influenceWidth
-          },
-          category: existingCategory,
-          accessLevel: existingAccessLevel,
-          style: {
-            ...this.options,
-            color: this.options.color || '#2b6451',
-            weight: this.options.weight || 3,
-            opacity: this.options.opacity || 1,
-            dashArray: (this.options as any)?.dashArray || '',
-            name: existingName
-          }
-        };
-
-        this.cachedProperties.length = lengthValue;
-        this.cachedProperties.center = center;
-        this.cachedProperties.midPoints = undefined;
-        this.cachedProperties.segmentLengths = undefined;
-        this.needsUpdate = false;
-
-        this.fire('properties:updated', {
-          shape: this,
-          properties: this.properties
-        });
-      } catch (error) {
-        console.error('Failed to calculate line properties', error);
-      }
-    });
-  }
-
-  setName(name: string): void {
-    performanceMonitor.measure('Line.setName', () => {
-      if (!this.properties.style) {
-        this.properties.style = {};
-      }
-      this.properties.style.name = name;
       this.fire('properties:updated', {
         shape: this,
         properties: this.properties
       });
+    } catch (error) {
+      console.error('Failed to calculate line properties', error);
+    }
+  }
+
+  setName(name: string): void {
+    if (!this.properties.style) {
+      this.properties.style = {};
+    }
+    this.properties.style.name = name;
+    this.fire('properties:updated', {
+      shape: this,
+      properties: this.properties
     });
   }
 
   getName(): string {
-    return performanceMonitor.measure('Line.getName', () =>
-      this.properties?.style?.name || ''
-    );
+    return this.properties?.style?.name || '';
   }
 
   invalidateCache(): void {
-    performanceMonitor.measure('Line.invalidateCache', () => {
-      this.needsUpdate = true;
-      this.cachedProperties = {};
-    });
+    this.needsUpdate = true;
+    this.cachedProperties = {};
   }
 
   setLatLngs(latlngs: L.LatLngExpression[] | L.LatLngExpression[][]): this {
@@ -249,237 +240,217 @@ export class Line extends L.Polyline {
   }
 
   getMidPoints(): L.LatLng[] {
-    return performanceMonitor.measure('Line.getMidPoints', () => {
-      if (!this.needsUpdate && this.cachedProperties.midPoints) {
-        return this.cachedProperties.midPoints;
-      }
+    if (!this.needsUpdate && this.cachedProperties.midPoints) {
+      return this.cachedProperties.midPoints;
+    }
 
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      const midPoints: L.LatLng[] = [];
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    const midPoints: L.LatLng[] = [];
 
-      if (latLngs.length < 2) {
-        return midPoints;
-      }
-
-      for (let i = 0; i < latLngs.length - 1; i++) {
-        const p1 = latLngs[i];
-        const p2 = latLngs[i + 1];
-        if (!p1 || !p2) {
-          console.warn('Points invalides détectés pour le segment', i);
-          continue;
-        }
-        midPoints.push(L.latLng(
-          (p1.lat + p2.lat) / 2,
-          (p1.lng + p2.lng) / 2
-        ));
-      }
-
-      this.cachedProperties.midPoints = midPoints;
+    if (latLngs.length < 2) {
       return midPoints;
-    });
+    }
+
+    for (let i = 0; i < latLngs.length - 1; i++) {
+      const p1 = latLngs[i];
+      const p2 = latLngs[i + 1];
+      if (!p1 || !p2) {
+        console.warn('Points invalides détectés pour le segment', i);
+        continue;
+      }
+      midPoints.push(L.latLng(
+        (p1.lat + p2.lat) / 2,
+        (p1.lng + p2.lng) / 2
+      ));
+    }
+
+    this.cachedProperties.midPoints = midPoints;
+    return midPoints;
   }
 
   getMidPointAt(segmentIndex: number): L.LatLng | null {
-    return performanceMonitor.measure('Line.getMidPointAt', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
-        return null;
-      }
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
+      return null;
+    }
 
-      const p1 = latLngs[segmentIndex];
-      const p2 = latLngs[segmentIndex + 1];
-      if (!p1 || !p2) {
-        console.warn('Points invalides pour calcul du midpoint au segment', segmentIndex);
-        return null;
-      }
+    const p1 = latLngs[segmentIndex];
+    const p2 = latLngs[segmentIndex + 1];
+    if (!p1 || !p2) {
+      console.warn('Points invalides pour calcul du midpoint au segment', segmentIndex);
+      return null;
+    }
 
-      return L.latLng(
-        (p1.lat + p2.lat) / 2,
-        (p1.lng + p2.lng) / 2
-      );
-    });
+    return L.latLng(
+      (p1.lat + p2.lat) / 2,
+      (p1.lng + p2.lng) / 2
+    );
   }
 
   moveVertex(vertexIndex: number, newLatLng: L.LatLng, updateProps: boolean = false): void {
-    performanceMonitor.measure('Line.moveVertex', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (vertexIndex >= 0 && vertexIndex < latLngs.length) {
-        latLngs[vertexIndex] = newLatLng;
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (vertexIndex >= 0 && vertexIndex < latLngs.length) {
+      latLngs[vertexIndex] = newLatLng;
 
-        // Utiliser setLatLngs pour garantir la propagation des événements
-        this.setLatLngs(latLngs);
-
-        // Invalider TOUT le cache
-        this.needsUpdate = true;
-        this.cachedProperties = {};
-
-        // Émettre l'événement avec toutes les informations nécessaires
-        this.fire('vertex:moved', {
-          index: vertexIndex,
-          latlng: newLatLng,
-          allPoints: latLngs
-        });
-
-        if (updateProps) {
-          this.updateProperties();
-        }
-      }
-    });
-  }
-
-  addVertex(segmentIndex: number, newLatLng: L.LatLng, updateProps: boolean = false): void {
-    performanceMonitor.measure('Line.addVertex', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (segmentIndex >= 0 && segmentIndex < latLngs.length - 1) {
-        latLngs.splice(segmentIndex + 1, 0, newLatLng);
-        L.Polyline.prototype.setLatLngs.call(this, latLngs);
-        this.needsUpdate = true;
-        this.cachedProperties.midPoints = undefined;
-        this.cachedProperties.segmentLengths = undefined;
-        this.cachedProperties.center = undefined;
-        this.cachedProperties.length = undefined;
-        if (updateProps) {
-          this.updateProperties();
-        }
-      }
-    });
-  }
-
-  move(deltaLatLng: L.LatLng, updateProps: boolean = true): this {
-    return performanceMonitor.measure('Line.move', () => {
-      // Émettre l'événement de début de déplacement
-      this.fire('move:start');
-
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      const newLatLngs = latLngs.map(point =>
-        L.latLng(
-          point.lat + deltaLatLng.lat,
-          point.lng + deltaLatLng.lng
-        )
-      );
-
-      // Utiliser setLatLngs pour la mise à jour
-      this.setLatLngs(newLatLngs);
+      // Utiliser setLatLngs pour garantir la propagation des événements
+      this.setLatLngs(latLngs);
 
       // Invalider TOUT le cache
       this.needsUpdate = true;
       this.cachedProperties = {};
 
-      // Émettre l'événement avec toutes les informations
-      this.fire('move', {
-        delta: deltaLatLng,
-        newPositions: newLatLngs,
-        oldPositions: latLngs
+      // Émettre l'événement avec toutes les informations nécessaires
+      this.fire('vertex:moved', {
+        index: vertexIndex,
+        latlng: newLatLng,
+        allPoints: latLngs
       });
 
       if (updateProps) {
         this.updateProperties();
-        // Émettre un événement supplémentaire après la mise à jour des propriétés
-        this.fire('properties:updated', {
-          shape: this,
-          properties: this.properties
-        });
-        // Émettre l'événement de fin de déplacement
-        this.fire('move:end');
       }
-      return this;
+    }
+  }
+
+  addVertex(segmentIndex: number, newLatLng: L.LatLng, updateProps: boolean = false): void {
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (segmentIndex >= 0 && segmentIndex < latLngs.length - 1) {
+      latLngs.splice(segmentIndex + 1, 0, newLatLng);
+      L.Polyline.prototype.setLatLngs.call(this, latLngs);
+      this.needsUpdate = true;
+      this.cachedProperties.midPoints = undefined;
+      this.cachedProperties.segmentLengths = undefined;
+      this.cachedProperties.center = undefined;
+      this.cachedProperties.length = undefined;
+      if (updateProps) {
+        this.updateProperties();
+      }
+    }
+  }
+
+  move(deltaLatLng: L.LatLng, updateProps: boolean = true): this {
+    // Émettre l'événement de début de déplacement
+    this.fire('move:start');
+
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    const newLatLngs = latLngs.map(point =>
+      L.latLng(
+        point.lat + deltaLatLng.lat,
+        point.lng + deltaLatLng.lng
+      )
+    );
+
+    // Utiliser setLatLngs pour la mise à jour
+    this.setLatLngs(newLatLngs);
+
+    // Invalider TOUT le cache
+    this.needsUpdate = true;
+    this.cachedProperties = {};
+
+    // Émettre l'événement avec toutes les informations
+    this.fire('move', {
+      delta: deltaLatLng,
+      newPositions: newLatLngs,
+      oldPositions: latLngs
     });
+
+    if (updateProps) {
+      this.updateProperties();
+      // Émettre un événement supplémentaire après la mise à jour des propriétés
+      this.fire('properties:updated', {
+        shape: this,
+        properties: this.properties
+      });
+      // Émettre l'événement de fin de déplacement
+      this.fire('move:end');
+    }
+    return this;
   }
 
   getCenter(): L.LatLng {
-    return performanceMonitor.measure('Line.getCenter', () => {
-      if (!this.needsUpdate && this.cachedProperties.center) {
-        return this.cachedProperties.center;
-      }
+    if (!this.needsUpdate && this.cachedProperties.center) {
+      return this.cachedProperties.center;
+    }
 
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (latLngs.length < 2) {
-        const result = latLngs[0] || new L.LatLng(0, 0);
-        return result;
-      }
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (latLngs.length < 2) {
+      const result = latLngs[0] || new L.LatLng(0, 0);
+      return result;
+    }
 
-      try {
-        const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
-        const line = lineString(coordinates);
-        const lengthValue = length(line, { units: 'meters' });
-        const alongPoint = along(line, lengthValue / 2, { units: 'meters' });
-        const result = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
-        this.cachedProperties.center = result;
-        return result;
-      } catch (error) {
-        console.warn('Error calculating line center with turf.js, using simple method', error);
-        const lat = latLngs.reduce((sum, p) => sum + p.lat, 0) / latLngs.length;
-        const lng = latLngs.reduce((sum, p) => sum + p.lng, 0) / latLngs.length;
-        const result = new L.LatLng(lat, lng);
-        this.cachedProperties.center = result;
-        return result;
-      }
-    });
+    try {
+      const coordinates = latLngs.map((ll: L.LatLng) => [ll.lng, ll.lat]);
+      const line = lineString(coordinates);
+      const lengthValue = length(line, { units: 'meters' });
+      const alongPoint = along(line, lengthValue / 2, { units: 'meters' });
+      const result = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
+      this.cachedProperties.center = result;
+      return result;
+    } catch (error) {
+      console.warn('Error calculating line center with turf.js, using simple method', error);
+      const lat = latLngs.reduce((sum, p) => sum + p.lat, 0) / latLngs.length;
+      const lng = latLngs.reduce((sum, p) => sum + p.lng, 0) / latLngs.length;
+      const result = new L.LatLng(lat, lng);
+      this.cachedProperties.center = result;
+      return result;
+    }
   }
 
   getSegmentLengths(): number[] {
-    return performanceMonitor.measure('Line.getSegmentLengths', () => {
-      if (!this.needsUpdate && this.cachedProperties.segmentLengths) {
-        return this.cachedProperties.segmentLengths;
-      }
+    if (!this.needsUpdate && this.cachedProperties.segmentLengths) {
+      return this.cachedProperties.segmentLengths;
+    }
 
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      const distances: number[] = [];
-      if (latLngs.length < 2) {
-        return distances;
-      }
-
-      for (let i = 0; i < latLngs.length - 1; i++) {
-        const p1 = latLngs[i];
-        const p2 = latLngs[i + 1];
-        distances.push(p1.distanceTo(p2));
-      }
-
-      this.cachedProperties.segmentLengths = distances;
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    const distances: number[] = [];
+    if (latLngs.length < 2) {
       return distances;
-    });
+    }
+
+    for (let i = 0; i < latLngs.length - 1; i++) {
+      const p1 = latLngs[i];
+      const p2 = latLngs[i + 1];
+      distances.push(p1.distanceTo(p2));
+    }
+
+    this.cachedProperties.segmentLengths = distances;
+    return distances;
   }
 
   getSegmentLengthAt(segmentIndex: number): number {
-    return performanceMonitor.measure('Line.getSegmentLengthAt', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
-        return 0;
-      }
-      const p1 = latLngs[segmentIndex];
-      const p2 = latLngs[segmentIndex + 1];
-      return p1.distanceTo(p2);
-    });
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
+      return 0;
+    }
+    const p1 = latLngs[segmentIndex];
+    const p2 = latLngs[segmentIndex + 1];
+    return p1.distanceTo(p2);
   }
 
   getLengthToVertex(vertexIndex: number): number {
-    return performanceMonitor.measure('Line.getLengthToVertex', () => {
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      let length = 0;
-      if (vertexIndex <= 0 || latLngs.length < 2) {
-        return 0;
-      }
-      for (let i = 0; i < Math.min(vertexIndex, latLngs.length - 1); i++) {
-        length += latLngs[i].distanceTo(latLngs[i + 1]);
-      }
-      return length;
-    });
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    let length = 0;
+    if (vertexIndex <= 0 || latLngs.length < 2) {
+      return 0;
+    }
+    for (let i = 0; i < Math.min(vertexIndex, latLngs.length - 1); i++) {
+      length += latLngs[i].distanceTo(latLngs[i + 1]);
+    }
+    return length;
   }
 
   getLength(): number {
-    return performanceMonitor.measure('Line.getLength', () => {
-      if (!this.needsUpdate && this.cachedProperties.length) {
-        return this.cachedProperties.length;
-      }
+    if (!this.needsUpdate && this.cachedProperties.length) {
+      return this.cachedProperties.length;
+    }
 
-      const latLngs = this.getLatLngs() as L.LatLng[];
-      let totalLength = 0;
-      for (let i = 0; i < latLngs.length - 1; i++) {
-        totalLength += latLngs[i].distanceTo(latLngs[i + 1]);
-      }
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    let totalLength = 0;
+    for (let i = 0; i < latLngs.length - 1; i++) {
+      totalLength += latLngs[i].distanceTo(latLngs[i + 1]);
+    }
 
-      this.cachedProperties.length = totalLength;
-      return totalLength;
-    });
+    this.cachedProperties.length = totalLength;
+    return totalLength;
   }
 }

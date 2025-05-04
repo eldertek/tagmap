@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { mapFilterService } from '@/services/api';
 import { useNotificationStore } from './notification';
-import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 
 export interface MapFilter {
   id: number;
@@ -18,8 +17,7 @@ export const useMapFilterStore = defineStore('mapFilters', {
   state: () => ({
     filters: [] as MapFilter[],
     loading: false,
-    error: null as string | null,
-    performanceMonitor: usePerformanceMonitor()
+    error: null as string | null
   }),
 
   getters: {
@@ -41,18 +39,13 @@ export const useMapFilterStore = defineStore('mapFilters', {
       await this.fetchFilters();
     },
     async fetchFilters() {
-      const endMeasure = this.performanceMonitor.startMeasure('fetchFilters', 'MapFilterStore');
       const notificationStore = useNotificationStore();
 
       this.loading = true;
       this.error = null;
 
       try {
-        const response = await this.performanceMonitor.measureAsync(
-          'fetchFilters_apiCall',
-          () => mapFilterService.getFilters(),
-          'MapFilterStore'
-        );
+        const response = await mapFilterService.getFilters();
         this.filters = response.data;
         return this.filters;
       } catch (error: any) {
@@ -62,22 +55,15 @@ export const useMapFilterStore = defineStore('mapFilters', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
 
     async createFilter(data: { name: string; category: string; description?: string; entreprise: number }) {
-      const endMeasure = this.performanceMonitor.startMeasure('createFilter', 'MapFilterStore');
-
       this.loading = true;
       this.error = null;
 
       try {
-        const response = await this.performanceMonitor.measureAsync(
-          'createFilter_apiCall',
-          () => mapFilterService.createFilter(data),
-          'MapFilterStore'
-        );
+        const response = await mapFilterService.createFilter(data);
 
         // Ajouter le nouveau filtre à la liste
         this.filters.push(response.data);
@@ -90,22 +76,15 @@ export const useMapFilterStore = defineStore('mapFilters', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
 
     async updateFilter(id: number, data: { name?: string; category?: string; description?: string }) {
-      const endMeasure = this.performanceMonitor.startMeasure('updateFilter', 'MapFilterStore');
-
       this.loading = true;
       this.error = null;
 
       try {
-        const response = await this.performanceMonitor.measureAsync(
-          'updateFilter_apiCall',
-          () => mapFilterService.updateFilter(id, data),
-          'MapFilterStore'
-        );
+        const response = await mapFilterService.updateFilter(id, data);
 
         // Mettre à jour le filtre dans la liste
         const index = this.filters.findIndex(f => f.id === id);
@@ -121,22 +100,15 @@ export const useMapFilterStore = defineStore('mapFilters', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
 
     async deleteFilter(id: number) {
-      const endMeasure = this.performanceMonitor.startMeasure('deleteFilter', 'MapFilterStore');
-
       this.loading = true;
       this.error = null;
 
       try {
-        await this.performanceMonitor.measureAsync(
-          'deleteFilter_apiCall',
-          () => mapFilterService.deleteFilter(id),
-          'MapFilterStore'
-        );
+        await mapFilterService.deleteFilter(id);
 
         // Supprimer le filtre de la liste
         this.filters = this.filters.filter(f => f.id !== id);
@@ -149,7 +121,6 @@ export const useMapFilterStore = defineStore('mapFilters', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     }
   }

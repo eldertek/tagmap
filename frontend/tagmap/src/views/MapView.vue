@@ -610,7 +610,7 @@
               </svg>
               <h3 class="text-xl font-semibold text-gray-900">Supprimer le plan</h3>
               <p class="mt-2 text-gray-600">
-                Êtes-vous sûr de vouloir supprimer le plan "{{ planToDelete?.nom }}" ? Cette action est irréversible.
+                Êtes-vous sûr de vouloir supprimer le plan "{{ planToDelete ? planToDelete.nom : '' }}" ? Cette action est irréversible.
               </p>
             </div>
             <div class="flex justify-center space-x-4">
@@ -657,7 +657,6 @@ import { useIrrigationStore } from '@/stores/irrigation';
 import { useDrawingStore } from '@/stores/drawing';
 import { useNotesStore } from '@/stores/notes';
 import { useNotificationStore } from '@/stores/notification';
-import { performanceMonitor } from '@/utils/usePerformanceMonitor';
 import type { Plan } from '@/stores/irrigation';
 import type { DrawingElement, ShapeType, LineData, PolygonData, DrawingElementType } from '@/types/drawing';
 import { Line } from '@/utils/Line';
@@ -1553,207 +1552,194 @@ function clearMap() {
 }
 // Fonction pour rafraîchir la carte avec un nouveau plan
 async function refreshMapWithPlan(planId: number) {
-  return await performanceMonitor.measureAsync('refreshMapWithPlan', async () => {
-    try {
-      console.log('[ISSUE01][MapView][refreshMapWithPlan] Début du refreshMapWithPlan', {
-        planId,
-        currentPlanId: currentPlan.value?.id,
-        mapInitialized: !!map.value,
-        featureGroupExists: !!featureGroup.value,
-        featureGroupLayersCount: featureGroup.value?.getLayers().length || 0
+  try {
+    console.log('[ISSUE01][MapView][refreshMapWithPlan] Début du refreshMapWithPlan', {
+      planId,
+      currentPlanId: currentPlan.value ? currentPlan.value.id : null,
+      mapInitialized: !!map.value,
+      featureGroupExists: !!featureGroup.value,
+      featureGroupLayersCount: featureGroup.value ? featureGroup.value.getLayers().length || 0 : 0
+    });
+
+    // Nettoyer la carte actuelle
+    console.log('[ISSUE01][MapView][refreshMapWithPlan] Nettoyage de la carte avant chargement');
+    clearMap();
+
+    // Charger les éléments du plan (formes géométriques sans les notes)
+    console.log('[ISSUE01][MapView][refreshMapWithPlan] Chargement des éléments du plan');
+    await drawingStore.loadPlanElements(planId);
+
+    // Récupérer le plan depuis le store
+    const loadedPlan = irrigationStore.getPlanById(planId);
+
+    console.log('[ISSUE01][MapView][refreshMapWithPlan] Plan chargé depuis le store', {
+      planFound: !!loadedPlan,
+      planId: loadedPlan?.id,
+      drawingElementsCount: drawingStore.getCurrentElements.length,
+      drawingElementsIds: drawingStore.getCurrentElements.map(el => el.id)
+    });
+
+    if (loadedPlan) {
+      // Mettre à jour le plan courant
+      console.log('[ISSUE01][MapView][refreshMapWithPlan] Mise à jour du plan courant', {
+        oldPlanId: currentPlan.value?.id,
+        newPlanId: loadedPlan.id
       });
+      currentPlan.value = loadedPlan;
+      irrigationStore.setCurrentPlan(loadedPlan);
+      drawingStore.setCurrentPlan(loadedPlan.id);
+      localStorage.setItem('lastPlanId', loadedPlan.id.toString());
 
-      // Nettoyer la carte actuelle
-      performanceMonitor.measure('refreshMapWithPlan:clearMap', () => {
-        console.log('[ISSUE01][MapView][refreshMapWithPlan] Nettoyage de la carte avant chargement');
-        clearMap();
-      }, 'MapView');
+      // Charger les notes géolocalisées associées au plan séparément
+      try {
+        console.log('[MapView][refreshMapWithPlan] Chargement des notes géolocalisées associées au plan:', planId);
+        const response = await noteService.getNotesByPlan(planId);
+        const notes = response.data;
+        console.log(`[MapView][refreshMapWithPlan] ${notes.length} notes géolocalisées récupérées`);
 
-      // Charger les éléments du plan (formes géométriques sans les notes)
-      await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanElements', async () => {
-        console.log('[ISSUE01][MapView][refreshMapWithPlan] Chargement des éléments du plan');
-        await drawingStore.loadPlanElements(planId);
-      }, 'MapView');
+        // Ajouter les notes au store de notes
+        const notesStore = useNotesStore();
 
-      // Récupérer le plan depuis le store
-      const loadedPlan = performanceMonitor.measure('refreshMapWithPlan:getPlanById', () => {
-        return irrigationStore.getPlanById(planId);
-      }, 'MapView');
-
-      console.log('[ISSUE01][MapView][refreshMapWithPlan] Plan chargé depuis le store', {
-        planFound: !!loadedPlan,
-        planId: loadedPlan?.id,
-        drawingElementsCount: drawingStore.getCurrentElements.length,
-        drawingElementsIds: drawingStore.getCurrentElements.map(el => el.id)
-      });
-
-      if (loadedPlan) {
-        // Mettre à jour le plan courant
-        performanceMonitor.measure('refreshMapWithPlan:updateCurrentPlan', () => {
-          console.log('[ISSUE01][MapView][refreshMapWithPlan] Mise à jour du plan courant', {
-            oldPlanId: currentPlan.value?.id,
-            newPlanId: loadedPlan.id
-          });
-          currentPlan.value = loadedPlan;
-          irrigationStore.setCurrentPlan(loadedPlan);
-          drawingStore.setCurrentPlan(loadedPlan.id);
-          localStorage.setItem('lastPlanId', loadedPlan.id.toString());
-        }, 'MapView');
-
-        // Charger les notes géolocalisées associées au plan séparément
-        await performanceMonitor.measureAsync('refreshMapWithPlan:loadPlanNotes', async () => {
-          try {
-            console.log('[MapView][refreshMapWithPlan] Chargement des notes géolocalisées associées au plan:', planId);
-            const response = await noteService.getNotesByPlan(planId);
-            const notes = response.data;
-            console.log(`[MapView][refreshMapWithPlan] ${notes.length} notes géolocalisées récupérées`);
-
-            // Ajouter les notes au store de notes
-            const notesStore = useNotesStore();
-
-            // Ajouter les notes à la carte
-            if (map.value && featureGroup.value) {
-              notes.forEach((note: any) => {
-                try {
-                  // Convertir le format backend en format frontend pour le store
-                  notesStore.addNote({
-                    ...note,
-                    id: note.id,
-                    columnId: note.column,
-                    accessLevel: note.access_level
-                  });
-
-                  // Vérifier si la note a une localisation valide
-                  if (note.location && note.location.type === 'Point' &&
-                      Array.isArray(note.location.coordinates) &&
-                      note.location.coordinates.length === 2) {
-
-                    // Créer une GeoNote à partir des données du backend
-                    const geoNote = GeoNote.fromBackendData({
-                      name: note.title,
-                      description: note.description,
-                      location: note.location,
-                      columnId: note.column,
-                      accessLevel: note.access_level,
-                      style: note.style || {
-                        color: note.color || '#3B82F6', // Utiliser la couleur de la note si elle existe
-                        weight: 2,
-                        opacity: 1,
-                        fillColor: note.color || '#3B82F6', // Utiliser la même couleur pour le remplissage
-                        fillOpacity: 0.6,
-                        radius: 8
-                      },
-                      category: note.category || 'forages',
-                      comments: note.comments || [],
-                      photos: note.photos || []
-                    });
-
-                    // Stocker l'ID de la base de données pour la sauvegarde ultérieure
-                    (geoNote as any)._dbId = note.id;
-
-                    // Ajouter la note à la carte
-                    featureGroup.value.addLayer(geoNote);
-
-                    // Ajouter la note à la liste des formes
-                    shapes.value.push({
-                      id: note.id,
-                      type: 'Note',
-                      layer: geoNote,
-                      properties: (geoNote as any).properties
-                    });
-
-                    console.log('[MapView][refreshMapWithPlan] Note géolocalisée ajoutée à la carte:', {
-                      id: note.id,
-                      title: note.title,
-                      location: note.location
-                    });
-                  }
-                } catch (error) {
-                  console.error('[MapView][refreshMapWithPlan] Erreur lors de l\'ajout de la note géolocalisée:', error);
-                }
-              });
-            }
-          } catch (error) {
-            console.error('[MapView][refreshMapWithPlan] Erreur lors du chargement des notes géolocalisées:', error);
-          }
-        }, 'MapView');
-
-        // Ajouter les formes à la carte
+        // Ajouter les notes à la carte
         if (map.value && featureGroup.value) {
-          await performanceMonitor.measureAsync('refreshMapWithPlan:addShapesToMap', async () => {
-            console.log('[ISSUE01][MapView][refreshMapWithPlan:addShapesToMap] Éléments disponibles:', {
-              count: drawingStore.getCurrentElements.length,
-              elements: drawingStore.getCurrentElements.map(e => ({
-                id: e.id,
-                type: e.type_forme
-              }))
-            });
+          notes.forEach((note: any) => {
+            try {
+              // Convertir le format backend en format frontend pour le store
+              notesStore.addNote({
+                ...note,
+                id: note.id,
+                columnId: note.column,
+                accessLevel: note.access_level
+              });
 
-            // Regrouper les éléments par type et priorité pour un traitement par lots
-            const elementsByType = drawingStore.getCurrentElements.reduce((acc, element) => {
-              if (!acc[element.type_forme]) {
-                acc[element.type_forme] = [];
+              // Vérifier si la note a une localisation valide
+              if (note.location && note.location.type === 'Point' &&
+                  Array.isArray(note.location.coordinates) &&
+                  note.location.coordinates.length === 2) {
+
+                // Créer une GeoNote à partir des données du backend
+                const geoNote = GeoNote.fromBackendData({
+                  name: note.title,
+                  description: note.description,
+                  location: note.location,
+                  columnId: note.column,
+                  accessLevel: note.access_level,
+                  style: note.style || {
+                    color: note.color || '#3B82F6', // Utiliser la couleur de la note si elle existe
+                    weight: 2,
+                    opacity: 1,
+                    fillColor: note.color || '#3B82F6', // Utiliser la même couleur pour le remplissage
+                    fillOpacity: 0.6,
+                    radius: 8
+                  },
+                  category: note.category || 'forages',
+                  comments: note.comments || [],
+                  photos: note.photos || []
+                });
+
+                // Stocker l'ID de la base de données pour la sauvegarde ultérieure
+                (geoNote as any)._dbId = note.id;
+
+                // Ajouter la note à la carte
+                featureGroup.value.addLayer(geoNote);
+
+                // Ajouter la note à la liste des formes
+                shapes.value.push({
+                  id: note.id,
+                  type: 'Note',
+                  layer: geoNote,
+                  properties: (geoNote as any).properties
+                });
+
+                console.log('[MapView][refreshMapWithPlan] Note géolocalisée ajoutée à la carte:', {
+                  id: note.id,
+                  title: note.title,
+                  location: note.location
+                });
               }
-              acc[element.type_forme].push(element);
-              return acc;
-            }, {} as Record<string, any[]>);
+            } catch (error) {
+              console.error('[MapView][refreshMapWithPlan] Erreur lors de l\'ajout de la note géolocalisée:', error);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[MapView][refreshMapWithPlan] Erreur lors du chargement des notes géolocalisées:', error);
+      }
 
-            // Définir l'ordre de priorité des types d'éléments (les plus importants d'abord)
-            const priorityOrder = ['Note', 'Polygon', 'Line'];
+      // Ajouter les formes à la carte
+      if (map.value && featureGroup.value) {
+        console.log('[ISSUE01][MapView][refreshMapWithPlan:addShapesToMap] Éléments disponibles:', {
+          count: drawingStore.getCurrentElements.length,
+          elements: drawingStore.getCurrentElements.map(e => ({
+            id: e.id,
+            type: e.type_forme
+          }))
+        });
 
-            // Trier les types d'éléments par priorité
-            const sortedElementTypes = Object.keys(elementsByType).sort((a, b) => {
-              const indexA = priorityOrder.indexOf(a);
-              const indexB = priorityOrder.indexOf(b);
-              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-            });
+        // Regrouper les éléments par type et priorité pour un traitement par lots
+        const elementsByType = drawingStore.getCurrentElements.reduce((acc, element) => {
+          if (!acc[element.type_forme]) {
+            acc[element.type_forme] = [];
+          }
+          acc[element.type_forme].push(element);
+          return acc;
+        }, {} as Record<string, any[]>);
 
-            // Augmenter la taille des lots pour les formes simples
-            const getBatchSizeForType = (type: string) => {
-              switch (type) {
-                case 'Note': return 20; // Les notes sont légères
-                case 'Line': return 10;
-                case 'Polygon': return 5; // Les polygones sont plus lourds
-                default: return 10;
-              }
-            };
+        // Définir l'ordre de priorité des types d'éléments (les plus importants d'abord)
+        const priorityOrder = ['Note', 'Polygon', 'Line'];
 
-            // Traiter les types d'éléments séquentiellement par ordre de priorité
-            for (const elementType of sortedElementTypes) {
-              const elements = elementsByType[elementType];
-              const batchSize = getBatchSizeForType(elementType);
+        // Trier les types d'éléments par priorité
+        const sortedElementTypes = Object.keys(elementsByType).sort((a, b) => {
+          const indexA = priorityOrder.indexOf(a);
+          const indexB = priorityOrder.indexOf(b);
+          return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        });
 
-              // Diviser les éléments en lots
-              for (let i = 0; i < elements.length; i += batchSize) {
-                const batch = elements.slice(i, i + batchSize);
+        // Augmenter la taille des lots pour les formes simples
+        const getBatchSizeForType = (type: string) => {
+          switch (type) {
+            case 'Note': return 20; // Les notes sont légères
+            case 'Line': return 10;
+            case 'Polygon': return 5; // Les polygones sont plus lourds
+            default: return 10;
+          }
+        };
 
-                // Traiter le lot en parallèle
-                await Promise.all(batch.map(async (element) => {
-                  await performanceMonitor.measureAsync(`refreshMapWithPlan:createElement:${element.type_forme}`, async () => {
-                    if (!featureGroup.value || !element.data) return;
-                    console.log(`[ISSUE01][MapView][refreshMapWithPlan:createElement] Création d'un élément de type ${element.type_forme}`, {
-                      id: element.id,
-                      hasFeatureGroup: !!featureGroup.value,
-                      hasData: !!element.data
-                    });
-                    let layer: L.Layer | null = null;
+        // Traiter les types d'éléments séquentiellement par ordre de priorité
+        for (const elementType of sortedElementTypes) {
+          const elements = elementsByType[elementType];
+          const batchSize = getBatchSizeForType(elementType);
 
-                    switch (element.type_forme) {
-                      case 'Polygon': {
-                        const polygonData = element.data as PolygonData;
-                        if (polygonData.points && polygonData.points.length > 0) {
-                          const latLngs = polygonData.points.map(point => L.latLng(point[1], point[0]));
-                          layer = new Polygon(latLngs, polygonData.style);
-                          if (polygonData.name) {
-                            (layer as any).properties = { name: polygonData.name };
-                            (layer as any).name = polygonData.name;
-                          }
-                        }
-                        break;
-                      }
-                      case 'Line': {
-                        const lineData = element.data as LineData;
-                        if (lineData.points && lineData.points.length > 0) {
+          // Diviser les éléments en lots
+          for (let i = 0; i < elements.length; i += batchSize) {
+            const batch = elements.slice(i, i + batchSize);
+
+            // Traiter le lot en parallèle
+            await Promise.all(batch.map(async (element) => {
+              if (!featureGroup.value || !element.data) return;
+              console.log(`[ISSUE01][MapView][refreshMapWithPlan:createElement] Création d'un élément de type ${element.type_forme}`, {
+                id: element.id,
+                hasFeatureGroup: !!featureGroup.value,
+                hasData: !!element.data
+              });
+              let layer: L.Layer | null = null;
+
+              switch (element.type_forme) {
+                case 'Polygon': {
+                  const polygonData = element.data as PolygonData;
+                  if (polygonData.points && polygonData.points.length > 0) {
+                    const latLngs = polygonData.points.map(point => L.latLng(point[1], point[0]));
+                    layer = new Polygon(latLngs, polygonData.style);
+                    if (polygonData.name) {
+                      (layer as any).properties = { name: polygonData.name };
+                      (layer as any).name = polygonData.name;
+                    }
+                  }
+                  break;
+                }
+                case 'Line': {
+                  const lineData = element.data as LineData;
+                  if (lineData.points && lineData.points.length > 0) {
                           const latLngs = lineData.points.map(point => L.latLng(point[1], point[0]));
                           layer = new Line(latLngs, lineData.style);
                           if (lineData.name) {
@@ -1830,7 +1816,6 @@ async function refreshMapWithPlan(planId: number) {
                         properties: (layer as any).properties
                       });
                     }
-                  }, 'MapView');
                 }));
 
                 // Petit délai entre les lots pour éviter de bloquer le thread principal
@@ -1840,17 +1825,14 @@ async function refreshMapWithPlan(planId: number) {
             }
 
             // Ajuster la vue après avoir ajouté toutes les formes
-            performanceMonitor.measure('refreshMapWithPlan:adjustView', () => {
-              // Utiliser un délai pour permettre au navigateur de terminer le rendu
-              setTimeout(() => {
-                adjustView();
-                // Forcer un rafraîchissement de la carte
-                if (map.value) {
-                  map.value.invalidateSize({ animate: false, pan: false });
-                }
-              }, 100);
-            }, 'MapView');
-          }, 'MapView');
+            // Utiliser un délai pour permettre au navigateur de terminer le rendu
+            setTimeout(() => {
+              adjustView();
+              // Forcer un rafraîchissement de la carte
+              if (map.value) {
+                map.value.invalidateSize({ animate: false, pan: false });
+              }
+            }, 100);
         }
         console.log(`Plan ${planId} chargé avec succès avec ${drawingStore.getCurrentElements.length} formes`);
       } else {
@@ -1861,69 +1843,58 @@ async function refreshMapWithPlan(planId: number) {
       console.error('Erreur lors du rafraîchissement de la carte:', error);
       throw error;
     }
-  }, 'MapView');
 }
 // Modifier la fonction loadPlan pour utiliser refreshMapWithPlan
 async function loadPlan(planId: number) {
-  return await performanceMonitor.measureAsync('loadPlan', async () => {
-    console.log('\n[MapView][loadPlan] ====== DÉBUT CHARGEMENT PLAN ======');
-    console.log('[MapView][loadPlan] Tentative de chargement du plan:', planId);
+  console.log('\n[MapView][loadPlan] ====== DÉBUT CHARGEMENT PLAN ======');
+  console.log('[MapView][loadPlan] Tentative de chargement du plan:', planId);
 
-    try {
-      // Vérifier si le plan existe dans le store
-      const plan = await performanceMonitor.measureAsync('loadPlan:getPlanFromStore', async () => {
-        return irrigationStore.getPlanById(planId);
-      }, 'MapView');
+  try {
+    // Vérifier si le plan existe dans le store
+    const plan = irrigationStore.getPlanById(planId);
 
-      console.log('[MapView][loadPlan] Plan trouvé dans le store:', !!plan);
+    console.log('[MapView][loadPlan] Plan trouvé dans le store:', !!plan);
 
-      // Si le plan n'existe pas dans le store, vérifier avec l'API
-      if (!plan) {
-        console.log('[MapView][loadPlan] Plan non trouvé dans le store, vérification API...');
-        try {
-          await performanceMonitor.measureAsync('loadPlan:apiCheck', async () => {
-            await api.get(`/plans/${planId}/`);
-          }, 'MapView');
-        } catch (error: any) {
-          if (error.response?.status === 404) {
-            console.warn('[MapView][loadPlan] Plan non trouvé - conservation de lastPlanId pour fallback');
+    // Si le plan n'existe pas dans le store, vérifier avec l'API
+    if (!plan) {
+      console.log('[MapView][loadPlan] Plan non trouvé dans le store, vérification API...');
+      try {
+        await api.get(`/plans/${planId}/`);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          console.warn('[MapView][loadPlan] Plan non trouvé - conservation de lastPlanId pour fallback');
 //                localStorage.removeItem('lastPlanId'); // Commented out to preserve lastPlanId for fallback
-            currentPlan.value = null;
-            irrigationStore.clearCurrentPlan();
-            drawingStore.clearCurrentPlan();
-            clearMap();
-          }
-          throw error;
-        }
-      }
-
-      console.log('[MapView][loadPlan] Rafraîchissement de la carte...');
-      await performanceMonitor.measureAsync('loadPlan:refreshMap', async () => {
-        await refreshMapWithPlan(planId);
-      }, 'MapView');
-
-      showLoadPlanModal.value = false;
-
-      console.log('[MapView][loadPlan] Invalidation de la taille de la carte...');
-      invalidateMapSize();
-
-      console.log('[MapView][loadPlan] Plan chargé avec succès:', {
-        planId,
-        elementsCount: drawingStore.getCurrentElements.length
-      });
-    } catch (error) {
-      console.error('Erreur lors du chargement du plan:', error);
-      // En cas d'erreur, réinitialiser complètement l'état
-      performanceMonitor.measure('loadPlan:errorRecovery', () => {
           currentPlan.value = null;
           irrigationStore.clearCurrentPlan();
           drawingStore.clearCurrentPlan();
           clearMap();
-//              localStorage.removeItem('lastPlanId'); // Commented out to preserve lastPlanId for fallback
-      }, 'MapView');
-      throw error;
+        }
+        throw error;
+      }
     }
-  }, 'MapView');
+
+    console.log('[MapView][loadPlan] Rafraîchissement de la carte...');
+    await refreshMapWithPlan(planId);
+
+    showLoadPlanModal.value = false;
+
+    console.log('[MapView][loadPlan] Invalidation de la taille de la carte...');
+    invalidateMapSize();
+
+    console.log('[MapView][loadPlan] Plan chargé avec succès:', {
+      planId,
+      elementsCount: drawingStore.getCurrentElements.length
+    });
+  } catch (error) {
+    console.error('Erreur lors du chargement du plan:', error);
+    // En cas d'erreur, réinitialiser complètement l'état
+    currentPlan.value = null;
+    irrigationStore.clearCurrentPlan();
+    drawingStore.clearCurrentPlan();
+    clearMap();
+//              localStorage.removeItem('lastPlanId'); // Commented out to preserve lastPlanId for fallback
+    throw error;
+  }
 }
 // Modifier la fonction savePlan
 async function savePlan() {
@@ -2430,21 +2401,17 @@ function getShapeTypeFr(type: string): string {
 
 // Ajouter un debounce pour l'invalidation de la taille
 const debouncedInvalidateMapSize = debounce(() => {
-  const endMeasure = performanceMonitor.startMeasure('invalidateMapSize', 'MapView');
-
   if (!map.value) {
-    endMeasure();
     return;
   }
 
   // Attendre que le DOM soit mis à jour
   nextTick(() => {
-    performanceMonitor.measure('invalidateMapSize:nextTick', () => {
-      try {
-        // Vérifier que la carte est toujours valide
-        if (map.value && map.value.getContainer() && document.body.contains(map.value.getContainer())) {
-          // Invalider la taille sans animation pour éviter des problèmes
-          map.value.invalidateSize({ animate: false });
+    try {
+      // Vérifier que la carte est toujours valide
+      if (map.value && map.value.getContainer() && document.body.contains(map.value.getContainer())) {
+        // Invalider la taille sans animation pour éviter des problèmes
+        map.value.invalidateSize({ animate: false });
 
           // Si des formes sont présentes, ajuster la vue de manière sécurisée
           if (featureGroup.value?.getLayers().length) {
@@ -2460,10 +2427,7 @@ const debouncedInvalidateMapSize = debounce(() => {
       } catch (error) {
         console.warn('[invalidateMapSize] Erreur lors de l\'invalidation de la taille de la carte:', error);
       }
-
-      endMeasure();
-    }, 'MapView');
-  });
+    });
 }, 250); // Debounce de 250ms
 
 function invalidateMapSize() {
@@ -2816,7 +2780,7 @@ function updateMapDisplay() {
     }
   });
 
-  // Supprimer les couches temporaires en parcourant le tableau à l'envers pour éviter les problèmes d'indices
+  // Supprimer les couches temporaires en parcourant le tableau à l'envers pour éviter des problèmes d'indices
   for (let i = shapesToRemove.length - 1; i >= 0; i--) {
     shapes.value.splice(shapesToRemove[i], 1);
   }
@@ -3686,4 +3650,4 @@ function checkMobile() {
     padding-bottom: var(--mobile-bottom-toolbar-height) !important; /* Utiliser la variable CSS */
   }
 }
-</style>F
+</style>

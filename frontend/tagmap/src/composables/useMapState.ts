@@ -1,13 +1,10 @@
 import { ref } from 'vue';
 import type { Map as LeafletMap } from 'leaflet';
 import * as L from 'leaflet';
-import { performanceMonitor, usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 import 'leaflet.gridlayer.googlemutant';
 import { loadGoogleMapsApi } from '@/utils/googleMapsLoader';
 
 export function useMapState() {
-  const { isEnabled, startMeasure } = usePerformanceMonitor();
-
   const map = ref<LeafletMap | null>(null);
   const searchQuery = ref('');
   const currentBaseMap = ref('Hybride');
@@ -33,8 +30,6 @@ export function useMapState() {
     priorityLevels: 3
   };
 
-  // Mesurer les performances de la création des baseMaps
-  const endBaseMapsCreation = startMeasure('createBaseMaps', 'useMapState');
   const baseMaps = {
     'Hybride': L.layerGroup([
       (L.gridLayer as any).googleMutant({
@@ -53,7 +48,6 @@ export function useMapState() {
       maxNativeZoom: 18
     })
   };
-  endBaseMapsCreation();
 
   // Ensure Google Maps API is loaded before initializing the map
   const loadGoogleMaps = async () => {
@@ -72,364 +66,306 @@ export function useMapState() {
   };
 
   // Modified initMap to ensure Google Maps is loaded first
-  const initMap = performanceMonitor.createPerformanceTracker(
-    async (mapInstance: LeafletMap) => {
-      // Load Google Maps if not already loaded
-      if (!isGoogleMapsLoaded.value) {
-        await loadGoogleMaps();
+  const initMap = async (mapInstance: LeafletMap) => {
+    // Load Google Maps if not already loaded
+    if (!isGoogleMapsLoaded.value) {
+      await loadGoogleMaps();
+    }
+
+    map.value = mapInstance;
+    // Optimisation du zoom
+    mapInstance.options.zoomSnap = 0.5; // Augmenter pour réduire les calculs intermédiaires
+    mapInstance.options.zoomDelta = 0.5; // Augmenter pour réduire les calculs intermédiaires
+    mapInstance.options.wheelPxPerZoomLevel = 120; // Augmenter pour réduire la sensibilité
+    mapInstance.options.zoomAnimation = true;
+    mapInstance.options.fadeAnimation = true;
+    mapInstance.options.markerZoomAnimation = true;
+    // Optimisations supplémentaires
+    mapInstance.options.preferCanvas = true; // Utiliser Canvas au lieu de SVG pour le rendu
+    mapInstance.options.renderer = L.canvas(); // Forcer l'utilisation du renderer Canvas
+    // Limites de zoom et de vue
+    mapInstance.options.minZoom = 2;
+    mapInstance.options.maxZoom = 19;
+    mapInstance.options.scrollWheelZoom = true;
+    mapInstance.options.doubleClickZoom = true;
+
+    const maxBounds: L.LatLngBounds = L.latLngBounds(
+      L.latLng(-90, -180),  // Sud-Ouest
+      L.latLng(90, 180)     // Nord-Est
+    );
+    mapInstance.setMaxBounds(maxBounds);
+    mapInstance.options.maxBoundsViscosity = 1.0;
+    mapInstance.options.trackResize = true;
+
+    // Gestionnaire d'événements pour les zooms rapides
+    let zoomTimeout: NodeJS.Timeout | null = null;
+    let isZooming = false; // Used in zoomend event
+    let lastZoomLevel = mapInstance.getZoom();
+
+    mapInstance.on('zoomstart', () => {
+      isZooming = true;
+      lastZoomLevel = mapInstance.getZoom();
+      // Désactiver les animations pendant le zoom pour améliorer les performances
+      mapInstance.options.zoomAnimation = false;
+      mapInstance.options.markerZoomAnimation = false;
+    });
+
+    mapInstance.on('zoomend', () => {
+      if (zoomTimeout) {
+        clearTimeout(zoomTimeout);
       }
 
-      performanceMonitor.measure('initMap:setOptions', () => {
-        map.value = mapInstance;
-        // Optimisation du zoom
-        mapInstance.options.zoomSnap = 0.5; // Augmenter pour réduire les calculs intermédiaires
-        mapInstance.options.zoomDelta = 0.5; // Augmenter pour réduire les calculs intermédiaires
-        mapInstance.options.wheelPxPerZoomLevel = 120; // Augmenter pour réduire la sensibilité
-        mapInstance.options.zoomAnimation = true;
-        mapInstance.options.fadeAnimation = true;
-        mapInstance.options.markerZoomAnimation = true;
-        // Optimisations supplémentaires
-        mapInstance.options.preferCanvas = true; // Utiliser Canvas au lieu de SVG pour le rendu
-        mapInstance.options.renderer = L.canvas(); // Forcer l'utilisation du renderer Canvas
-        // Limites de zoom et de vue
-        mapInstance.options.minZoom = 2;
-        mapInstance.options.maxZoom = 19;
-        mapInstance.options.scrollWheelZoom = true;
-        mapInstance.options.doubleClickZoom = true;
-
-        const maxBounds: L.LatLngBounds = L.latLngBounds(
-          L.latLng(-90, -180),  // Sud-Ouest
-          L.latLng(90, 180)     // Nord-Est
-        );
-        mapInstance.setMaxBounds(maxBounds);
-        mapInstance.options.maxBoundsViscosity = 1.0;
-        mapInstance.options.trackResize = true;
-
-        // Gestionnaire d'événements pour les zooms rapides
-        let zoomTimeout: NodeJS.Timeout | null = null;
-        let isZooming = false; // Used in zoomend event
-        let lastZoomLevel = mapInstance.getZoom();
-
-        mapInstance.on('zoomstart', () => {
-          isZooming = true;
-          lastZoomLevel = mapInstance.getZoom();
-          // Désactiver les animations pendant le zoom pour améliorer les performances
-          mapInstance.options.zoomAnimation = false;
-          mapInstance.options.markerZoomAnimation = false;
-        });
-
-        mapInstance.on('zoomend', () => {
-          if (zoomTimeout) {
-            clearTimeout(zoomTimeout);
+      zoomTimeout = setTimeout(() => {
+        isZooming = false;
+        // Réactiver les animations progressivement
+        setTimeout(() => {
+          mapInstance.options.zoomAnimation = true;
+          mapInstance.options.markerZoomAnimation = true;
+          // Forcer un rafraîchissement de la vue
+          mapInstance.invalidateSize({ animate: false, pan: false });
+          // Vérifier et ajuster les limites si nécessaire
+          const currentBounds = mapInstance.getBounds();
+          const maxBounds = mapInstance.options.maxBounds;
+          if (maxBounds && !currentBounds.intersects(maxBounds)) {
+            mapInstance.panInsideBounds(maxBounds, { animate: false });
           }
 
-          zoomTimeout = setTimeout(() => {
-            isZooming = false;
-            // Réactiver les animations progressivement
-            setTimeout(() => {
-              mapInstance.options.zoomAnimation = true;
-              mapInstance.options.markerZoomAnimation = true;
-              // Forcer un rafraîchissement de la vue
-              mapInstance.invalidateSize({ animate: false, pan: false });
-              // Vérifier et ajuster les limites si nécessaire
-              const currentBounds = mapInstance.getBounds();
-              const maxBounds = mapInstance.options.maxBounds;
-              if (maxBounds && !currentBounds.intersects(maxBounds)) {
-                mapInstance.panInsideBounds(maxBounds, { animate: false });
-              }
-
-              // Forcer un rafraîchissement de tous les marqueurs GeoNote
-              mapInstance.eachLayer((layer: any) => {
-                if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
-                  layer.updatePosition();
-                }
-              });
-            }, 250);
-          }, 250);
-        });
-
-        // Intercepter les erreurs d'animation
-        const originalZoomAnimation = (mapInstance as any)._zoomAnimation;
-        if (originalZoomAnimation) {
-          (mapInstance as any)._zoomAnimation = function (e: any) {
-            try {
-              if (!this._animatingZoom) {
-                originalZoomAnimation.call(this, e);
-              }
-            } catch (error) {
-              console.warn('Animation de zoom interrompue, restauration de la vue...');
-              this._resetView(this.getCenter(), this.getZoom());
-            }
-          };
-        }
-
-        // Ajouter un gestionnaire d'événement spécifique pour l'animation de zoom
-        // qui mettra à jour correctement les positions des GeoNotes
-        mapInstance.on('zoomanim', (e: any) => {
-          mapInstance.eachLayer((layer: any) => {
-            if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePositionDuringZoom === 'function') {
-              layer.updatePositionDuringZoom(e);
-            }
-          });
-        });
-      }, 'useMapState');
-
-      // Ajouter la couche initiale
-      performanceMonitor.measure('initMap:addInitialLayer', () => {
-        if (!mapInstance) return;
-
-        // S'assurer que la carte est prête
-        mapInstance.whenReady(() => {
-          const baseMapKey = currentBaseMap.value as keyof typeof baseMaps;
-          if (baseMaps[baseMapKey]) {
-            console.log(`Initialisation de la couche de base: ${baseMapKey}`);
-            // Vérifier si une couche est déjà active
-            if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
-              try {
-                mapInstance.removeLayer(activeLayer.value);
-                console.log('Couche active précédente supprimée');
-              } catch (e) {
-                console.warn('Erreur lors de la suppression de la couche active précédente:', e);
-              }
-            }
-
-            activeLayer.value = baseMaps[baseMapKey];
-            try {
-              activeLayer.value.addTo(mapInstance as any);
-              console.log(`Couche ${baseMapKey} ajoutée à la carte`);
-            } catch (e) {
-              console.error(`Erreur lors de l'ajout de la couche ${baseMapKey}:`, e);
-            }
-          } else {
-            console.warn(`Couche de base non disponible: ${baseMapKey}`);
-          }
-        });
-      }, 'useMapState');
-
-      // Gérer les changements de couche de base via l'événement natif
-      mapInstance.on('baselayerchange', (e: any) => {
-        const endLayerChange = startMeasure('baselayerchange', 'useMapState', { layer: e.name });
-        currentBaseMap.value = e.name;
-        activeLayer.value = e.layer;
-        endLayerChange();
-      });
-
-      // Ajouter des moniteurs de performance pour les événements de carte
-      if (isEnabled.value) {
-        mapInstance.on('movestart', () => {
-          startMeasure('mapMove', 'useMapState', {
-            startCenter: mapInstance.getCenter()
-          });
-        });
-
-        mapInstance.on('moveend', () => {
-          const endMove = startMeasure('mapMoveEnd', 'useMapState', {
-            endCenter: mapInstance.getCenter()
-          });
-          endMove();
-
-          // Mettre à jour la position de tous les GeoNotes
+          // Forcer un rafraîchissement de tous les marqueurs GeoNote
           mapInstance.eachLayer((layer: any) => {
             if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
               layer.updatePosition();
             }
           });
-        });
+        }, 250);
+      }, 250);
+    });
 
-        // Monitorer le chargement des tuiles
-        mapInstance.on('tileloadstart', () => {
-          startMeasure('tileLoad', 'useMapState');
-        });
-
-        mapInstance.on('tileload', () => {
-          const endTileLoad = startMeasure('tileLoadEnd', 'useMapState');
-          endTileLoad();
-        });
-      }
-    },
-    'initMap',
-    'useMapState'
-  );
-
-  // Update changeBaseMap to ensure Google Maps is loaded when switching to Hybride
-  const changeBaseMap = performanceMonitor.createAsyncPerformanceTracker(
-    async (baseMapName: keyof typeof baseMaps) => {
-      // Load Google Maps if switching to Hybride and not already loaded
-      if (baseMapName === 'Hybride' && !isGoogleMapsLoaded.value) {
-        await loadGoogleMaps();
-        // If Google Maps failed to load, abort switching to Hybride
-        if (!isGoogleMapsLoaded.value) {
-          console.warn('Cannot switch to Hybride: Google Maps API not loaded');
-          return;
+    // Intercepter les erreurs d'animation
+    const originalZoomAnimation = (mapInstance as any)._zoomAnimation;
+    if (originalZoomAnimation) {
+      (mapInstance as any)._zoomAnimation = function (e: any) {
+        try {
+          if (!this._animatingZoom) {
+            originalZoomAnimation.call(this, e);
+          }
+        } catch (error) {
+          console.warn('Animation de zoom interrompue, restauration de la vue...');
+          this._resetView(this.getCenter(), this.getZoom());
         }
-      }
+      };
+    }
 
-      if (!map.value || !baseMaps[baseMapName]) {
-        console.warn(`Impossible de changer la carte de base: ${!map.value ? 'carte non initialisée' : 'type de carte non disponible'}`);
-        return;
-      }
+    // Ajouter un gestionnaire d'événement spécifique pour l'animation de zoom
+    // qui mettra à jour correctement les positions des GeoNotes
+    mapInstance.on('zoomanim', (e: any) => {
+      mapInstance.eachLayer((layer: any) => {
+        if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePositionDuringZoom === 'function') {
+          layer.updatePositionDuringZoom(e);
+        }
+      });
+    });
 
-      try {
-        // Vérifier si la couche demandée est déjà active
-        if (currentBaseMap.value === baseMapName) return;
+    // Ajouter la couche initiale
+    if (!mapInstance) return;
 
-        console.log(`Changement de carte: ${currentBaseMap.value} -> ${baseMapName}`);
-
-        // Récupérer l'instance de carte et la position actuelle
-        const mapInstance = map.value;
-        const currentCenter = mapInstance.getCenter();
-        const currentZoom = mapInstance.getZoom();
-
-        // Désactiver temporairement les animations
-        mapInstance.options.zoomAnimation = false;
-        mapInstance.options.fadeAnimation = false;
-        mapInstance.options.markerZoomAnimation = false;
-
-        // Récupérer la nouvelle couche
-        const newLayer = baseMaps[baseMapName];
-
-        // Supprimer la couche active actuelle si elle existe
+    // S'assurer que la carte est prête
+    mapInstance.whenReady(() => {
+      const baseMapKey = currentBaseMap.value as keyof typeof baseMaps;
+      if (baseMaps[baseMapKey]) {
+        console.log(`Initialisation de la couche de base: ${baseMapKey}`);
+        // Vérifier si une couche est déjà active
         if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
           try {
             mapInstance.removeLayer(activeLayer.value);
-            console.log(`Couche précédente ${currentBaseMap.value} supprimée`);
+            console.log('Couche active précédente supprimée');
           } catch (e) {
-            console.warn('Erreur lors de la suppression de la couche active:', e);
+            console.warn('Erreur lors de la suppression de la couche active précédente:', e);
           }
         }
 
-        // Ajouter la nouvelle couche
+        activeLayer.value = baseMaps[baseMapKey];
         try {
-          if (newLayer instanceof L.LayerGroup) {
-            newLayer.addTo(mapInstance as any);
-          } else {
-            newLayer.addTo(mapInstance as any);
+          activeLayer.value.addTo(mapInstance as any);
+          console.log(`Couche ${baseMapKey} ajoutée à la carte`);
+        } catch (e) {
+          console.error(`Erreur lors de l'ajout de la couche ${baseMapKey}:`, e);
+        }
+      } else {
+        console.warn(`Couche de base non disponible: ${baseMapKey}`);
+      }
+    });
+
+    // Gérer les changements de couche de base via l'événement natif
+    mapInstance.on('baselayerchange', (e: any) => {
+      currentBaseMap.value = e.name;
+      activeLayer.value = e.layer;
+    });
+  };
+
+  // Update changeBaseMap to ensure Google Maps is loaded when switching to Hybride
+  const changeBaseMap = async (baseMapName: keyof typeof baseMaps) => {
+    // Load Google Maps if switching to Hybride and not already loaded
+    if (baseMapName === 'Hybride' && !isGoogleMapsLoaded.value) {
+      await loadGoogleMaps();
+      // If Google Maps failed to load, abort switching to Hybride
+      if (!isGoogleMapsLoaded.value) {
+        console.warn('Cannot switch to Hybride: Google Maps API not loaded');
+        return;
+      }
+    }
+
+    if (!map.value || !baseMaps[baseMapName]) {
+      console.warn(`Impossible de changer la carte de base: ${!map.value ? 'carte non initialisée' : 'type de carte non disponible'}`);
+      return;
+    }
+
+    try {
+      // Vérifier si la couche demandée est déjà active
+      if (currentBaseMap.value === baseMapName) return;
+
+      console.log(`Changement de carte: ${currentBaseMap.value} -> ${baseMapName}`);
+
+      // Récupérer l'instance de carte et la position actuelle
+      const mapInstance = map.value;
+      const currentCenter = mapInstance.getCenter();
+      const currentZoom = mapInstance.getZoom();
+
+      // Désactiver temporairement les animations
+      mapInstance.options.zoomAnimation = false;
+      mapInstance.options.fadeAnimation = false;
+      mapInstance.options.markerZoomAnimation = false;
+
+      // Récupérer la nouvelle couche
+      const newLayer = baseMaps[baseMapName];
+
+      // Supprimer la couche active actuelle si elle existe
+      if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
+        try {
+          mapInstance.removeLayer(activeLayer.value);
+          console.log(`Couche précédente ${currentBaseMap.value} supprimée`);
+        } catch (e) {
+          console.warn('Erreur lors de la suppression de la couche active:', e);
+        }
+      }
+
+      // Ajouter la nouvelle couche
+      try {
+        if (newLayer instanceof L.LayerGroup) {
+          newLayer.addTo(mapInstance as any);
+        } else {
+          newLayer.addTo(mapInstance as any);
+        }
+        console.log(`Nouvelle couche ${baseMapName} ajoutée`);
+      } catch (e) {
+        console.error('Erreur lors de l\'ajout de la nouvelle couche:', e);
+        // Tentative de récupération
+        try {
+          if (mapInstance.hasLayer(newLayer)) {
+            mapInstance.removeLayer(newLayer);
           }
-          console.log(`Nouvelle couche ${baseMapName} ajoutée`);
-        } catch (e) {
-          console.error('Erreur lors de l\'ajout de la nouvelle couche:', e);
-          // Tentative de récupération
-          try {
-            if (mapInstance.hasLayer(newLayer)) {
-              mapInstance.removeLayer(newLayer);
-            }
-            newLayer.addTo(mapInstance as any);
-            console.log(`Récupération: couche ${baseMapName} réajoutée`);
-          } catch (recoveryError) {
-            console.error('Échec de la récupération:', recoveryError);
-            throw new Error('Impossible d\'ajouter la nouvelle couche');
-          }
+          newLayer.addTo(mapInstance as any);
+          console.log(`Récupération: couche ${baseMapName} réajoutée`);
+        } catch (recoveryError) {
+          console.error('Échec de la récupération:', recoveryError);
+          throw new Error('Impossible d\'ajouter la nouvelle couche');
         }
+      }
 
-        // Mettre à jour les références
-        activeLayer.value = newLayer;
-        currentBaseMap.value = baseMapName;
+      // Mettre à jour les références
+      activeLayer.value = newLayer;
+      currentBaseMap.value = baseMapName;
 
-        // Réinitialiser la vue
-        try {
-          mapInstance.setView(currentCenter, currentZoom, {
-            animate: false,
-            duration: 0,
-            noMoveStart: true
-          });
-          console.log(`Vue réinitialisée: centre=${currentCenter}, zoom=${currentZoom}`);
-        } catch (e) {
-          console.warn('Erreur lors de la réinitialisation de la vue:', e);
-        }
+      // Réinitialiser la vue
+      try {
+        mapInstance.setView(currentCenter, currentZoom, {
+          animate: false,
+          duration: 0,
+          noMoveStart: true
+        });
+        console.log(`Vue réinitialisée: centre=${currentCenter}, zoom=${currentZoom}`);
+      } catch (e) {
+        console.warn('Erreur lors de la réinitialisation de la vue:', e);
+      }
 
-        // Forcer un rafraîchissement de la carte
-        try {
-          mapInstance.invalidateSize({ animate: false, pan: false });
+      // Forcer un rafraîchissement de la carte
+      try {
+        mapInstance.invalidateSize({ animate: false, pan: false });
 
-          // Mettre à jour la position de tous les GeoNotes
-          setTimeout(() => {
-            mapInstance.eachLayer((layer: any) => {
-              if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
-                layer.updatePosition();
-              }
-            });
-          }, 100);
-        } catch (e) {
-          console.warn('Erreur lors du rafraîchissement de la carte:', e);
-        }
-
-        // Restaurer les animations après un court délai
+        // Mettre à jour la position de tous les GeoNotes
         setTimeout(() => {
+          mapInstance.eachLayer((layer: any) => {
+            if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
+              layer.updatePosition();
+            }
+          });
+        }, 100);
+      } catch (e) {
+        console.warn('Erreur lors du rafraîchissement de la carte:', e);
+      }
+
+      // Restaurer les animations après un court délai
+      setTimeout(() => {
+        mapInstance.options.zoomAnimation = true;
+        mapInstance.options.fadeAnimation = true;
+        mapInstance.options.markerZoomAnimation = true;
+        console.log('Animations restaurées');
+      }, 500);
+    } catch (error) {
+      console.error('Erreur lors du changement de carte de base:', error);
+      // En cas d'erreur, essayer de restaurer un état stable
+      if (map.value) {
+        try {
+          const mapInstance = map.value;
+
+          // Supprimer toutes les couches de tuiles
+          mapInstance.eachLayer((layer: any) => {
+            if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
+              mapInstance.removeLayer(layer);
+            }
+          });
+
+          // Ajouter la couche demandée
+          const newLayer = baseMaps[baseMapName];
+          newLayer.addTo(mapInstance as any);
+
+          // Mettre à jour les références
+          activeLayer.value = newLayer;
+          currentBaseMap.value = baseMapName;
+
+          // Restaurer les animations
           mapInstance.options.zoomAnimation = true;
           mapInstance.options.fadeAnimation = true;
           mapInstance.options.markerZoomAnimation = true;
-          console.log('Animations restaurées');
-        }, 500);
-      } catch (error) {
-        console.error('Erreur lors du changement de carte de base:', error);
-        // En cas d'erreur, essayer de restaurer un état stable
-        if (map.value) {
-          try {
-            const mapInstance = map.value;
+          mapInstance.invalidateSize({ animate: false, pan: false });
 
-            // Supprimer toutes les couches de tuiles
-            mapInstance.eachLayer((layer: any) => {
-              if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
-                mapInstance.removeLayer(layer);
-              }
-            });
-
-            // Ajouter la couche demandée
-            const newLayer = baseMaps[baseMapName];
-            newLayer.addTo(mapInstance as any);
-
-            // Mettre à jour les références
-            activeLayer.value = newLayer;
-            currentBaseMap.value = baseMapName;
-
-            // Restaurer les animations
-            mapInstance.options.zoomAnimation = true;
-            mapInstance.options.fadeAnimation = true;
-            mapInstance.options.markerZoomAnimation = true;
-            mapInstance.invalidateSize({ animate: false, pan: false });
-
-            console.log('Récupération effectuée après erreur');
-          } catch (e) {
-            console.error('Erreur lors de la récupération après échec:', e);
-          }
+          console.log('Récupération effectuée après erreur');
+        } catch (e) {
+          console.error('Erreur lors de la récupération après échec:', e);
         }
       }
-    },
-    'changeBaseMap',
-    'useMapState'
-  );
+    }
+  };
 
-  const searchLocation = performanceMonitor.createAsyncPerformanceTracker(
-    async () => {
-      if (!map.value || !searchQuery.value) return;
-      try {
-        const response = await performanceMonitor.measureAsync('searchLocation:fetchData', async () => {
-          return await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`
-          );
-        }, 'useMapState');
+  const searchLocation = async () => {
+    if (!map.value || !searchQuery.value) return;
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`
+      );
 
-        const data = await performanceMonitor.measureAsync('searchLocation:parseResponse', async () => {
-          return await response.json();
-        }, 'useMapState');
+      const data = await response.json();
 
-        if (data && data.length > 0) {
-          performanceMonitor.measure('searchLocation:updateView', () => {
-            const { lat, lon } = data[0];
-            map.value!.setView([lat, lon], 13, { animate: true });
-          }, 'useMapState');
-        }
-      } catch (error) {
-        console.error('Erreur lors de la recherche de localisation:', error);
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        map.value!.setView([lat, lon], 13, { animate: true });
       }
-    },
-    'searchLocation',
-    'useMapState'
-  );
+    } catch (error) {
+      console.error('Erreur lors de la recherche de localisation:', error);
+    }
+  };
 
-  // Fonction de nettoyage des ressources avec monitoring de performance
+  // Fonction de nettoyage des ressources
   const cleanup = () => {
-    const endCleanup = startMeasure('cleanup', 'useMapState');
     if (map.value) {
       map.value.remove();
       map.value = null;
@@ -437,7 +373,6 @@ export function useMapState() {
     if (activeLayer.value) {
       activeLayer.value = null;
     }
-    endCleanup();
   };
 
   return {
@@ -449,8 +384,6 @@ export function useMapState() {
     searchLocation,
     changeBaseMap,
     cleanup,
-    // Exposer les métriques de performance
-    isPerformanceEnabled: isEnabled,
     // Expose Google Maps loading state
     isGoogleMapsLoaded
   };

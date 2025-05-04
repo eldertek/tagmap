@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import api, { irrigationService } from '@/services/api';
 import { useAuthStore } from './auth';
 import { useNotificationStore } from './notification';
-import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 
 interface PlanHistory {
   id: number;
@@ -62,8 +61,7 @@ export const useIrrigationStore = defineStore('irrigation', {
     error: null as string | null,
     autoSaveInterval: null as any,
     unsavedChanges: false,
-    planHistory: [] as PlanHistory[],
-    performanceMonitor: usePerformanceMonitor()
+    planHistory: [] as PlanHistory[]
   }),
   
   getters: {
@@ -77,7 +75,6 @@ export const useIrrigationStore = defineStore('irrigation', {
   actions: {
     // Récupérer tous les plans selon les filtres appliqués
     async fetchPlans() {
-      const endMeasure = this.performanceMonitor.startMeasure('fetchPlans', 'IrrigationStore');
       const authStore = useAuthStore();
       this.loading = true;
       try {
@@ -90,24 +87,18 @@ export const useIrrigationStore = defineStore('irrigation', {
           params.visiteur = authStore.user?.id;
         }
         
-        const response = await this.performanceMonitor.measureAsync(
-          'fetchPlans_apiCall',
-          () => api.get(url, { params }),
-          'IrrigationStore'
-        );
+        const response = await api.get(url, { params });
         this.plans = response.data;
       } catch (error) {
         this.error = 'Erreur lors du chargement des plans';
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
     
     // Récupérer les plans avec tous les détails
     async fetchPlansWithDetails() {
-      const endMeasure = this.performanceMonitor.startMeasure('fetchPlansWithDetails', 'IrrigationStore');
       const authStore = useAuthStore();
       this.loading = true;
       try {
@@ -122,22 +113,14 @@ export const useIrrigationStore = defineStore('irrigation', {
           params.visiteur = authStore.user?.id;
         }
         
-        const response = await this.performanceMonitor.measureAsync(
-          'fetchPlansWithDetails_apiCall',
-          () => api.get(url, { params }),
-          'IrrigationStore'
-        );
+        const response = await api.get(url, { params });
 
-        const processedPlans = this.performanceMonitor.measure(
-          'fetchPlansWithDetails_processResponse',
-          () => response.data.map((plan: any) => ({
-            ...plan,
-            entreprise: typeof plan.entreprise === 'object' ? plan.entreprise : null,
-            salarie: typeof plan.salarie === 'object' ? plan.salarie : null,
-            visiteur: typeof plan.visiteur === 'object' ? plan.visiteur : null
-          })),
-          'IrrigationStore'
-        );
+        const processedPlans = response.data.map((plan: any) => ({
+          ...plan,
+          entreprise: typeof plan.entreprise === 'object' ? plan.entreprise : null,
+          salarie: typeof plan.salarie === 'object' ? plan.salarie : null,
+          visiteur: typeof plan.visiteur === 'object' ? plan.visiteur : null
+        }));
         
         this.plans = processedPlans;
         return { data: processedPlans };
@@ -147,7 +130,6 @@ export const useIrrigationStore = defineStore('irrigation', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
     
@@ -167,7 +149,6 @@ export const useIrrigationStore = defineStore('irrigation', {
     
     // Créer un nouveau plan
     async createPlan(planData: NewPlan) {
-      const endMeasure = this.performanceMonitor.startMeasure('createPlan', 'IrrigationStore');
       this.clearCurrentPlan();
       this.loading = true;
       const notificationStore = useNotificationStore();
@@ -183,22 +164,14 @@ export const useIrrigationStore = defineStore('irrigation', {
           };
         }
 
-        const formattedData = this.performanceMonitor.measure(
-          'createPlan_formatData',
-          () => ({
-            ...planData,
-            entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && planData.entreprise && 'id' in planData.entreprise ? (planData.entreprise as { id: number }).id : Number(planData.entreprise)) : null,
-            salarie: planData.salarie ? (typeof planData.salarie === 'object' && planData.salarie && 'id' in planData.salarie ? (planData.salarie as { id: number }).id : Number(planData.salarie)) : null,
-            visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && planData.visiteur && 'id' in planData.visiteur ? (planData.visiteur as { id: number }).id : Number(planData.visiteur)) : null
-          }),
-          'IrrigationStore'
-        );
+        const formattedData = {
+          ...planData,
+          entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && planData.entreprise && 'id' in planData.entreprise ? (planData.entreprise as { id: number }).id : Number(planData.entreprise)) : null,
+          salarie: planData.salarie ? (typeof planData.salarie === 'object' && planData.salarie && 'id' in planData.salarie ? (planData.salarie as { id: number }).id : Number(planData.salarie)) : null,
+          visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && planData.visiteur && 'id' in planData.visiteur ? (planData.visiteur as { id: number }).id : Number(planData.visiteur)) : null
+        };
 
-        const response = await this.performanceMonitor.measureAsync(
-          'createPlan_apiCall',
-          () => irrigationService.createPlan(formattedData),
-          'IrrigationStore'
-        );
+        const response = await irrigationService.createPlan(formattedData);
         
         this.plans.push(response.data);
         notificationStore.success(`Le plan "${response.data.nom}" a été créé avec succès`);
@@ -211,7 +184,6 @@ export const useIrrigationStore = defineStore('irrigation', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
     
@@ -254,37 +226,25 @@ export const useIrrigationStore = defineStore('irrigation', {
     
     // Sauvegarder un plan
     async savePlan(planId: number) {
-      const endMeasure = this.performanceMonitor.startMeasure('savePlan', 'IrrigationStore');
       if (!this.unsavedChanges) {
         console.log('[IrrigationStore][savePlan] Aucun changement à sauvegarder');
-        endMeasure();
         return;
       }
 
       this.loading = true;
       try {
-        const response = await this.performanceMonitor.measureAsync(
-          'savePlan_apiCall',
-          () => api.patch(`/plans/${planId}/`, {
-            ...this.currentPlan,
-            version: this.currentPlan?.version || 1
-          }),
-          'IrrigationStore'
-        );
+        const response = await api.patch(`/plans/${planId}/`, {
+          ...this.currentPlan,
+          version: this.currentPlan?.version || 1
+        });
 
-        this.performanceMonitor.measure(
-          'savePlan_updateState',
-          () => {
-            const index = this.plans.findIndex(p => p.id === planId);
-            if (index !== -1) {
-              this.plans[index] = response.data;
-            }
-            if (this.currentPlan?.id === planId) {
-              this.currentPlan = response.data;
-            }
-          },
-          'IrrigationStore'
-        );
+        const index = this.plans.findIndex(p => p.id === planId);
+        if (index !== -1) {
+          this.plans[index] = response.data;
+        }
+        if (this.currentPlan?.id === planId) {
+          this.currentPlan = response.data;
+        }
 
         this.unsavedChanges = false;
         return response.data;
@@ -294,52 +254,36 @@ export const useIrrigationStore = defineStore('irrigation', {
         throw error;
       } finally {
         this.loading = false;
-        endMeasure();
       }
     },
     
     // Mettre à jour les détails d'un plan
     async updatePlanDetails(planId: number, planData: Partial<Plan>) {
-      const endMeasure = this.performanceMonitor.startMeasure('updatePlanDetails', 'IrrigationStore');
       const notificationStore = useNotificationStore();
       
       try {
-        const response = await this.performanceMonitor.measureAsync(
-          'updatePlanDetails_apiCall',
-          () => {
-            const { visiteur_id, salarie_id, entreprise_id, ...otherData } = planData;
-            const data: Record<string, any> = { ...otherData };
-            
-            if (visiteur_id !== undefined) data.visiteur_id = visiteur_id;
-            if (salarie_id !== undefined) data.salarie_id = salarie_id;
-            if (entreprise_id !== undefined) data.entreprise_id = entreprise_id;
-            
-            return api.patch(`/plans/${planId}/`, data);
-          },
-          'IrrigationStore'
-        );
+        const { visiteur_id, salarie_id, entreprise_id, ...otherData } = planData;
+        const data: Record<string, any> = { ...otherData };
         
-        this.performanceMonitor.measure(
-          'updatePlanDetails_updateState',
-          () => {
-            if (this.currentPlan && this.currentPlan.id === planId) {
-              this.currentPlan = { ...this.currentPlan, ...response.data };
-            }
-            const index = this.plans.findIndex(p => p.id === planId);
-            if (index !== -1) {
-              this.plans[index] = { ...this.plans[index], ...response.data };
-            }
-          },
-          'IrrigationStore'
-        );
+        if (visiteur_id !== undefined) data.visiteur_id = visiteur_id;
+        if (salarie_id !== undefined) data.salarie_id = salarie_id;
+        if (entreprise_id !== undefined) data.entreprise_id = entreprise_id;
+        
+        const response = await api.patch(`/plans/${planId}/`, data);
+        
+        if (this.currentPlan && this.currentPlan.id === planId) {
+          this.currentPlan = { ...this.currentPlan, ...response.data };
+        }
+        const index = this.plans.findIndex(p => p.id === planId);
+        if (index !== -1) {
+          this.plans[index] = { ...this.plans[index], ...response.data };
+        }
         
         return response.data;
       } catch (error) {
         console.error('Erreur lors de la mise à jour du plan:', error);
         notificationStore.error(`Erreur lors de la mise à jour du plan : ${error instanceof Error ? error.message : String(error)}`);
         throw error;
-      } finally {
-        endMeasure();
       }
     },
     

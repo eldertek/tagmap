@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
-import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 
 // Types nécessaires
 export interface UserFilter {
@@ -29,9 +28,6 @@ const api = axios.create({
   withCredentials: true
 });
 
-// Création d'une instance sans hooks de cycle de vie
-const performanceMonitor = usePerformanceMonitor();
-
 // Fonction utilitaire pour obtenir un cookie
 function getCookie(name: string): string | null {
   const value = `; ${document.cookie}`;
@@ -43,7 +39,6 @@ function getCookie(name: string): string | null {
 // Intercepteur pour ajouter le token aux requêtes
 api.interceptors.request.use(
   async (config) => {
-    const endMeasure = performanceMonitor.startMeasure('api_request_interceptor', 'ApiService');
     try {
       const token = getCookie('access_token');
       if (token) {
@@ -57,8 +52,9 @@ api.interceptors.request.use(
         withCredentials: config.withCredentials
       });
       return config;
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Error in request interceptor:', error);
+      return config;
     }
   },
   (error) => {
@@ -71,7 +67,6 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const endMeasure = performanceMonitor.startMeasure('api_response_interceptor', 'ApiService');
     const originalRequest = error.config;
     try {
       // Ne pas tenter de refresh si c'est déjà une requête de refresh ou si on a déjà essayé
@@ -82,11 +77,7 @@ api.interceptors.response.use(
         const authStore = useAuthStore();
 
         try {
-          await performanceMonitor.measureAsync(
-            'token_refresh',
-            () => authStore.refreshToken(),
-            'ApiService'
-          );
+          await authStore.refreshToken();
 
           const newToken = getCookie('access_token');
           if (newToken) {
@@ -103,8 +94,9 @@ api.interceptors.response.use(
         }
       }
       return Promise.reject(error);
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Error in response interceptor:', error);
+      return Promise.reject(error);
     }
   }
 );
@@ -154,40 +146,30 @@ export function formatApiErrors(error: any): ApiError[] {
 // Service d'authentification
 export const authService = {
   async login(username: string, password: string) {
-    const endMeasure = performanceMonitor.startMeasure('auth_login', 'AuthService');
     try {
-      const response = await performanceMonitor.measureAsync(
-        'login_request',
-        () => api.post('/token/', { username, password }),
-        'AuthService'
-      );
+      const response = await api.post('/token/', { username, password });
       return response.data;
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
   },
+  
   async logout() {
-    const endMeasure = performanceMonitor.startMeasure('auth_logout', 'AuthService');
     try {
-      await performanceMonitor.measureAsync(
-        'logout_request',
-        () => api.post('/token/logout/'),
-        'AuthService'
-      );
-    } finally {
-      endMeasure();
+      await api.post('/token/logout/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
     }
   },
+  
   async register(userData: { username: string; email: string; password: string }) {
-    const endMeasure = performanceMonitor.startMeasure('auth_register', 'AuthService');
     try {
-      return await performanceMonitor.measureAsync(
-        'register_request',
-        () => api.post('/register/', userData),
-        'AuthService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/register/', userData);
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
     }
   },
 };
@@ -238,15 +220,11 @@ export async function fetchUsersByHierarchy(params: {
 export const userService = {
   // Récupérer tous les utilisateurs avec filtrage optionnel
   async getUsers(filters: UserFilter = {}) {
-    const endMeasure = performanceMonitor.startMeasure('get_users', 'UserService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_users_request',
-        () => api.get('/users/', { params: filters }),
-        'UserService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/users/', { params: filters });
+    } catch (error) {
+      console.error('Error getting users:', error);
+      throw error;
     }
   },
 
@@ -312,29 +290,13 @@ export const userService = {
     includeDetails?: boolean;
     search?: string;
   }) {
-    const endMeasure = performanceMonitor.startMeasure('get_users_hierarchy', 'UserService');
-    try {
-      const filters = performanceMonitor.measure(
-        'prepare_hierarchy_filters',
-        () => {
-          const result: UserFilter = { role: params.role };
-          if (params.entrepriseId) result.entreprise = params.entrepriseId;
-          if (params.salarieId) result.salarie = params.salarieId;
-          if (params.includeDetails) result.include_plans = true;
-          if (params.search) result.search = params.search;
-          return result;
-        },
-        'UserService'
-      );
-
-      return await performanceMonitor.measureAsync(
-        'get_users_hierarchy_request',
-        () => api.get('/users/', { params: filters }),
-        'UserService'
-      );
-    } finally {
-      endMeasure();
-    }
+    const filters: UserFilter = { role: params.role };
+    if (params.entrepriseId) filters.entreprise = params.entrepriseId;
+    if (params.salarieId) filters.salarie = params.salarieId;
+    if (params.includeDetails) filters.include_plans = true;
+    if (params.search) filters.search = params.search;
+    
+    return await api.get('/users/', { params: filters });
   },
 
   // Récupérer les salaries d'une entreprise spécifique
@@ -376,45 +338,35 @@ export const userService = {
     });
   },
 
-  // Formater le nom du fichier logo avec monitoring
+  // Formater le nom du fichier logo
   formatLogoFileName(file: File): string {
-    return performanceMonitor.measure(
-      'format_logo_filename',
-      () => {
-        const timestamp = new Date().getTime();
-        const extension = file.name.split('.').pop()?.toLowerCase() || '';
-        const sanitizedName = file.name
-          .split('.')[0]
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '');
-        return `${sanitizedName}-${timestamp}.${extension}`;
-      },
-      'UserService'
-    );
+    const timestamp = new Date().getTime();
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    const sanitizedName = file.name
+      .split('.')[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `${sanitizedName}-${timestamp}.${extension}`;
   },
 
-  // Télécharger un logo utilisateur avec monitoring
+  // Télécharger un logo utilisateur
   async uploadLogo(logoFile: File) {
-    const endMeasure = performanceMonitor.startMeasure('upload_logo', 'UserService');
     try {
       const formData = new FormData();
       const formattedFileName = this.formatLogoFileName(logoFile);
       const newFile = new File([logoFile], formattedFileName, { type: logoFile.type });
       formData.append('logo', newFile);
 
-      return await performanceMonitor.measureAsync(
-        'upload_logo_request',
-        () => api.post('/users/upload_logo/', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }),
-        'UserService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/users/upload_logo/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      throw error;
     }
   }
 };
@@ -456,65 +408,45 @@ async function retryWithBackoff<T>(
 // Service pour les plans d'irrigation
 export const irrigationService = {
   async getPlans() {
-    const endMeasure = performanceMonitor.startMeasure('get_plans', 'IrrigationService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_plans_request',
-        () => api.get('/plans/'),
-        'IrrigationService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/plans/');
+    } catch (error) {
+      console.error('Error getting plans:', error);
+      throw error;
     }
   },
 
   async createPlan(planData: any) {
-    const endMeasure = performanceMonitor.startMeasure('create_plan', 'IrrigationService');
     try {
-      const formattedData = performanceMonitor.measure(
-        'format_plan_data',
-        () => ({
-          ...planData,
-          entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && 'id' in planData.entreprise ? planData.entreprise.id : Number(planData.entreprise)) : null,
-          salarie: planData.salarie ? (typeof planData.salarie === 'object' && 'id' in planData.salarie ? planData.salarie.id : Number(planData.salarie)) : null,
-          visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && 'id' in planData.visiteur ? planData.visiteur.id : Number(planData.visiteur)) : null
-        }),
-        'IrrigationService'
-      );
+      const formattedData = {
+        ...planData,
+        entreprise: planData.entreprise ? (typeof planData.entreprise === 'object' && 'id' in planData.entreprise ? planData.entreprise.id : Number(planData.entreprise)) : null,
+        salarie: planData.salarie ? (typeof planData.salarie === 'object' && 'id' in planData.salarie ? planData.salarie.id : Number(planData.salarie)) : null,
+        visiteur: planData.visiteur ? (typeof planData.visiteur === 'object' && 'id' in planData.visiteur ? planData.visiteur.id : Number(planData.visiteur)) : null
+      };
 
-      return await performanceMonitor.measureAsync(
-        'create_plan_request',
-        () => api.post('/plans/', formattedData),
-        'IrrigationService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/plans/', formattedData);
+    } catch (error) {
+      console.error('Error creating plan:', error);
+      throw error;
     }
   },
 
   async updatePlan(planId: number, planData: any) {
-    const endMeasure = performanceMonitor.startMeasure('update_plan', 'IrrigationService');
     try {
-      return await performanceMonitor.measureAsync(
-        'update_plan_request',
-        () => api.put(`/plans/${planId}/`, planData),
-        'IrrigationService'
-      );
-    } finally {
-      endMeasure();
+      return await api.put(`/plans/${planId}/`, planData);
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      throw error;
     }
   },
 
   async deletePlan(planId: number) {
-    const endMeasure = performanceMonitor.startMeasure('delete_plan', 'IrrigationService');
     try {
-      return await performanceMonitor.measureAsync(
-        'delete_plan_request',
-        () => api.delete(`/plans/${planId}/`),
-        'IrrigationService'
-      );
-    } finally {
-      endMeasure();
+      return await api.delete(`/plans/${planId}/`);
+    } catch (error) {
+      console.error('Error deleting plan:', error);
+      throw error;
     }
   },
 
@@ -553,49 +485,36 @@ export const irrigationService = {
 export const noteService = {
   // Récupérer toutes les notes
   async getNotes(filters = {}) {
-    const endMeasure = performanceMonitor.startMeasure('get_notes', 'NoteService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_notes_request',
-        () => api.get('/notes/', { params: filters }),
-        'NoteService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/notes/', { params: filters });
+    } catch (error) {
+      console.error('Error getting notes:', error);
+      throw error;
     }
   },
 
   // Récupérer les notes associées à un plan spécifique
   async getNotesByPlan(planId: number) {
-    const endMeasure = performanceMonitor.startMeasure('get_notes_by_plan', 'NoteService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_notes_by_plan_request',
-        () => api.get('/notes/', { params: { plan: planId } }),
-        'NoteService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/notes/', { params: { plan: planId } });
+    } catch (error) {
+      console.error('Error getting notes for plan:', error);
+      throw error;
     }
   },
 
   // Récupérer une note spécifique
   async getNote(noteId: number) {
-    const endMeasure = performanceMonitor.startMeasure('get_note', 'NoteService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_note_request',
-        () => api.get(`/notes/${noteId}/`),
-        'NoteService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get(`/notes/${noteId}/`);
+    } catch (error) {
+      console.error('Error getting note:', error);
+      throw error;
     }
   },
 
   // Créer une nouvelle note
   async createNote(noteData: any) {
-    const endMeasure = performanceMonitor.startMeasure('create_note', 'NoteService');
     try {
       // Si la note n'a pas de localisation, on laisse le champ undefined pour que le backend le gère
       const postData = {
@@ -607,20 +526,16 @@ export const noteService = {
         delete postData.location;
       }
 
-      return await performanceMonitor.measureAsync(
-        'create_note_request',
-        () => api.post('/notes/', postData),
-        'NoteService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/notes/', postData);
+    } catch (error) {
+      console.error('Error creating note:', error);
+      throw error;
     }
   },
 
   // Mettre à jour une note existante
   async updateNote(noteId: number, noteData: any) {
     console.log('[noteService][updateNote] Mise à jour de la note:', { noteId, noteData });
-    const endMeasure = performanceMonitor.startMeasure('update_note', 'NoteService');
     try {
       // Utiliser l'ID backend si disponible
       const backendId = noteData.backendId || noteId;
@@ -657,11 +572,7 @@ export const noteService = {
       console.log('[noteService][updateNote] Données formatées:', updateData);
       console.log(`[noteService][updateNote] Utilisation de l'ID backend ${backendId} pour la mise à jour`);
 
-      const response = await performanceMonitor.measureAsync(
-        'update_note_request',
-        () => api.patch(`/notes/${backendId}/`, updateData),
-        'NoteService'
-      );
+      const response = await api.patch(`/notes/${backendId}/`, updateData);
 
       console.log('[noteService][updateNote] Réponse du serveur:', response.data);
       
@@ -674,22 +585,16 @@ export const noteService = {
     } catch (error) {
       console.error('[noteService][updateNote] Erreur lors de la mise à jour:', error);
       throw error;
-    } finally {
-      endMeasure();
     }
   },
 
   // Supprimer une note
   async deleteNote(noteId: number) {
-    const endMeasure = performanceMonitor.startMeasure('delete_note', 'NoteService');
     try {
-      return await performanceMonitor.measureAsync(
-        'delete_note_request',
-        () => api.delete(`/notes/${noteId}/`),
-        'NoteService'
-      );
-    } finally {
-      endMeasure();
+      return await api.delete(`/notes/${noteId}/`);
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      throw error;
     }
   },
 
@@ -743,88 +648,59 @@ export const columnService = {
   // Récupérer toutes les colonnes
   async getColumns() {
     console.log('\n[columnService][getColumns] Récupération des colonnes');
-    const endMeasure = performanceMonitor.startMeasure('get_columns', 'ColumnService');
     try {
-      const response = await performanceMonitor.measureAsync(
-        'get_columns_request',
-        () => api.get('/columns/'),
-        'ColumnService'
-      );
+      const response = await api.get('/columns/');
       console.log('[columnService][getColumns] Réponse:', response.data);
       return response;
     } catch (error) {
       console.error('[columnService][getColumns] Erreur:', error);
       throw error;
-    } finally {
-      endMeasure();
     }
   },
 
   // Créer une nouvelle colonne
   async createColumn(columnData: any) {
     console.log('\n[columnService][createColumn] Création d\'une colonne:', columnData);
-    const endMeasure = performanceMonitor.startMeasure('create_column', 'ColumnService');
     try {
-      const response = await performanceMonitor.measureAsync(
-        'create_column_request',
-        () => api.post('/columns/', columnData),
-        'ColumnService'
-      );
+      const response = await api.post('/columns/', columnData);
       console.log('[columnService][createColumn] Réponse:', response.data);
       return response;
     } catch (error) {
       console.error('[columnService][createColumn] Erreur:', error);
       throw error;
-    } finally {
-      endMeasure();
     }
   },
 
   // Mettre à jour une colonne
   async updateColumn(columnId: string, columnData: any) {
     console.log('\n[columnService][updateColumn] Mise à jour de la colonne:', columnId, columnData);
-    const endMeasure = performanceMonitor.startMeasure('update_column', 'ColumnService');
     try {
-      const response = await performanceMonitor.measureAsync(
-        'update_column_request',
-        () => api.patch(`/columns/${columnId}/`, columnData),
-        'ColumnService'
-      );
+      const response = await api.patch(`/columns/${columnId}/`, columnData);
       console.log('[columnService][updateColumn] Réponse:', response.data);
       return response;
     } catch (error) {
       console.error('[columnService][updateColumn] Erreur:', error);
       throw error;
-    } finally {
-      endMeasure();
     }
   },
 
   // Supprimer une colonne
   async deleteColumn(columnId: string) {
-    const endMeasure = performanceMonitor.startMeasure('delete_column', 'ColumnService');
     try {
-      return await performanceMonitor.measureAsync(
-        'delete_column_request',
-        () => api.delete(`/columns/${columnId}/`),
-        'ColumnService'
-      );
-    } finally {
-      endMeasure();
+      return await api.delete(`/columns/${columnId}/`);
+    } catch (error) {
+      console.error('Error deleting column:', error);
+      throw error;
     }
   },
 
   // Mettre à jour l'ordre des colonnes
   async updateColumnsOrder(columnsOrder: string[]) {
-    const endMeasure = performanceMonitor.startMeasure('update_columns_order', 'ColumnService');
     try {
-      return await performanceMonitor.measureAsync(
-        'update_columns_order_request',
-        () => api.post('/columns/reorder/', { columns: columnsOrder }),
-        'ColumnService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/columns/reorder/', { columns: columnsOrder });
+    } catch (error) {
+      console.error('Error updating columns order:', error);
+      throw error;
     }
   }
 };
@@ -833,7 +709,6 @@ export const columnService = {
 export const weatherService = {
   // Récupérer la liste des appareils disponibles
   async getDevices(params: any = {}) {
-    const endMeasure = performanceMonitor.startMeasure('get_weather_devices', 'WeatherService');
     try {
       return await retryWithBackoff(
         () => api.get('/weather/devices/', { params }),
@@ -841,14 +716,14 @@ export const weatherService = {
         1000, // baseDelay
         10000 // maxDelay
       );
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Error getting weather devices:', error);
+      throw error;
     }
   },
 
   // Récupérer les données météo en temps réel
   async getRealTimeData(params: any) {
-    const endMeasure = performanceMonitor.startMeasure('get_weather_data', 'WeatherService');
     try {
       const requestParams = typeof params === 'string' ? { mac: params } : params;
       return await retryWithBackoff(
@@ -857,8 +732,9 @@ export const weatherService = {
         1000,
         10000
       );
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Error getting real-time weather data:', error);
+      throw error;
     }
   },
 
@@ -870,7 +746,6 @@ export const weatherService = {
     cycle_type?: string;
     entreprise?: number;
   }) {
-    const endMeasure = performanceMonitor.startMeasure('get_history_data', 'WeatherService');
     try {
       return await retryWithBackoff(
         () => api.get('/weather/history/', { params }),
@@ -878,8 +753,9 @@ export const weatherService = {
         1000,
         10000
       );
-    } finally {
-      endMeasure();
+    } catch (error) {
+      console.error('Error getting weather history data:', error);
+      throw error;
     }
   },
 };
@@ -890,15 +766,11 @@ export const mapFilterService = {
    * Récupère tous les filtres de carte accessibles à l'utilisateur
    */
   async getFilters() {
-    const endMeasure = performanceMonitor.startMeasure('get_map_filters', 'MapFilterService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_map_filters_request',
-        () => api.get('/map-filters/'),
-        'MapFilterService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/map-filters/');
+    } catch (error) {
+      console.error('Error getting map filters:', error);
+      throw error;
     }
   },
 
@@ -906,15 +778,11 @@ export const mapFilterService = {
    * Récupère un filtre de carte spécifique
    */
   async getFilter(id: number) {
-    const endMeasure = performanceMonitor.startMeasure('get_map_filter', 'MapFilterService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_map_filter_request',
-        () => api.get(`/map-filters/${id}/`),
-        'MapFilterService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get(`/map-filters/${id}/`);
+    } catch (error) {
+      console.error('Error getting map filter:', error);
+      throw error;
     }
   },
 
@@ -922,15 +790,11 @@ export const mapFilterService = {
    * Crée un nouveau filtre de carte
    */
   async createFilter(data: { name: string; category: string; description?: string; entreprise: number }) {
-    const endMeasure = performanceMonitor.startMeasure('create_map_filter', 'MapFilterService');
     try {
-      return await performanceMonitor.measureAsync(
-        'create_map_filter_request',
-        () => api.post('/map-filters/', data),
-        'MapFilterService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/map-filters/', data);
+    } catch (error) {
+      console.error('Error creating map filter:', error);
+      throw error;
     }
   },
 
@@ -938,15 +802,11 @@ export const mapFilterService = {
    * Met à jour un filtre de carte existant
    */
   async updateFilter(id: number, data: { name?: string; category?: string; description?: string }) {
-    const endMeasure = performanceMonitor.startMeasure('update_map_filter', 'MapFilterService');
     try {
-      return await performanceMonitor.measureAsync(
-        'update_map_filter_request',
-        () => api.patch(`/map-filters/${id}/`, data),
-        'MapFilterService'
-      );
-    } finally {
-      endMeasure();
+      return await api.patch(`/map-filters/${id}/`, data);
+    } catch (error) {
+      console.error('Error updating map filter:', error);
+      throw error;
     }
   },
 
@@ -954,15 +814,11 @@ export const mapFilterService = {
    * Supprime un filtre de carte
    */
   async deleteFilter(id: number) {
-    const endMeasure = performanceMonitor.startMeasure('delete_map_filter', 'MapFilterService');
     try {
-      return await performanceMonitor.measureAsync(
-        'delete_map_filter_request',
-        () => api.delete(`/map-filters/${id}/`),
-        'MapFilterService'
-      );
-    } finally {
-      endMeasure();
+      return await api.delete(`/map-filters/${id}/`);
+    } catch (error) {
+      console.error('Error deleting map filter:', error);
+      throw error;
     }
   }
 };
@@ -971,29 +827,21 @@ export const mapFilterService = {
 export const settingsService = {
   // Récupérer la clé API Google Maps
   async getGoogleMapsApiKey() {
-    const endMeasure = performanceMonitor.startMeasure('get_google_maps_api_key', 'SettingsService');
     try {
-      return await performanceMonitor.measureAsync(
-        'get_google_maps_api_key_request',
-        () => api.get('/settings/get_google_maps_api_key/'),
-        'SettingsService'
-      );
-    } finally {
-      endMeasure();
+      return await api.get('/settings/get_google_maps_api_key/');
+    } catch (error) {
+      console.error('Error getting Google Maps API key:', error);
+      throw error;
     }
   },
 
   // Enregistrer la clé API Google Maps
   async setGoogleMapsApiKey(key: string) {
-    const endMeasure = performanceMonitor.startMeasure('set_google_maps_api_key', 'SettingsService');
     try {
-      return await performanceMonitor.measureAsync(
-        'set_google_maps_api_key_request',
-        () => api.post('/settings/set_google_maps_api_key/', { key }),
-        'SettingsService'
-      );
-    } finally {
-      endMeasure();
+      return await api.post('/settings/set_google_maps_api_key/', { key });
+    } catch (error) {
+      console.error('Error setting Google Maps API key:', error);
+      throw error;
     }
   }
 };

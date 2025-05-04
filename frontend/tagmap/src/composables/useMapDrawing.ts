@@ -16,7 +16,6 @@ import intersect from '@turf/intersect';
 import centroid from '@turf/centroid';
 import { featureCollection } from '@turf/helpers';
 import { useDrawingStore } from '../stores/drawing';
-// import { performanceMonitor } from '@/utils/usePerformanceMonitor'; // Supprimé car non utilisé
 
 // Interface pour les événements AlmostOver de Leaflet
 interface AlmostOverEvent extends L.LeafletEvent {
