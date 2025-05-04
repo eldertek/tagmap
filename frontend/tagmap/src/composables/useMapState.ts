@@ -99,13 +99,10 @@ export function useMapState() {
 
     // Gestionnaire d'événements pour les zooms rapides
     let zoomTimeout: NodeJS.Timeout | null = null;
-    let isZooming = false; // Used in zoomend event
     let lastZoomLevel = mapInstance.getZoom();
 
     mapInstance.on('zoomstart', () => {
-      isZooming = true;
       lastZoomLevel = mapInstance.getZoom();
-      // Désactiver les animations pendant le zoom pour améliorer les performances
       mapInstance.options.zoomAnimation = false;
       mapInstance.options.markerZoomAnimation = false;
     });
@@ -116,21 +113,17 @@ export function useMapState() {
       }
 
       zoomTimeout = setTimeout(() => {
-        isZooming = false;
-        // Réactiver les animations progressivement
         setTimeout(() => {
           mapInstance.options.zoomAnimation = true;
           mapInstance.options.markerZoomAnimation = true;
-          // Forcer un rafraîchissement de la vue
           mapInstance.invalidateSize({ animate: false, pan: false });
-          // Vérifier et ajuster les limites si nécessaire
+          
           const currentBounds = mapInstance.getBounds();
           const maxBounds = mapInstance.options.maxBounds;
           if (maxBounds && !currentBounds.intersects(maxBounds)) {
             mapInstance.panInsideBounds(maxBounds, { animate: false });
           }
 
-          // Forcer un rafraîchissement de tous les marqueurs GeoNote
           mapInstance.eachLayer((layer: any) => {
             if (layer.properties && layer.properties.type === 'Note' && typeof layer.updatePosition === 'function') {
               layer.updatePosition();
@@ -172,12 +165,10 @@ export function useMapState() {
     mapInstance.whenReady(() => {
       const baseMapKey = currentBaseMap.value as keyof typeof baseMaps;
       if (baseMaps[baseMapKey]) {
-        console.log(`Initialisation de la couche de base: ${baseMapKey}`);
         // Vérifier si une couche est déjà active
         if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
           try {
             mapInstance.removeLayer(activeLayer.value);
-            console.log('Couche active précédente supprimée');
           } catch (e) {
             console.warn('Erreur lors de la suppression de la couche active précédente:', e);
           }
@@ -186,7 +177,6 @@ export function useMapState() {
         activeLayer.value = baseMaps[baseMapKey];
         try {
           activeLayer.value.addTo(mapInstance as any);
-          console.log(`Couche ${baseMapKey} ajoutée à la carte`);
         } catch (e) {
           console.error(`Erreur lors de l'ajout de la couche ${baseMapKey}:`, e);
         }
@@ -223,7 +213,6 @@ export function useMapState() {
       // Vérifier si la couche demandée est déjà active
       if (currentBaseMap.value === baseMapName) return;
 
-      console.log(`Changement de carte: ${currentBaseMap.value} -> ${baseMapName}`);
 
       // Récupérer l'instance de carte et la position actuelle
       const mapInstance = map.value;
@@ -242,7 +231,6 @@ export function useMapState() {
       if (activeLayer.value && mapInstance.hasLayer(activeLayer.value)) {
         try {
           mapInstance.removeLayer(activeLayer.value);
-          console.log(`Couche précédente ${currentBaseMap.value} supprimée`);
         } catch (e) {
           console.warn('Erreur lors de la suppression de la couche active:', e);
         }
@@ -255,7 +243,6 @@ export function useMapState() {
         } else {
           newLayer.addTo(mapInstance as any);
         }
-        console.log(`Nouvelle couche ${baseMapName} ajoutée`);
       } catch (e) {
         console.error('Erreur lors de l\'ajout de la nouvelle couche:', e);
         // Tentative de récupération
@@ -264,7 +251,6 @@ export function useMapState() {
             mapInstance.removeLayer(newLayer);
           }
           newLayer.addTo(mapInstance as any);
-          console.log(`Récupération: couche ${baseMapName} réajoutée`);
         } catch (recoveryError) {
           console.error('Échec de la récupération:', recoveryError);
           throw new Error('Impossible d\'ajouter la nouvelle couche');
@@ -282,7 +268,6 @@ export function useMapState() {
           duration: 0,
           noMoveStart: true
         });
-        console.log(`Vue réinitialisée: centre=${currentCenter}, zoom=${currentZoom}`);
       } catch (e) {
         console.warn('Erreur lors de la réinitialisation de la vue:', e);
       }
@@ -308,7 +293,6 @@ export function useMapState() {
         mapInstance.options.zoomAnimation = true;
         mapInstance.options.fadeAnimation = true;
         mapInstance.options.markerZoomAnimation = true;
-        console.log('Animations restaurées');
       }, 500);
     } catch (error) {
       console.error('Erreur lors du changement de carte de base:', error);
@@ -337,8 +321,6 @@ export function useMapState() {
           mapInstance.options.fadeAnimation = true;
           mapInstance.options.markerZoomAnimation = true;
           mapInstance.invalidateSize({ animate: false, pan: false });
-
-          console.log('Récupération effectuée après erreur');
         } catch (e) {
           console.error('Erreur lors de la récupération après échec:', e);
         }

@@ -121,7 +121,6 @@ export class GeoNote extends L.Marker {
       enterprise_id: options.enterprise_id || null
     };
 
-    console.log('[GeoNote][constructor] Note créée avec columnId:', this.properties.columnId);
 
     // Commenté : Ajout du popup pour afficher la description
     // this.bindPopup(this.createPopupContent());
@@ -514,22 +513,6 @@ export class GeoNote extends L.Marker {
     this.fire('note:edit', { note, source: this, backendId: backendId });
   }
 
-  // Méthode pour ouvrir Google Maps avec itinéraire
-  openInGoogleMaps(): void {
-    // Commenté : Fermeture du popup
-    // this.closePopup();
-
-    // Récupérer les coordonnées de la note
-    const lat = this.getLatLng().lat;
-    const lng = this.getLatLng().lng;
-
-    // Construire l'URL Google Maps pour l'itinéraire
-    // L'origine sera la position actuelle de l'utilisateur (laissée vide pour que Google l'utilise automatiquement)
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-
-    // Ouvrir l'URL dans un nouvel onglet
-    window.open(url, '_blank');
-  }
 
   // Mettre à jour les propriétés
   updateProperties(): void {

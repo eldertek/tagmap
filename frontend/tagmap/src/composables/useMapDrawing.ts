@@ -6,7 +6,6 @@ import 'leaflet-almostover';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
 import { GeoNote } from '../utils/GeoNote';
-import type { TextStyle } from '../types/leaflet';
 import type { Feature, FeatureCollection, GeoJsonProperties, Polygon as GeoJSONPolygon } from 'geojson';
 import { polygon, lineString } from '@turf/helpers';
 import area from '@turf/area';
@@ -52,11 +51,6 @@ declare module 'leaflet' {
   }
 }
 
-// Ajouter cette interface avant la déclaration du module 'leaflet'
-interface CustomIconOptions extends L.DivIconOptions {
-  html?: string;
-  className?: string;
-}
 // Extend GlobalOptions to include snapLayers
 interface ExtendedGlobalOptions extends L.PM.GlobalOptions {
   snapLayers?: L.LayerGroup[];
@@ -82,29 +76,6 @@ declare module 'leaflet' {
     getElement?: () => HTMLElement | null;
   }
 }
-// Utilitaire pour convertir une couleur hex en rgba
-const hexToRgba = (hex: string | undefined, opacity: number): string => {
-  if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) {
-    return `rgba(0, 0, 0, ${opacity})`; // Couleur par défaut
-  }
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
-// Fonction pour mettre à jour le style d'un élément de texte
-const updateTextStyle = (element: HTMLElement, style: TextStyle) => {
-  element.style.fontSize = style.fontSize;
-  element.style.color = style.color;
-  element.style.backgroundColor = hexToRgba(style.backgroundColor, style.backgroundOpacity);
-  if (style.hasBorder) {
-    element.style.border = `${style.borderWidth} solid ${hexToRgba(style.borderColor, style.borderOpacity)}`;
-  } else {
-    element.style.border = 'none';
-  }
-  element.style.padding = style.padding;
-  element.style.borderRadius = style.borderRadius;
-};
 // Fonction pour créer et afficher un message d'aide
 const showHelpMessage = (message: string): HTMLElement => {
   // Supprimer tous les messages d'aide existants
@@ -166,17 +137,6 @@ const formatMeasure = (value: number, unit: string = 'm', label: string = ''): s
 interface ControlPoint extends L.CircleMarker {
   measureDiv?: HTMLElement;
 }
-// Ajouter cette fonction utilitaire en haut du fichier
-const convertMouseEvent = (e: MouseEvent): MouseEvent => {
-  return {
-    ...e,
-    clientX: e.clientX,
-    clientY: e.clientY,
-    button: e.button || 0,
-    buttons: e.buttons || 0,
-    altKey: e.altKey || false,
-  } as MouseEvent;
-};
 // Définissons des types plus flexibles pour les références
 type MapRef = Ref<L.Map | null>;
 type FeatureGroupRef = Ref<L.FeatureGroup | null>;
@@ -198,10 +158,6 @@ interface MapDrawingReturn {
   clearActiveControlPoints: () => void;
   calculateTotalCoverageArea: (layers: L.Layer[]) => number;
   showCoverageOverlay: (layers: L.Layer[], targetLayer?: L.Layer) => void;
-  hideCoverageOverlay: () => void;
-  calculateConnectedCoverageArea: (layers: L.Layer[], startLayer: L.Layer) => number;
-  getConnectedShapes: (layers: L.Layer[], startLayer: L.Layer) => L.Layer[];
-  disableAlmostOver: () => () => void;
   addLinesToAlmostOver: () => void;
 }
 // Ajouter cette fonction en haut du fichier, après les imports
@@ -262,176 +218,6 @@ export function useMapDrawing(): MapDrawingReturn {
       map.value = null;
     }
   });
-  const createTextMarker = (latlng: L.LatLng, text: string = 'Double-cliquez pour éditer'): L.Marker => {
-    const defaultStyle: TextStyle = {
-      fontSize: '14px',
-      color: '#000000',
-      backgroundColor: '#FFFFFF',
-      backgroundOpacity: 1,
-      borderColor: '#000000',
-      borderWidth: '1px',
-      borderOpacity: 1,
-      padding: '5px 10px',
-      borderRadius: '3px',
-      hasBorder: true,
-      rotation: 0,
-      physicalSize: 2.0
-    };
-    const createHtml = (text: string, style: TextStyle) => {
-      const zoom = map.value?.getZoom() || 14;
-      const centerLat = latlng.lat;
-      const boxSizePx = metersToPixels(style.physicalSize, centerLat, zoom);
-      return `<div class="text-container" style="width:${boxSizePx}px;height:${boxSizePx}px;transform:rotate(${style.rotation}deg)">
-        <div class="text-annotation" style="font-size:${boxSizePx * 0.2}px;color:${style.color};background-color:${hexToRgba(style.backgroundColor, style.backgroundOpacity)};border:${style.hasBorder ? style.borderWidth + ' solid ' + hexToRgba(style.borderColor, style.borderOpacity) : 'none'};padding:${style.padding};border-radius:${style.borderRadius}">${text}</div>
-        <div class="text-controls"><div class="control-button rotate"></div><div class="control-button move"></div></div>
-      </div>`;
-    };
-    const updateMarkerSize = () => {
-      if (!map.value) return;
-      // Mettre à jour l'icône avec la nouvelle taille
-      const icon = marker.getIcon();
-      const newOptions: CustomIconOptions = {
-        html: createHtml(marker.properties.text, marker.properties.style),
-        className: icon.options.className
-      };
-      marker.setIcon(L.divIcon(newOptions));
-    };
-    const textIcon = L.divIcon({
-      html: createHtml(text, defaultStyle),
-      className: 'text-container',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    });
-    const marker = L.marker(latlng, {
-      icon: textIcon,
-      draggable: false,
-      pmIgnore: true
-    });
-    marker.properties = {
-      type: 'text',
-      text: text,
-      style: { ...defaultStyle }
-    };
-    // Gestion du zoom
-    if (map.value) {
-      map.value.on('zoomend', updateMarkerSize);
-      marker.on('remove', () => {
-        map.value?.off('zoomend', updateMarkerSize);
-      });
-    }
-    // Appliquer la taille initiale
-    updateMarkerSize();
-    // Gestion des contrôles
-    let isRotating = false;
-    let isDragging = false;
-    let startAngle = 0;
-    let startRotation = 0;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!map.value) return;
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('rotate')) {
-        isRotating = true;
-        const markerPos = marker.getLatLng();
-        const mousePos = map.value.mouseEventToLatLng(e as any);
-        startAngle = Math.atan2(
-          mousePos.lat - markerPos.lat,
-          mousePos.lng - markerPos.lng
-        ) * 180 / Math.PI;
-        startRotation = marker.properties.style.rotation || 0;
-      } else if (target.classList.contains('move')) {
-        isDragging = true;
-      }
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    };
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !map.value) return;
-      if (isRotating) {
-        const markerPos = marker.getLatLng();
-        const mousePos = map.value.mouseEventToLatLng(e as any);
-        const currentAngle = Math.atan2(
-          mousePos.lat - markerPos.lat,
-          mousePos.lng - markerPos.lng
-        ) * 180 / Math.PI;
-        const rotation = (startRotation + (currentAngle - startAngle)) % 360;
-        marker.properties.style.rotation = rotation;
-        const icon = marker.getIcon() as L.DivIcon;
-        const newOptions: CustomIconOptions = {
-          html: createHtml(marker.properties.text, marker.properties.style),
-          className: icon.options.className
-        };
-        marker.setIcon(L.divIcon(newOptions));
-      } else if (isDragging) {
-        const mouseEvent = convertMouseEvent(e);
-        const newPos = map.value.mouseEventToLatLng(mouseEvent);
-        marker.setLatLng(newPos);
-      }
-    };
-    const onMouseUp = () => {
-      isRotating = false;
-      isDragging = false;
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
-    marker.on('add', () => {
-      const element = marker.getElement();
-      if (element) {
-        const controls = element.querySelectorAll('.control-button');
-        controls.forEach((control: Element) => {
-          control.addEventListener('mousedown', onMouseDown as EventListener);
-        });
-      }
-    });
-    marker.on('remove', () => {
-      const element = marker.getElement();
-      if (element) {
-        const controls = element.querySelectorAll('.control-button');
-        controls.forEach((control: Element) => {
-          control.removeEventListener('mousedown', onMouseDown as EventListener);
-        });
-      }
-    });
-    // Édition du texte
-    marker.on('dblclick', (e: L.LeafletMouseEvent) => {
-      L.DomEvent.stopPropagation(e);
-      const element = marker.getElement()?.querySelector('.text-annotation') as HTMLElement;
-      if (!element) return;
-      element.contentEditable = 'true';
-      element.focus();
-      element.classList.add('editing');
-      // Sélectionner tout le texte
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      const finishEditing = () => {
-        element.contentEditable = 'false';
-        element.classList.remove('editing');
-        const newText = element.innerText.trim();
-        if (newText) {
-          marker.properties.text = newText;
-          const icon = marker.getIcon() as L.DivIcon;
-          const newOptions: CustomIconOptions = {
-            html: createHtml(newText, marker.properties.style),
-            className: icon.options.className
-          };
-          marker.setIcon(L.divIcon(newOptions));
-        }
-        element.removeEventListener('blur', finishEditing);
-        element.removeEventListener('keydown', onKeyDown);
-      };
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          finishEditing();
-        }
-      };
-      element.addEventListener('blur', finishEditing);
-      element.addEventListener('keydown', onKeyDown);
-    });
-    return marker;
-  };
   // Ajouter cette fonction après la fonction showMeasure
   const showMeasure = (position: L.LatLng, text: string): HTMLElement => {
     const measureDiv = L.DomUtil.create('div', 'measure-tooltip');
@@ -764,7 +550,6 @@ export function useMapDrawing(): MapDrawingReturn {
       const layer = e.layer;
       if (layer) {
         const shapeType = layer.properties?.type || 'unknown';
-        // Si c'est un Rectangle standard Leaflet, le convertir en notre Rectangle personnalisé
         if (layer instanceof Line) {
           // Si c'est notre Line personnalisée, s'assurer de mettre à jour ses propriétés
           layer.updateProperties();
@@ -2648,7 +2433,7 @@ export function useMapDrawing(): MapDrawingReturn {
           coverageOverlayGroup.value.addLayer(circleOverlay);
         }
 
-      } else if (type === 'Rectangle' || type === 'Polygon') {
+      } else if (type === 'Polygon') {
         const latLngs = (layer as any).getLatLngs();
 
         // Add polygon with dashed outline

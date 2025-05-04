@@ -18,13 +18,11 @@ export class Line extends L.Polyline {
   private cachedProperties: {
     length?: number;
     midPoints?: L.LatLng[];
-    segmentLengths?: number[];
     center?: L.LatLng;
   } = {};
   private needsUpdate: boolean = true;
   // Original style properties for restoring after hover
   _originalStyle?: L.PathOptions;
-  // Accès au path SVG interne de Leaflet (normalement privé)
   _path?: SVGPathElement;
   
   constructor(
@@ -156,7 +154,6 @@ export class Line extends L.Polyline {
         center = L.latLng(alongPoint.geometry.coordinates[1], alongPoint.geometry.coordinates[0]);
       }
 
-      const influenceWidth = 10;
       const existingName = this.properties?.style?.name || '';
       const existingCategory = this.properties?.category || 'forages';
       const existingAccessLevel = this.properties?.accessLevel || 'visitor';
@@ -173,10 +170,6 @@ export class Line extends L.Polyline {
           lng: center.lng
         },
         vertices: latLngs.length,
-        surfaceInfluence: lengthValue * influenceWidth,
-        dimensions: {
-          width: influenceWidth
-        },
         category: existingCategory,
         accessLevel: existingAccessLevel,
         style: {
@@ -192,7 +185,6 @@ export class Line extends L.Polyline {
       this.cachedProperties.length = lengthValue;
       this.cachedProperties.center = center;
       this.cachedProperties.midPoints = undefined;
-      this.cachedProperties.segmentLengths = undefined;
       this.needsUpdate = false;
 
       this.fire('properties:updated', {
@@ -318,10 +310,7 @@ export class Line extends L.Polyline {
       latLngs.splice(segmentIndex + 1, 0, newLatLng);
       L.Polyline.prototype.setLatLngs.call(this, latLngs);
       this.needsUpdate = true;
-      this.cachedProperties.midPoints = undefined;
-      this.cachedProperties.segmentLengths = undefined;
-      this.cachedProperties.center = undefined;
-      this.cachedProperties.length = undefined;
+      this.cachedProperties = {};
       if (updateProps) {
         this.updateProperties();
       }
@@ -397,10 +386,6 @@ export class Line extends L.Polyline {
   }
 
   getSegmentLengths(): number[] {
-    if (!this.needsUpdate && this.cachedProperties.segmentLengths) {
-      return this.cachedProperties.segmentLengths;
-    }
-
     const latLngs = this.getLatLngs() as L.LatLng[];
     const distances: number[] = [];
     if (latLngs.length < 2) {
@@ -413,7 +398,6 @@ export class Line extends L.Polyline {
       distances.push(p1.distanceTo(p2));
     }
 
-    this.cachedProperties.segmentLengths = distances;
     return distances;
   }
 
@@ -427,17 +411,6 @@ export class Line extends L.Polyline {
     return p1.distanceTo(p2);
   }
 
-  getLengthToVertex(vertexIndex: number): number {
-    const latLngs = this.getLatLngs() as L.LatLng[];
-    let length = 0;
-    if (vertexIndex <= 0 || latLngs.length < 2) {
-      return 0;
-    }
-    for (let i = 0; i < Math.min(vertexIndex, latLngs.length - 1); i++) {
-      length += latLngs[i].distanceTo(latLngs[i + 1]);
-    }
-    return length;
-  }
 
   getLength(): number {
     if (!this.needsUpdate && this.cachedProperties.length) {
