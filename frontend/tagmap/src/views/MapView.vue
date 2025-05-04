@@ -653,6 +653,7 @@ import NoteEditModal from '../components/NoteEditModal.vue';
 // import MapFilterPanel from '../components/MapFilterPanel.vue'; // Supprimé car intégré dans DrawingTools
 import { useMapDrawing } from '../composables/useMapDrawing';
 import { useMapState } from '../composables/useMapState';
+import { useMobileShapeEditing } from '../composables/useMobileShapeEditing';
 import { useIrrigationStore } from '@/stores/irrigation';
 import { useDrawingStore } from '@/stores/drawing';
 import { useNotesStore } from '@/stores/notes';
@@ -1047,6 +1048,22 @@ onMounted(async () => {
         rotateMode: false
       });
       initState(mapInstance);
+      
+      // Initialize mobile shape editing
+      mobileEditingModule = useMobileShapeEditing();
+      
+      // Initialize mobile editing when on mobile devices
+      if (isMobile.value) {
+        mobileEditingModule.initMobileEditing();
+      }
+      
+      // Cleanup on unmount
+      onBeforeUnmount(() => {
+        if (mobileEditingModule) {
+          mobileEditingModule.cleanup();
+        }
+      });
+      
       mapInstance.on('moveend', () => {
         saveMapPosition(mapInstance);
       });
@@ -4600,14 +4617,22 @@ function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY:
 
 // Après "const selectedLeafletShape = ref<L.Layer | null>(null);"
 const isMobile = ref(window.innerWidth < 768);
+let mobileEditingModule: ReturnType<typeof useMobileShapeEditing> | null = null;
 
 // Fonction pour mettre à jour la détection mobile
 function checkMobile() {
+  const wasMobile = isMobile.value;
   isMobile.value = window.innerWidth < 768;
+  
+  // Toggle mobile editing mode when device switches between mobile and desktop
+  if (mobileEditingModule && wasMobile !== isMobile.value) {
+    if (isMobile.value) {
+      mobileEditingModule.initMobileEditing();
+    } else {
+      mobileEditingModule.cleanup();
+    }
+  }
 }
-
-// Maintenant, je ne garde que la fonction checkMobile et la variable isMobile
-// Les modifications aux fonctions onMounted et onBeforeUnmount seront faites dans une édition distincte
 </script>
 <style>
 @import '../styles/MapView.css';

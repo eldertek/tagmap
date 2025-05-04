@@ -40,9 +40,30 @@
           </div>
         </div>
       </div>
+      
+      <!-- Message d'information clé API manquante -->
+      <div v-if="apiError && (apiError.includes('clés API') || apiError.includes('Ecowitt'))" class="mb-6 p-6 bg-gray-100 border border-gray-300 rounded-md text-center">
+        <div class="flex flex-col items-center">
+          <svg class="h-12 w-12 text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <h2 class="text-xl font-bold text-gray-700 mb-2">Configuration requise</h2>
+          <p class="text-gray-600 mb-4">
+            {{ apiError }}
+          </p>
+          <div v-if="apiError.includes('ajouter dans la gestion')" class="mt-2">
+            <router-link 
+              to="/users" 
+              class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            >
+              Configurer les clés API
+            </router-link>
+          </div>
+        </div>
+      </div>
 
-      <!-- Sélecteur d'appareils -->
-      <div class="mb-6">
+      <!-- Sélecteur d'appareils - caché si erreur API concernant les clés -->
+      <div class="mb-6" v-if="!apiError || !(apiError.includes('clés API') || apiError.includes('Ecowitt'))">
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Sélectionner une station
         </label>
@@ -118,8 +139,8 @@
         </div>
       </div>
 
-      <!-- Onglets -->
-      <div class="mb-6">
+      <!-- Onglets - cachés si erreur API concernant les clés -->
+      <div class="mb-6" v-if="!apiError || !(apiError.includes('clés API') || apiError.includes('Ecowitt'))">
         <div class="border-b border-gray-200">
           <nav class="-mb-px flex space-x-8" aria-label="Tabs">
             <button
@@ -139,8 +160,8 @@
         </div>
       </div>
 
-      <!-- Contenu des onglets -->
-      <div v-if="currentTab === 'realtime'" class="mb-8">
+      <!-- Contenu des onglets - caché si erreur API concernant les clés -->
+      <div v-if="(!apiError || !(apiError.includes('clés API') || apiError.includes('Ecowitt'))) && currentTab === 'realtime'" class="mb-8">
         <!-- Dernière mise à jour -->
         <div class="flex justify-between items-center mb-4">
           <p class="text-sm text-gray-600">
@@ -232,7 +253,7 @@
         </div>
       </div>
 
-      <div v-else-if="currentTab === 'history'" class="mb-8">
+      <div v-else-if="(!apiError || !(apiError.includes('clés API') || apiError.includes('Ecowitt'))) && currentTab === 'history'" class="mb-8">
         <!-- En-tête de l'onglet historique -->
         <div class="flex justify-between items-center mb-4">
           <p class="text-sm text-gray-600">
@@ -393,6 +414,8 @@ const apiError = ref<string>('');
 const periodIntervalError = ref('');
 const isLoadingWeather = ref(false);
 
+// Récupérer le rôle de l'utilisateur
+const userRole = computed(() => authStore.user?.user_type || '');
 // Vérifier si l'utilisateur est admin
 const isAdmin = computed(() => authStore.isAdmin);
 let updateInterval: number | null = null;
@@ -445,8 +468,23 @@ async function fetchDevices() {
     console.log('[fetchDevices] Réponse API:', response.data);
     
     // Extraire les appareils de la réponse
-    let devicesData;
-    if (response.data && response.data.devices) {
+    let devicesData = [];
+    
+    // Vérifier si la réponse contient un message d'erreur spécifique (chaîne de caractères)
+    if (response.data && response.data.devices && Array.isArray(response.data.devices) && 
+        response.data.devices.length > 0 && typeof response.data.devices[1] === 'string') {
+      // Si le second élément est une chaîne, c'est probablement un message d'erreur
+      let errorMessage = response.data.devices[1];
+      
+      // Ne pas modifier le message, conserver celui fourni par le backend
+      apiError.value = errorMessage;
+      
+      console.warn('[fetchDevices] Message d\'erreur API reçu:', apiError.value);
+      return;
+    }
+    
+    // Extraction normale des données
+    if (response.data && response.data.devices && Array.isArray(response.data.devices)) {
       // Si la réponse contient un tableau d'appareils sous la clé 'devices'
       devicesData = response.data.devices;
     } else if (Array.isArray(response.data)) {
@@ -454,8 +492,6 @@ async function fetchDevices() {
       devicesData = response.data;
     } else {
       // Fallback: essayer d'extraire des données de la réponse
-      devicesData = [];
-      
       if (typeof response.data === 'object' && response.data !== null) {
         // Parcourir les propriétés de l'objet response.data
         for (const key in response.data) {
@@ -468,7 +504,7 @@ async function fetchDevices() {
     }
     
     // Traiter les données des appareils pour normaliser leur format
-    devices.value = devicesData.map((device: any) => {
+    devices.value = devicesData.filter((device: any) => device !== null && typeof device === 'object').map((device: any) => {
       // Utiliser l'IMEI comme identifiant si le MAC n'est pas disponible
       const deviceId = device.mac || device.imei;
       

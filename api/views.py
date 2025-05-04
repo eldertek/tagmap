@@ -1220,7 +1220,10 @@ class WeatherViewSet(viewsets.ViewSet):
                     print(f"✅ Utilisation des clés API de l'entreprise {user.company_name}")
                     print(f"✅ Configuration trouvée avec succès")
                 else:
-                    error_message = "Vous n'avez pas configuré vos clés API Ecowitt. Veuillez les ajouter dans votre profil."
+                    if user.role == 'ADMIN':
+                        error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
+                    else:  # ENTREPRISE
+                        error_message = "Vous n'avez pas configuré vos clés API Ecowitt.  Veuillez consulter votre administrateur."
                     print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un salarié, utiliser les clés de son entreprise
@@ -1234,7 +1237,11 @@ class WeatherViewSet(viewsets.ViewSet):
                     print(f"✅ Utilisation des clés API de l'entreprise {user.entreprise.company_name}")
                     print(f"✅ Configuration trouvée avec succès")
                 else:
-                    error_message = f"L'entreprise {user.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+                    try:
+                        company_name = user.entreprise.company_name if hasattr(user.entreprise, 'company_name') and user.entreprise.company_name else "L'entreprise"
+                        error_message = f"{company_name} n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
+                    except Exception:
+                        error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
                     print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un visiteur, utiliser les clés de l'entreprise associée
@@ -1248,10 +1255,14 @@ class WeatherViewSet(viewsets.ViewSet):
                     print(f"✅ Utilisation des clés API de l'entreprise {user.salarie.entreprise.company_name}")
                     print(f"✅ Configuration trouvée avec succès")
                 else:
-                    error_message = f"L'entreprise {user.salarie.entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez contacter votre administrateur."
+                    try:
+                        company_name = user.entreprise.company_name if hasattr(user.entreprise, 'company_name') and user.entreprise.company_name else "L'entreprise"
+                        error_message = f"{company_name} n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
+                    except Exception:
+                        error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
                     print(f"❌ Erreur: {error_message}")
             else:
-                error_message = "Impossible de déterminer l'entreprise associée. Veuillez contacter votre administrateur."
+                error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
                 print(f"❌ Erreur: {error_message}")
 
         return config, error_message
@@ -1303,7 +1314,8 @@ class WeatherViewSet(viewsets.ViewSet):
             # Si aucune configuration n'est disponible, retourner l'erreur
             if not config:
                 print(f"[WeatherViewSet][get_devices] ❌ Erreur: {error_message}")
-                return None, error_message
+                # Retourner un tableau avec un élément null et le message d'erreur pour que le frontend puisse le traiter
+                return [None, error_message]
 
             api_url = f"{config['base_url']}/device/list"
             params = {
@@ -1360,6 +1372,14 @@ class WeatherViewSet(viewsets.ViewSet):
 
         try:
             devices = self.get_devices()
+            
+            # Vérifier si la réponse est un tableau contenant une erreur
+            if isinstance(devices, list) and len(devices) == 2 and devices[0] is None and isinstance(devices[1], str):
+                # C'est un message d'erreur, mais on le renvoie quand même avec un code 200
+                # pour que le frontend puisse le traiter correctement
+                return Response({'devices': devices})
+            
+            # Si devices est None ou vide, on retourne une erreur
             if not devices:
                 return Response(
                     {'error': 'Aucun appareil disponible'},
