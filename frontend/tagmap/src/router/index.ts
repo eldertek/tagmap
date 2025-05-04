@@ -18,7 +18,8 @@ const router = createRouter({
       component: MapView,
       meta: {
         requiresAuth: true,
-        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur'],
+        isMapRoute: true
       }
     },
     {
@@ -97,7 +98,10 @@ const router = createRouter({
       path: '/map',
       name: 'map',
       component: MapView,
-      meta: { requiresAuth: true }
+      meta: { 
+        requiresAuth: true,
+        isMapRoute: true 
+      }
     },
     {
       path: '/parametres',

@@ -517,7 +517,12 @@ watchEffect(() => {
     </header>
     <!-- Main content -->
     <main class="app-main">
-      <router-view></router-view>
+      <router-view v-slot="{ Component, route }">
+        <component 
+          :is="Component" 
+          :class="{ 'router-view-map': route.meta.isMapRoute }"
+        />
+      </router-view>
     </main>
 
     <!-- Panneau de performance (visible si le paramètre URL perf=true est présent) -->
@@ -555,9 +560,9 @@ watchEffect(() => {
 .app-main {
   flex: 1;
   height: calc(100vh - var(--header-height));
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 /* General styles */
@@ -568,24 +573,34 @@ body {
 /* Desktop specific styles */
 @media (min-width: 768px) {
   body, #app {
-    @apply h-screen overflow-hidden;
+    @apply h-screen;
   }
   
   /* Ensure content scrolling works in tabs while preserving overall layout */
   .tab-content {
     overflow-y: auto;
   }
+  
+  /* Special case for MapView - should always be overflow hidden */
+  .app-main .router-view-map {
+    overflow: hidden !important;
+  }
 }
 
 /* Mobile specific styles */
 @media (max-width: 767px) {
   body, #app {
-    @apply min-h-screen overflow-hidden;
+    @apply min-h-screen;
     position: fixed;
     width: 100%;
     height: 100%;
     top: 0;
     left: 0;
+  }
+  
+  /* Special case for MapView - should always be overflow hidden */
+  .app-main .router-view-map {
+    overflow: hidden !important;
   }
 }
 
