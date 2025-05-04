@@ -659,7 +659,7 @@ import { useNotesStore } from '@/stores/notes';
 import { useNotificationStore } from '@/stores/notification';
 import { performanceMonitor } from '@/utils/usePerformanceMonitor';
 import type { Plan } from '@/stores/irrigation';
-import type { DrawingElement, ShapeType, LineData, PolygonData, DrawingElementType, ElevationLineData } from '@/types/drawing';
+import type { DrawingElement, ShapeType, LineData, PolygonData, DrawingElementType } from '@/types/drawing';
 import { Line } from '@/utils/Line';
 import { Polygon } from '@/utils/Polygon';
 import { useAuthStore } from '@/stores/auth';
@@ -1980,60 +1980,25 @@ async function savePlan() {
       };
 
       if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
-        // Vérifier d'abord si c'est une ElevationLine
-        if ((layer as any).properties?.type === 'ElevationLine') {
-          type_forme = 'ElevationLine';
-          const latLngs = layer.getLatLngs() as L.LatLng[];
-          // Récupérer la catégorie et le niveau d'accès
-          const category = (layer as any).properties?.category || 'forages';
-          const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
+        type_forme = 'Line';
+        const latLngs = layer.getLatLngs() as L.LatLng[];
+        // Récupérer la catégorie et le niveau d'accès
+        const category = (layer as any).properties?.category || 'forages';
+        const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
 
-          console.log('[savePlan] ElevationLine - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
+        console.log('[savePlan] Line - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
 
-          data = {
-            points: latLngs.map(ll => [ll.lng, ll.lat]),
-            style: {
-              ...commonStyle,
-              color: (layer as any).properties.style?.color || '#FF4500',
-              weight: (layer as any).properties.style?.weight || 4,
-              opacity: (layer as any).properties.style?.opacity || 0.8,
-              _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
-              accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
-            },
-            name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
-            category: category, // Ajouter la catégorie
-            accessLevel: accessLevel, // Ajouter le niveau d'accès
-            elevationData: (layer as any).properties.elevationData,
-            samplePointStyle: (layer as any).properties.samplePointStyle,
-            minMaxPointStyle: (layer as any).properties.minMaxPointStyle,
-            minElevation: (layer as any).properties.minElevation,
-            maxElevation: (layer as any).properties.maxElevation,
-            elevationGain: (layer as any).properties.elevationGain,
-            elevationLoss: (layer as any).properties.elevationLoss,
-            averageSlope: (layer as any).properties.averageSlope,
-            maxSlope: (layer as any).properties.maxSlope
-          };
-        } else {
-          type_forme = 'Line';
-          const latLngs = layer.getLatLngs() as L.LatLng[];
-          // Récupérer la catégorie et le niveau d'accès
-          const category = (layer as any).properties?.category || 'forages';
-          const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
-
-          console.log('[savePlan] Line - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
-
-          data = {
-            points: latLngs.map(ll => [ll.lng, ll.lat]),
-            name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
-            category: category, // Ajouter la catégorie
-            accessLevel: accessLevel, // Ajouter le niveau d'accès
-            style: {
-              ...commonStyle,
-              _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
-              accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
-            }
-          };
-        }
+        data = {
+          points: latLngs.map(ll => [ll.lng, ll.lat]),
+          name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
+          category: category, // Ajouter la catégorie
+          accessLevel: accessLevel, // Ajouter le niveau d'accès
+          style: {
+            ...commonStyle,
+            _accessLevel: accessLevel, // Stocker le niveau d'accès dans le style
+            accessLevel: accessLevel // Stocker aussi le niveau d'accès directement
+          }
+        };
       } else if (layer instanceof L.Polygon) {
         type_forme = 'Polygon';
         const latLngs = (layer.getLatLngs()[0] as L.LatLng[]);

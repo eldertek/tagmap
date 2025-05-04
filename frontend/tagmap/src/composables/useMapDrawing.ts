@@ -2634,17 +2634,6 @@ export function useMapDrawing(): MapDrawingReturn {
       if (!layer) return false;
 
       let surface = 0;
-      let dimensions = { width: 0, height: 0 };
-
-      if (layer instanceof L.Circle) {
-        surface = Math.PI * Math.pow((layer as any).getRadius(), 2);
-        const radius = (layer as any).getRadius();
-        console.log('\nForme détectée: Circle');
-        console.log(`- Surface propre: ${surface.toFixed(2)} m²`);
-        console.log(`- Rayon: ${radius.toFixed(2)} m`);
-        console.log(`- Angle: Cercle complet (360°)`);
-      } 
-
       return surface > 0;
     });
 

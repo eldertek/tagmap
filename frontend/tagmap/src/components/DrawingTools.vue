@@ -559,7 +559,6 @@ interface CategoryFilters {
 interface ShapeTypeFilters {
   Polygon: boolean;
   Line: boolean;
-  ElevationLine: boolean;
   Note: boolean;
   [key: string]: boolean;
 }
@@ -758,7 +757,6 @@ const resetFilters = (): void => {
   // Types de formes
   filters.shapeTypes.Polygon = true;
   filters.shapeTypes.Line = true;
-  filters.shapeTypes.ElevationLine = true;
   filters.shapeTypes.Note = true;
 
   // Vérifier que les filtres locaux ont bien été mis à jour
@@ -1027,7 +1025,6 @@ onMounted(async () => {
   // Types de formes
   filters.shapeTypes.Polygon = storeFilters.shapeTypes.Polygon;
   filters.shapeTypes.Line = storeFilters.shapeTypes.Line;
-  filters.shapeTypes.ElevationLine = storeFilters.shapeTypes.ElevationLine;
   filters.shapeTypes.Note = storeFilters.shapeTypes.Note;
 
   // Charger les filtres personnalisés depuis l'API
