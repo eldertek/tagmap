@@ -510,15 +510,6 @@ export function useMapDrawing(): MapDrawingReturn {
   };
   // Fonction pour calculer les propriétés d'une forme
   const calculateShapeProperties = (layer: L.Layer, type: string): any => {
-    console.log('Input layer:', {
-      type,
-      instanceof: {
-        Polygon: layer instanceof L.Polygon,
-        Polyline: layer instanceof L.Polyline,
-        Line: layer instanceof Line
-      },
-      options: layer.options
-    });
     const properties: any = {
       type,
       style: layer.options || {}
@@ -535,7 +526,7 @@ export function useMapDrawing(): MapDrawingReturn {
           properties.surface = area(polygonFeature);
           properties.perimeter = length(lineString(coordinates), { units: 'meters' });
         } catch (e) {
-          console.error('Erreur lors du calcul des propriétés du polygone', e);
+          // Erreur lors du calcul des propriétés du polygone
         }
       } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
         // Propriétés pour les lignes
@@ -547,7 +538,7 @@ export function useMapDrawing(): MapDrawingReturn {
           }
           properties.length = length;
         } catch (e) {
-          console.error('Erreur lors du calcul de la longueur de la ligne', e);
+          // Erreur lors du calcul de la longueur de la ligne
         }
       }
       // Ajouter les propriétés de style
@@ -561,7 +552,7 @@ export function useMapDrawing(): MapDrawingReturn {
         dashArray: (layer.options as any)?.dashArray || ''
       };
     } catch (error) {
-      console.error('Error calculating shape properties:', error);
+      // Error calculating shape properties
     }
     return properties;
   };
@@ -582,10 +573,7 @@ export function useMapDrawing(): MapDrawingReturn {
     // Ajouter chaque ligne au almostOver
     lines.forEach((line: L.Layer) => {
       map.value?.almostOver.addLayer(line);
-      console.log('[useMapDrawing] Couche ajoutée à almostOver:', line);
     });
-    
-    console.log(`[useMapDrawing] ${lines.length} couches ajoutées à almostOver`);
   };
 
   const initMap = (element: HTMLElement, center: L.LatLngExpression, zoom: number): L.Map => {
@@ -691,13 +679,6 @@ export function useMapDrawing(): MapDrawingReturn {
         clickedLayer.name = clickedLayer.properties.name;
       }
 
-      // Définir explicitement pour le débogage
-      console.log('[featureGroup click] État du nom:', {
-        directName: clickedLayer.name,
-        propertiesName: clickedLayer.properties?.name,
-        fullProperties: clickedLayer.properties
-      });
-
       // Reste du code...
       tempControlPointsGroup.value?.clearLayers();
       clearActiveControlPoints();
@@ -717,18 +698,10 @@ export function useMapDrawing(): MapDrawingReturn {
     });
     // Événements d'édition
     mapInstance.on('pm:edit', (e: any) => {
-      console.log('[pm:edit] Début', {
-        layer: e.layer,
-        currentProperties: e.layer.properties
-      });
       const layer = e.layer;
       if (layer) {
         const shapeType = layer.properties?.type || 'unknown';
         updateLayerProperties(layer, shapeType);
-        console.log('[pm:edit] Après updateLayerProperties', {
-          updatedProperties: layer.properties,
-          selectedShape: selectedShape.value
-        });
         // Mise à jour des points de contrôle
         if (layer instanceof L.Polygon) {
           updatePolygonControlPoints(layer);
@@ -755,10 +728,6 @@ export function useMapDrawing(): MapDrawingReturn {
       showHelpMessage('Déplacez la forme à l\'endroit souhaité');
     });
     mapInstance.on('pm:dragend', (e: any) => {
-      console.log('[pm:dragend] Début', {
-        layer: e.layer,
-        currentProperties: e.layer.properties
-      });
       const layer = e.layer;
       if (layer) {
         const shapeType = layer.properties?.type || 'unknown';
@@ -772,10 +741,6 @@ export function useMapDrawing(): MapDrawingReturn {
         } else {
           updateLayerProperties(layer, shapeType);
         }
-        console.log('[pm:dragend] Après updateLayerProperties', {
-          updatedProperties: layer.properties,
-          selectedShape: selectedShape.value
-        });
       }
       setTimeout(() => {
         showHelpMessage('Cliquez sur la forme pour afficher les points de contrôle');
@@ -857,13 +822,6 @@ export function useMapDrawing(): MapDrawingReturn {
         else if (layer instanceof GeoNote) {
           const element = layer.getElement();
           if (element) {
-            console.log('[almost:over] État initial de la GeoNote', {
-              display: element.style.display,
-              visibility: element.style.visibility,
-              opacity: element.style.opacity,
-              filter: element.style.filter
-            });
-            
             // Ajouter la classe pour l'effet de pulsation
             element.classList.add('geo-note-pulse');
             
@@ -877,8 +835,6 @@ export function useMapDrawing(): MapDrawingReturn {
             
             // Utiliser un filtre explicite (pas d'animation dans le style inline)
             element.style.filter = 'drop-shadow(0 0 5px rgba(59, 130, 246, 0.7))';
-            
-            console.log('[almost:over] GeoNote après application de l\'effet', element);
           }
           
           document.querySelectorAll('.drawing-help-message').forEach(msg => msg.remove());
@@ -919,12 +875,6 @@ export function useMapDrawing(): MapDrawingReturn {
         else if (layer instanceof GeoNote) {
           const element = layer.getElement();
           if (element) {
-            console.log('[almost:out] État de la GeoNote avant réinitialisation', {
-              display: element.style.display,
-              visibility: element.style.visibility,
-              opacity: element.style.opacity,
-              filter: element.style.filter
-            });
             
             // Retirer la classe de pulsation
             element.classList.remove('geo-note-pulse');
@@ -948,8 +898,6 @@ export function useMapDrawing(): MapDrawingReturn {
               (el as HTMLElement).style.display = 'block';
               (el as HTMLElement).style.opacity = '1';
             });
-            
-            console.log('[almost:out] GeoNote après réinitialisation', element);
             
             // Utiliser recreateIcon en dernier recours, uniquement si après un délai court l'élément est toujours invisible
             setTimeout(() => {
@@ -990,7 +938,6 @@ export function useMapDrawing(): MapDrawingReturn {
     mapInstance.on('almost:click', (function(e: L.LeafletEvent) {
       // Assertion de type pour éviter l'erreur TypeScript
       const almostEvent = e as unknown as AlmostOverEvent;
-      console.log('[almost:click] Clic à proximité d\'une couche', almostEvent);
       
       const layer = almostEvent.layer;
       
@@ -1053,7 +1000,6 @@ export function useMapDrawing(): MapDrawingReturn {
         e.layer instanceof GeoNote
       )) {
         mapInstance.almostOver.addLayer(e.layer);
-        console.log('[useMapDrawing] Nouvelle couche ajoutée à almostOver');
       }
     });
     
@@ -1065,7 +1011,6 @@ export function useMapDrawing(): MapDrawingReturn {
         e.layer instanceof GeoNote
       )) {
         mapInstance.almostOver.removeLayer(e.layer);
-        console.log('[useMapDrawing] Couche supprimée de almostOver');
       }
     });
     
@@ -1348,11 +1293,9 @@ export function useMapDrawing(): MapDrawingReturn {
 
                     // Sauvegarder la note en l'associant au plan courant
                     const backendId = await geoNote.saveNote(planId);
-                    console.log(`[useMapDrawing] Note sauvegardée avec succès, ID backend: ${backendId}`);
 
                     // IMPORTANT: Conserver l'ID Leaflet original pour référence
                     const leafletId = (geoNote as any)._leaflet_id;
-                    console.log(`[useMapDrawing] ID Leaflet: ${leafletId}, ID backend: ${backendId}`);
 
                     // Émettre un événement pour informer de la création réussie
                     window.dispatchEvent(new CustomEvent('note:created', {
@@ -1432,8 +1375,6 @@ export function useMapDrawing(): MapDrawingReturn {
                   L.DomEvent.stopPropagation(e);
                   L.DomEvent.preventDefault(e as unknown as Event);
 
-                  console.log('[useMapDrawing] Clic sur une forme existante en mode GeoNote');
-
                   // Créer la note à la position du clic sur la forme
                   const geoNote = await createGeoNote(e.latlng);
 
@@ -1490,7 +1431,6 @@ export function useMapDrawing(): MapDrawingReturn {
                     });
                   }
                   window.removeEventListener('tool:changed', cleanupShapeHandlers);
-                  console.log('[useMapDrawing] Nettoyage des gestionnaires d\'\u00e9v\u00e9nements pour les formes existantes');
                 };
 
                 // Écouter l'événement de changement d'outil pour nettoyer les gestionnaires
@@ -1589,16 +1529,6 @@ export function useMapDrawing(): MapDrawingReturn {
       return;
     }
 
-    console.log('[useMapDrawing] Updating shape properties', {
-      before: selectedShape.value.properties,
-      newProps: properties,
-      layerType: selectedShape.value.properties?.type,
-      beforeName: selectedShape.value.name,
-      beforePropertiesName: selectedShape.value.properties?.name,
-      beforeCategory: selectedShape.value.properties?.category,
-      nameIsDirectProperty: 'name' in selectedShape.value,
-      dbId: selectedShape.value._dbId
-    });
 
     // Mettre à jour les propriétés de la forme
     if (!selectedShape.value.properties) {
@@ -1607,7 +1537,6 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // S'assurer que le type est préservé
     const currentType = selectedShape.value.properties.type;
-    console.log(`[useMapDrawing] Type actuel de la forme: ${currentType}`);
 
     // S'assurer que la catégorie est définie comme 'forages' par défaut
     if (!selectedShape.value.properties.category) {
@@ -1622,16 +1551,13 @@ export function useMapDrawing(): MapDrawingReturn {
     // Assurer que _dbId existe pour le filtrage
     if (!selectedShape.value._dbId) {
       selectedShape.value._dbId = Date.now() + Math.floor(Math.random() * 1000);
-      console.log(`[useMapDrawing] Assigned temporary dbId: ${selectedShape.value._dbId}`);
     }
 
     // Sauvegarder le type actuel avant de mettre à jour les propriétés
     const originalType = selectedShape.value.properties.type;
-    console.log(`[useMapDrawing] Type original avant mise à jour: ${originalType}`);
 
     // Sauvegarder la catégorie existante avant la mise à jour
     const existingCategory = selectedShape.value.properties.category;
-    console.log(`[useMapDrawing] Catégorie existante: ${existingCategory}`);
 
     // Vérifier si la catégorie est mise à jour
     const isCategoryUpdated = 'category' in properties && properties.category !== existingCategory;
@@ -1640,7 +1566,6 @@ export function useMapDrawing(): MapDrawingReturn {
     Object.keys(properties).forEach(key => {
       // Ne pas écraser le type si la forme en a déjà un
       if (key === 'type' && originalType) {
-        console.log(`[useMapDrawing] Préservation du type original: ${originalType}`);
         // Ne rien faire, on garde le type original
       } else {
         selectedShape.value.properties[key] = properties[key];
@@ -1648,13 +1573,7 @@ export function useMapDrawing(): MapDrawingReturn {
 
       // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
       if (key === 'name') {
-        console.log(`[useMapDrawing] Setting name "${properties[key]}" directly on layer`);
         (selectedShape.value as any).name = properties[key];
-      }
-
-      // Si on met à jour la catégorie, la logger pour débogage
-      if (key === 'category') {
-        console.log(`[useMapDrawing] Mise à jour de la catégorie: ${existingCategory} -> ${properties[key]}`);
       }
     });
 
@@ -1665,7 +1584,6 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // S'assurer que la catégorie est préservée si elle n'a pas été explicitement mise à jour
     if (existingCategory && !isCategoryUpdated) {
-      console.log(`[useMapDrawing] Restauration de la catégorie originale: ${existingCategory}`);
       selectedShape.value.properties.category = existingCategory;
     }
 
@@ -1676,8 +1594,6 @@ export function useMapDrawing(): MapDrawingReturn {
       const storeElement = drawingStore.elements.find((e: any) => e.id === selectedShape.value._dbId);
 
       if (storeElement) {
-        console.log(`[useMapDrawing] Mise à jour de la catégorie dans le store: ${selectedShape.value.properties.category} pour l'élément ${selectedShape.value._dbId}`);
-
         // Utiliser une assertion de type pour éviter les erreurs TypeScript
         const anyElement = storeElement as any;
         if (!anyElement.data) {
@@ -1703,42 +1619,19 @@ export function useMapDrawing(): MapDrawingReturn {
     });
     window.dispatchEvent(shapeEvent);
 
-    console.log('[useMapDrawing] Updated shape properties', {
-      after: selectedShape.value.properties,
-      name: selectedShape.value.name,
-      propertiesName: selectedShape.value.properties?.name,
-      allLayerKeys: Object.keys(selectedShape.value),
-      allPropertiesKeys: Object.keys(selectedShape.value.properties || {})
-    });
     // L'événement est déjà émis plus haut dans la fonction
   };
   const forceShapeUpdate = (layer: L.Layer) => {
-    console.log('[forceShapeUpdate] Début', {
-      currentProperties: layer.properties,
-      selectedShapeRef: selectedShape.value
-    });
     // Réassigner directement selectedShape avec une nouvelle référence
     selectedShape.value = null; // Forcer un reset
     nextTick(() => {
       selectedShape.value = layer;
-      console.log('[forceShapeUpdate] Après mise à jour', {
-        selectedShape: selectedShape.value,
-        properties: selectedShape.value.properties
-      });
     });
   };
   const updateLayerProperties = (layer: L.Layer, shapeType: string) => {
-    console.log('[updateLayerProperties] Début', {
-      layer,
-      shapeType,
-      currentProperties: layer.properties
-    });
     // Utiliser debouncedCalculateProperties au lieu de calculateShapeProperties directement
     const debouncedCalculateProperties = debounce((layer: L.Layer, shapeType: string) => {
       const newProperties = calculateShapeProperties(layer, shapeType);
-      console.log('[updateLayerProperties] Nouvelles propriétés calculées', {
-        newProperties
-      });
       // Créer une nouvelle référence pour les propriétés
       layer.properties = { ...newProperties };
       // Forcer la mise à jour de la forme sélectionnée
@@ -1747,10 +1640,6 @@ export function useMapDrawing(): MapDrawingReturn {
       layer.fire('properties:updated', {
         shape: layer,
         properties: layer.properties
-      });
-      console.log('[updateLayerProperties] Fin', {
-        finalProperties: layer.properties,
-        selectedShape: selectedShape.value
       });
     }, 100); // Délai de 100ms
     debouncedCalculateProperties(layer, shapeType);
@@ -2506,10 +2395,6 @@ export function useMapDrawing(): MapDrawingReturn {
       return;
     }
 
-    console.log('[generateTempControlPoints] Génération des points temporaires pour', {
-      layerType: layer.constructor.name,
-      properties: layer.properties
-    });
 
     // Supprimer les points temporaires existants
     tempControlPointsGroup.value.clearLayers();
@@ -2618,15 +2503,11 @@ export function useMapDrawing(): MapDrawingReturn {
         }
       }
 
-      console.log('[generateTempControlPoints] Points temporaires générés', {
-        count: tempControlPointsGroup.value.getLayers().length
-      });
     } catch (error) {
       console.error('[generateTempControlPoints] Erreur lors de la génération des points temporaires:', error);
     }
   };
   const calculateTotalCoverageArea = (layers: L.Layer[]): number => {
-    console.log('Nombre total de couches:', layers.length);
 
     // Filtrer les couches valides et afficher leurs propriétés
     const validLayers = layers.filter(layer => {
@@ -2653,11 +2534,8 @@ export function useMapDrawing(): MapDrawingReturn {
       }
     }
 
-    console.log(`\nNombre de groupes de formes connectées: ${connectedGroups.length}`);
-
     // Pour chaque groupe, calculer sa surface
     const groupAreas = connectedGroups.map((group, groupIndex) => {
-      console.log(`\nCalcul pour le groupe ${groupIndex + 1} (${group.length} formes):`);
 
       // Convertir les formes du groupe en GeoJSON
       const features = group.map(layer => {
@@ -2672,10 +2550,6 @@ export function useMapDrawing(): MapDrawingReturn {
             }) as unknown as Feature<GeoJSONPolygon, GeoJsonProperties>;
             const geoJsonArea = area(feature);
             const propertyArea = (layer as any).properties?.surface || 0;
-            console.log('\nConversion Cercle -> GeoJSON');
-            console.log(`- Rayon: ${radius.toFixed(2)}m`);
-            console.log(`- Surface propriété: ${propertyArea.toFixed(2)}m²`);
-            console.log(`- Surface GeoJSON: ${geoJsonArea.toFixed(2)}m²`);
             return feature;
           } 
           return null;
@@ -2690,7 +2564,6 @@ export function useMapDrawing(): MapDrawingReturn {
       // Calculer la surface totale du groupe
       const individualAreas = features.map(feature => {
         const featureArea = area(feature);
-        console.log(`Surface individuelle: ${featureArea.toFixed(2)}m²`);
         return featureArea;
       });
 
@@ -2704,7 +2577,6 @@ export function useMapDrawing(): MapDrawingReturn {
             if (intersectionResult) {
               const overlapArea = area(intersectionResult);
               intersectionArea += overlapArea;
-              console.log(`Intersection entre formes ${i + 1} et ${j + 1}: ${overlapArea.toFixed(2)}m²`);
             }
           } catch (error) {
             console.error(`Erreur lors du calcul d'intersection entre les formes ${i + 1} et ${j + 1}:`, error);
@@ -2715,17 +2587,11 @@ export function useMapDrawing(): MapDrawingReturn {
       const totalArea = individualAreas.reduce((sum, area) => sum + area, 0);
       const groupArea = totalArea - intersectionArea;
 
-      console.log(`\nCalcul de la surface d'irrigation pour le groupe ${groupIndex + 1}:`);
-      console.log(`- Surface totale (somme): ${totalArea.toFixed(2)}m²`);
-      console.log(`- Surface d'intersection: ${intersectionArea.toFixed(2)}m²`);
-      console.log(`- Surface d'irrigation finale: ${groupArea.toFixed(2)}m²`);
-
       return groupArea;
     });
 
     // Retourner la surface du groupe sélectionné ou la plus grande surface si aucun groupe n'est sélectionné
     const maxArea = Math.max(...groupAreas);
-    console.log(`\nSurface d'irrigation maximale parmi les groupes: ${maxArea.toFixed(2)}m²`);
     return maxArea;
   };
   // Fonction pour cacher la visualisation
@@ -2986,16 +2852,6 @@ export function useMapDrawing(): MapDrawingReturn {
 
     selectedShape.value = layer;
 
-    console.log('[useMapDrawing] Input layer:', {
-      type: shapeType,
-      instanceof: {
-        Polygon: layer instanceof L.Polygon,
-        Polyline: layer instanceof L.Polyline
-      },
-      options: layer.options,
-      properties: layer.properties,
-      _dbId: layer._dbId
-    });
 
     // Émettre un événement pour notifier la création
     window.dispatchEvent(new CustomEvent('shape:created', {
@@ -3008,20 +2864,12 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // Ajouter les événements de survol
     layer.on('mouseover', () => {
-      console.log('[mouseover] Survol de la forme', {
-        type: shapeType,
-        isSelected: selectedShape.value === layer
-      });
       if (!selectedShape.value || selectedShape.value !== layer) {
         generateTempControlPoints(layer);
       }
     });
 
     layer.on('mouseout', () => {
-      console.log('[mouseout] Sortie de la forme', {
-        type: shapeType,
-        isSelected: selectedShape.value === layer
-      });
       if (!selectedShape.value || selectedShape.value !== layer) {
         tempControlPointsGroup.value?.clearLayers();
       }
