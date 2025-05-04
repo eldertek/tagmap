@@ -150,3 +150,5 @@
 3. Create basic authentication system
 4. Set up map integration with base layers
 5. Begin work on the core geolocation note features 
+
+- [x] Mobile editing: Users must be able to edit polygons, lines, and move GeoNotes on mobile devices using touch. Control points must be touch-friendly and larger on mobile. Test on real devices and emulators. See docs/technical.md for details. 

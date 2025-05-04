@@ -80,4 +80,6 @@
 ## Références
 - Documentation API: `/api/docs/`
 - Architecture globale: `/docs/architecture.md`
-- Exigences produit: `/docs/product_requirement_docs.md` 
+- Exigences produit: `/docs/product_requirement_docs.md`
+
+- Mobile editing for polygons, lines, and GeoNotes is now supported. Control points are touch-friendly and larger on mobile. All drag/move logic is unified for mouse and touch. See docs/technical.md for implementation details and test plan. 
