@@ -20,7 +20,6 @@ export interface Style {
   name?: string;
   radius?: number;
 }
-// TextStyle and TextRectangleStyle interfaces removed as per requirements
 export interface Bounds {
   southWest: [number, number];
   northEast: [number, number];
@@ -38,34 +37,11 @@ export interface BaseData {
   category?: ElementCategory;
   accessLevel?: AccessLevel;
 }
-export interface RectangleData extends BaseData {
-  bounds: {
-    southWest: [number, number];
-    northEast: [number, number];
-  };
-  width?: number;
-  height?: number;
-  center?: [number, number];
-}
-// SemicircleData interface removed as per requirements
 export interface LineData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
 }
-// TextData interface removed as per requirements
 export interface PolygonData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
-}
-export interface ElevationLineData extends BaseData {
-  points: [number, number][];
-  elevationData?: Array<{ distance: number; elevation: number }>;
-  samplePointStyle?: Style;
-  minMaxPointStyle?: Style;
-  minElevation?: number;
-  maxElevation?: number;
-  elevationGain?: number;
-  elevationLoss?: number;
-  averageSlope?: number;
-  maxSlope?: number;
 }
 export interface ShapeType {
   type: string; // Accepte n'importe quelle chaîne de caractères pour le type
@@ -119,16 +95,12 @@ export interface NoteData extends BaseData {
 export type ShapeData =
   | PolygonData
   | LineData
-  | RectangleData
-  | ElevationLineData
   | NoteData;
 
 // Type pour les types de formes possibles
 export type DrawingElementType =
-  | 'Rectangle'
   | 'Line'
   | 'Polygon'
-  | 'ElevationLine'
   | 'Note'
   | 'unknown';
 
@@ -139,4 +111,3 @@ export interface DrawingElement {
   data: ShapeData;
 }
 
-// TextRectangleProperties interface removed as per requirements

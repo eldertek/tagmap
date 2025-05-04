@@ -172,47 +172,6 @@
                     <span class="text-sm font-semibold text-gray-700">Longueur :</span>
                     <span class="text-sm font-medium text-gray-500">{{ formatLength(localProperties.length || 0) }}</span>
                   </template>
-                  <!-- ElevationLine -->
-                  <template v-else-if="localProperties.type === 'ElevationLine'">
-                    <!-- Propriétés sur une seule colonne -->
-                    <div class="flex flex-col space-y-2 w-full">
-                      <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Distance totale :</span>
-                        <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.length || 0)
-                        }}</span>
-                      </div>
-
-                      <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé + :</span>
-                        <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationGain
-                          || 0) }}</span>
-                      </div>
-
-                      <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Dénivelé - :</span>
-                        <span class="text-sm font-medium text-gray-500 ml-2">{{ formatLength(localProperties.elevationLoss
-                          || 0) }}</span>
-                      </div>
-
-                      <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente moy. :</span>
-                        <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.averageSlope ||
-                          0) }}</span>
-                      </div>
-
-                      <div class="flex justify-between items-center">
-                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">Pente max :</span>
-                        <span class="text-sm font-medium text-gray-500 ml-2">{{ formatSlope(localProperties.maxSlope || 0)
-                        }}</span>
-                      </div>
-                    </div>
-
-                    <!-- Graphique du profil sur toute la largeur -->
-                    <div ref="elevationProfileContainer"
-                      class="elevation-profile-container w-full h-48 bg-gray-50 rounded border border-gray-200 relative mt-4">
-                      <canvas ref="elevationCanvas"></canvas>
-                    </div>
-                  </template>
                 </div>
               </div>
             </div>
@@ -224,8 +183,7 @@
                 <button v-for="color in predefinedColors" :key="color" class="w-8 h-8 rounded-full"
                   :style="{ backgroundColor: color }" @click="selectPresetColor(color)" :title="color"></button>
               </div>
-              <!-- Contrôles de style pour les formes standards (non TextRectangle) -->
-              <div v-if="localProperties?.type !== 'TextRectangle'" class="space-y-4">
+              <div class="space-y-4">
                 <div class="flex items-center gap-4">
                   <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
                   <div class="flex items-center gap-2">
@@ -245,29 +203,6 @@
                   </select>
                 </div>
                 <div v-if="showFillOptions" class="flex items-center gap-4">
-                  <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
-                  <div class="flex items-center gap-2">
-                    <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
-                      @change="updateStyle({ fillColor })" title="Couleur de remplissage" />
-                    <input type="range" v-model="fillOpacity" min="0" max="1" step="0.1" class="w-16 h-2 rounded-md"
-                      @change="updateStyle({ fillOpacity })" title="Opacité du remplissage" />
-                  </div>
-                </div>
-              </div>
-              <!-- Options spécifiques au TextRectangle -->
-              <div v-if="localProperties?.type === 'TextRectangle'" class="space-y-4">
-                <!-- Contour du rectangle avec texte -->
-                <div class="flex items-center gap-4">
-                  <span class="w-20 text-sm font-semibold text-gray-700">Contour</span>
-                  <div class="flex items-center gap-2">
-                    <input type="color" v-model="strokeColor" class="w-16 h-8 rounded border"
-                      @change="updateStyle({ strokeColor })" title="Couleur du contour" />
-                    <input type="range" v-model="strokeWidth" min="1" max="10" class="w-16 h-2 rounded-md"
-                      @change="updateStyle({ strokeWidth })" title="Épaisseur du contour" />
-                  </div>
-                </div>
-                <!-- Remplissage du rectangle -->
-                <div class="flex items-center gap-4">
                   <span class="w-20 text-sm font-semibold text-gray-700">Remplir</span>
                   <div class="flex items-center gap-2">
                     <input type="color" v-model="fillColor" class="w-16 h-8 rounded border"
@@ -387,12 +322,7 @@
                         class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                       <span class="ml-2 text-sm text-gray-700">Lignes</span>
                     </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="filters.shapeTypes.ElevationLine" @change="deselectCurrentShape"
-                        class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
-                      <span class="ml-2 text-sm text-gray-700">Profils altimétriques</span>
-                    </label>
-                    <label class="flex items-center">
+                                    <label class="flex items-center">
                       <input type="checkbox" v-model="filters.shapeTypes.Note" @change="deselectCurrentShape"
                         class="rounded text-primary-600 focus:ring-primary-500 h-4 w-4">
                       <span class="ml-2 text-sm text-gray-700">Notes</span>
@@ -406,69 +336,6 @@
                     class="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors">
                     Réinitialiser
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Section de personnalisation des points d'échantillonnage -->
-        <div v-if="selectedShape && localProperties && localProperties.type === 'ElevationLine'"
-          class="p-3 border-t border-gray-200">
-          <!-- Section Points d'échantillonnage (toujours fermée par défaut) -->
-          <button class="flex items-center justify-between w-full text-sm font-semibold text-gray-700"
-            @click="toggleSection('samplePoints')">
-            <span>Points d'échantillonnage</span>
-            <svg class="w-4 h-4" :class="{ 'rotate-180': !sectionsCollapsed.samplePoints }" fill="none"
-              stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <div v-show="!sectionsCollapsed.samplePoints" class="mt-3">
-            <!-- Points normaux -->
-            <div class="mb-4">
-              <h4 class="text-sm font-semibold mb-2">Points normaux</h4>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="text-xs text-gray-600">Taille</label>
-                  <input type="number" v-model="samplePointStyle.radius" min="2" max="10" step="1"
-                    class="w-full px-2 py-1 border rounded" @change="updateSamplePointStyle">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600">Couleur</label>
-                  <input type="color" v-model="samplePointStyle.color" class="w-full h-8 px-1 border rounded"
-                    @change="updateSamplePointStyle">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600">Opacité</label>
-                  <input type="range" v-model="samplePointStyle.fillOpacity" min="0" max="1" step="0.1" class="w-full"
-                    @change="updateSamplePointStyle">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600">Bordure</label>
-                  <input type="number" v-model="samplePointStyle.weight" min="1" max="5" step="1"
-                    class="w-full px-2 py-1 border rounded" @change="updateSamplePointStyle">
-                </div>
-              </div>
-            </div>
-
-            <!-- Points min/max -->
-            <div>
-              <h4 class="text-sm font-semibold mb-2">Points min/max</h4>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="text-xs text-gray-600">Taille</label>
-                  <input type="number" v-model="minMaxPointStyle.radius" min="4" max="12" step="1"
-                    class="w-full px-2 py-1 border rounded" @change="updateMinMaxPointStyle">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600">Bordure</label>
-                  <input type="number" v-model="minMaxPointStyle.weight" min="1" max="5" step="1"
-                    class="w-full px-2 py-1 border rounded" @change="updateMinMaxPointStyle">
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600">Opacité</label>
-                  <input type="range" v-model="minMaxPointStyle.fillOpacity" min="0" max="1" step="0.1" class="w-full"
-                    @change="updateMinMaxPointStyle">
                 </div>
               </div>
             </div>
@@ -653,21 +520,6 @@ const shapeName = ref('')
 const shapeCategory = ref<ElementCategory>('default')
 const accessLevel = ref<AccessLevel>('visitor')
 
-// Sample point styles
-const samplePointStyle = ref({
-  radius: 4,
-  color: '#2b6451',
-  fillOpacity: 0.6,
-  weight: 2
-})
-
-// Min/max point styles
-const minMaxPointStyle = ref({
-  radius: 6,
-  color: '#EF4444',
-  fillOpacity: 0.8,
-  weight: 2
-})
 
 // Predefined colors
 const predefinedColors = [
@@ -739,7 +591,6 @@ const filters = reactive<Filters>({
   shapeTypes: {
     Polygon: true,
     Line: true,
-    ElevationLine: true,
     Note: true
   }
 });
@@ -854,19 +705,6 @@ const updateAccessLevel = (): void => {
   emit('properties-update', { accessLevel: accessLevel.value })
 }
 
-const updateSamplePointStyle = (): void => {
-  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
-
-  // Emit the style update to the parent component
-  emit('style-update', { samplePointStyle: samplePointStyle.value })
-}
-
-const updateMinMaxPointStyle = (): void => {
-  if (!props.selectedShape || localProperties.value?.type !== 'ElevationLine') return
-
-  // Emit the style update to the parent component
-  emit('style-update', { minMaxPointStyle: minMaxPointStyle.value })
-}
 
 // Méthode pour réinitialiser les filtres
 const resetFilters = (): void => {
@@ -895,7 +733,6 @@ const resetFilters = (): void => {
     shapeTypes: {
       Polygon: true,
       Line: true,
-      ElevationLine: true,
       Note: true
     }
   };
@@ -1157,15 +994,6 @@ watchEffect(() => {
     accessLevel.value = props.selectedShape.properties?.accessLevel || 'visitor'
 
     // Mettre à jour les propriétés spécifiques au type de forme
-    if (shapeType === 'ElevationLine') {
-      // Propriétés spécifiques aux lignes d'élévation
-      if (props.selectedShape.properties?.samplePointStyle) {
-        samplePointStyle.value = { ...props.selectedShape.properties.samplePointStyle };
-      }
-      if (props.selectedShape.properties?.minMaxPointStyle) {
-        minMaxPointStyle.value = { ...props.selectedShape.properties.minMaxPointStyle };
-      }
-    }
 
     console.log('[DrawingTools][watchEffect] Propriétés mises à jour avec succès');
   }
@@ -1626,11 +1454,6 @@ const openGeoNoteRoute = () => {
   gap: 8px;
   padding-bottom: 10px;
   /* Add padding to ensure last items are visible */
-}
-
-/* Ensure the style section expands when TextRectangle is selected */
-.sidebar-section:has(.text-controls) .section-content {
-  min-height: 250px;
 }
 
 .color-grid {

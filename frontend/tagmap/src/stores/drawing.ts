@@ -2,9 +2,7 @@ import { defineStore } from 'pinia';
 import api from '@/services/api';
 import type {
   DrawingElement,
-  RectangleData,
   PolygonData,
-  ElevationLineData,
   LineData,
   DrawingElementType,
   AccessLevel,
@@ -14,7 +12,6 @@ import type {
 import L from 'leaflet';
 import { Polygon } from '@/utils/Polygon';
 import { Line } from '@/utils/Line';
-import { Rectangle } from '@/utils/Rectangle';
 import { GeoNote } from '@/utils/GeoNote';
 import { usePerformanceMonitor } from '@/utils/usePerformanceMonitor';
 
@@ -60,28 +57,6 @@ function isPolygonData(data: any): data is PolygonData {
          Array.isArray(data.points[0]) && data.points[0].length === 2;
 }
 
-function isElevationData(data: any): data is ElevationLineData {
-  if (!data || typeof data !== 'object') {
-    console.log('[DrawingStore] ElevationData invalide: pas un objet', { data });
-    return false;
-  }
-
-  const hasValidPoints = Array.isArray(data.points) &&
-                        data.points.length > 0 &&
-                        Array.isArray(data.points[0]) &&
-                        data.points[0].length === 2;
-
-  const hasValidStyle = typeof data.style === 'object' && data.style !== null;
-
-  const hasValidElevationData = !data.elevationData ||
-                               (Array.isArray(data.elevationData) &&
-                                data.elevationData.every((point: any) =>
-                                  typeof point === 'object' &&
-                                  'distance' in point &&
-                                  'elevation' in point));
-
-  return hasValidPoints && hasValidStyle && hasValidElevationData;
-}
 
 function isLineData(data: any): data is LineData {
   return data && Array.isArray(data.points) && data.points.length > 0 &&
@@ -223,104 +198,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
       line.updateProperties();
       return line;
     }
-
-    case 'Rectangle': {
-      const data = element.data as RectangleData;
-      console.log('[DrawingStore][convertStoredElementToShape] Restauration Rectangle:', {
-        data,
-        bounds: data.bounds,
-        width: data.width,
-        height: data.height,
-        rotation: data.rotation
-      });
-      if (!data.bounds) {
-        console.error('[DrawingStore] Données de bounds manquantes pour Rectangle');
-        return null;
-      }
-
-      const bounds = new L.LatLngBounds(
-        L.latLng(data.bounds.southWest[1], data.bounds.southWest[0]),
-        L.latLng(data.bounds.northEast[1], data.bounds.northEast[0])
-      );
-
-      const rectangle = new Rectangle(bounds, {
-        color: data.style?.color || '#2b6451',
-        weight: data.style?.weight || 3,
-        opacity: data.style?.opacity || 1,
-        fillColor: data.style?.fillColor || '#2b6451',
-        fillOpacity: data.style?.fillOpacity || 0.2,
-        dashArray: data.style?.dashArray || '',
-        name: data.style?.name || '',
-        width: data.width,
-        height: data.height
-      });
-
-      // Appliquer la rotation si elle existe
-      if (data.rotation) {
-        rectangle.setRotation(data.rotation);
-      }
-
-      console.log('[DrawingStore][convertStoredElementToShape] Rectangle restauré:', {
-        bounds: rectangle.getBounds(),
-        dimensions: rectangle.getDimensions(),
-        properties: rectangle.properties
-      });
-
-      return rectangle;
-    }
-
-    case 'Circle': {
-      console.log('[DrawingStore] Traitement d\'un Circle à partir de l\'API', {
-        id: element.id,
-        data: element.data,
-        hasName: element.data?.style?.name !== undefined,
-        name: element.data?.style?.name
-      });
-
-      const data = element.data as CircleData;
-      if (!data.center || !data.radius) {
-        console.error('[DrawingStore] Données invalides pour Circle');
-        return null;
-      }
-
-      // Création du cercle
-      const circle = L.circle(
-        [data.center[1], data.center[0]],
-        {
-          color: data.style?.color || '#2b6451',
-          weight: data.style?.weight || 3,
-          opacity: data.style?.opacity || 1,
-          fillColor: data.style?.fillColor || '#2b6451',
-          fillOpacity: data.style?.fillOpacity || 0.2,
-          dashArray: data.style?.dashArray || '',
-          radius: data.radius
-        }
-      );
-
-      // Définition des propriétés du cercle
-      (circle as any).properties = {
-        type: 'Circle',
-        radius: data.radius,
-        diameter: data.radius * 2,
-        surface: Math.PI * data.radius * data.radius,
-        perimeter: 2 * Math.PI * data.radius,
-        style: {
-          ...(data.style || {}),
-          name: data.style?.name || ''
-        }
-      };
-
-      console.log('[DrawingStore] Cercle créé:', {
-        centerType: typeof data.center,
-        center: data.center,
-        radius: data.radius,
-        style: (circle as any).properties.style,
-        name: (circle as any).properties.style.name
-      });
-
-      return circle;
-    }
-
     case 'Note': {
       console.log('[DrawingStore] Traitement d\'une Note à partir de l\'API', {
         id: element.id,
@@ -410,7 +287,6 @@ export const useDrawingStore = defineStore('drawing', {
       shapeTypes: {
         Polygon: true,
         Line: true,
-        ElevationLine: true,
         Note: true
       }
     },
@@ -553,7 +429,6 @@ export const useDrawingStore = defineStore('drawing', {
         shapeTypes: {
           Polygon: true,
           Line: true,
-          ElevationLine: true,
           Note: true
         }
       };

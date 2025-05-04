@@ -59,11 +59,3 @@ export interface TextProperties {
   physicalHeight: number;
   _textLayer?: L.Marker;
 }
-export interface TextRectangle extends L.Rectangle {
-  properties: TextProperties;
-  _textLayer?: L.Marker;
-}
-export interface TextMarker extends L.Marker {
-  properties: TextProperties;
-  getElement(): HTMLElement | undefined;
-} 
