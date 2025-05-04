@@ -33,12 +33,14 @@ declare module 'leaflet' {
         tolerance: number;
       };
     };
-    options: {
-      almostOnMouseMove?: boolean;
-      zoomAnimation?: boolean;
-      fadeAnimation?: boolean;
-      markerZoomAnimation?: boolean;
-    }
+  }
+  
+  // Étendre MapOptions plutôt que de redéfinir options sur Map
+  interface MapOptions {
+    almostOnMouseMove?: boolean;
+    zoomAnimation?: boolean;
+    fadeAnimation?: boolean;
+    markerZoomAnimation?: boolean;
   }
   
   // Étendre la définition des événements Leaflet pour les événements AlmostOver
@@ -65,12 +67,19 @@ declare module 'leaflet' {
     properties?: any;
     pm?: any;
     _textLayer?: L.Marker;
+    _dbId?: number | string;
+    _originalStyle?: any;
     options: L.LayerOptions;
     getCenter?: () => L.LatLng;
     getLatLng?: () => L.LatLng;
     getRadius?: () => number;
     getStartAngle?: () => number;
     getStopAngle?: () => number;
+    name?: string;
+    updateProperties?: () => void;
+    editNote?: () => void;
+    recreateIcon?: () => void;
+    getElement?: () => HTMLElement | null;
   }
 }
 // Utilitaire pour convertir une couleur hex en rgba
@@ -168,23 +177,28 @@ const convertMouseEvent = (e: MouseEvent): MouseEvent => {
     altKey: e.altKey || false,
   } as MouseEvent;
 };
+// Définissons des types plus flexibles pour les références
+type MapRef = Ref<L.Map | null>;
+type FeatureGroupRef = Ref<L.FeatureGroup | null>;
+type LayerRef = Ref<L.Layer | null>;
+
 interface MapDrawingReturn {
-  map: Ref<any>;
-  featureGroup: Ref<any>;
-  controlPointsGroup: Ref<any>;
-  tempControlPointsGroup: Ref<any>;
+  map: MapRef;
+  featureGroup: FeatureGroupRef;
+  controlPointsGroup: FeatureGroupRef;
+  tempControlPointsGroup: FeatureGroupRef;
   currentTool: Ref<string>;
-  selectedShape: Ref<any>;
+  selectedShape: LayerRef;
   isDrawing: Ref<boolean>;
   initMap: (element: HTMLElement, center: L.LatLngExpression, zoom: number) => L.Map;
   setDrawingTool: (tool: string) => void;
-  updateShapeStyle: (style: any) => void;
-  updateShapeProperties: (properties: any) => void;
+  updateShapeStyle: (style: Record<string, unknown>) => void;
+  updateShapeProperties: (properties: Record<string, unknown>) => void;
   adjustView: () => void;
   clearActiveControlPoints: () => void;
   calculateTotalCoverageArea: (layers: L.Layer[]) => number;
-  showCoverageOverlay: (layers: L.Layer[], targetLayer?: L.Layer) => void;  // Nouvelle fonction
-  hideCoverageOverlay: () => void;                   // Nouvelle fonction
+  showCoverageOverlay: (layers: L.Layer[], targetLayer?: L.Layer) => void;
+  hideCoverageOverlay: () => void;
   calculateConnectedCoverageArea: (layers: L.Layer[], startLayer: L.Layer) => number;
   getConnectedShapes: (layers: L.Layer[], startLayer: L.Layer) => L.Layer[];
   disableAlmostOver: () => () => void;
@@ -210,21 +224,18 @@ const throttle = (fn: Function, delay: number) => {
 };
 // Ajouter cette fonction en haut du fichier
 export function useMapDrawing(): MapDrawingReturn {
-  const map = ref<any>(null);
-  const featureGroup = ref<any>(null);
-  const controlPointsGroup = ref<any>(null);
-  const tempControlPointsGroup = ref<any>(null);
+  const map = ref<L.Map | null>(null) as MapRef;
+  const featureGroup = ref<L.FeatureGroup | null>(null) as FeatureGroupRef;
+  const controlPointsGroup = ref<L.FeatureGroup | null>(null) as FeatureGroupRef;
+  const tempControlPointsGroup = ref<L.FeatureGroup | null>(null) as FeatureGroupRef;
   const currentTool = ref<string>('');
-  const selectedShape = ref<any>(null);
+  const selectedShape = ref<L.Layer | null>(null) as LayerRef;
   const isDrawing = ref<boolean>(false);
-  // Ajouter une référence pour la couche de visualisation
+  // Ajouter une référence typée pour la couche de visualisation
   const coverageOverlayGroup = ref<L.LayerGroup | null>(null);
 
-  // Supprimé car non utilisé
-  // const frozenStates = new WeakMap<L.Layer, FrozenState>();
-
-  // Ajouter l'écouteur d'événement pour le nettoyage
-  window.addEventListener('clearControlPoints', () => {
+  // Gestionnaire d'événement référencé pour pouvoir le supprimer correctement
+  const clearControlPointsHandler = () => {
     // Désélectionner la forme active
     selectedShape.value = null;
     // Nettoyer les points de contrôle
@@ -238,10 +249,14 @@ export function useMapDrawing(): MapDrawingReturn {
     document.querySelectorAll('.measure-tooltip').forEach(el => el.remove());
     // Supprimer tous les messages d'aide
     document.querySelectorAll('.drawing-help-message').forEach(el => el.remove());
-  });
+  };
+  
+  // Ajouter l'écouteur d'événement avec la référence à la fonction
+  window.addEventListener('clearControlPoints', clearControlPointsHandler);
+  
   // Nettoyer l'écouteur lors du démontage
   onUnmounted(() => {
-    window.removeEventListener('clearControlPoints', () => { });
+    window.removeEventListener('clearControlPoints', clearControlPointsHandler);
     if (map.value) {
       map.value.remove();
       map.value = null;
@@ -526,19 +541,24 @@ export function useMapDrawing(): MapDrawingReturn {
           properties.surface = area(polygonFeature);
           properties.perimeter = length(lineString(coordinates), { units: 'meters' });
         } catch (e) {
-          // Erreur lors du calcul des propriétés du polygone
+          console.warn('Erreur lors du calcul des propriétés du polygone:', e);
+          // Valeurs par défaut en cas d'erreur
+          properties.surface = 0;
+          properties.perimeter = 0;
         }
       } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
         // Propriétés pour les lignes
         try {
           const latLngs = (layer as L.Polyline).getLatLngs() as L.LatLng[];
-          let length = 0;
+          let lineLength = 0;
           for (let i = 1; i < latLngs.length; i++) {
-            length += latLngs[i].distanceTo(latLngs[i - 1]);
+            lineLength += latLngs[i].distanceTo(latLngs[i - 1]);
           }
-          properties.length = length;
+          properties.length = lineLength;
         } catch (e) {
-          // Erreur lors du calcul de la longueur de la ligne
+          console.warn('Erreur lors du calcul de la longueur de la ligne:', e);
+          // Valeur par défaut en cas d'erreur
+          properties.length = 0;
         }
       }
       // Ajouter les propriétés de style
@@ -552,7 +572,16 @@ export function useMapDrawing(): MapDrawingReturn {
         dashArray: (layer.options as any)?.dashArray || ''
       };
     } catch (error) {
-      // Error calculating shape properties
+      console.error('Erreur lors du calcul des propriétés de la forme:', error);
+      // Assurer que l'objet properties contient au moins le style de base
+      properties.style = properties.style || {
+        color: '#3388ff',
+        weight: 3,
+        opacity: 1,
+        fillColor: '#3388ff',
+        fillOpacity: 0.2,
+        dashArray: ''
+      };
     }
     return properties;
   };
@@ -638,10 +667,14 @@ export function useMapDrawing(): MapDrawingReturn {
     } as ExtendedGlobalOptions);
     
     // Ajouter les lignes existantes à almostOver
-    // Utiliser un timeout pour s'assurer que les lignes sont chargées
-    setTimeout(addLinesToAlmostOver, 500);
-    
-    // ... existing code ...
+    // Attendre que la carte soit prête avant d'ajouter les lignes
+    mapInstance.whenReady(() => {
+      // Vérifier si la carte est toujours disponible avant d'ajouter les lignes
+      if (map.value && map.value.almostOver && featureGroup.value) {
+        // Donner du temps pour que les couches soient chargées
+        setTimeout(addLinesToAlmostOver, 100);
+      }
+    });
 
     // Événements de dessin
     mapInstance.on('pm:drawstart', (e: any) => {
@@ -1052,13 +1085,17 @@ export function useMapDrawing(): MapDrawingReturn {
         setTimeout(() => {
           try {
             // Restaurer uniquement fadeAnimation d'abord
-            map.value.options.fadeAnimation = originalAnimationState.fadeAnimation;
+            if (map.value) {
+              map.value.options.fadeAnimation = originalAnimationState.fadeAnimation;
+            }
 
             // Puis après un délai supplémentaire, restaurer les autres animations
             setTimeout(() => {
               try {
-                map.value.options.zoomAnimation = originalAnimationState.zoomAnimation;
-                map.value.options.markerZoomAnimation = originalAnimationState.markerZoomAnimation;
+                if (map.value) {
+                  map.value.options.zoomAnimation = originalAnimationState.zoomAnimation;
+                  map.value.options.markerZoomAnimation = originalAnimationState.markerZoomAnimation;
+                }
               } catch (e) {
                 console.warn('[useMapDrawing] Erreur lors de la restauration des animations:', e);
               }
@@ -1194,15 +1231,6 @@ export function useMapDrawing(): MapDrawingReturn {
               }
             });
             break;
-          case 'Polygon':
-            showHelpMessage('Cliquez pour ajouter des points, double-cliquez pour terminer le polygone');
-            map.value?.pm.enableDraw('Polygon', {
-              finishOn: 'dblclick',
-              continueDrawing: false,
-              snapMiddle: true,
-              snapDistance: 20
-            });
-            break;
           case 'Line':
             showHelpMessage('Cliquez pour ajouter des points, double-cliquez pour terminer la ligne');
             map.value?.pm.enableDraw('Line', {
@@ -1334,7 +1362,7 @@ export function useMapDrawing(): MapDrawingReturn {
                 // Créer la note à la position du clic
                 const geoNote = await createGeoNote(e.latlng);
 
-                if (geoNote) {
+                if (geoNote && map.value) {
                   // Désactiver le mode note après l'ajout
                   map.value.off('click', onClick);
 
@@ -1378,7 +1406,7 @@ export function useMapDrawing(): MapDrawingReturn {
                   // Créer la note à la position du clic sur la forme
                   const geoNote = await createGeoNote(e.latlng);
 
-                  if (geoNote) {
+                  if (geoNote && map.value) {
                     // Désactiver le mode note après l'ajout
                     map.value.off('click', onClick);
 
@@ -1441,48 +1469,6 @@ export function useMapDrawing(): MapDrawingReturn {
           case 'delete':
             showHelpMessage('Cliquez sur une forme pour la supprimer');
             map.value?.pm.enableGlobalRemovalMode();
-            break;
-            showHelpMessage('Cliquez et maintenez pour tracer le profil altimétrique');
-            map.value?.pm.enableDraw('Line', {
-              finishOn: 'mouseup',
-              continueDrawing: false, // Désactiver la continuation
-              allowSelfIntersection: false,
-              templineStyle: {
-                color: '#FF4500',
-                weight: 4,
-                opacity: 0.8
-              }
-            });
-
-            // Désactiver explicitement la continuation après le dessin
-            map.value?.pm.setGlobalOptions({
-              continueDrawing: false,
-              finishOn: 'mouseup',
-              preventMarkerRemoval: true,
-              preventVertexEdit: true,
-              preventMarkerEdit: true
-            } as any);
-
-            // Supprimer l'ancien gestionnaire d'événements s'il existe
-            map.value?.off('pm:create');
-            // Ajouter le nouveau gestionnaire
-            map.value?.on('pm:create', async (e: any) => {
-              if (e.shape === 'Line' && e.layer) {
-                const latLngs = e.layer.getLatLngs();
-                // Supprimer la ligne temporaire
-                map.value?.removeLayer(e.layer);
-                if (featureGroup.value?.hasLayer(e.layer)) {
-                  featureGroup.value.removeLayer(e.layer);
-                }
-
-                // Désactiver le mode dessin et réinitialiser l'outil
-                map.value?.pm.disableDraw();
-                currentTool.value = '';
-
-                // Restaurer le gestionnaire par défaut
-                restoreDefaultCreateHandler();
-              }
-            });
             break;
         }
       } catch (error) {
@@ -1900,8 +1886,8 @@ export function useMapDrawing(): MapDrawingReturn {
         updateLineControlPoints(layer);
       };
 
-      // Écouter les événements de déplacement
-      layer.on('move:start', () => {
+      // Fonction définie pour le gestionnaire move:start
+      const handleMoveStart = () => {
         // Cacher tous les points de contrôle sauf le point central
         activeControlPoints.forEach((point, index) => {
           if (index > 0) {
@@ -1911,16 +1897,18 @@ export function useMapDrawing(): MapDrawingReturn {
             }
           }
         });
-      });
+      };
 
+      // Écouter les événements de déplacement avec des références de fonction
+      layer.on('move:start', handleMoveStart);
       layer.on('move:end', updateControlPoints);
       layer.on('vertex:moved', updateControlPoints);
       layer.on('latlngs:updated', updateControlPoints);
       layer.on('properties:updated', updateControlPoints);
 
-      // Stocker la fonction de nettoyage
+      // Stocker la fonction de nettoyage avec références correctes
       (activeControlPoints as any).cleanup = () => {
-        layer.off('move:start', () => { });
+        layer.off('move:start', handleMoveStart);
         layer.off('move:end', updateControlPoints);
         layer.off('vertex:moved', updateControlPoints);
         layer.off('latlngs:updated', updateControlPoints);
@@ -2461,7 +2449,9 @@ export function useMapDrawing(): MapDrawingReturn {
             className: 'temp-control-point',
             pmIgnore: true
           });
-          tempControlPointsGroup.value.addLayer(tempCenterPoint);
+          if (tempControlPointsGroup.value) {
+            tempControlPointsGroup.value.addLayer(tempCenterPoint);
+          }
         }
 
         // Points de sommet (rouge)
@@ -2476,7 +2466,9 @@ export function useMapDrawing(): MapDrawingReturn {
               className: 'temp-control-point',
               pmIgnore: true
             });
-            tempControlPointsGroup.value.addLayer(tempPoint);
+            if (tempControlPointsGroup.value) {
+              tempControlPointsGroup.value.addLayer(tempPoint);
+            }
           }
         });
 
@@ -2596,7 +2588,7 @@ export function useMapDrawing(): MapDrawingReturn {
   };
   // Fonction pour cacher la visualisation
   const hideCoverageOverlay = () => {
-    if (coverageOverlayGroup.value) {
+    if (coverageOverlayGroup.value && map.value) {
       map.value.removeLayer(coverageOverlayGroup.value);
       coverageOverlayGroup.value = null;
     }
@@ -2940,8 +2932,6 @@ export function useMapDrawing(): MapDrawingReturn {
     }
     return () => {}; // Fonction vide si almostOver n'est pas disponible
   };
-  
-  // Ajouter un écouteur global pour temporairement désactiver almostOver pendant l'édition
   window.addEventListener('edit:start', () => {
     const restore = disableAlmostOver();
     // Réactiver après l'édition
@@ -2951,21 +2941,6 @@ export function useMapDrawing(): MapDrawingReturn {
     };
     window.addEventListener('edit:end', onEditEnd);
   });
-
-  // Utility: Normalize mouse/touch event to map coordinates
-  function getLatLngFromEvent(e: MouseEvent | TouchEvent, map: L.Map): L.LatLng {
-    if ((e as TouchEvent).touches && (e as TouchEvent).touches.length > 0) {
-      const touch = (e as TouchEvent).touches[0];
-      const containerPoint = map.mouseEventToContainerPoint(touch);
-      return map.containerPointToLatLng(containerPoint);
-    } else if ((e as TouchEvent).changedTouches && (e as TouchEvent).changedTouches.length > 0) {
-      const touch = (e as TouchEvent).changedTouches[0];
-      const containerPoint = map.mouseEventToContainerPoint(touch);
-      return map.containerPointToLatLng(containerPoint);
-    } else {
-      return map.mouseEventToLatLng(e as MouseEvent);
-    }
-  }
 
   return {
     map,
