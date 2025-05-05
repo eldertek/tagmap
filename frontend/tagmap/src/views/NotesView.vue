@@ -787,8 +787,6 @@ async function deleteNote() {
 
 // Gérer les changements lors du drag and drop
 async function onDragChange(event: any, columnId: string) {
-console.log('[NotesView][onDragChange] Colonne cible:', columnId);
-
   try {
     // Gérer le déplacement d'une note entre colonnes
     if (event.added) {

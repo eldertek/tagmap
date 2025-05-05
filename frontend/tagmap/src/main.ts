@@ -23,12 +23,11 @@ app.mount('#app')
 registerSW({
   immediate: true,
   onRegistered(r) {
-    r && console.log('SW enregistré:', r)
+    r 
   },
   onRegisterError(error) {
     console.error('Erreur d\'enregistrement du SW:', error)
   },
   onOfflineReady() {
-    console.log('L\'application est prête à être utilisée hors ligne')
   }
 })

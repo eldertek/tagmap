@@ -722,14 +722,6 @@ function openNewPlanModal() {
 }
 
 async function editPlan(plan: LocalPlan) {
-console.log('[PlansView][editPlan] Plan reçu:', {
-    id: plan.id,
-    nom: plan.nom,
-    entreprise: plan.entreprise,
-    salarie: plan.salarie,
-    visiteur: plan.visiteur
-  });
-
   try {
 irrigationStore.setCurrentPlan(plan);
 localStorage.setItem('lastPlanId', plan.id.toString());

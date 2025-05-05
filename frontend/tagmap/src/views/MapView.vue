@@ -1351,7 +1351,6 @@ watch(() => irrigationStore.currentPlan, async (newPlan, oldPlan) => {
     currentPlan.value = null;
     clearMap();
   }
-console.log('[MapView][watch currentPlan] ====== FIN CHANGEMENT ======\n');
 }, { immediate: true });
 // Nettoyer l'écouteur d'événement lors de la destruction du composant
 onBeforeUnmount(() => {
@@ -1626,8 +1625,6 @@ const noteData = element.data as any;
 }
 // Modifier la fonction loadPlan pour utiliser refreshMapWithPlan
 async function loadPlan(planId: number) {
-console.log('[MapView][loadPlan] Tentative de chargement du plan:', planId);
-
   try {
     // Vérifier si le plan existe dans le store
     const plan = irrigationStore.getPlanById(planId);
@@ -2224,12 +2221,6 @@ function backToClientList() {
 
 // Fonction pour sélectionner un salarie
 async function selectSalarie(salarie: ExtendedUserDetails) {
-console.log('Informations du salarie:', {
-    id: salarie.id,
-    username: salarie.username,
-    company: salarie.company_name,
-    role: salarie.role
-  });
 selectedSalarie.value = salarie;
   isLoadingClients.value = true;
   try {
@@ -2572,8 +2563,6 @@ if (accessLevel) {
     }
 // Vérifier si la couche doit être visible selon les filtres
     const isVisible = typeVisible && categoryVisible && accessLevelVisible;
-console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
-
 
     // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
     // Cela évite de réinitialiser à 'forages' quand on filtre puis défiltre
@@ -2612,8 +2601,6 @@ console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: typ
 
   // ÉTAPE 2: Parcourir toutes les formes stockées dans shapes.value
   // pour restaurer celles qui ont été filtrées mais qui devraient maintenant être visibles
-console.log('[MapView][updateMapDisplay] Nombre de formes dans shapes.value:', shapes.value.length);
-
   // Parcourir toutes les formes dans shapes.value
   shapes.value.forEach(shape => {
     if (!shape.layer) {
@@ -2808,7 +2795,6 @@ anyElement.data.category = category;
   });
 
   // Vérifier si des formes ont été restaurées
-console.log(`[MapView][updateMapDisplay] Statistiques: ${visibleCount} couches visibles, ${hiddenCount} couches masquées, ${noDbIdCount} couches sans dbId`);
 }
 
 function handleNoteSave(note: any) {
