@@ -67,9 +67,7 @@ export const useMapFilterStore = defineStore('mapFilters', {
 
         // Ajouter le nouveau filtre à la liste
         this.filters.push(response.data);
-
-        console.log('[MapFilterStore] Filtre créé avec succès:', response.data);
-        return response.data;
+return response.data;
       } catch (error: any) {
         this.error = 'Erreur lors de la création du filtre';
         console.error('[MapFilterStore] Erreur lors de la création du filtre:', error);
@@ -91,9 +89,7 @@ export const useMapFilterStore = defineStore('mapFilters', {
         if (index !== -1) {
           this.filters[index] = response.data;
         }
-
-        console.log('[MapFilterStore] Filtre mis à jour avec succès:', response.data);
-        return response.data;
+return response.data;
       } catch (error: any) {
         this.error = 'Erreur lors de la mise à jour du filtre';
         console.error('[MapFilterStore] Erreur lors de la mise à jour du filtre:', error);
@@ -112,9 +108,7 @@ export const useMapFilterStore = defineStore('mapFilters', {
 
         // Supprimer le filtre de la liste
         this.filters = this.filters.filter(f => f.id !== id);
-
-        console.log('[MapFilterStore] Filtre supprimé avec succès:', id);
-        return true;
+return true;
       } catch (error: any) {
         this.error = 'Erreur lors de la suppression du filtre';
         console.error('[MapFilterStore] Erreur lors de la suppression du filtre:', error);

@@ -112,8 +112,7 @@ export const useNotesStore = defineStore('notes', () => {
 
   // Actions
   async function loadColumns() {
-    console.log('\n[NotesStore][loadColumns] Initialisation des colonnes fixes...');
-    try {
+try {
       // Colonnes fixes prédéfinies avec les IDs du backend
       const fixedColumns: NoteColumn[] = [
         { id: '1', title: 'Idées', color: '#8B5CF6', order: 0, isDefault: false },
@@ -125,9 +124,7 @@ export const useNotesStore = defineStore('notes', () => {
 
       // Assigner directement les colonnes fixes
       columns.value = fixedColumns;
-
-      console.log('[NotesStore][loadColumns] Colonnes fixes initialisées:', columns.value);
-    } catch (error) {
+} catch (error) {
       console.error('[NotesStore][loadColumns] Erreur:', error);
       throw error;
     }
@@ -137,15 +134,13 @@ export const useNotesStore = defineStore('notes', () => {
 
   // Cette fonction est conservée pour compatibilité mais ne fait rien
   async function addColumn(_columnData: NewNoteColumn) {
-    console.log('\n[NotesStore][addColumn] Fonction désactivée - Utilisation de colonnes fixes');
-    // Ne fait rien car nous utilisons des colonnes fixes
+// Ne fait rien car nous utilisons des colonnes fixes
     return;
   }
 
   // Cette fonction est conservée pour compatibilité mais ne modifie que localement
   async function updateColumn(id: string, data: Partial<NoteColumn>) {
-    console.log('\n[NotesStore][updateColumn] Mise à jour locale de la colonne:', id, data);
-    try {
+try {
       const index = columns.value.findIndex(column => column.id === id);
       if (index !== -1) {
         // Mise à jour locale uniquement
@@ -153,8 +148,7 @@ export const useNotesStore = defineStore('notes', () => {
           ...columns.value[index],
           ...data
         };
-        console.log('[NotesStore][updateColumn] État des colonnes après mise à jour:', columns.value);
-      }
+}
     } catch (error) {
       console.error('[NotesStore][updateColumn] Erreur:', error);
       throw error;
@@ -196,10 +190,7 @@ export const useNotesStore = defineStore('notes', () => {
 
     // Convertir le niveau d'accès du format backend
     const accessLevel = convertAccessLevel((note as any).access_level);
-
-    console.log('[NotesStore][addNote] Ajout d\'une note avec ID backend:', note.id, 'et niveau d\'accès:', accessLevel);
-
-    // Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
+// Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
     const authStore = useAuthStore();
     let enterprise_id = note.enterprise_id;
     
@@ -222,10 +213,7 @@ export const useNotesStore = defineStore('notes', () => {
         enterprise_id = authStore.user.enterprise_id;
       }
     }
-    
-    console.log('[NotesStore][addNote] Enterprise ID final:', enterprise_id);
-
-    notes.value.push({
+notes.value.push({
       ...note,
       id: note.id,
       order,
@@ -241,8 +229,7 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   function updateNote(id: number, data: Partial<Note> & { access_level?: string }) {
-    console.log('\n[NotesStore][updateNote] Mise à jour de la note:', id, data);
-    try {
+try {
       const index = notes.value.findIndex(note => note.id === id);
       if (index !== -1) {
         // Si une nouvelle couleur est fournie, mettre à jour le style également
@@ -265,9 +252,7 @@ export const useNotesStore = defineStore('notes', () => {
           ...notes.value[index],
           ...data
         };
-
-        console.log('[NotesStore][updateNote] Note mise à jour:', notes.value[index]);
-      }
+}
     } catch (error) {
       console.error('[NotesStore][updateNote] Erreur:', error);
       throw error;
@@ -277,8 +262,7 @@ export const useNotesStore = defineStore('notes', () => {
   function removeNote(id: number) {
     const noteIndex = notes.value.findIndex(note => note.id === id);
     if (noteIndex !== -1) {
-      console.log('[NotesStore][removeNote] Suppression de la note avec ID:', id);
-      notes.value = notes.value.filter(note => note.id !== id);
+notes.value = notes.value.filter(note => note.id !== id);
     } else {
       console.warn('[NotesStore][removeNote] Tentative de suppression d\'une note inexistante avec ID:', id);
     }
@@ -545,10 +529,7 @@ export const useNotesStore = defineStore('notes', () => {
         photos: updatedPhotos,
         updatedAt: new Date().toISOString()
       };
-
-      console.log('[NotesStore] Photo supprimée avec succès, photos restantes:', updatedPhotos.length);
-
-    } catch (error) {
+} catch (error) {
       console.error('Erreur lors de la suppression de la photo:', error);
       throw error;
     }

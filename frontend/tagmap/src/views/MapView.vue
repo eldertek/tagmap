@@ -1351,14 +1351,7 @@ watch(() => irrigationStore.currentPlan, async (newPlan, oldPlan) => {
     currentPlan.value = null;
     clearMap();
   }
-
-  console.log('[MapView][watch currentPlan] État final:', {
-    currentPlanId: currentPlan.value?.id,
-    storePlanId: irrigationStore.currentPlan?.id,
-    mapVisible: map.value !== null,
-    mapParentDisplay: document.querySelector('.map-parent')?.getAttribute('style')
-  });
-  console.log('[MapView][watch currentPlan] ====== FIN CHANGEMENT ======\n');
+console.log('[MapView][watch currentPlan] ====== FIN CHANGEMENT ======\n');
 }, { immediate: true });
 // Nettoyer l'écouteur d'événement lors de la destruction du composant
 onBeforeUnmount(() => {
@@ -1473,13 +1466,7 @@ async function refreshMapWithPlan(planId: number) {
                   layer: geoNote,
                   properties: (geoNote as any).properties
                 });
-
-                console.log('[MapView][refreshMapWithPlan] Note géolocalisée ajoutée à la carte:', {
-                  id: note.id,
-                  title: note.title,
-                  location: note.location
-                });
-              }
+}
             } catch (error) {
               console.error('[MapView][refreshMapWithPlan] Erreur lors de l\'ajout de la note géolocalisée:', error);
             }
@@ -1560,8 +1547,7 @@ async function refreshMapWithPlan(planId: number) {
                         break;
                       }
                       case 'Note': {
-                        console.log('[MapView][refreshMapWithPlan] Création d\'une note:', element.data);
-                        const noteData = element.data as any;
+const noteData = element.data as any;
                         // Vérifier si la localisation est valide (soit un tableau [lat, lng] soit un objet GeoJSON)
                         const hasValidLocation = (
                           // Format tableau [lat, lng]
@@ -1578,13 +1564,11 @@ async function refreshMapWithPlan(planId: number) {
                             // S'assurer que la catégorie et le niveau d'accès sont définis
                             if (!noteData.category) {
                               noteData.category = 'forages';
-                              console.log('[MapView][refreshMapWithPlan] Catégorie par défaut ajoutée:', noteData.category);
-                            }
+}
 
                             if (!noteData.accessLevel) {
                               noteData.accessLevel = 'private';
-                              console.log('[MapView][refreshMapWithPlan] Niveau d\'accès par défaut ajouté:', noteData.accessLevel);
-                            }
+}
 
                             // Utiliser la méthode statique de GeoNote pour créer une note à partir des données
                             const geoNote = GeoNote.fromBackendData(noteData);
@@ -1593,25 +1577,12 @@ async function refreshMapWithPlan(planId: number) {
                             (geoNote as any)._dbId = element.id;
 
                             layer = geoNote;
-
-                            console.log('[MapView][refreshMapWithPlan] Note créée:', {
-                              id: element.id,
-                              location: noteData.location,
-                              name: noteData.name,
-                              category: noteData.category,
-                              accessLevel: noteData.accessLevel,
-                              type: (geoNote as any).properties.type
-                            });
-                          } catch (error) {
+} catch (error) {
                             console.error('[MapView][refreshMapWithPlan] Erreur lors de la création de la Note:', error);
                           }
                         } else {
                           console.error('[MapView][refreshMapWithPlan] Données invalides pour Note:', noteData);
-                          console.log('[MapView][refreshMapWithPlan] Format de location attendu:', {
-                            formatArray: '[lat, lng]',
-                            formatGeoJSON: '{ type: "Point", coordinates: [lng, lat] }'
-                          });
-                        }
+}
                         break;
                       }
                     }
@@ -1644,8 +1615,7 @@ async function refreshMapWithPlan(planId: number) {
               }
             }, 100);
         }
-        console.log(`Plan ${planId} chargé avec succès avec ${drawingStore.getCurrentElements.length} formes`);
-      } else {
+} else {
         console.error(`Plan ${planId} introuvable après chargement`);
       }
       showLoadPlanModal.value = false;
@@ -1656,19 +1626,14 @@ async function refreshMapWithPlan(planId: number) {
 }
 // Modifier la fonction loadPlan pour utiliser refreshMapWithPlan
 async function loadPlan(planId: number) {
-  console.log('\n[MapView][loadPlan] ====== DÉBUT CHARGEMENT PLAN ======');
-  console.log('[MapView][loadPlan] Tentative de chargement du plan:', planId);
+console.log('[MapView][loadPlan] Tentative de chargement du plan:', planId);
 
   try {
     // Vérifier si le plan existe dans le store
     const plan = irrigationStore.getPlanById(planId);
-
-    console.log('[MapView][loadPlan] Plan trouvé dans le store:', !!plan);
-
-    // Si le plan n'existe pas dans le store, vérifier avec l'API
+// Si le plan n'existe pas dans le store, vérifier avec l'API
     if (!plan) {
-      console.log('[MapView][loadPlan] Plan non trouvé dans le store, vérification API...');
-      try {
+try {
         await api.get(`/plans/${planId}/`);
       } catch (error: any) {
         if (error.response?.status === 404) {
@@ -1682,20 +1647,11 @@ async function loadPlan(planId: number) {
         throw error;
       }
     }
-
-    console.log('[MapView][loadPlan] Rafraîchissement de la carte...');
-    await refreshMapWithPlan(planId);
+await refreshMapWithPlan(planId);
 
     showLoadPlanModal.value = false;
-
-    console.log('[MapView][loadPlan] Invalidation de la taille de la carte...');
-    invalidateMapSize();
-
-    console.log('[MapView][loadPlan] Plan chargé avec succès:', {
-      planId,
-      elementsCount: drawingStore.getCurrentElements.length
-    });
-  } catch (error) {
+invalidateMapSize();
+} catch (error) {
     console.error('Erreur lors du chargement du plan:', error);
     // En cas d'erreur, réinitialiser complètement l'état
     currentPlan.value = null;
@@ -1748,10 +1704,7 @@ async function savePlan() {
         // Récupérer la catégorie et le niveau d'accès
         const category = (layer as any).properties?.category || 'forages';
         const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
-
-        console.log('[savePlan] Line - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
-
-        data = {
+data = {
           points: latLngs.map(ll => [ll.lng, ll.lat]),
           name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
           category: category, // Ajouter la catégorie
@@ -1768,10 +1721,7 @@ async function savePlan() {
         // Récupérer la catégorie et le niveau d'accès
         const category = (layer as any).properties?.category || 'forages';
         const accessLevel = (layer as any).properties?.accessLevel || 'visitor';
-
-        console.log('[savePlan] Polygon - Catégorie:', category, 'Niveau d\'accès:', accessLevel);
-
-        data = {
+data = {
           points: latLngs.map(ll => [ll.lng, ll.lat]),
           name: (layer as any).properties?.name || '', // Assurer que le nom est inclus
           category: category, // Ajouter la catégorie
@@ -1785,9 +1735,7 @@ async function savePlan() {
       } else if ((layer as any).properties?.type === 'Note') {
         // Les notes géolocalisées sont maintenant gérées directement via l'API des notes
         // et ne sont plus incluses dans la sauvegarde du plan
-        console.log('[savePlan] Note géolocalisée détectée - sauvegarde via API dédiée');
-
-        // Ajouter l'ID à la liste des couches actuelles pour éviter qu'elle soit considérée comme supprimée
+// Ajouter l'ID à la liste des couches actuelles pour éviter qu'elle soit considérée comme supprimée
         const geoNote = layer as any;
         if (geoNote._dbId && typeof geoNote._dbId === 'number') {
           currentLayerIds.add(geoNote._dbId);
@@ -1811,20 +1759,12 @@ async function savePlan() {
               // Préserver la couleur existante
               if (geoNote.properties.style.color) {
                 const currentColor = geoNote.properties.style.color;
-                console.log('[savePlan] Préservation de la couleur existante:', currentColor);
-
-                // S'assurer que la couleur est préservée dans le style
+// S'assurer que la couleur est préservée dans le style
                 geoNote.properties.style.color = currentColor;
                 geoNote.properties.style.fillColor = currentColor;
               }
             }
-
-            console.log('[savePlan] Sauvegarde de la note géolocalisée via API dédiée', {
-              category: geoNote.properties?.category,
-              accessLevel: geoNote.properties?.accessLevel,
-              styleAccessLevel: geoNote.properties?.style?.accessLevel
-            });
-            // Sauvegarder la note avec l'ID du plan actuel
+// Sauvegarder la note avec l'ID du plan actuel
             if (currentPlan.value && currentPlan.value.id) {
               geoNote.saveNote(currentPlan.value.id);
             } else {
@@ -1926,16 +1866,12 @@ onUnmounted(() => {
 });
 // Fonction pour mettre à jour les propriétés d'une forme
 function updateShapeProperties(properties: any) {
-  console.log('[MapView][updateShapeProperties] Mise à jour des propriétés:', properties);
-
-  // Mettre à jour les propriétés de la forme
+// Mettre à jour les propriétés de la forme
   updatePropertiesFromDestruct(properties);
 
   // Vérifier si c'est une note géolocalisée
   if (selectedLeafletShape.value && selectedLeafletShape.value.properties?.type === 'Note') {
-    console.log('[MapView][updateShapeProperties] Note géolocalisée détectée, sauvegarde via API dédiée');
-
-    // Vérifier si la note a une méthode saveNote
+// Vérifier si la note a une méthode saveNote
     if (typeof (selectedLeafletShape.value as any).saveNote === 'function') {
       try {
         // S'assurer que les propriétés sont correctement mises à jour avant la sauvegarde
@@ -1958,20 +1894,11 @@ function updateShapeProperties(properties: any) {
         // Préserver la couleur existante
         if (selectedLeafletShape.value.properties.style && selectedLeafletShape.value.properties.style.color) {
           const currentColor = selectedLeafletShape.value.properties.style.color;
-          console.log('[MapView][updateShapeProperties] Préservation de la couleur existante:', currentColor);
-
-          // S'assurer que la couleur est préservée dans le style
+// S'assurer que la couleur est préservée dans le style
           selectedLeafletShape.value.properties.style.color = currentColor;
           selectedLeafletShape.value.properties.style.fillColor = currentColor;
         }
-
-        console.log('[MapView][updateShapeProperties] Sauvegarde de la note géolocalisée via API dédiée', {
-          category: selectedLeafletShape.value.properties?.category,
-          accessLevel: selectedLeafletShape.value.properties?.accessLevel,
-          updatedProperties: properties
-        });
-
-        // Sauvegarder la note avec l'ID du plan actuel
+// Sauvegarder la note avec l'ID du plan actuel
         if (currentPlan.value && currentPlan.value.id) {
           (selectedLeafletShape.value as any).saveNote(currentPlan.value.id);
         } else {
@@ -1981,8 +1908,7 @@ function updateShapeProperties(properties: any) {
 
         // Forcer la mise à jour du popup après la sauvegarde
         if (selectedLeafletShape.value.bindPopup && selectedLeafletShape.value.createPopupContent) {
-          console.log('[MapView][updateShapeProperties] Forçage de la mise à jour du popup après la sauvegarde');
-          selectedLeafletShape.value.bindPopup(selectedLeafletShape.value.createPopupContent());
+selectedLeafletShape.value.bindPopup(selectedLeafletShape.value.createPopupContent());
         }
       } catch (error) {
         console.error('[MapView][updateShapeProperties] Erreur lors de la sauvegarde de la note:', error);
@@ -1997,9 +1923,7 @@ function updateShapeProperties(properties: any) {
     const storeElement = drawingStore.elements.find(e => e.id === dbId);
 
     if (storeElement) {
-      console.log(`[MapView][updateShapeProperties] Mise à jour de la catégorie dans le store: ${properties.category} pour l'élément ${dbId}`);
-
-      // Mettre à jour la catégorie directement sur l'élément du store
+// Mettre à jour la catégorie directement sur l'élément du store
       // Utiliser une assertion de type pour éviter les erreurs TypeScript
       const anyElement = storeElement as any;
       if (!anyElement.data) {
@@ -2059,17 +1983,12 @@ const deleteSelectedShape = async () => {
     // Si c'est une GeoNote et qu'elle a un ID dans la base de données, la supprimer du backend
     if (isGeoNote && dbId) {
       try {
-        console.log(`[MapView][deleteSelectedShape] Suppression de la note ${dbId} du backend...`);
-
-        // Appeler l'API pour supprimer la note
+// Appeler l'API pour supprimer la note
         await noteService.deleteNote(dbId);
 
         // Supprimer également la note du store
         notesStore.removeNote(dbId);
-
-        console.log(`[MapView][deleteSelectedShape] Note ${dbId} supprimée avec succès du backend et du store`);
-
-        // Afficher une notification de succès
+// Afficher une notification de succès
         notificationStore.success('Note supprimée avec succès');
       } catch (error) {
         console.error(`[MapView][deleteSelectedShape] Erreur lors de la suppression de la note ${dbId} du backend:`, error);
@@ -2085,21 +2004,16 @@ const deleteSelectedShape = async () => {
     shapes.value = shapes.value.filter(shape =>
       shape.layer && shape.layer._leaflet_id !== layerId
     );
-
-    console.log(`[MapView][deleteSelectedShape] Forme ${layerId} (dbId: ${dbId}) supprimée du featureGroup et de shapes.value`);
-
-    selectedLeafletShape.value = null;
+selectedLeafletShape.value = null;
   }
 };
 // Ajouter la fonction de callback
 async function onPlanCreated(planId: number) {
-  console.log(`onPlanCreated - Tentative de chargement du plan ${planId}`);
-  // Actualiser la liste des plans pour s'assurer que le nouveau plan est bien présent
+// Actualiser la liste des plans pour s'assurer que le nouveau plan est bien présent
   await irrigationStore.fetchPlans();
   const plan = irrigationStore.getPlanById(planId);
   if (plan) {
-    console.log(`Plan ${planId} trouvé, chargement en cours...`);
-    // Mettre à jour l'ID du dernier plan consulté dans localStorage
+// Mettre à jour l'ID du dernier plan consulté dans localStorage
     localStorage.setItem('lastPlanId', planId.toString());
     currentPlan.value = plan;
     irrigationStore.setCurrentPlan(plan);
@@ -2107,8 +2021,7 @@ async function onPlanCreated(planId: number) {
     showNewPlanModal.value = false;
     // Invalider la taille de la carte après le chargement
     invalidateMapSize();
-    console.log(`Plan ${planId} chargé avec succès`);
-  } else {
+} else {
     console.error(`Plan ${planId} introuvable après création! Vérifiez les permissions.`);
   }
 }
@@ -2221,31 +2134,16 @@ const entreprises = ref<ExtendedUserDetails[]>([]);
 
 // Computed pour les salaries filtrés selon l'entreprise sélectionnée
 const filteredSalaries = computed(() => {
-  console.log('[MapView][filteredSalaries] Computing with:', {
-    selectedEntreprise: selectedEntreprise.value,
-    salaries: salaries.value,
-    salariesLength: salaries.value.length
-  });
-  if (!selectedEntreprise.value) return [];
+if (!selectedEntreprise.value) return [];
   const filtered = salaries.value.filter(salarie => {
     const salarieEntreprise = (salarie as ExtendedUserDetails).entreprise;
     // Vérifier si salarieEntreprise est un objet et extraire l'ID si c'est le cas
     const salarieEntrepriseId = typeof salarieEntreprise === 'object' && salarieEntreprise !== null
       ? (salarieEntreprise as any).id
       : salarieEntreprise;
-
-    console.log('[MapView][filteredSalaries] Checking salarie:', {
-      salarie,
-      salarieEntreprise,
-      salarieEntrepriseId,
-      selectedEntrepriseId: selectedEntreprise.value?.id,
-      matches: salarieEntrepriseId === selectedEntreprise.value?.id
-    });
-
-    return salarieEntrepriseId === selectedEntreprise.value?.id;
+return salarieEntrepriseId === selectedEntreprise.value?.id;
   });
-  console.log('[MapView][filteredSalaries] Filtered result:', filtered);
-  return filtered;
+return filtered;
 });
 
 // Fonction pour formater l'affichage des utilisateurs
@@ -2275,24 +2173,17 @@ async function loadEntreprises() {
 
 // Fonction pour sélectionner une entreprise
 async function selectEntreprise(entreprise: ExtendedUserDetails) {
-  console.log('[MapView][selectEntreprise] Sélection de l\'entreprise:', entreprise);
-  selectedEntreprise.value = entreprise;
+selectedEntreprise.value = entreprise;
   isLoadingSalaries.value = true;
   try {
-    console.log('[MapView][selectEntreprise] Envoi de la requête avec params:', {
-      role: 'SALARIE',
-      entreprise: entreprise.id
-    });
-    const response = await api.get('/users/', {
+const response = await api.get('/users/', {
       params: {
         role: 'SALARIE',
         entreprise: entreprise.id
       }
     });
-    console.log('[MapView][selectEntreprise] Réponse reçue:', response.data);
-    salaries.value = response.data;
-    console.log('[MapView][selectEntreprise] Salaries mis à jour:', salaries.value);
-  } catch (error) {
+salaries.value = response.data;
+} catch (error) {
     console.error('[MapView] Error loading salaries for entreprise:', error);
     salaries.value = [];
   } finally {
@@ -2333,21 +2224,13 @@ function backToClientList() {
 
 // Fonction pour sélectionner un salarie
 async function selectSalarie(salarie: ExtendedUserDetails) {
-  console.log('\n[MapView][selectSalarie] ====== DÉBUT SÉLECTION SALARIE ======');
-  console.log('Informations du salarie:', {
+console.log('Informations du salarie:', {
     id: salarie.id,
     username: salarie.username,
     company: salarie.company_name,
     role: salarie.role
   });
-  console.log('Contexte utilisateur:', {
-    userType: authStore.user?.user_type,
-    userId: authStore.user?.id,
-    userRole: authStore.user?.role,
-    selectedEntrepriseId: selectedEntreprise.value?.id
-  });
-
-  selectedSalarie.value = salarie;
+selectedSalarie.value = salarie;
   isLoadingClients.value = true;
   try {
     const params: Record<string, any> = {
@@ -2357,35 +2240,16 @@ async function selectSalarie(salarie: ExtendedUserDetails) {
 
     // Ajouter l'ID de l'entreprise selon le contexte
     if (authStore.isEntreprise) {
-      console.log('Ajout de l\'ID de l\'entreprise connectée:', authStore.user?.id);
-      params.entreprise = authStore.user?.id;
+params.entreprise = authStore.user?.id;
     } else if (selectedEntreprise.value) {
-      console.log('Ajout de l\'ID de l\'entreprise sélectionnée:', selectedEntreprise.value.id);
-      params.entreprise = selectedEntreprise.value.id;
+params.entreprise = selectedEntreprise.value.id;
     }
-
-    console.log('Paramètres de la requête:', params);
-
-    const response = await api.get('/users/', { params });
-    console.log('Réponse reçue du serveur:', {
-      status: response.status,
-      dataLength: Array.isArray(response.data) ? response.data.length : 'non-array',
-      data: response.data
-    });
-
-    if (Array.isArray(response.data)) {
+const response = await api.get('/users/', { params });
+if (Array.isArray(response.data)) {
       salarieVisiteurs.value = response.data;
-      console.log(`${response.data.length} visiteurs chargés`);
-
-      // Log détaillé des visiteurs
+// Log détaillé des visiteurs
       response.data.forEach((visiteur, index) => {
-        console.log(`Visiteur ${index + 1}:`, {
-          id: visiteur.id,
-          username: visiteur.username,
-          company: visiteur.company_name,
-          salarie: visiteur.salarie
-        });
-      });
+});
     } else {
       console.warn('Format de réponse inattendu:', response.data);
       salarieVisiteurs.value = [];
@@ -2408,8 +2272,7 @@ async function selectSalarie(salarie: ExtendedUserDetails) {
     salarieVisiteurs.value = [];
   } finally {
     isLoadingClients.value = false;
-    console.log('[MapView][selectSalarie] ====== FIN SÉLECTION SALARIE ======\n');
-  }
+}
 }
 
 // Fonctions pour gérer l'édition des notes
@@ -2448,12 +2311,10 @@ async function confirmDeletePlan() {
     // Recharger les plans selon le contexte
     if (currentContext.isNoVisiteurView) {
       // Si on était dans la vue des plans sans visiteur
-      console.log('[MapView][confirmDeletePlan] Rechargement des plans sans visiteur');
-      await loadPlansWithoutVisiteur();
+await loadPlansWithoutVisiteur();
     } else if (currentContext.selectedClient) {
       // Si on était dans la vue des plans d'un client spécifique
-      console.log('[MapView][confirmDeletePlan] Rechargement des plans du client:', currentContext.selectedClient.id);
-      const params: any = { visiteur: currentContext.selectedClient.id };
+const params: any = { visiteur: currentContext.selectedClient.id };
       if (currentContext.selectedSalarie) params.salarie = currentContext.selectedSalarie.id;
       if (authStore.isEntreprise) params.entreprise = authStore.user?.id;
       else if (selectedEntreprise.value) params.entreprise = selectedEntreprise.value.id;
@@ -2462,8 +2323,7 @@ async function confirmDeletePlan() {
       clientPlans.value = response.data;
     } else {
       // Interface client simple - forcer le rechargement complet
-      console.log('[MapView][confirmDeletePlan] Rechargement de tous les plans');
-      await irrigationStore.fetchPlans();
+await irrigationStore.fetchPlans();
     }
 
     // Si le plan supprimé était le plan courant, le nettoyer
@@ -2496,26 +2356,16 @@ function handleFilterChange(filters: {
   shapeTypes: { [key: string]: boolean };
 }) {
   // Toujours mettre à jour les filtres dans le store
-  console.log('[MapView][handleFilterChange] Mise à jour des filtres dans le store');
-  drawingStore.updateFilters(filters);
+drawingStore.updateFilters(filters);
 
   // Vérifier les éléments actuels dans le store
-  console.log('[MapView][handleFilterChange] Éléments dans le store:', {
-    count: drawingStore.elements.length,
-    ids: drawingStore.elements.map(e => e.id)
-  });
-
-  // Mettre à jour l'affichage de la carte
-  console.log('[MapView][handleFilterChange] Mise à jour de l\'affichage de la carte');
-  updateMapDisplay();
+// Mettre à jour l'affichage de la carte
+updateMapDisplay();
 
   // Forcer une mise à jour supplémentaire après un court délai
   setTimeout(() => {
-    console.log('[MapView][handleFilterChange] Mise à jour forcée de l\'affichage');
-    updateMapDisplay();
+updateMapDisplay();
   }, 100);
-
-  console.log('[MapView][handleFilterChange] Traitement des filtres terminé');
 }
 
 // Fonction pour mettre à jour l'affichage de la carte en fonction des filtres
@@ -2530,8 +2380,7 @@ function updateMapDisplay() {
         !shape.id &&
         (!shape.layer.properties ||
          (shape.layer.properties && !shape.layer.properties.type))) {
-      console.log(`[MapView][updateMapDisplay] Nettoyage préventif de la couche temporaire ${shape.layer._leaflet_id}`);
-      shapesToRemove.push(index);
+shapesToRemove.push(index);
     }
   });
 
@@ -2554,21 +2403,11 @@ function updateMapDisplay() {
       type_forme: e.type_forme
     }))
   };
-  console.log('[MapView][updateMapDisplay] Éléments dans le store:', JSON.stringify(elementsLog, null, 2));
-
-  // Obtenir les éléments filtrés
+// Obtenir les éléments filtrés
   const filteredElements = drawingStore.getFilteredElements;
-  console.log('[MapView][updateMapDisplay] Éléments filtrés:', {
-    total: drawingStore.elements.length,
-    filtered: filteredElements.length,
-    filteredIds: filteredElements.map((e: any) => e.id)
-  });
-
-  // Obtenir tous les éléments actuellement affichés
+// Obtenir tous les éléments actuellement affichés
   const currentLayers = featureGroup.value.getLayers();
-  console.log('[MapView][updateMapDisplay] Couches actuelles:', currentLayers.length);
-
-  // Log détaillé des couches pour débogage
+// Log détaillé des couches pour débogage
   const layersLog = currentLayers.map((layer: any) => ({
     _leaflet_id: layer._leaflet_id,
     _dbId: layer._dbId,
@@ -2576,19 +2415,8 @@ function updateMapDisplay() {
     propertyType: layer.properties ? layer.properties.type : null,
     category: layer.properties ? layer.properties.category : null
   }));
-  console.log('[MapView][updateMapDisplay] Détails des couches:', JSON.stringify(layersLog, null, 2));
-
-  // Afficher l'état des filtres pour débogage
-  console.log('[MapView][updateMapDisplay] État des filtres pour les catégories:', {
-    forages: drawingStore.filters.categories.forages,
-    clients: drawingStore.filters.categories.clients,
-    entrepots: drawingStore.filters.categories.entrepots,
-    livraisons: drawingStore.filters.categories.livraisons,
-    cultures: drawingStore.filters.categories.cultures,
-    parcelles: drawingStore.filters.categories.parcelles
-  });
-
-  // Créer un mapping entre les éléments du store et les couches Leaflet
+// Afficher l'état des filtres pour débogage
+// Créer un mapping entre les éléments du store et les couches Leaflet
   const layerMapping = new Map();
   shapes.value.forEach(shape => {
     if (shape.layer && shape.id) {
@@ -2608,13 +2436,9 @@ function updateMapDisplay() {
   const filteredElementIds = new Set(filteredElements.map(e => e.id));
 
   // Parcourir toutes les couches et masquer/afficher selon les filtres
-  console.log('[MapView][updateMapDisplay] Début du traitement des couches');
-
-  // Convertir l'ensemble en tableau pour l'affichage dans les logs
+// Convertir l'ensemble en tableau pour l'affichage dans les logs
   const filteredElementIdsArray = Array.from(filteredElementIds);
-  console.log('[MapView][updateMapDisplay] IDs des éléments filtrés:', JSON.stringify(filteredElementIdsArray));
-
-  // Compteurs pour les statistiques
+// Compteurs pour les statistiques
   let visibleCount = 0;
   let hiddenCount = 0;
   let noDbIdCount = 0;
@@ -2630,14 +2454,12 @@ function updateMapDisplay() {
       // Pour les couches sans dbId, vérifier si elles ont des propriétés
       if (!layer.properties) {
         noDbIdCount++;
-        console.log(`[MapView][updateMapDisplay] Couche ${leafletId} sans dbId et sans propriétés, ignorée`);
-        return;
+return;
       }
 
       // Assigner un ID temporaire pour le filtrage
       layer._dbId = Date.now() + Math.floor(Math.random() * 1000);
-      console.log(`[MapView][updateMapDisplay] Couche ${leafletId} sans dbId, ID temporaire assigné: ${layer._dbId}`);
-    }
+}
 
     // Vérifier directement les propriétés de la couche pour déterminer si elle doit être visible
     const properties = layer.properties || {};
@@ -2656,8 +2478,7 @@ function updateMapDisplay() {
         if (data && data.category) {
           // Si la catégorie dans le store est différente de celle dans les propriétés, utiliser celle du store
           if (category !== data.category) {
-            console.log(`[MapView][updateMapDisplay] Catégorie différente détectée - Propriétés: ${category}, Store: ${data.category} pour la couche ${layer._dbId}`);
-            category = data.category;
+category = data.category;
           }
 
           // Toujours mettre à jour la catégorie dans les propriétés de la couche pour s'assurer qu'elle est synchronisée
@@ -2675,10 +2496,7 @@ function updateMapDisplay() {
     }
 
     const accessLevel = properties.accessLevel || 'visitor';
-
-    console.log(`[MapView][updateMapDisplay] Couche ${leafletId} (dbId: ${layer._dbId}): type=${type}, category=${category}, accessLevel=${accessLevel}`);
-
-    // Vérifier si le type, la catégorie et le niveau d'accès sont activés dans les filtres
+// Vérifier si le type, la catégorie et le niveau d'accès sont activés dans les filtres
     let typeVisible = false; // Par défaut, non visible
     if (type) {
       // Vérifier explicitement si le type est activé dans les filtres
@@ -2694,17 +2512,14 @@ function updateMapDisplay() {
       // Vérifier explicitement si la catégorie est activée dans les filtres
       if (category in drawingStore.filters.categories) {
         categoryVisible = drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] === true;
-        console.log(`[MapView][updateMapDisplay] Vérification de la catégorie ${category}: ${categoryVisible}`);
-      } else {
+} else {
         // Si la catégorie n'existe pas dans les filtres, on utilise 'forages' comme catégorie par défaut
         categoryVisible = drawingStore.filters.categories.forages === true;
-        console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée dans les filtres, utilisation de 'forages': ${categoryVisible}`);
-      }
+}
     } else {
       // Si la catégorie n'est pas spécifiée, on vérifie si la catégorie 'forages' est activée
       categoryVisible = drawingStore.filters.categories.forages === true;
-      console.log(`[MapView][updateMapDisplay] Catégorie non spécifiée, utilisation de 'forages': ${categoryVisible}`);
-    }
+}
 
     // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
     // Cela évite de réinitialiser à 'forages' quand on filtre puis défiltre
@@ -2728,10 +2543,7 @@ function updateMapDisplay() {
     } else if (userAccessLevel.visitor) {
       selectedLevel = 'visitor';
     }
-
-    console.log(`[MapView][updateMapDisplay] Niveau d'accès sélectionné par l'utilisateur: ${selectedLevel}`);
-
-    if (accessLevel) {
+if (accessLevel) {
       // Logique hiérarchique:
       // - Si l'utilisateur a sélectionné 'company', il voit tout (entreprise, salariés, visiteurs)
       // - Si l'utilisateur a sélectionné 'employee', il voit les éléments pour salariés et visiteurs
@@ -2758,14 +2570,9 @@ function updateMapDisplay() {
         accessLevelVisible = true;
       }
     }
-
-    console.log(`[MapView][updateMapDisplay] Niveau d'accès de la couche: ${accessLevel}, visible: ${accessLevelVisible}`);
-
-
-    // Vérifier si la couche doit être visible selon les filtres
+// Vérifier si la couche doit être visible selon les filtres
     const isVisible = typeVisible && categoryVisible && accessLevelVisible;
-    console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
-    console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
+console.log(`[MapView][updateMapDisplay] Détails de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
 
 
     // Ne pas forcer la mise à jour de la catégorie si elle n'existe pas déjà
@@ -2781,55 +2588,44 @@ function updateMapDisplay() {
             layer.properties = {};
           }
           layer.properties.category = category;
-          console.log(`[MapView][updateMapDisplay] Catégorie définie avant ajout: ${category} pour la couche ${layer._dbId}`);
-        }
+}
 
         // La couche n'est pas encore visible, l'ajouter
         featureGroup.value.addLayer(layer);
         visibleCount++;
-        console.log(`[MapView][updateMapDisplay] Affichage de la couche ${layer._dbId} (${type}) avec catégorie ${layer.properties?.category || 'non définie'}`);
-      } else {
+} else {
         // La couche est déjà visible
         visibleCount++;
-        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà visible avec catégorie ${layer.properties?.category || 'non définie'}`);
-      }
+}
     } else {
       // La couche doit être masquée
       if (featureGroup.value.hasLayer(layer)) {
         // La couche est visible, la masquer
         featureGroup.value.removeLayer(layer);
         hiddenCount++;
-        console.log(`[MapView][updateMapDisplay] Masquage de la couche ${layer._dbId} (${type}) - Filtres non respectés`);
-      } else {
+} else {
         // La couche est déjà masquée
         hiddenCount++;
-        console.log(`[MapView][updateMapDisplay] Couche ${layer._dbId} (${type}) déjà masquée`);
-      }
+}
     }
   });
 
   // ÉTAPE 2: Parcourir toutes les formes stockées dans shapes.value
   // pour restaurer celles qui ont été filtrées mais qui devraient maintenant être visibles
-  console.log('[MapView][updateMapDisplay] Début de la restauration des couches filtrées');
-  console.log('[MapView][updateMapDisplay] Nombre de formes dans shapes.value:', shapes.value.length);
+console.log('[MapView][updateMapDisplay] Nombre de formes dans shapes.value:', shapes.value.length);
 
   // Parcourir toutes les formes dans shapes.value
   shapes.value.forEach(shape => {
     if (!shape.layer) {
-      console.log('[MapView][updateMapDisplay] Forme sans couche, ignorée');
-      return;
+return;
     }
 
     const layer = shape.layer;
     const leafletId = layer._leaflet_id;
     const dbId = layer._dbId;
-
-    console.log(`[MapView][updateMapDisplay] Traitement de la forme ${leafletId} (dbId: ${dbId})`);
-
-    // Vérifier si la couche est déjà dans le featureGroup
+// Vérifier si la couche est déjà dans le featureGroup
     if (featureGroup.value.hasLayer(layer)) {
-      console.log(`[MapView][updateMapDisplay] La couche ${leafletId} est déjà dans le featureGroup, ignorée`);
-      return;
+return;
     }
 
     // Vérifier les propriétés de la couche
@@ -2848,16 +2644,14 @@ function updateMapDisplay() {
         const data = storeElement.data as any;
         if (data && data.category) {
           category = data.category;
-          console.log(`[MapView][updateMapDisplay] Catégorie récupérée depuis le store: ${category} pour la couche ${layer._dbId}`);
-        }
+}
       }
     }
 
     // Si aucune catégorie n'a été trouvée dans le store, utiliser celle des propriétés
     if (!category && properties.category) {
       category = properties.category;
-      console.log(`[MapView][updateMapDisplay] Catégorie récupérée depuis les propriétés: ${category} pour la couche ${leafletId}`);
-    }
+}
 
     // Utiliser 'default' comme valeur par défaut si aucune catégorie n'est trouvée
     if (!category) {
@@ -2875,9 +2669,7 @@ function updateMapDisplay() {
     if (category && category !== 'default') {
       // Mettre à jour la catégorie dans les propriétés de la couche
       layer.properties.category = category;
-      console.log(`[MapView][updateMapDisplay] Catégorie définie/restaurée: ${category} pour la couche ${layer._dbId}`);
-
-      // Mettre à jour la catégorie dans le store si nécessaire
+// Mettre à jour la catégorie dans le store si nécessaire
       if (layer._dbId) {
         const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
         if (storeElement) {
@@ -2888,8 +2680,7 @@ function updateMapDisplay() {
 
           // Mettre à jour la catégorie dans le store si elle est différente
           if (anyElement.data.category !== category) {
-            console.log(`[MapView][updateMapDisplay] Mise à jour de la catégorie dans le store: ${category} pour l'élément ${layer._dbId}`);
-            anyElement.data.category = category;
+anyElement.data.category = category;
             drawingStore.$patch({ unsavedChanges: true });
           }
         }
@@ -2899,10 +2690,7 @@ function updateMapDisplay() {
     if (!layer.properties.accessLevel) {
       layer.properties.accessLevel = 'visitor';
     }
-
-    console.log(`[MapView][updateMapDisplay] Propriétés de la couche ${leafletId}: type=${type}, category=${category}, accessLevel=${accessLevel}`);
-
-    // Vérifier si le type est visible selon les filtres
+// Vérifier si le type est visible selon les filtres
     let typeVisible = false;
     if (type) {
       typeVisible = type in drawingStore.filters.shapeTypes &&
@@ -2916,8 +2704,7 @@ function updateMapDisplay() {
     if (category) {
       if (category in drawingStore.filters.categories) {
         categoryVisible = drawingStore.filters.categories[category as keyof typeof drawingStore.filters.categories] === true;
-        console.log(`[MapView][updateMapDisplay] Vérification de la catégorie ${category}: ${categoryVisible}`);
-      } else {
+} else {
         // Si la catégorie n'existe pas dans les filtres, vérifier d'abord si elle existe dans mapFilterStore
         // pour éviter de réinitialiser à 'forages' les catégories personnalisées qui n'ont pas encore été chargées
         const mapFilterStore = useMapFilterStore();
@@ -2925,21 +2712,18 @@ function updateMapDisplay() {
 
         if (customCategories.includes(category)) {
           // Si c'est une catégorie personnalisée connue, l'ajouter au filtre avec une valeur true
-          console.log(`[MapView][updateMapDisplay] Catégorie personnalisée ${category} trouvée dans mapFilterStore, ajout aux filtres`);
-          const updatedCategories = { ...drawingStore.filters.categories };
+const updatedCategories = { ...drawingStore.filters.categories };
           updatedCategories[category] = true;
           drawingStore.updateFilters({ categories: updatedCategories });
           categoryVisible = true;
         } else {
           // Si ce n'est pas une catégorie personnalisée connue, utiliser 'forages' comme catégorie par défaut
           categoryVisible = drawingStore.filters.categories.forages === true;
-          console.log(`[MapView][updateMapDisplay] Catégorie ${category} non trouvée, utilisation de 'forages': ${categoryVisible}`);
-        }
+}
       }
     } else {
       categoryVisible = drawingStore.filters.categories.forages === true;
-      console.log(`[MapView][updateMapDisplay] Pas de catégorie, utilisation de 'forages': ${categoryVisible}`);
-    }
+}
 
     // Vérifier si le niveau d'accès est visible selon les filtres avec logique hiérarchique
     let accessLevelVisible = false;
@@ -2960,10 +2744,7 @@ function updateMapDisplay() {
     } else if (userAccessLevel.visitor) {
       selectedLevel = 'visitor';
     }
-
-    console.log(`[MapView][updateMapDisplay] Niveau d'accès sélectionné par l'utilisateur (2ème étape): ${selectedLevel}`);
-
-    if (accessLevel) {
+if (accessLevel) {
       // Logique hiérarchique:
       // - Si l'utilisateur a sélectionné 'company', il voit tout (entreprise, salariés, visiteurs)
       // - Si l'utilisateur a sélectionné 'employee', il voit les éléments pour salariés et visiteurs
@@ -2990,15 +2771,9 @@ function updateMapDisplay() {
         accessLevelVisible = true;
       }
     }
-
-    console.log(`[MapView][updateMapDisplay] Niveau d'accès de la couche (2ème étape): ${accessLevel}, visible: ${accessLevelVisible}`);
-
-
-    // Vérifier si la couche doit être visible selon les filtres
+// Vérifier si la couche doit être visible selon les filtres
     const isVisible = typeVisible && categoryVisible && accessLevelVisible;
-    console.log(`[MapView][updateMapDisplay] Visibilité de la couche ${leafletId}: typeVisible=${typeVisible}, categoryVisible=${categoryVisible}, accessLevelVisible=${accessLevelVisible}, isVisible=${isVisible}`);
-
-    if (isVisible) {
+if (isVisible) {
       // S'assurer que la catégorie est correctement définie avant d'ajouter la couche
       if (category && category !== 'default') {
         if (!layer.properties) {
@@ -3007,9 +2782,7 @@ function updateMapDisplay() {
 
         // Toujours mettre à jour la catégorie dans les propriétés de la couche
         layer.properties.category = category;
-        console.log(`[MapView][updateMapDisplay] Catégorie définie avant restauration: ${category} pour la couche ${leafletId}`);
-
-        // Mettre à jour la catégorie dans le store si nécessaire
+// Mettre à jour la catégorie dans le store si nécessaire
         if (layer._dbId) {
           const storeElement = drawingStore.elements.find(e => e.id === layer._dbId);
           if (storeElement) {
@@ -3020,8 +2793,7 @@ function updateMapDisplay() {
 
             // Mettre à jour la catégorie dans le store si elle est différente
             if (anyElement.data.category !== category) {
-              console.log(`[MapView][updateMapDisplay] Mise à jour de la catégorie dans le store avant restauration: ${category} pour l'élément ${layer._dbId}`);
-              anyElement.data.category = category;
+anyElement.data.category = category;
               drawingStore.$patch({ unsavedChanges: true });
             }
           }
@@ -3031,18 +2803,12 @@ function updateMapDisplay() {
       // La couche doit être visible mais ne l'est pas encore
       featureGroup.value.addLayer(layer);
       visibleCount++;
-      console.log(`[MapView][updateMapDisplay] Restauration de la couche ${leafletId} (${type}) avec catégorie ${layer.properties?.category || 'non définie'} - Filtres respectés`);
-    } else {
-      console.log(`[MapView][updateMapDisplay] La couche ${leafletId} (${type}) reste masquée - Filtres non respectés`);
-    }
+} else {
+}
   });
 
   // Vérifier si des formes ont été restaurées
-  console.log(`[MapView][updateMapDisplay] Restauration terminée: ${visibleCount} couches visibles au total`);
-
-  console.log(`[MapView][updateMapDisplay] Statistiques: ${visibleCount} couches visibles, ${hiddenCount} couches masquées, ${noDbIdCount} couches sans dbId`);
-
-  console.log('[MapView][updateMapDisplay] Mise à jour terminée');
+console.log(`[MapView][updateMapDisplay] Statistiques: ${visibleCount} couches visibles, ${hiddenCount} couches masquées, ${noDbIdCount} couches sans dbId`);
 }
 
 function handleNoteSave(note: any) {
@@ -3076,15 +2842,7 @@ function handleNoteSave(note: any) {
       noteLayer.closePopup();
       noteLayer.unbindPopup();
       noteLayer.bindPopup(noteLayer.createPopupContent());
-
-      console.log('[handleNoteSave] Note mise à jour:', {
-        name: noteLayer.properties.name,
-        category: noteLayer.properties.category,
-        accessLevel: noteLayer.properties.accessLevel,
-        columnId: noteLayer.properties.columnId // Ajouter le columnId dans les logs
-      });
-
-      // Ajouter la note au store de notes si elle n'existe pas déjà
+// Ajouter la note au store de notes si elle n'existe pas déjà
       const existingNote = notesStore.notes.find(n => n.id === note.id);
       if (!existingNote) {
         // Créer une nouvelle note dans le store
@@ -3097,8 +2855,7 @@ function handleNoteSave(note: any) {
           style: note.style,
           accessLevel: note.accessLevel
         } as any);
-        console.log('[handleNoteSave] Note ajoutée au store avec columnId:', note.columnId || '1');
-      } else {
+} else {
         // Mettre à jour la note existante
         notesStore.updateNote(note.id, {
           title: note.title,
@@ -3108,8 +2865,7 @@ function handleNoteSave(note: any) {
           style: note.style,
           updatedAt: new Date().toISOString()
         });
-        console.log('[handleNoteSave] Note mise à jour dans le store avec columnId:', note.columnId);
-      }
+}
     }
   }
 
@@ -3151,9 +2907,7 @@ async function selectClient(client: ExtendedUserDetails) {
 
 // Fonction pour charger les plans sans visiteur
 async function loadPlansWithoutVisiteur() {
-  console.log('[MapView][loadPlansWithoutVisiteur] Chargement des plans sans visiteur');
-
-  // Créer un client fictif pour représenter l'option "Sans visiteur"
+// Créer un client fictif pour représenter l'option "Sans visiteur"
   const noVisiteurClient: ExtendedUserDetails = {
     id: -1, // ID négatif pour indiquer qu'il s'agit d'un client fictif
     username: 'sans_visiteur',
@@ -3182,12 +2936,8 @@ async function loadPlansWithoutVisiteur() {
     if (selectedSalarie.value) {
       params.salarie = selectedSalarie.value.id;
     }
-
-    console.log('[MapView][loadPlansWithoutVisiteur] Paramètres de requête:', params);
-
-    const response = await api.get('/plans/', { params });
-    console.log('[MapView][loadPlansWithoutVisiteur] Plans reçus:', response.data);
-    clientPlans.value = response.data;
+const response = await api.get('/plans/', { params });
+clientPlans.value = response.data;
   } catch (error) {
     console.error('[MapView] Error loading plans without visiteur:', error);
     clientPlans.value = [];
@@ -3217,8 +2967,7 @@ async function openLoadPlanModal() {
         }
       });
       salaries.value = response.data;
-      console.log('[MapView][openLoadPlanModal] Salariés chargés:', salaries.value.length);
-    } catch (error) {
+} catch (error) {
       console.error('[MapView][openLoadPlanModal] Erreur lors du chargement des salariés:', error);
       salaries.value = [];
     } finally {

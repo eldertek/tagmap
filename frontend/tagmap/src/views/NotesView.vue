@@ -551,20 +551,10 @@ async function loadInitialData() {
     }
 
     const response = await noteService.getNotes(filters);
-    console.log('[NotesView][loadInitialData] Notes reçues:', response.data);
-
-    // Vérifier en détail les notes reçues
+// Vérifier en détail les notes reçues
     if (response.data.length > 0) {
-      console.log('[NotesView][loadInitialData] Détails des notes:');
-      response.data.forEach((note: BackendNote, index: number) => {
-        console.log(`Note ${index + 1}:`, {
-          id: note.id,
-          title: note.title,
-          columnId: note.column || note.column_id,
-          access_level: note.access_level,
-          column: note.column
-        });
-      });
+response.data.forEach((note: BackendNote, index: number) => {
+});
     } else {
       console.warn('[NotesView][loadInitialData] Aucune note reçue du backend!');
     }
@@ -580,9 +570,7 @@ async function loadInitialData() {
       console.warn(`[NotesView][loadInitialData] ${notesWithInvalidColumns.length} notes avec des colonnes invalides:`, notesWithInvalidColumns);
 
       // Assigner les notes à la colonne "À faire" par défaut
-      console.log('[NotesView][loadInitialData] Assignation des notes à la colonne À faire (2)');
-
-      for (const note of notesWithInvalidColumns) {
+for (const note of notesWithInvalidColumns) {
         try {
           await noteService.updateNote(note.id, { column: '2' });
         } catch (error) {
@@ -630,17 +618,12 @@ async function loadInitialData() {
     transformedNotes.forEach((note: TransformedNote) => {
       notesStore.addNote(note);
     });
-
-    console.log('[NotesView][loadInitialData] Notes chargées dans le store');
-
-    // Vérifier la répartition des notes par colonne
+// Vérifier la répartition des notes par colonne
     for (const column of notesStore.columns) {
       const notesInColumn = notesStore.getNotesByColumn(column.id);
-      console.log(`[NotesView][loadInitialData] Colonne ${column.title} (${column.id}): ${notesInColumn.length} notes`);
-      if (notesInColumn.length > 0) {
+if (notesInColumn.length > 0) {
         notesInColumn.forEach((note: Note) => {
-          console.log(`  - Note ID=${note.id}, Titre="${note.title}", Niveau d'accès=${note.accessLevel}, Colonne=${note.columnId}`);
-        });
+});
       }
     }
   } catch (error) {
@@ -648,8 +631,7 @@ async function loadInitialData() {
     notificationStore.error('Erreur lors du chargement des données');
   } finally {
     loading.value = false;
-    console.log('[NotesView][loadInitialData] Chargement terminé');
-  }
+}
 }
 
 // Aller à la carte pour créer une note
@@ -669,10 +651,7 @@ async function viewOnMap(note: Note) {
     const response = await noteService.getNote(note.id);
     const noteDetails = response.data;
     const planId = noteDetails.plan;
-
-    console.log('[NotesView][viewOnMap] Détails de la note récupérés:', noteDetails);
-
-    // Rediriger vers la carte avec tous les paramètres nécessaires
+// Rediriger vers la carte avec tous les paramètres nécessaires
     router.push({
       path: '/',
       query: {
@@ -723,9 +702,7 @@ function editNote(note: Note) {
 
 // Fonction pour gérer l'enregistrement d'une note (création ou mise à jour)
 async function handleNoteSave(savedNote: any) {
-  console.log('[NotesView][handleNoteSave] Note sauvegardée:', savedNote);
-
-  // S'assurer que l'enterprise_id est défini correctement
+// S'assurer que l'enterprise_id est défini correctement
   let enterprise_id = savedNote.enterprise_id;
   
   // Si l'enterprise_id est manquant, essayer de le déterminer automatiquement
@@ -746,10 +723,7 @@ async function handleNoteSave(savedNote: any) {
       // Fallback: utiliser l'enterprise_id de l'utilisateur si disponible
       enterprise_id = authStore.user.enterprise_id;
     }
-    
-    console.log('[NotesView][handleNoteSave] Enterprise ID déterminé automatiquement:', enterprise_id);
-    
-    // Mettre à jour la note avec l'enterprise_id déterminé
+// Mettre à jour la note avec l'enterprise_id déterminé
     if (enterprise_id !== null && savedNote.id) {
       notesStore.updateNote(savedNote.id, {
         enterprise_id: enterprise_id
@@ -793,8 +767,7 @@ async function deleteNote() {
     } catch (error: any) {
       // Si l'erreur est 404, la note n'existe pas dans le backend
       if (error.response && error.response.status === 404) {
-        console.log('[NotesView][deleteNote] Note non trouvée dans le backend (404), suppression locale uniquement');
-      } else {
+} else {
         // Pour toute autre erreur, on la propage
         throw error;
       }
@@ -814,16 +787,13 @@ async function deleteNote() {
 
 // Gérer les changements lors du drag and drop
 async function onDragChange(event: any, columnId: string) {
-  console.log('[NotesView][onDragChange] Événement:', event);
-  console.log('[NotesView][onDragChange] Colonne cible:', columnId);
+console.log('[NotesView][onDragChange] Colonne cible:', columnId);
 
   try {
     // Gérer le déplacement d'une note entre colonnes
     if (event.added) {
       const { element: note } = event.added;
-      console.log('[NotesView][onDragChange] Note à déplacer:', note);
-
-      // S'assurer que nous avons le bon ID de note
+// S'assurer que nous avons le bon ID de note
       const noteId = typeof note === 'object' && note.id ? note.id : null;
       if (!noteId) {
         console.error('[NotesView][onDragChange] ID de note invalide:', note);
@@ -867,8 +837,7 @@ async function onDragChange(event: any, columnId: string) {
 
 // Fonction utilitaire pour mettre à jour une note dans le backend
 async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
-  console.log('[NotesView][updateNoteInBackend] Mise à jour de la note:', noteId, updates);
-  try {
+try {
     // Trouver la note dans le store
     const note = notesStore.notes.find(n => n.id === noteId);
     if (!note) {
@@ -882,8 +851,7 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
       const column = notesStore.getColumnById(updates.columnId);
       if (column) {
         // Utiliser l'ID de la colonne du backend qui est stocké dans column.id
-        console.log(`[NotesView][updateNoteInBackend] Mise à jour de la colonne: ${column.id} (${column.title})`);
-        updateData.column = column.id; // Ne pas convertir en entier, laisser sous forme de chaîne
+updateData.column = column.id; // Ne pas convertir en entier, laisser sous forme de chaîne
         delete updateData.columnId;
         delete updateData.column_id;
       } else {
@@ -897,12 +865,8 @@ async function updateNoteInBackend(noteId: number, updates: Partial<Note>) {
       ...updateData,
       updatedAt: new Date().toISOString()
     };
-
-    console.log('[NotesView][updateNoteInBackend] Données envoyées au backend:', updatedNote);
-    await noteService.updateNote(noteId, updatedNote);
-
-    console.log('[NotesView][updateNoteInBackend] Note mise à jour avec succès');
-  } catch (error) {
+await noteService.updateNote(noteId, updatedNote);
+} catch (error) {
     console.error('[NotesView][updateNoteInBackend] Erreur:', error);
     throw error;
   }
@@ -925,13 +889,9 @@ function createSimpleNote() {
   } else if (authStore.isVisiteur && authStore.user) {
     // Visiteur: essayer d'obtenir l'ID de l'entreprise via le salarié ou directement
     // Utiliser l'opérateur de nullish coalescing pour éviter les erreurs de typage
-    console.log('[NotesView][createSimpleNote] Utilisateur visiteur - recherche ID entreprise');
-    enterprise_id = authStore.user.enterprise_id ?? null;
+enterprise_id = authStore.user.enterprise_id ?? null;
   }
-  
-  console.log('[NotesView][createSimpleNote] Enterprise ID déterminé:', enterprise_id);
-  
-  // Créer une note vide
+// Créer une note vide
   editingNote.value = {
     id: '' as unknown as number, // L'ID sera généré par le backend
     title: 'Nouvelle note',

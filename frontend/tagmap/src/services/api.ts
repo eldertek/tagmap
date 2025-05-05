@@ -508,8 +508,7 @@ export const noteService = {
 
   // Mettre à jour une note existante
   async updateNote(noteId: number, noteData: any) {
-    console.log('[noteService][updateNote] Mise à jour de la note:', { noteId, noteData });
-    try {
+try {
       // Utiliser l'ID backend si disponible
       const backendId = noteData.backendId || noteId;
 
@@ -541,15 +540,8 @@ export const noteService = {
       // Conserver explicitement enterprise_id mais supprimer enterprise_name qui est juste pour affichage
       const enterpriseId = updateData.enterprise_id;
       delete updateData.enterprise_name; // Supprimer le nom de l'entreprise qui n'est pas attendu par l'API
-
-      console.log('[noteService][updateNote] Données formatées:', updateData);
-      console.log(`[noteService][updateNote] Utilisation de l'ID backend ${backendId} pour la mise à jour`);
-
-      const response = await api.patch(`/notes/${backendId}/`, updateData);
-
-      console.log('[noteService][updateNote] Réponse du serveur:', response.data);
-      
-      // Réinjecter enterprise_id si présent, car il pourrait ne pas être retourné par le serveur
+const response = await api.patch(`/notes/${backendId}/`, updateData);
+// Réinjecter enterprise_id si présent, car il pourrait ne pas être retourné par le serveur
       if (enterpriseId !== undefined) {
         response.data.enterprise_id = enterpriseId;
       }
@@ -581,9 +573,7 @@ export const noteService = {
     const data = typeof commentText === 'string'
       ? { text: commentText }
       : commentText;
-
-    console.log(`[noteService][addComment] Envoi du commentaire pour la note ${noteId}:`, data);
-    return await api.post(`/notes/${noteId}/comments/`, data);
+return await api.post(`/notes/${noteId}/comments/`, data);
   },
 
   async updateComment(noteId: number, commentId: number, commentData: any) {
@@ -620,11 +610,9 @@ export const noteService = {
 export const columnService = {
   // Récupérer toutes les colonnes
   async getColumns() {
-    console.log('\n[columnService][getColumns] Récupération des colonnes');
-    try {
+try {
       const response = await api.get('/columns/');
-      console.log('[columnService][getColumns] Réponse:', response.data);
-      return response;
+return response;
     } catch (error) {
       console.error('[columnService][getColumns] Erreur:', error);
       throw error;
@@ -633,11 +621,9 @@ export const columnService = {
 
   // Créer une nouvelle colonne
   async createColumn(columnData: any) {
-    console.log('\n[columnService][createColumn] Création d\'une colonne:', columnData);
-    try {
+try {
       const response = await api.post('/columns/', columnData);
-      console.log('[columnService][createColumn] Réponse:', response.data);
-      return response;
+return response;
     } catch (error) {
       console.error('[columnService][createColumn] Erreur:', error);
       throw error;
@@ -646,11 +632,9 @@ export const columnService = {
 
   // Mettre à jour une colonne
   async updateColumn(columnId: string, columnData: any) {
-    console.log('\n[columnService][updateColumn] Mise à jour de la colonne:', columnId, columnData);
-    try {
+try {
       const response = await api.patch(`/columns/${columnId}/`, columnData);
-      console.log('[columnService][updateColumn] Réponse:', response.data);
-      return response;
+return response;
     } catch (error) {
       console.error('[columnService][updateColumn] Erreur:', error);
       throw error;

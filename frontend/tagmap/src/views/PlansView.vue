@@ -515,15 +515,7 @@ const filteredClients = computed(() => {
 // Computed pour les plans filtrés
 const filteredPlans = computed(() => {
   let filtered = plans.value;
-  
-  console.log('\n[PlansView] Filtering plans:', filtered.map(plan => ({
-    id: plan.id,
-    entreprise: plan.entreprise,
-    salarie: plan.salarie,
-    visiteur: plan.visiteur
-  })));
-  
-  if (authStore.isAdmin) {
+if (authStore.isAdmin) {
     if (selectedEntreprise.value) {
       filtered = filtered.filter(plan => {
         if (typeof plan.entreprise === 'object') {
@@ -580,15 +572,7 @@ const filteredPlans = computed(() => {
       return sortDirection.value === 'asc' ? dateA - dateB : dateB - dateA;
     }
   });
-  
-  console.log('[PlansView] Final filtered and sorted plans:', sorted.map(plan => ({
-    id: plan.id,
-    entreprise: plan.entreprise,
-    salarie: plan.salarie,
-    visiteur: plan.visiteur
-  })));
-  
-  return sorted;
+return sorted;
 });
 // Computed properties pour le filtrage des plans
 const plansList = computed(() => {
@@ -691,10 +675,8 @@ async function loadPlans() {
 // Utilisation des fonctions centralisées pour charger les entreprises
 async function loadAllEntreprises() {
   try {
-    console.log('Chargement des entreprises...');
-    entreprises.value = await authStore.fetchEnterprises() as unknown as Entreprise[];
-    console.log('Entreprises chargées:', entreprises.value);
-  } catch (error) {
+entreprises.value = await authStore.fetchEnterprises() as unknown as Entreprise[];
+} catch (error) {
     console.error('Erreur lors du chargement des entreprises:', error);
   }
 }
@@ -702,16 +684,14 @@ async function loadAllEntreprises() {
 // Utilisation des fonctions centralisées pour charger les salaries par entreprise
 async function loadSalaries(entrepriseId?: number) {
   try {
-    console.log('Chargement des salaries pour l\'entreprise:', entrepriseId);
-    // Utiliser fetchUsersByRole quand entrepriseId est undefined
+// Utiliser fetchUsersByRole quand entrepriseId est undefined
     if (entrepriseId === undefined) {
       const result = await authStore.fetchUsersByRole({ role: 'SALARIE' });
       salaries.value = result as unknown as Salarie[];
     } else {
       salaries.value = await authStore.fetchEntrepriseSalaries(entrepriseId) as unknown as Salarie[];
     }
-    console.log('Salaries chargés:', salaries.value);
-  } catch (error) {
+} catch (error) {
     console.error('Erreur lors du chargement des salaries:', error);
   }
 }
@@ -719,8 +699,7 @@ async function loadSalaries(entrepriseId?: number) {
 // Utilisation des fonctions centralisées pour charger les visiteurs par salarie
 async function loadVisiteurs(salarieId: number) {
   try {
-    console.log('Chargement des visiteurs pour le salarie:', salarieId);
-    const result = await fetchUsersByHierarchy({
+const result = await fetchUsersByHierarchy({
       role: 'VISITEUR',
       salarieId
     });
@@ -728,8 +707,7 @@ async function loadVisiteurs(salarieId: number) {
       ...visiteur,
       salarie_id: salarieId
     }));
-    console.log('Visiteurs chargés:', clients.value);
-  } catch (error) {
+} catch (error) {
     console.error('Erreur lors du chargement des visiteurs:', error);
   }
 }
@@ -744,8 +722,7 @@ function openNewPlanModal() {
 }
 
 async function editPlan(plan: LocalPlan) {
-  console.log('\n[PlansView][editPlan] ====== DÉBUT ÉDITION PLAN ======');
-  console.log('[PlansView][editPlan] Plan reçu:', {
+console.log('[PlansView][editPlan] Plan reçu:', {
     id: plan.id,
     nom: plan.nom,
     entreprise: plan.entreprise,
@@ -754,17 +731,10 @@ async function editPlan(plan: LocalPlan) {
   });
 
   try {
-    console.log('[PlansView][editPlan] Définition du plan courant dans le store...');
-    irrigationStore.setCurrentPlan(plan);
-    
-    console.log('[PlansView][editPlan] Sauvegarde de l\'ID dans localStorage:', plan.id);
-    localStorage.setItem('lastPlanId', plan.id.toString());
-    
-    console.log('[PlansView][editPlan] Redirection vers la vue carte...');
-    await router.push('/');
-    
-    console.log('[PlansView][editPlan] ====== FIN ÉDITION PLAN ======\n');
-  } catch (error) {
+irrigationStore.setCurrentPlan(plan);
+localStorage.setItem('lastPlanId', plan.id.toString());
+await router.push('/');
+} catch (error) {
     console.error('[PlansView][editPlan] ERREUR:', error);
     if (error instanceof Error) {
       console.error('[PlansView][editPlan] Stack trace:', error.stack);
@@ -876,27 +846,14 @@ async function updatePlan() {
     if (editPlanData.value.salarie && !editPlanData.value.entreprise) {
       throw new Error('Une entreprise doit être sélectionnée pour assigner un salarie')
     }
-
-    console.log('Données envoyées pour la mise à jour:', {
-      id: editPlanData.value.id,
+const response = await irrigationStore.updatePlanDetails(editPlanData.value.id, {
       nom: editPlanData.value.nom.trim(),
       description: editPlanData.value.description.trim(),
       entreprise_id: editPlanData.value.entreprise,
       salarie_id: editPlanData.value.salarie,
       visiteur_id: editPlanData.value.visiteur
     });
-
-    const response = await irrigationStore.updatePlanDetails(editPlanData.value.id, {
-      nom: editPlanData.value.nom.trim(),
-      description: editPlanData.value.description.trim(),
-      entreprise_id: editPlanData.value.entreprise,
-      salarie_id: editPlanData.value.salarie,
-      visiteur_id: editPlanData.value.visiteur
-    });
-
-    console.log('Réponse de la mise à jour:', response);
-
-    if (response) {
+if (response) {
       showEditPlanModal.value = false
       await loadPlans()
     }
@@ -997,8 +954,7 @@ async function onPlanCreated(planId: number) {
   await loadPlans();
   // Sauvegarder l'ID du nouveau plan dans localStorage
   localStorage.setItem('lastPlanId', planId.toString());
-  console.log(`Plan ${planId} créé et défini comme plan actif`);
-  // Rediriger vers l'éditeur avec le nouveau plan
+// Rediriger vers l'éditeur avec le nouveau plan
   router.push('/');
 }
 

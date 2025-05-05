@@ -462,12 +462,8 @@ async function fetchDevices() {
     if (isAdmin.value && selectedCompany.value) {
       params.entreprise = selectedCompany.value;
     }
-
-    console.log('[fetchDevices] Appel API avec params:', params);
-    const response = await weatherService.getDevices(params);
-    console.log('[fetchDevices] Réponse API:', response.data);
-    
-    // Extraire les appareils de la réponse
+const response = await weatherService.getDevices(params);
+// Extraire les appareils de la réponse
     let devicesData = [];
     
     // Vérifier si la réponse contient un message d'erreur spécifique (chaîne de caractères)
@@ -520,10 +516,7 @@ async function fetchDevices() {
         longitude: device.longitude || 0
       };
     });
-    
-    console.log('[fetchDevices] Appareils normalisés:', devices.value);
-    
-    if (devices.value.length > 0) {
+if (devices.value.length > 0) {
       // Sélectionner le premier appareil
       // Note: Pas besoin d'appeler fetchWeatherData() ici, le watcher sur selectedDevice le fera
       selectedDevice.value = devices.value[0].mac;
@@ -574,19 +567,9 @@ async function fetchWeatherData() {
     if (isAdmin.value && selectedCompany.value) {
       params.entreprise = selectedCompany.value;
     }
-
-    console.log('[fetchWeatherData] Appel API avec params:', params);
-    const response = await weatherService.getRealTimeData(params);
-    console.log('[fetchWeatherData] Réponse API:', response.data);
-    
-    // Analyser la structure de la réponse
-    console.log('[fetchWeatherData] Structure de la réponse:', {
-      hasData: response.data && 'data' in response.data,
-      hasCode: response.data && 'code' in response.data,
-      topLevelKeys: response.data ? Object.keys(response.data) : []
-    });
-    
-    // Extraire les données de météo selon la structure de la réponse
+const response = await weatherService.getRealTimeData(params);
+// Analyser la structure de la réponse
+// Extraire les données de météo selon la structure de la réponse
     let extractedData;
     
     if (response.data && 'data' in response.data) {
@@ -875,8 +858,7 @@ const updateAllCharts = async () => {
   try {
     // Éviter les mises à jour simultanées
     if (isUpdatingCharts.value) {
-      console.log('[updateAllCharts] Mise à jour déjà en cours, annulation');
-      return;
+return;
     }
     
     isUpdatingCharts.value = true;
@@ -894,10 +876,7 @@ const updateAllCharts = async () => {
       // Sélectionner automatiquement le premier intervalle disponible
       historyInterval.value = availableIntervals.value[0].value;
     }
-    
-    console.log('[updateAllCharts] Début de la mise à jour des graphiques');
-
-    // Récupérer les dates pour l'historique
+// Récupérer les dates pour l'historique
     const dates = getHistoryDates();
 
     // Préparer les paramètres de la requête
@@ -912,17 +891,11 @@ const updateAllCharts = async () => {
     if (isAdmin.value && selectedCompany.value) {
       params.entreprise = selectedCompany.value;
     }
-
-    console.log(`[updateAllCharts] Récupération des données historiques:`, params);
-    
-    try {
+try {
       // Faire un unique appel pour récupérer toutes les données historiques
       const response = await weatherService.getHistoryData(params);
       const allHistoryData = response.data;
-      
-      console.log(`[updateAllCharts] Données historiques reçues:`, allHistoryData);
-      
-      // Types de graphiques avec leurs références et types de données correspondants
+// Types de graphiques avec leurs références et types de données correspondants
       const chartConfigs = [
         { type: 'temp', ref: tempChart },
         { type: 'humidity', ref: humidityChart },
@@ -934,8 +907,7 @@ const updateAllCharts = async () => {
       
       // Mettre à jour chaque graphique avec les données déjà récupérées
       for (const config of chartConfigs) {
-        console.log(`[updateAllCharts] Mise à jour du graphique ${config.type}`);
-        if (config.ref.value) {
+if (config.ref.value) {
           const formattedData = formatHistoryDataForChart(allHistoryData, config.type);
           updateChart(config.type, config.ref.value, formattedData);
         }
@@ -970,9 +942,7 @@ const updateChart = (type: string, chartElement: HTMLCanvasElement, data: any) =
     }
 
     // Log pour déboguer le format des données
-    console.log(`[updateChart] Données reçues pour ${type}:`, data);
-    
-    // Vérifier si nous avons des datasets
+// Vérifier si nous avons des datasets
     if (!data.datasets || !data.datasets.length) {
       console.warn(`[updateChart] Pas de datasets pour ${type}`);
       // Créer un graphique vide
@@ -1097,9 +1067,7 @@ const updateChart = (type: string, chartElement: HTMLCanvasElement, data: any) =
       },
       options: commonOptions
     });
-    
-    console.log(`[updateChart] Graphique ${type} créé avec ${data.datasets.length} datasets`);
-  } catch (error) {
+} catch (error) {
     console.error(`[updateChart] Erreur lors de la mise à jour du graphique ${type}:`, error);
   }
 };
@@ -1134,9 +1102,7 @@ interface ChartDataset {
 
 // Fonction pour formater les données historiques en données de graphique
 const formatHistoryDataForChart = (historyData: any, chartType: string) => {
-  console.log(`[formatHistoryDataForChart] Données reçues pour ${chartType}:`, historyData);
-
-  if (!historyData) {
+if (!historyData) {
     console.warn(`[formatHistoryDataForChart] Pas de données pour ${chartType}`);
     return null;
   }
@@ -1151,10 +1117,7 @@ const formatHistoryDataForChart = (historyData: any, chartType: string) => {
     console.warn(`[formatHistoryDataForChart] Structure de données non reconnue pour ${chartType}`);
     return null;
   }
-
-  console.log(`[formatHistoryDataForChart] Données extraites pour ${chartType}:`, data);
-
-  const datasets: ChartDataset[] = [];
+const datasets: ChartDataset[] = [];
 
   const processTimeSeriesData = (
     items: Array<{ time: number; value: unknown }>,
@@ -1309,9 +1272,7 @@ const formatHistoryDataForChart = (historyData: any, chartType: string) => {
       }
       break;
   }
-
-  console.log(`[formatHistoryDataForChart] Datasets générés pour ${chartType}:`, datasets);
-  return { datasets };
+return { datasets };
 };
 
 // Fonction pour récupérer les données de graphique par type
@@ -1333,12 +1294,8 @@ const fetchChartData = async (chartType: string) => {
     if (isAdmin.value && selectedCompany.value) {
       params.entreprise = selectedCompany.value;
     }
-
-    console.log(`[fetchChartData] Récupération des données pour ${chartType}:`, params);
-    const response = await weatherService.getHistoryData(params);
-    console.log(`[fetchChartData] Données reçues pour ${chartType}:`, response.data);
-    
-    // Formater les données pour le graphique
+const response = await weatherService.getHistoryData(params);
+// Formater les données pour le graphique
     return formatHistoryDataForChart(response.data, chartType);
   } catch (error) {
     console.error(`[fetchChartData] Erreur pour ${chartType}:`, error);
@@ -1516,16 +1473,14 @@ onMounted(async () => {
 // Ajouter un watcher pour selectedCompany
 watch(selectedCompany, async (newValue) => {
   if (isAdmin.value) {
-    console.log('[watch selectedCompany] Nouvelle entreprise sélectionnée:', newValue);
-    await fetchDevices();
+await fetchDevices();
   }
 });
 
 // Ajouter un watcher pour selectedDevice
 watch(selectedDevice, (newValue) => {
   if (newValue) {
-    console.log('[watch selectedDevice] Nouvelle station sélectionnée:', newValue);
-    // Charger les données temps réel
+// Charger les données temps réel
     fetchWeatherData();
     
     // Également charger les données historiques si on est dans l'onglet historique
@@ -1533,8 +1488,7 @@ watch(selectedDevice, (newValue) => {
       updateAllCharts();
     }
   } else {
-    console.log('[watch selectedDevice] Aucune station sélectionnée');
-    weatherData.value = {};
+weatherData.value = {};
   }
 });
 
