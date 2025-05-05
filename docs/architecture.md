@@ -56,6 +56,7 @@ flowchart TD
    - Login/logout functionality
    - Role-based interface adaptation
    - Permission checks
+   - Les salariés disposent d'un bouton pour charger les plans sans visiteur dans MapView (alignement UX avec les entreprises)
 
 4. **Notes Management**
    - Creation and editing of geolocated notes

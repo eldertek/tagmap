@@ -370,6 +370,18 @@
                 <div v-if="!selectedClient" class="space-y-2">
                   <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
                   <div class="grid grid-cols-1 gap-2">
+                    <!-- Option pour charger les plans sans visiteur (ajouté pour les salariés) -->
+                    <button @click="loadPlansWithoutVisiteur"
+                      class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                        <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <!-- Fin ajout bouton -->
                     <template v-if="isLoadingClients">
                       <div v-for="i in 3" :key="i" class="animate-pulse">
                         <div class="p-3 bg-white rounded-lg border border-gray-200">

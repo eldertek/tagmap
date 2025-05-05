@@ -127,12 +127,12 @@ Cette exigence est critique pour l'ergonomie de l'application, particulièrement
 
 #### Implémentation technique par rôle
 
-| Rôle        | Notes accessibles                                                       |
-|-------------|------------------------------------------------------------------------|
-| ADMIN       | Toutes les notes sans restriction                                       |
-| ENTREPRISE  | Notes privées + company + employee + visitor liées à cette entreprise   |
-| SALARIÉ     | Notes privées + employee + visitor liées à son entreprise               |
-| VISITEUR    | Notes privées + visitor liées à l'entreprise de son salarié             |
+| Rôle        | Notes accessibles                                                       | Plans accessibles                                 |
+|-------------|------------------------------------------------------------------------|---------------------------------------------------|
+| ADMIN       | Toutes les notes sans restriction                                       | Tous les plans                                    |
+| ENTREPRISE  | Notes privées + company + employee + visitor liées à cette entreprise   | Tous les plans de l'entreprise                    |
+| SALARIÉ     | Notes privées + employee + visitor liées à son entreprise               | Tous les plans de l'entreprise, y compris sans visiteur |
+| VISITEUR    | Notes privées + visitor liées à l'entreprise de son salarié             | Plans partagés par l'entreprise ou le salarié      |
 
 *Les permissions sont centralisées côté backend dans `GeoNoteViewSet.get_queryset`.*
 

@@ -8,6 +8,7 @@
    - Système de permissions par niveau d'accès
    - Gestion des médias (photos)
    - **Permettre à l'administrateur de configurer de manière sécurisée la clé d'API Google Maps via une page Paramètres dédiée, avec stockage côté serveur dans un modèle ApplicationSetting et récupération par le frontend via une API dédiée.**
+   - Les salariés peuvent désormais voir et charger les plans sans visiteur associé via un bouton dédié dans MapView.vue (alignement UX avec les entreprises)
 
 2. **Amélioration de l'expérience utilisateur**
    - Interface responsive pour mobile et desktop
@@ -73,6 +74,7 @@
 
 ## Notes importantes
 - La sauvegarde automatique des notes est activée
+- Les salariés peuvent désormais voir et charger les plans sans visiteur associé via un bouton dédié dans MapView.vue
 - Les performances sur mobile sont une priorité pour la prochaine phase
 - Le système de permissions est centralisé côté backend pour plus de sécurité
 - Lors de l'édition des notes, il faut préserver l'enterprise_name pour maintenir l'affichage pour les admins

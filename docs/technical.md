@@ -93,6 +93,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 - **HTTP Client**: Axios
 - **CSS Framework**: Custom styling with responsive design
 - **Auto-Save Feature**: Frontend now automatically triggers plan save every minute and upon any drawing modification (creation, deletion, update).
+- **Les salariés peuvent voir et charger les plans sans visiteur associé, via un bouton dédié dans MapView.vue (cohérence UX avec les entreprises).**
 
 ### Testing
 - **Backend**: Django Test Framework, pytest-django
