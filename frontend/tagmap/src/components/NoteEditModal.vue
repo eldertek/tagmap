@@ -172,20 +172,14 @@ const console = window.console;
 
 // Surveiller les changements d'onglet
 watch(activeTab, async (newTab) => {
-  console.log('[NoteEditModal] Onglet actif changé:', newTab);
-
   // Si l'onglet Commentaires est sélectionné, recharger les commentaires
   if (newTab === 'comments' && props.note && props.note.id) {
-    console.log('[NoteEditModal] Onglet Commentaires sélectionné, commentaires actuels:', editingNote.value.comments);
-
     // Recharger les commentaires pour s'assurer qu'ils sont à jour
     await loadNoteComments(props.note.id);
   }
 
   // Si l'onglet Photos est sélectionné, recharger les photos
   if (newTab === 'photos' && props.note && props.note.id) {
-    console.log('[NoteEditModal] Onglet Photos sélectionné, photos actuelles:', editingNote.value.photos);
-
     // Recharger les photos pour s'assurer qu'elles sont à jour
     await loadNotePhotos(props.note.id);
   }
@@ -247,9 +241,7 @@ function safeDate(dateString: string | undefined): string {
 // Fonction pour charger les commentaires d'une note
 async function loadNoteComments(noteId: number) {
   try {
-    console.log(`[NoteEditModal] Chargement des commentaires pour la note ${noteId}`);
     const response = await noteService.getComments(noteId);
-    console.log('[NoteEditModal] Commentaires reçus:', response.data);
 
     // Transformer les commentaires du format API au format du store
     const comments = response.data.map((comment: any) => ({
@@ -261,7 +253,6 @@ async function loadNoteComments(noteId: number) {
       userRole: comment.user_role
     }));
 
-    console.log('[NoteEditModal] Commentaires transformés:', comments);
 
     // Mettre à jour la note dans le store
     if (props.note) {
@@ -270,8 +261,6 @@ async function loadNoteComments(noteId: number) {
       // Mettre à jour la copie locale pour l'édition
       editingNote.value.comments = comments;
 
-      console.log('[NoteEditModal] Commentaires mis à jour dans le store et localement');
-      console.log('[NoteEditModal] editingNote.comments après mise à jour:', editingNote.value.comments);
     }
 
     return comments;
@@ -285,9 +274,7 @@ async function loadNoteComments(noteId: number) {
 // Fonction pour charger les photos d'une note
 async function loadNotePhotos(noteId: number) {
   try {
-    console.log(`[NoteEditModal] Chargement des photos pour la note ${noteId}`);
     const response = await noteService.getPhotos(noteId);
-    console.log('[NoteEditModal] Photos reçues:', response.data);
 
     // Transformer les photos du format API au format du store
     const photos = response.data.map((photo: any) => ({
@@ -304,7 +291,6 @@ async function loadNotePhotos(noteId: number) {
       // Mettre à jour la copie locale pour l'édition
       editingNote.value.photos = photos;
 
-      console.log('[NoteEditModal] Photos mises à jour dans le store et localement');
     }
 
     return photos;
@@ -321,7 +307,6 @@ async function loadEnterprises() {
     try {
       const response = await userService.getEntreprises();
       enterprises.value = response.data;
-      console.log('[NoteEditModal] Entreprises chargées:', enterprises.value);
     } catch (error) {
       console.error('[NoteEditModal] Erreur lors du chargement des entreprises:', error);
       notificationStore.error('Erreur lors du chargement des entreprises');
@@ -331,18 +316,15 @@ async function loadEnterprises() {
 
 // Initialiser les données d'édition
 onMounted(async () => {
-  console.log('[NoteEditModal] onMounted - props:', props);
 
   // S'assurer que les colonnes sont chargées
   await notesStore.loadColumns();
-  console.log('[NoteEditModal] Colonnes chargées:', notesStore.columns);
 
   // Charger les entreprises si l'utilisateur est admin
   await loadEnterprises();
 
   if (props.note) {
     // Édition d'une note existante
-    console.log('[NoteEditModal] Édition d\'une note existante:', props.note);
     const noteCopy = JSON.parse(JSON.stringify(props.note));
 
     // Assurer que les dates sont valides
@@ -358,7 +340,6 @@ onMounted(async () => {
 
     // Charger les commentaires et photos si la note existe
     if (props.note.id) {
-      console.log('[NoteEditModal] Chargement des commentaires et photos...');
 
       // Charger les commentaires et photos en parallèle
       await Promise.all([
@@ -367,18 +348,11 @@ onMounted(async () => {
       ]);
 
       // Forcer une mise à jour des computed
-      console.log('[NoteEditModal] Après chargement - Commentaires:', editingNote.value.comments?.length || 0);
-      console.log('[NoteEditModal] Après chargement - Photos:', editingNote.value.photos?.length || 0);
 
       // Attendre le prochain cycle de rendu pour s'assurer que les compteurs sont mis à jour
-      setTimeout(() => {
-        console.log('[NoteEditModal] Compteurs après timeout - Commentaires:', commentsCount.value);
-        console.log('[NoteEditModal] Compteurs après timeout - Photos:', photosCount.value);
-      }, 0);
     }
   } else if (props.isNewNote) {
     // Création d'une nouvelle note
-    console.log('[NoteEditModal] Création d\'une nouvelle note');
 
     // Note de base
     editingNote.value = {
@@ -408,18 +382,15 @@ onMounted(async () => {
 
     // Si une localisation est fournie, l'ajouter à la note
     if (props.location) {
-      console.log('[NoteEditModal] Ajout de la localisation:', props.location);
       // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
       const processedLocation = processLocation(props.location);
       editingNote.value.location = processedLocation;
     }
 
-    console.log('[NoteEditModal] Niveau d\'accès initial:', editingNote.value.accessLevel);
   } else {
     console.error('[NoteEditModal] Erreur: Ni note existante ni nouvelle note');
   }
 
-  console.log('[NoteEditModal] editingNote.value après initialisation:', editingNote.value);
 });
 
 // Colonnes triées
@@ -428,13 +399,11 @@ const sortedColumns = computed(() => notesStore.getSortedColumns);
 // Nombre de commentaires et photos
 const commentsCount = computed(() => {
   const count = editingNote.value.comments?.length || 0;
-  console.log('[NoteEditModal] Computed commentsCount recalculé:', count);
   return count;
 });
 
 const photosCount = computed(() => {
   const count = editingNote.value.photos?.length || 0;
-  console.log('[NoteEditModal] Computed photosCount recalculé:', count);
   return count;
 });
 
@@ -476,7 +445,6 @@ const updateNoteColor = (color: string) => {
 
   // Émettre un événement pour mettre à jour immédiatement le style sur la carte
   if (props.note?.id) {
-    console.log('[NoteEditModal] Émission de l\'événement de mise à jour de couleur:', color);
     const updateEvent = new CustomEvent('geonote:updateStyle', {
       detail: {
         noteId: props.note.id,
@@ -554,7 +522,6 @@ function closeModal() {
 
 // Gérer l'ajout d'un commentaire
 async function handleCommentAdded() {
-  console.log('[NoteEditModal] Commentaire ajouté, le modal reste ouvert');
 
   // Recharger les commentaires pour mettre à jour l'affichage
   if (props.note && props.note.id) {
@@ -564,7 +531,6 @@ async function handleCommentAdded() {
 
 // Gérer l'ajout d'une photo
 async function handlePhotoAdded() {
-  console.log('[NoteEditModal] Photo ajoutée, le modal reste ouvert');
 
   // Recharger les photos pour mettre à jour l'affichage
   if (props.note && props.note.id) {
@@ -574,7 +540,6 @@ async function handlePhotoAdded() {
 
 // Gérer la suppression d'un commentaire
 async function handleCommentDeleted() {
-  console.log('[NoteEditModal] Commentaire supprimé, mise à jour de la liste');
   if (props.note && props.note.id) {
     await loadNoteComments(props.note.id);
   }
@@ -582,7 +547,6 @@ async function handleCommentDeleted() {
 
 // Gérer la suppression d'une photo
 async function handlePhotoDeleted() {
-  console.log('[NoteEditModal] Photo supprimée, mise à jour de la liste');
   if (props.note && props.note.id) {
     await loadNotePhotos(props.note.id);
   }
@@ -631,14 +595,12 @@ async function saveNote() {
         : editingNote.value.location;
     }
 
-    console.log('[NoteEditModal] Données de note à sauvegarder:', noteData);
 
     let savedNote;
     if (props.note?.id) {
       // Mise à jour d'une note existante
       // Utiliser l'ID backend si disponible, sinon utiliser l'ID fourni
       const noteId = props.note.backendId || props.note.id;
-      console.log(`[NoteEditModal] Mise à jour de la note avec ID backend: ${noteId}`);
 
       // Ajouter l'ID backend aux données pour que le service API puisse l'utiliser
       noteData.backendId = props.note.backendId;
@@ -698,7 +660,6 @@ async function saveNote() {
         color: selectedColor // S'assurer que la couleur est incluse
       };
 
-      console.log('[NoteEditModal] Note à ajouter au store avec ID backend:', savedNote.id);
       notesStore.addNote(storeNote);
 
       notificationStore.success('Note créée avec succès');

@@ -455,26 +455,10 @@ const getToolIcon = (type: string) => {
 const activeTab = ref('tools') // Onglet actif par défaut
 // Watch for tab changes to ensure filters are applied when switching to the filters tab
 watch(activeTab, (newTab, oldTab) => {
-  console.log('[DrawingTools][watch activeTab] Changement d\'onglet:', { newTab, oldTab });
-
   // If we're switching to the filters tab, make sure filters are up to date
   if (newTab === 'filters' && oldTab !== 'filters') {
-    // Just ensure the UI reflects the current state
-    console.log('[DrawingTools][watch activeTab] Passage à l\'onglet filtres');
-    console.log('[DrawingTools][watch activeTab] État actuel des filtres dans le store:', JSON.stringify({
-      accessLevels: { ...drawingStore.filters.accessLevels },
-      categories: { ...drawingStore.filters.categories },
-      shapeTypes: { ...drawingStore.filters.shapeTypes }
-    }, null, 2));
-    console.log('[DrawingTools][watch activeTab] État actuel des filtres locaux:', JSON.stringify({
-      accessLevels: { ...filters.accessLevels },
-      categories: { ...filters.categories },
-      shapeTypes: { ...filters.shapeTypes }
-    }, null, 2));
-
     // Désélectionner la forme actuelle lorsqu'on passe à l'onglet filtres
     if (props.selectedShape) {
-      console.log('[DrawingTools][watch activeTab] Désélection de la forme actuelle lors du passage à l\'onglet filtres');
       emit('tool-selected', ''); // Désélectionne l'outil actuel
     }
 
@@ -486,12 +470,6 @@ watch(activeTab, (newTab, oldTab) => {
 
   // If we're leaving the filters tab, apply any pending changes
   if (oldTab === 'filters' && newTab !== 'filters') {
-    console.log('[DrawingTools][watch activeTab] Sortie de l\'onglet filtres, application des changements');
-    console.log('[DrawingTools][watch activeTab] État des filtres locaux avant application:', JSON.stringify({
-      accessLevels: { ...filters.accessLevels },
-      categories: { ...filters.categories },
-      shapeTypes: { ...filters.shapeTypes }
-    }, null, 2));
     applyFilters();
   }
 })
@@ -586,8 +564,6 @@ const filters = reactive<Filters>({
 
 // Méthode pour mettre à jour le niveau d'accès sélectionné
 const updateAccessLevelFilter = (level: string) => {
-  console.log(`[DrawingTools][updateAccessLevelFilter] Changement du niveau d'accès: ${level}`);
-
   // Mettre à jour le niveau sélectionné
   selectedAccessLevel.value = level;
 
@@ -615,11 +591,8 @@ const updateAccessLevelFilter = (level: string) => {
 
 // Méthode pour mettre à jour le niveau d'accès et désélectionner la forme actuelle
 const updateAccessLevelFilterAndDeselect = (level: string) => {
-  console.log(`[DrawingTools][updateAccessLevelFilterAndDeselect] Changement du niveau d'accès: ${level}`);
-
   // Désélectionner la forme actuelle si nécessaire
   if (props.selectedShape) {
-    console.log('[DrawingTools][updateAccessLevelFilterAndDeselect] Désélection de la forme actuelle');
     emit('tool-selected', ''); // Désélectionne l'outil actuel
   }
 
@@ -627,19 +600,7 @@ const updateAccessLevelFilterAndDeselect = (level: string) => {
   updateAccessLevelFilter(level);
 };
 
-// Log des filtres initiaux
-console.log('[DrawingTools] Initialisation des filtres:', JSON.stringify({
-  local: {
-    accessLevels: { ...filters.accessLevels },
-    categories: { ...filters.categories },
-    shapeTypes: { ...filters.shapeTypes }
-  },
-  store: {
-    accessLevels: { ...drawingStore.filters.accessLevels },
-    categories: { ...drawingStore.filters.categories },
-    shapeTypes: { ...drawingStore.filters.shapeTypes }
-  }
-}, null, 2));
+// Initialiser les filtres
 
 // Computed property to get the properties from the selected shape
 const localProperties = computed(() => {
@@ -690,13 +651,6 @@ const updateAccessLevel = (): void => {
 
 // Méthode pour réinitialiser les filtres
 const resetFilters = (): void => {
-  console.log('[DrawingTools][resetFilters] Début de la réinitialisation des filtres');
-  console.log('[DrawingTools][resetFilters] État actuel des filtres:', JSON.stringify({
-    accessLevels: { ...filters.accessLevels },
-    categories: { ...filters.categories },
-    shapeTypes: { ...filters.shapeTypes }
-  }, null, 2));
-
   // Créer un nouvel objet de filtres avec toutes les valeurs à true
   const resetedFilters = {
     accessLevels: {
@@ -719,11 +673,7 @@ const resetFilters = (): void => {
     }
   };
 
-  console.log('[DrawingTools][resetFilters] Nouveaux filtres à appliquer:', JSON.stringify(resetedFilters, null, 2));
-
   // Mettre à jour directement les filtres locaux
-  console.log('[DrawingTools][resetFilters] Mise à jour des filtres locaux');
-
   // Niveaux d'accès
   filters.accessLevels.company = true;
   filters.accessLevels.employee = true;
@@ -742,78 +692,49 @@ const resetFilters = (): void => {
   filters.shapeTypes.Line = true;
   filters.shapeTypes.Note = true;
 
-  // Vérifier que les filtres locaux ont bien été mis à jour
-  console.log('[DrawingTools][resetFilters] Filtres locaux après mise à jour:', JSON.stringify({
-    accessLevels: { ...filters.accessLevels },
-    categories: { ...filters.categories },
-    shapeTypes: { ...filters.shapeTypes }
-  }, null, 2));
-
   // Mettre à jour les filtres dans le store
-  console.log('[DrawingTools][resetFilters] Mise à jour des filtres dans le store');
   drawingStore.updateFilters(resetedFilters);
 
   // Émettre un événement pour indiquer que les filtres ont changé
-  console.log('[DrawingTools][resetFilters] Émission de l\'event filter-change');
   emit('filter-change', resetedFilters);
-
-  // Forcer la mise à jour de l'affichage
-  console.log('[DrawingTools][resetFilters] Mise à jour forcée de l\'affichage');
-
-  console.log('[DrawingTools][resetFilters] Filtres réinitialisés avec succès');
 }
 
 // Méthode pour réinitialiser les filtres et désélectionner la forme actuelle
 const resetFiltersAndDeselect = (): void => {
-  console.log('[DrawingTools][resetFiltersAndDeselect] Début de la réinitialisation des filtres avec désélection');
-
   // Désélectionner la forme actuelle si nécessaire
   deselectCurrentShape();
 
   // Réinitialiser les filtres
   resetFilters();
-
-  console.log('[DrawingTools][resetFiltersAndDeselect] Filtres réinitialisés et forme désélectionnée avec succès');
 }
 
 // Méthode pour appliquer les filtres
 const applyFilters = (): void => {
-  // Créer des copies des filtres pour les logs et les mises à jour
+  // Créer des copies des filtres pour les mises à jour
   const accessLevelsCopy = { ...filters.accessLevels };
   const categoriesCopy = { ...filters.categories };
   const shapeTypesCopy = { ...filters.shapeTypes };
 
-  console.log('[DrawingTools][applyFilters] Application des filtres:', JSON.stringify({
-    accessLevels: accessLevelsCopy,
-    categories: categoriesCopy,
-    shapeTypes: shapeTypesCopy
-  }, null, 2));
-
-  // Toujours mettre à jour les filtres dans le store
+  // Mettre à jour les filtres dans le store
   const filtersToUpdate = {
     accessLevels: accessLevelsCopy,
     categories: categoriesCopy,
     shapeTypes: shapeTypesCopy
   };
 
-  console.log('[DrawingTools][applyFilters] Envoi des filtres au store:', JSON.stringify(filtersToUpdate, null, 2));
   drawingStore.updateFilters(filtersToUpdate);
 
   // Émettre un événement pour indiquer que les filtres ont changé
-  console.log('[DrawingTools][applyFilters] Émission de l\'event filter-change');
   emit('filter-change', filtersToUpdate);
 
   // Forcer la mise à jour de l'affichage
   setTimeout(() => {
-    console.log('[DrawingTools][applyFilters] Mise à jour forcée de l\'affichage');
     window.dispatchEvent(new CustomEvent('filtersChanged', {
       detail: {
         filters: filtersToUpdate
       }
     }));
   }, 0);
-
-  console.log('[DrawingTools][applyFilters] Filtres appliqués avec succès');
 }
 
 const formatLength = (value: number): string => {
@@ -846,7 +767,6 @@ const formatCategoryName = (category: string): string => {
 const deselectCurrentShape = () => {
   // Désélectionner la forme actuelle si nécessaire
   if (props.selectedShape) {
-    console.log('[DrawingTools][deselectCurrentShape] Désélection de la forme actuelle');
     emit('tool-selected', ''); // Désélectionne l'outil actuel
   }
 };
@@ -884,11 +804,8 @@ async function createFilter() {
     }
 
     if (!entrepriseId) {
-      console.error('[DrawingTools] Impossible de créer un filtre: ID d\'entreprise non disponible');
       return;
     }
-
-    console.log('[DrawingTools] Création d\'un filtre pour l\'entreprise:', entrepriseId);
 
     // Créer le filtre via le store
     const newMapFilter = await mapFilterStore.createFilter({
@@ -897,28 +814,23 @@ async function createFilter() {
       entreprise: entrepriseId
     });
 
-    console.log('[DrawingTools] Filtre créé avec succès:', newMapFilter);
-
     // Ajouter la catégorie au filtre local
     if (!filters.categories[category]) {
-      console.log(`[DrawingTools] Ajout de la catégorie ${category} aux filtres locaux`);
       filters.categories[category] = true;
     }
 
     // Mettre à jour le DrawingStore avec la nouvelle catégorie
-    console.log(`[DrawingTools] Mise à jour du DrawingStore avec la catégorie ${category}`);
     const updatedCategories = { ...drawingStore.filters.categories };
     updatedCategories[category] = true;
     drawingStore.updateFilters({ categories: updatedCategories });
 
     // Émettre un événement pour indiquer que les filtres ont changé
-    console.log('[DrawingTools] Émission de l\'événement filter-change');
     emit('filter-change', filters);
 
     // Réinitialiser le formulaire
     newFilter.name = '';
   } catch (error) {
-    console.error('[DrawingTools] Erreur lors de la création du filtre:', error);
+    // Gérer l'erreur silencieusement
   } finally {
     isCreatingFilter.value = false;
   }
@@ -939,13 +851,6 @@ const emit = defineEmits(['update:show', 'tool-selected', 'style-update', 'prope
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
   if (props.selectedShape) {
-    console.log('[DrawingTools][watchEffect] Mise à jour des propriétés pour la forme sélectionnée:', {
-      type: props.selectedShape.type,
-      properties: props.selectedShape.properties,
-      options: props.selectedShape.options,
-      layer: props.selectedShape.layer?._leaflet_id
-    });
-
     // Récupérer le style de la forme sélectionnée
     const style = props.selectedShape.options || {}
 
@@ -960,8 +865,6 @@ watchEffect(() => {
     const shapeType = props.selectedShape.type || props.selectedShape.properties?.type || '';
     showFillOptions.value = shapeType !== 'Line';
 
-    console.log('[DrawingTools][watchEffect] Type de forme détecté:', shapeType);
-
     // Mettre à jour le nom de la forme
     shapeName.value = props.selectedShape.properties?.name || ''
 
@@ -970,23 +873,12 @@ watchEffect(() => {
 
     // Mettre à jour le niveau d'accès de la forme
     accessLevel.value = props.selectedShape.properties?.accessLevel || 'visitor'
-
-    // Mettre à jour les propriétés spécifiques au type de forme
-
-    console.log('[DrawingTools][watchEffect] Propriétés mises à jour avec succès');
   }
 })
 
 // Initialiser les filtres avec les valeurs du store seulement au montage du composant
 onMounted(async () => {
-  console.log('[DrawingTools][onMounted] Initialisation des filtres depuis le store');
   const storeFilters = drawingStore.filters;
-
-  console.log('[DrawingTools][onMounted] Filtres du store:', JSON.stringify({
-    accessLevels: { ...storeFilters.accessLevels },
-    categories: { ...storeFilters.categories },
-    shapeTypes: { ...storeFilters.shapeTypes }
-  }, null, 2));
 
   // Initialiser les filtres locaux avec les valeurs du store
   // Accès directs pour éviter les problèmes de typage
@@ -1009,19 +901,16 @@ onMounted(async () => {
 
   // Charger les filtres personnalisés depuis l'API
   try {
-    console.log('[DrawingTools][onMounted] Chargement des filtres personnalisés');
     await mapFilterStore.fetchFilters();
 
     // Récupérer les catégories uniques des filtres personnalisés
     const customCategories = mapFilterStore.getUniqueCategories;
-    console.log('[DrawingTools][onMounted] Catégories personnalisées trouvées:', customCategories);
-
+    
     // Ajouter les catégories personnalisées aux filtres
     const categoriesAdded: string[] = [];
     customCategories.forEach(category => {
       // Ne pas ajouter les catégories par défaut qui existent déjà
       if (!defaultCategories.value.includes(category) && !filters.categories[category]) {
-        console.log(`[DrawingTools][onMounted] Ajout de la catégorie personnalisée: ${category}`);
         filters.categories[category] = true;
         categoriesAdded.push(category);
       }
@@ -1029,39 +918,18 @@ onMounted(async () => {
 
     // Si des catégories ont été ajoutées, mettre à jour le store
     if (categoriesAdded.length > 0) {
-      console.log('[DrawingTools][onMounted] Mise à jour du store avec les catégories personnalisées:', categoriesAdded);
       drawingStore.updateFilters({ categories: filters.categories });
       // Émettre un événement pour indiquer que les filtres ont changé
       emit('filter-change', filters);
     }
   } catch (error) {
-    console.error('[DrawingTools][onMounted] Erreur lors du chargement des filtres personnalisés:', error);
+    // Gérer silencieusement l'erreur
   }
-
-  console.log('[DrawingTools][onMounted] Filtres locaux après initialisation:', JSON.stringify({
-    accessLevels: { ...filters.accessLevels },
-    categories: { ...filters.categories },
-    shapeTypes: { ...filters.shapeTypes }
-  }, null, 2));
 });
 
 // Observer les changements dans les filtres et appliquer automatiquement
 // Utiliser watch au lieu de watchEffect pour éviter les problèmes de variables non utilisées
 watch(filters, (newFilters, oldFilters) => {
-  console.log('[DrawingTools][watch filters] Changement détecté:', {
-    activeTab: activeTab.value,
-    newFilters: JSON.stringify({
-      accessLevels: newFilters.accessLevels,
-      categories: newFilters.categories,
-      shapeTypes: newFilters.shapeTypes
-    }),
-    oldFilters: JSON.stringify({
-      accessLevels: oldFilters.accessLevels,
-      categories: oldFilters.categories,
-      shapeTypes: oldFilters.shapeTypes
-    })
-  });
-
   // Détecter les différences entre les anciens et les nouveaux filtres
   const accessLevelsDiff = Object.keys(newFilters.accessLevels).filter(key =>
     oldFilters.accessLevels[key as keyof typeof oldFilters.accessLevels] !==
@@ -1081,28 +949,15 @@ watch(filters, (newFilters, oldFilters) => {
   // Vérifier s'il y a des changements réels dans les filtres
   const hasChanges = accessLevelsDiff.length > 0 || categoriesDiff.length > 0 || shapeTypesDiff.length > 0;
 
-  console.log('[DrawingTools][watch filters] Différences détectées:', {
-    accessLevelsDiff,
-    categoriesDiff,
-    shapeTypesDiff,
-    hasChanges
-  });
-
   // Appliquer les filtres automatiquement lorsque l'onglet filtres est actif
   if (activeTab.value === 'filters') {
-    console.log('[DrawingTools][watch filters] Onglet filtres actif, application des filtres');
-
     // Appliquer les filtres immédiatement
     applyFilters();
-  } else {
-    console.log('[DrawingTools][watch filters] Onglet filtres non actif, pas d\'application automatique');
   }
 }, { deep: true });
 
 // Méthode pour gérer le clic sur un outil
 const handleToolClick = (toolType: string) => {
-  console.log('[DrawingTools][handleToolClick] Outil cliqué:', toolType, 'Outil actuel:', props.selectedTool);
-
   // Émettre l'événement tool-selected
   // Si l'outil cliqué est déjà sélectionné, on le désélectionne, sinon on le sélectionne
   emit('tool-selected', props.selectedTool === toolType ? '' : toolType);
@@ -1115,8 +970,6 @@ const handleToolClick = (toolType: string) => {
 
 // Méthode pour éditer une GeoNote
 const editGeoNote = () => {
-  console.log('[DrawingTools][editGeoNote] Édition de la GeoNote');
-
   // Fermer le panneau DrawingTools avant d'ouvrir le modal d'édition
   // pour éviter que le modal soit masqué
   emit('update:show', false);
@@ -1128,17 +981,12 @@ const editGeoNote = () => {
     if (geoNote && typeof geoNote.editNote === 'function') {
       // Appeler la méthode editNote de la GeoNote
       geoNote.editNote();
-      console.log('[DrawingTools][editGeoNote] Méthode editNote appelée avec succès');
-    } else {
-      console.error('[DrawingTools][editGeoNote] La méthode editNote n\'est pas disponible sur la couche');
     }
   }
 }
 
 // Méthode pour ouvrir l'itinéraire Google Maps pour une GeoNote
 const openGeoNoteRoute = () => {
-  console.log('[DrawingTools][openGeoNoteRoute] Ouverture de l\'itinéraire pour la GeoNote');
-
   // Fermer le panneau DrawingTools avant d'ouvrir Google Maps
   emit('update:show', false);
 
@@ -1149,9 +997,6 @@ const openGeoNoteRoute = () => {
     if (geoNote && typeof geoNote.openInGoogleMaps === 'function') {
       // Appeler la méthode openInGoogleMaps de la GeoNote
       geoNote.openInGoogleMaps();
-      console.log('[DrawingTools][openGeoNoteRoute] Méthode openInGoogleMaps appelée avec succès');
-    } else {
-      console.error('[DrawingTools][openGeoNoteRoute] La méthode openInGoogleMaps n\'est pas disponible sur la couche');
     }
   }
 }

@@ -222,7 +222,6 @@ watch(() => planData.value.entreprise, async (newEntrepriseId) => {
   visiteurs.value = [];
 
   const entrepriseId = extractId(newEntrepriseId);
-  console.log('[NewPlanModal] Entreprise sélectionnée:', entrepriseId);
   if (entrepriseId) {
     await loadSalaries(entrepriseId);
   } else {
@@ -277,12 +276,10 @@ watch(() => props.modelValue, (isOpen) => {
 async function loadSalaries(entrepriseId?: number) {
   isLoadingSalaries.value = true;
   try {
-    console.log('[NewPlanModal] Chargement des salaries pour entreprise:', entrepriseId);
     const response = await userService.getUsers({
       role: 'SALARIE',
       entreprise: entrepriseId
     });
-    console.log('[NewPlanModal] Réponse salaries:', response.data);
     salaries.value = response.data;
   } catch (error) {
     console.error('[NewPlanModal] Error loading salaries:', error);
@@ -415,8 +412,6 @@ async function createPlan() {
       data.salarie = user.salarie.id;
       data.visiteur = user.id;
     }
-
-    console.log('Données du plan à créer:', data);
 
     // S'assurer que l'état est propre avant de créer un nouveau plan
     irrigationStore.clearCurrentPlan();
