@@ -2735,7 +2735,7 @@ function handleNoteSave(note: any) {
   // Si c'est une note existante, mettre à jour la couche Leaflet
   if (featureGroup.value) {
     const layers = featureGroup.value.getLayers();
-    const noteLayer = layers.find((layer: any) => layer._leaflet_id === note.id);
+    const noteLayer = layers.find((layer: any) => layer._leaflet_id === note.id || layer._leaflet_id === note.leafletId);
 
     if (noteLayer) {
       // Mettre à jour les propriétés de la note
@@ -2743,6 +2743,13 @@ function handleNoteSave(note: any) {
       noteLayer.properties.description = note.description;
       noteLayer.properties.columnId = note.columnId;
       noteLayer.properties.accessLevel = note.accessLevel;
+      
+      // S'assurer que les commentaires et photos sont synchronisés
+      noteLayer.properties.comments = note.comments || [];
+      noteLayer.properties.photos = note.photos || [];
+      
+      // Mettre à jour les timestamps
+      noteLayer.properties.updatedAt = new Date().toISOString();
 
       // Conserver la catégorie existante ou utiliser une valeur par défaut
       if (!noteLayer.properties.category) {
@@ -2762,37 +2769,26 @@ function handleNoteSave(note: any) {
       noteLayer.closePopup();
       noteLayer.unbindPopup();
       noteLayer.bindPopup(noteLayer.createPopupContent());
-// Ajouter la note au store de notes si elle n'existe pas déjà
-      const existingNote = notesStore.notes.find(n => n.id === note.id);
-      if (!existingNote) {
-        // Créer une nouvelle note dans le store
-        // Utiliser as any pour contourner le problème de typage avec accessLevel
-        notesStore.addNote({
-          title: note.title,
-          description: note.description,
-          location: [note.location[0], note.location[1]],
-          columnId: note.columnId || '1', // Utiliser la colonne 'Idées' par défaut
-          style: note.style,
-          accessLevel: note.accessLevel
-        } as any);
-} else {
-        // Mettre à jour la note existante
-        notesStore.updateNote(note.id, {
-          title: note.title,
-          description: note.description,
-          columnId: note.columnId,
-          accessLevel: note.accessLevel,
-          style: note.style,
-          updatedAt: new Date().toISOString()
-        });
-}
+      
+      // Émettre un événement pour informer les autres composants
+      window.dispatchEvent(new CustomEvent('geonote:update', {
+        detail: {
+          noteId: note.id,
+          properties: {
+            name: note.title,
+            description: note.description,
+            columnId: note.columnId,
+            accessLevel: note.accessLevel,
+            style: note.style,
+            comments: note.comments,
+            photos: note.photos,
+            updatedAt: new Date().toISOString()
+          }
+        }
+      }));
     }
   }
-
-  notificationStore.success('Note enregistrée avec succès');
 }
-
-
 
 // Fonction pour sélectionner un client
 async function selectClient(client: ExtendedUserDetails) {

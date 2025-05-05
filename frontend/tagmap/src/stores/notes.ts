@@ -205,9 +205,9 @@ try {
       } else if (authStore.isSalarie && authStore.user?.enterprise_id) {
         // Salarié: utiliser l'ID de son entreprise
         enterprise_id = authStore.user.enterprise_id;
-      } else if (authStore.isVisiteur && authStore.user?.salarie?.enterprise_id) {
-        // Visiteur: utiliser l'ID de l'entreprise de son salarié
-        enterprise_id = authStore.user.salarie.enterprise_id;
+      } else if (authStore.isVisiteur && authStore.user?.enterprise_id) {
+        // Visiteur: utiliser l'ID de l'entreprise associée au visiteur
+        enterprise_id = authStore.user.enterprise_id;
       } else if (!authStore.isAdmin && authStore.user?.enterprise_id) {
         // Fallback: utiliser l'enterprise_id de l'utilisateur si disponible
         enterprise_id = authStore.user.enterprise_id;

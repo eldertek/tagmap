@@ -184,7 +184,6 @@ export class GeoNote extends L.Marker {
 
       // Vérifier si l'ID dans l'événement correspond à l'ID backend
       if (eventNoteId === backendId) {
-
         // Mettre à jour toutes les propriétés
         this.properties = {
           ...this.properties,
@@ -192,13 +191,35 @@ export class GeoNote extends L.Marker {
           description: e.detail.properties.description,
           columnId: e.detail.properties.columnId,
           accessLevel: e.detail.properties.accessLevel,
-          style: e.detail.properties.style
+          style: e.detail.properties.style,
+          updatedAt: new Date().toISOString() // S'assurer que le timestamp de mise à jour est actualisé
         };
 
         // Mettre à jour le style visuel
         this.setNoteStyle(e.detail.properties.style);
 
+        // Récupérer la note entière depuis le store si disponible pour s'assurer d'avoir toutes les données
+        if (backendId) {
+          try {
+            const notesStore = useNotesStore();
+            const noteFromStore = notesStore.notes.find(n => n.id === parseInt(String(backendId)));
+            if (noteFromStore) {
+              // Mettre à jour les commentaires et photos depuis le store
+              this.properties.comments = noteFromStore.comments || [];
+              this.properties.photos = noteFromStore.photos || [];
+              // S'assurer que tous les autres champs sont synchronisés
+              this.properties.createdAt = noteFromStore.createdAt;
+              this.properties.updatedAt = noteFromStore.updatedAt;
+            }
+          } catch (error) {
+            console.error('[GeoNote] Erreur lors de la récupération de la note depuis le store:', error);
+          }
+        }
 
+        // Mettre à jour le popup si disponible
+        if (this.getPopup()) {
+          this.setPopupContent(this.createPopupContent());
+        }
       }
     }) as EventListener);
 
@@ -436,11 +457,32 @@ export class GeoNote extends L.Marker {
 
   // Méthode pour éditer la note
   editNote(): void {
-
     // Utiliser l'ID du backend s'il existe, sinon utiliser l'ID Leaflet
     // Priorité: _dbId (ID de la base de données), puis properties.id, puis _leaflet_id
     const backendId = (this as any)._dbId;
     const leafletId = (this as any)._leaflet_id;
+
+    // Récupérer les données les plus récentes depuis le store si disponible
+    if (backendId) {
+      try {
+        const notesStore = useNotesStore();
+        const noteFromStore = notesStore.notes.find(n => n.id === parseInt(String(backendId)));
+        if (noteFromStore) {
+          // Mettre à jour les propriétés avec les données du store
+          this.properties.name = noteFromStore.title;
+          this.properties.description = noteFromStore.description;
+          this.properties.columnId = noteFromStore.columnId;
+          this.properties.accessLevel = noteFromStore.accessLevel;
+          this.properties.style = { ...noteFromStore.style };
+          this.properties.comments = noteFromStore.comments || [];
+          this.properties.photos = noteFromStore.photos || [];
+          this.properties.createdAt = noteFromStore.createdAt;
+          this.properties.updatedAt = noteFromStore.updatedAt;
+        }
+      } catch (error) {
+        console.error('[GeoNote] Erreur lors de la récupération de la note depuis le store:', error);
+      }
+    }
 
     // Créer un objet note à partir des propriétés
     const note = {
@@ -462,11 +504,10 @@ export class GeoNote extends L.Marker {
         fillOpacity: 0.6,
         radius: 8
       },
-      order: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       comments: this.properties.comments || [],
-      photos: this.properties.photos || []
+      photos: this.properties.photos || [],
+      createdAt: this.properties.createdAt || new Date().toISOString(),
+      updatedAt: this.properties.updatedAt || new Date().toISOString()
     };
     // Utiliser un événement personnalisé global pour éviter les problèmes avec Leaflet
     // Inclure la référence à cette couche Leaflet pour permettre de retrouver le dbId
