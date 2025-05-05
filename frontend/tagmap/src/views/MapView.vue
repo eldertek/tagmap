@@ -2041,29 +2041,6 @@ watch(selectedSalarie, async (newSalarie) => {
 function clearLastPlan() {
   localStorage.removeItem('lastPlanId');
 }
-// Fonction pour formater les mesures
-function formatMeasure(value: number, unit: string = 'm'): string {
-  if (unit === 'm²') {
-    return `${(value / 10000).toFixed(2)} ha`;
-  } else if (unit === 'm') {
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(2)} km`;
-    }
-    return `${value.toFixed(2)} m`;
-  }
-  return `${value.toFixed(2)} ${unit}`;
-}
-// Fonction pour générer la synthèse
-const isGeneratingSynthesis = ref(false);
-// Fonction pour traduire le type de forme en français
-function getShapeTypeFr(type: string): string {
-  const types: { [key: string]: string } = {
-    'Line': 'Ligne',
-    'Polygon': 'Polygone',
-  };
-  return types[type] || type;
-}
-
 // Ajouter un debounce pour l'invalidation de la taille
 const debouncedInvalidateMapSize = debounce(() => {
   if (!map.value) {
@@ -2965,121 +2942,11 @@ async function openLoadPlanModal() {
   showLoadPlanModal.value = true;
 }
 
-// Fonction pour formater l'affichage des sections dans la synthèse
-function formatSectionsForPDF(sections: any[], pdf: any, startX: number, startY: number, maxWidth: number): number {
-  if (!sections || sections.length === 0) return startY;
-
-  // Trier les sections par surface décroissante
-  const sortedSections = [...sections].sort((a, b) => (b.surface || 0) - (a.surface || 0));
-
-  // Configuration du tableau plus compacte
-  const tableWidth = maxWidth;
-  const headerHeight = 7; // Réduit de 10 à 7
-  const rowHeight = 6;    // Réduit de 8 à 6
-  const padding = 2;      // Réduit de 3 à 2
-
-  // Définir les colonnes et leurs largeurs relatives optimisées
-  const columns = [
-    { header: 'Nom', width: 0.3, align: 'left' },    // Augmenté pour les noms longs
-    { header: 'Surface', width: 0.2, align: 'right' },
-    { header: 'Angles', width: 0.25, align: 'right' }, // Augmenté pour les angles
-    { header: 'Rayon', width: 0.15, align: 'right' }, // Réduit car valeurs plus courtes
-    { header: 'Type', width: 0.1, align: 'center' }   // Réduit car valeurs courtes
-  ];
-
-  // Dessiner le fond du tableau
-  const tableHeight = headerHeight + (rowHeight * sortedSections.length);
-  pdf.setFillColor(248, 250, 252);
-  pdf.setDrawColor(226, 232, 240);
-  pdf.roundedRect(startX, startY, tableWidth, tableHeight + padding * 2, 2, 2, 'FD'); // Réduit le rayon des coins
-
-  // Dessiner l'en-tête du tableau
-  pdf.setFillColor(241, 245, 249);
-  pdf.rect(startX + padding, startY + padding, tableWidth - padding * 2, headerHeight, 'F');
-
-  // Style pour l'en-tête
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(7); // Réduit de 8 à 7
-  pdf.setTextColor(51, 65, 85);
-
-  // Dessiner les en-têtes des colonnes
-  let xPos = startX + padding;
-  columns.forEach(col => {
-    const colWidth = col.width * (tableWidth - padding * 2);
-    if (col.align === 'right') {
-      pdf.text(col.header, xPos + colWidth - padding, startY + padding + 5, { align: 'right' }); // Ajusté Y
-    } else if (col.align === 'center') {
-      pdf.text(col.header, xPos + colWidth/2, startY + padding + 5, { align: 'center' }); // Ajusté Y
-    } else {
-      pdf.text(col.header, xPos + padding/2, startY + padding + 5); // Ajusté Y et X
-    }
-    xPos += colWidth;
-  });
-
-  // Style pour les données
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(6.5); // Réduit de 7 à 6.5
-  pdf.setTextColor(71, 85, 105);
-
-  // Dessiner les lignes de données
-  sortedSections.forEach((section, index) => {
-    const rowY = startY + headerHeight + padding + (index * rowHeight);
-
-    // Alterner les couleurs de fond des lignes
-    if (index % 2 === 0) {
-      pdf.setFillColor(250, 252, 254);
-      pdf.rect(startX + padding, rowY, tableWidth - padding * 2, rowHeight, 'F');
-    }
-
-    let xPos = startX + padding;
-
-    // Nom de la section
-    const name = section.name || `Section ${index + 1}`;
-    pdf.text(name, xPos + padding/2, rowY + 4); // Ajusté Y et X
-    xPos += columns[0].width * (tableWidth - padding * 2);
-
-    // Surface
-    const surface = formatMeasure(section.surface || 0, 'm²');
-    pdf.text(surface, xPos + (columns[1].width * (tableWidth - padding * 2)) - padding, rowY + 4, { align: 'right' });
-    xPos += columns[1].width * (tableWidth - padding * 2);
-
-    // Angles
-    const angles = section.startAngle === 0 && section.endAngle === 360
-      ? 'Complet'  // Raccourci pour gagner de l'espace
-      : `${section.startAngle}°-${section.endAngle}°`; // Supprimé l'espace autour du tiret
-    pdf.text(angles, xPos + (columns[2].width * (tableWidth - padding * 2)) - padding, rowY + 4, { align: 'right' });
-    xPos += columns[2].width * (tableWidth - padding * 2);
-
-    // Rayon
-    const radius = formatMeasure(section.radius || 0);
-    pdf.text(radius, xPos + (columns[3].width * (tableWidth - padding * 2)) - padding, rowY + 4, { align: 'right' });
-    xPos += columns[3].width * (tableWidth - padding * 2);
-
-    // Type (simplifié)
-    const type = section.startAngle === 0 && section.endAngle === 360 ? 'C' : 'P'; // Utilisé juste l'initiale
-    pdf.text(type, xPos + (columns[4].width * (tableWidth - padding * 2))/2, rowY + 4, { align: 'center' });
-  });
-
-  // Ajouter une ligne de séparation plus fine
-  pdf.setDrawColor(226, 232, 240);
-  pdf.setLineWidth(0.05); // Réduit l'épaisseur de la ligne
-  pdf.line(
-    startX + padding,
-    startY + headerHeight + padding,
-    startX + tableWidth - padding,
-    startY + headerHeight + padding
-  );
-
-  // Retourner la nouvelle position Y
-  return startY + tableHeight + padding * 2;
-}
-
 // Après "const selectedLeafletShape = ref<L.Layer | null>(null);"
 const isMobile = ref(window.innerWidth < 768);
 
 // Fonction pour mettre à jour la détection mobile
 function checkMobile() {
-  const wasMobile = isMobile.value;
   isMobile.value = window.innerWidth < 768;
 }
 </script>
