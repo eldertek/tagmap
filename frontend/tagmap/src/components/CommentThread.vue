@@ -64,13 +64,8 @@ const props = defineProps<{
   noteId: number;
   comments?: Comment[];
 }>();
-
-// Déboguer les commentaires reçus
-console.log('[CommentThread] Commentaires reçus initialement:', props.comments);
-
 // Surveiller les changements dans les commentaires
 watch(() => props.comments, (newComments) => {
-  console.log('[CommentThread] Commentaires mis à jour:', newComments);
 }, { deep: true });
 
 const emit = defineEmits<{

@@ -64,11 +64,6 @@ function isLineData(data: any): data is LineData {
 // Note data type removed as per requirements
 
 function convertShapeToDrawingElement(shape: any): DrawingElement {
-  console.log('[DrawingStore] Conversion de la forme en élément', {
-    type: shape.properties?.type,
-    name: shape.properties?.style?.name,
-    properties: shape.properties
-  });
 
   // Vérifier si c'est une note géolocalisée
   if (shape.properties?.type === 'Note') {
@@ -130,7 +125,6 @@ function convertShapeToDrawingElement(shape: any): DrawingElement {
 }
 
 function convertStoredElementToShape(element: DrawingElement): any {
-  console.log('[DrawingStore] Conversion de l\'élément stocké en forme', { element });
 
   switch (element.type_forme) {
     case 'Polygon': {
@@ -146,7 +140,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
 
       // Récupérer le niveau d'accès depuis le style si disponible
       const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
-      console.log('[DrawingStore] Polygon - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
 
       // Forcer la mise à jour du niveau d'accès dans les données
       data.accessLevel = accessLevel;
@@ -181,7 +174,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
 
       // Récupérer le niveau d'accès depuis le style si disponible
       const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || 'visitor';
-      console.log('[DrawingStore] Line - Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
 
       // Forcer la mise à jour du niveau d'accès dans les données
       data.accessLevel = accessLevel;
@@ -197,10 +189,6 @@ function convertStoredElementToShape(element: DrawingElement): any {
       return line;
     }
     case 'Note': {
-      console.log('[DrawingStore] Traitement d\'une Note à partir de l\'API', {
-        id: element.id,
-        data: element.data
-      });
 
       const data = element.data as any;
       if (!data.location) {
@@ -231,20 +219,13 @@ function convertStoredElementToShape(element: DrawingElement): any {
           updatedAt: data.updatedAt || new Date().toISOString()
         };
 
-        console.log('[DrawingStore] Données préparées pour la note:', noteData);
-
+  
         // Utiliser la méthode statique de GeoNote pour créer une note à partir des données
         const geoNote = GeoNote.fromBackendData(noteData);
 
         // Stocker l'ID de la base de données pour la sauvegarde ultérieure
         (geoNote as any)._dbId = element.id;
 
-        console.log('[DrawingStore] Note créée:', {
-          id: element.id,
-          location: noteData.location,
-          name: noteData.name,
-          type: (geoNote as any).properties.type
-        });
 
         return geoNote;
       } catch (error) {
@@ -309,31 +290,11 @@ export const useDrawingStore = defineStore('drawing', {
     getFilteredElements: (state) => {
       // Si aucun élément dans le store, retourner un tableau vide
       if (state.elements.length === 0) {
-        console.log('[DrawingStore][getFilteredElements] Aucun élément dans le store, retour d\'un tableau vide');
         return [];
       }
 
-      console.log('[DrawingStore][getFilteredElements] Début du filtrage avec', {
-        totalElements: state.elements.length,
-        filters: JSON.stringify({
-          accessLevels: state.filters.accessLevels,
-          categories: state.filters.categories,
-          shapeTypes: state.filters.shapeTypes
-        })
-      });
-
-      // Afficher tous les éléments du store pour débogage
-      console.log('[DrawingStore][getFilteredElements] Éléments dans le store:',
-        state.elements.map(e => ({
-          id: e.id,
-          type_forme: e.type_forme,
-          data: e.data ? JSON.stringify(e.data) : null
-        }))
-      );
 
       const filteredElements = state.elements.filter(element => {
-        // Informations de base sur l'élément pour le débogage
-        console.log(`[DrawingStore][getFilteredElements] Vérification de l'élément ${element.id} (${element.type_forme})`);
 
         // Extraire les propriétés pour le filtrage
 
@@ -342,7 +303,6 @@ export const useDrawingStore = defineStore('drawing', {
           state.filters.shapeTypes[element.type_forme] : true;
 
         if (!typeVisible) {
-          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par type: ${element.type_forme} (non visible)`);
           return false;
         }
 
@@ -353,7 +313,6 @@ export const useDrawingStore = defineStore('drawing', {
           state.filters.categories[category] : true;
 
         if (!categoryVisible) {
-          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par catégorie: ${category} (non visible)`);
           return false;
         }
 
@@ -371,19 +330,12 @@ export const useDrawingStore = defineStore('drawing', {
         }
 
         if (!accessLevelVisible) {
-          console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} filtré par niveau d'accès: ${accessLevel} (non visible)`);
           return false;
         }
 
-        console.log(`[DrawingStore][getFilteredElements] Élément ${element.id} visible: type=${element.type_forme}, catégorie=${category}, accès=${accessLevel}`);
         return true;
       });
 
-      console.log('[DrawingStore][getFilteredElements] Résultat du filtrage:', {
-        total: state.elements.length,
-        filtered: filteredElements.length,
-        filteredIds: filteredElements.map(e => e.id)
-      });
 
       return filteredElements;
     }
@@ -448,22 +400,8 @@ export const useDrawingStore = defineStore('drawing', {
       this.error = null;
     },
     addElement(element: DrawingElement | any) {
-      console.log('[DrawingStore] Ajout d\'un élément', {
-        element,
-        isLeafletLayer: element instanceof L.Layer,
-        hasProperties: !!element.properties,
-        properties: element.properties,
-        type: element.properties?.type
-      });
-
       if (element instanceof L.Layer && element.properties) {
         const convertedElement = convertShapeToDrawingElement(element);
-        console.log('[DrawingStore] Élément converti avant ajout', {
-          original: element,
-          converted: convertedElement,
-          type: convertedElement.type_forme,
-          data: convertedElement.data
-        });
         this.elements.push(convertedElement);
       } else {
         if (!element.type_forme && this.lastUsedType) {
@@ -647,7 +585,7 @@ export const useDrawingStore = defineStore('drawing', {
         }
         return this.elements;
       } catch (error) {
-        console.error('[ISSUE01][DrawingStore] Erreur lors du chargement des éléments:', error);
+        console.error('Erreur lors du chargement des éléments:', error);
         this.error = 'Erreur lors du chargement des éléments du plan';
         throw error;
       } finally {

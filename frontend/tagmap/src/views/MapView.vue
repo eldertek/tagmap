@@ -1378,12 +1378,6 @@ function toggleDrawingTools() {
 
 // Fonction pour nettoyer la carte
 function clearMap() {
-  console.log('[ISSUE01][MapView][clearMap] Début du nettoyage de la carte', {
-    featureGroupExists: !!featureGroup.value,
-    featureGroupLayersCount: featureGroup.value?.getLayers().length || 0,
-    shapesCount: shapes.value.length,
-    shapesIds: shapes.value.map(s => s.id)
-  });
   
   if (featureGroup.value) {
     // Réinitialiser l'état de sauvegarde du plan pour toutes les notes géolocalisées
@@ -1395,54 +1389,27 @@ function clearMap() {
 
     // Supprimer toutes les couches
     featureGroup.value.clearLayers();
-    console.log('[ISSUE01][MapView][clearMap] Toutes les couches ont été supprimées');
   }
   
   shapes.value = [];
   clearActiveControlPoints();
   selectedLeafletShape.value = null;
   currentTool.value = '';
-  
-  console.log('[ISSUE01][MapView][clearMap] Fin du nettoyage de la carte', {
-    featureGroupLayersCount: featureGroup.value?.getLayers().length || 0,
-    shapesCount: shapes.value.length
-  });
 }
 // Fonction pour rafraîchir la carte avec un nouveau plan
 async function refreshMapWithPlan(planId: number) {
   try {
-    console.log('[ISSUE01][MapView][refreshMapWithPlan] Début du refreshMapWithPlan', {
-      planId,
-      currentPlanId: currentPlan.value ? currentPlan.value.id : null,
-      mapInitialized: !!map.value,
-      featureGroupExists: !!featureGroup.value,
-      featureGroupLayersCount: featureGroup.value ? featureGroup.value.getLayers().length || 0 : 0
-    });
-
     // Nettoyer la carte actuelle
-    console.log('[ISSUE01][MapView][refreshMapWithPlan] Nettoyage de la carte avant chargement');
     clearMap();
 
     // Charger les éléments du plan (formes géométriques sans les notes)
-    console.log('[ISSUE01][MapView][refreshMapWithPlan] Chargement des éléments du plan');
     await drawingStore.loadPlanElements(planId);
 
     // Récupérer le plan depuis le store
     const loadedPlan = irrigationStore.getPlanById(planId);
 
-    console.log('[ISSUE01][MapView][refreshMapWithPlan] Plan chargé depuis le store', {
-      planFound: !!loadedPlan,
-      planId: loadedPlan?.id,
-      drawingElementsCount: drawingStore.getCurrentElements.length,
-      drawingElementsIds: drawingStore.getCurrentElements.map(el => el.id)
-    });
-
     if (loadedPlan) {
       // Mettre à jour le plan courant
-      console.log('[ISSUE01][MapView][refreshMapWithPlan] Mise à jour du plan courant', {
-        oldPlanId: currentPlan.value?.id,
-        newPlanId: loadedPlan.id
-      });
       currentPlan.value = loadedPlan;
       irrigationStore.setCurrentPlan(loadedPlan);
       drawingStore.setCurrentPlan(loadedPlan.id);
@@ -1450,10 +1417,8 @@ async function refreshMapWithPlan(planId: number) {
 
       // Charger les notes géolocalisées associées au plan séparément
       try {
-        console.log('[MapView][refreshMapWithPlan] Chargement des notes géolocalisées associées au plan:', planId);
         const response = await noteService.getNotesByPlan(planId);
         const notes = response.data;
-        console.log(`[MapView][refreshMapWithPlan] ${notes.length} notes géolocalisées récupérées`);
 
         // Ajouter les notes au store de notes
         const notesStore = useNotesStore();
@@ -1526,14 +1491,6 @@ async function refreshMapWithPlan(planId: number) {
 
       // Ajouter les formes à la carte
       if (map.value && featureGroup.value) {
-        console.log('[ISSUE01][MapView][refreshMapWithPlan:addShapesToMap] Éléments disponibles:', {
-          count: drawingStore.getCurrentElements.length,
-          elements: drawingStore.getCurrentElements.map(e => ({
-            id: e.id,
-            type: e.type_forme
-          }))
-        });
-
         // Regrouper les éléments par type et priorité pour un traitement par lots
         const elementsByType = drawingStore.getCurrentElements.reduce((acc, element) => {
           if (!acc[element.type_forme]) {
@@ -1575,11 +1532,6 @@ async function refreshMapWithPlan(planId: number) {
             // Traiter le lot en parallèle
             await Promise.all(batch.map(async (element) => {
               if (!featureGroup.value || !element.data) return;
-              console.log(`[ISSUE01][MapView][refreshMapWithPlan:createElement] Création d'un élément de type ${element.type_forme}`, {
-                id: element.id,
-                hasFeatureGroup: !!featureGroup.value,
-                hasData: !!element.data
-              });
               let layer: L.Layer | null = null;
 
               switch (element.type_forme) {
@@ -1756,12 +1708,9 @@ async function loadPlan(planId: number) {
 }
 // Modifier la fonction savePlan
 async function savePlan() {
-  // Ajouter un débounce pour éviter les doubles appels
-  console.log('[ISSUE01][MapView][savePlan] POINT D\'ENTRÉE - Call Stack:', new Error().stack);
-  
+  // Ajouter un débounce pour éviter les doubles appels  
   // On utilise une variable pour empêcher les appels multiples
   if (saving.value) {
-    console.log('[ISSUE01][MapView][savePlan] Sauvegarde déjà en cours, ignorer l\'appel');
     return;
   }
   if (!currentPlan.value || !featureGroup.value) {
@@ -1779,22 +1728,7 @@ async function savePlan() {
     // Identifiants actuellement présents sur la carte
     const currentLayerIds = new Set<number>();
 
-    // Log pour le debug
-    console.log('[ISSUE01][MapView][savePlan] Début de la sauvegarde', {
-      featureGroupLayers: featureGroup.value.getLayers().length,
-      existingIds: Array.from(existingIds),
-      currentElements: drawingStore.getCurrentElements.length,
-      currentElementsIds: drawingStore.getCurrentElements.map(el => el.id)
-    });
-
     featureGroup.value.eachLayer((layer: L.Layer) => {
-      console.log('[ISSUE01][MapView][savePlan] Traitement de la couche', {
-        type: (layer as any).properties?.type,
-        id: (layer as any)._dbId || (layer as any)._elementId,
-        isPolygon: layer instanceof L.Polygon,
-        properties: (layer as any).properties
-      });
-
       let type_forme: DrawingElementType | undefined;
       let data: any;
 
@@ -1925,55 +1859,18 @@ async function savePlan() {
       }
     });
 
-    // Log pour le debug
-    console.log('[ISSUE01][MapView][savePlan] Éléments à sauvegarder', {
-      totalElements: elements.length,
-      elementsIds: elements.map(el => el.id),
-      elementTypes: elements.map(el => el.type_forme)
-    });
-
     // Identifier les éléments supprimés
     const elementsToDelete = Array.from(existingIds).filter(id => !currentLayerIds.has(id));
-
-    console.log('[ISSUE01][MapView][savePlan] Éléments supprimés:', {
-      existingIds: Array.from(existingIds),
-      currentLayerIds: Array.from(currentLayerIds),
-      elementsToDelete
-    });
 
     // Mettre à jour les éléments dans le store en excluant les éléments supprimés
     const filteredElements = elements.filter(el => {
       // Garder les éléments sans ID (nouveaux) ou ceux qui ne sont pas dans la liste des éléments à supprimer
       return !el.id || !elementsToDelete.includes(el.id);
     });
-    
-    console.log('[ISSUE01][MapView][savePlan] Elements après filtrage:', {
-      totalBefore: elements.length,
-      totalAfter: filteredElements.length,
-      elementsIdsAfter: filteredElements.map(el => el.id)
-    });
-    
     drawingStore.elements = filteredElements;
 
     // Passer les éléments à supprimer au store
     const updatedPlan = await drawingStore.saveToPlan(currentPlan.value.id, { elementsToDelete });
-    
-    console.log('[ISSUE01][MapView][savePlan] Plan mis à jour par le serveur:', {
-      formesCount: updatedPlan.formes?.length || 0,
-      formesIds: updatedPlan.formes?.map((f: any) => f.id) || []
-    });
-    
-    // Log supplémentaire pour comprendre le double comptage
-    console.log('[ISSUE01][MapView][savePlan] Vérification du contenu détaillé des formes:', {
-      currentLayerCount: featureGroup.value.getLayers().length,
-      currentElements: drawingStore.getCurrentElements.length,
-      serverElementCount: updatedPlan.formes?.length || 0,
-      detailedFormes: updatedPlan.formes?.map((f: any) => ({
-        id: f.id,
-        type: f.type_forme,
-        dataSize: f.data ? Object.keys(f.data).length : 0
-      }))
-    });
 
     // Mettre à jour le plan courant avec les nouvelles données
     if (updatedPlan && currentPlan.value?.id) {

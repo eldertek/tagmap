@@ -6,7 +6,6 @@ import { loadGoogleMapsApi } from '@/utils/googleMapsLoader';
 
 export function useMapState() {
   const map = ref<LeafletMap | null>(null);
-  const searchQuery = ref('');
   const currentBaseMap = ref('Hybride');
   const activeLayer = ref<any>(null);
   const isGoogleMapsLoaded = ref(false);
@@ -328,23 +327,6 @@ export function useMapState() {
     }
   };
 
-  const searchLocation = async () => {
-    if (!map.value || !searchQuery.value) return;
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`
-      );
-
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        map.value!.setView([lat, lon], 13, { animate: true });
-      }
-    } catch (error) {
-      console.error('Erreur lors de la recherche de localisation:', error);
-    }
-  };
 
   // Fonction de nettoyage des ressources
   const cleanup = () => {
@@ -359,11 +341,9 @@ export function useMapState() {
 
   return {
     map,
-    searchQuery,
     currentBaseMap,
     baseMaps,
     initMap,
-    searchLocation,
     changeBaseMap,
     cleanup,
     // Expose Google Maps loading state

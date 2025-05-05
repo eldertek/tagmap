@@ -453,12 +453,6 @@ const getToolIcon = (type: string) => {
 
 // Define reactive variables for the component
 const activeTab = ref('tools') // Onglet actif par défaut
-
-// Observer les changements de l'outil sélectionné
-watch(() => props.selectedTool, (newTool, oldTool) => {
-  console.log('[DrawingTools][watch selectedTool] Changement d\'outil:', { newTool, oldTool });
-});
-
 // Watch for tab changes to ensure filters are applied when switching to the filters tab
 watch(activeTab, (newTab, oldTab) => {
   console.log('[DrawingTools][watch activeTab] Changement d\'onglet:', { newTab, oldTab });

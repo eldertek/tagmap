@@ -275,7 +275,6 @@ import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useAuthStore, formatUserName } from '../stores/auth';
-// import { useIrrigationStore } from '../stores/irrigation'; // Non utilisé pour l'instant
 import { useDrawingStore } from '../stores/drawing';
 import { noteService, userService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
@@ -291,15 +290,12 @@ const router = useRouter();
 const notificationStore = useNotificationStore();
 const notesStore = useNotesStore();
 const authStore = useAuthStore();
-// L'irrigation store n'est pas utilisé dans ce composant
-const drawingStore = useDrawingStore();
 const loading = ref(true);
 const showDeleteModal = ref(false);
 const showEditModal = ref(false);
 const noteToDelete = ref<Note | null>(null);
 const editingNote = ref<Note | null>(null);
 const activeTab = ref('info'); // Onglet actif dans le modal d'édition
-const currentPlanId = ref<number | null>(null);
 
 // Détection du mobile
 const isMobile = ref(window.innerWidth < 768);
@@ -312,7 +308,6 @@ const handleResize = () => {
 // Colonnes fixes (drag and drop désactivé)
 const columnsForDrag = computed(() => {
   const sortedColumns = notesStore.getSortedColumns;
-  console.log('[NotesView][columnsForDrag] Colonnes triées:', sortedColumns);
   return sortedColumns;
 });
 
@@ -519,11 +514,7 @@ function getAccessLevelColor(level: NoteAccessLevel | undefined): string {
 
 // Appeler loadInitialData au montage du composant
 onMounted(() => {
-  console.log('[NotesView] Composant monté');
   loadInitialData()
-    .then(() => {
-      console.log('[NotesView] Données chargées avec succès');
-    })
     .catch(error => {
       console.error('[NotesView] Erreur lors du chargement des données:', error);
       notificationStore.error('Erreur lors du chargement des données');
@@ -534,27 +525,22 @@ onMounted(() => {
 
 // Ajouter cette fonction pour charger les données initiales
 async function loadInitialData() {
-  console.log('\n[NotesView][loadInitialData] Début du chargement des données');
   try {
     loading.value = true;
 
     // Charger les colonnes d'abord
-    console.log('[NotesView][loadInitialData] Chargement des colonnes...');
     await notesStore.loadColumns();
-    console.log('[NotesView][loadInitialData] Colonnes chargées:', notesStore.columns);
 
     // Si admin, charger la liste des entreprises pour affichage
     if (authStore.isAdmin) {
       try {
         const entResp = await userService.getEntreprises();
         entreprisesList.value = entResp.data;
-        console.log('[NotesView][loadInitialData] Entreprises chargées:', entreprisesList.value);
       } catch (error) {
         console.error('[NotesView][loadInitialData] Erreur chargement entreprises:', error);
       }
     }
     // Récupérer les notes depuis le backend
-    console.log('[NotesView][loadInitialData] Chargement des notes...');
 
     // Préparer les filtres pour les notes
     const filters: any = {};
@@ -562,7 +548,6 @@ async function loadInitialData() {
     // Si l'utilisateur n'est pas admin, filtrer par son entreprise
     if (!authStore.isAdmin && authStore.user?.enterprise_id) {
       filters.enterprise_id = authStore.user.enterprise_id;
-      console.log(`[NotesView][loadInitialData] Filtrage des notes par entreprise: ${filters.enterprise_id}`);
     }
 
     const response = await noteService.getNotes(filters);
