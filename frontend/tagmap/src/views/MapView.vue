@@ -2,43 +2,6 @@
   <div class="h-full flex">
     <!-- Carte -->
     <div class="flex-1 relative">
-      <!-- Overlay de génération -->
-      <div v-if="isGeneratingSynthesis"
-        class="absolute inset-0 bg-black/30 backdrop-blur-sm z-[2000] flex items-center justify-center">
-        <div class="bg-white/90 rounded-2xl p-8 max-w-md shadow-2xl border border-gray-100">
-          <div class="flex flex-col items-center">
-            <!-- Animation de chargement améliorée -->
-            <div class="relative w-24 h-24 mb-6">
-              <!-- Cercle principal rotatif -->
-              <div class="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
-              <div class="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin">
-              </div>
-              <!-- Effet de progression -->
-              <div class="absolute inset-2 border-2 border-primary-400/30 rounded-full animate-pulse"></div>
-              <!-- Icône au centre -->
-              <div class="absolute inset-0 flex items-center justify-center">
-                <svg class="w-8 h-8 text-primary-600 animate-bounce" fill="none" stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <!-- Textes explicatifs -->
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">
-              Génération de la synthèse
-            </h3>
-            <div class="space-y-2 text-center">
-              <p class="text-primary-600 font-medium">
-                Capture des formes en cours...
-              </p>
-              <p class="text-sm text-gray-500">
-                Nous optimisons la qualité de vos captures pour un rendu parfait
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
       <!-- Vue d'accueil quand aucun plan n'est chargé -->
       <div v-if="!currentPlan" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[3000]">
         <div class="text-center max-w-lg mx-auto p-8">
@@ -78,7 +41,7 @@
         <div class="map-content flex flex-col h-full">
           <!-- MapToolbar intégré directement dans le flux -->
           <MapToolbar
-            v-if="currentPlan && !isGeneratingSynthesis"
+            v-if="currentPlan"
             :last-save="currentPlan?.date_modification ? new Date(currentPlan.date_modification) : undefined"
             :plan-name="currentPlan?.nom"
             :plan-description="currentPlan?.description"
@@ -95,7 +58,7 @@
           <div class="flex-1 flex flex-col md:flex-row relative">
             <!-- Overlay semi-transparent quand le panneau d'outils est ouvert sur mobile -->
             <div
-              v-if="showDrawingTools && currentPlan && !isGeneratingSynthesis"
+              v-if="showDrawingTools && currentPlan"
               @click="toggleDrawingTools"
               class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
             ></div>
@@ -106,7 +69,7 @@
             </div>
 
             <!-- Panneau d'outils de dessin (s'ouvre du bas vers le haut sur mobile) -->
-            <template v-if="currentPlan && !isGeneratingSynthesis">
+            <template v-if="currentPlan">
               <!-- Sur mobile, téléporter le panneau en dehors du flux pour qu'il apparaisse au-dessus de tout -->
               <Teleport v-if="isMobile" to="body">
                 <DrawingTools
@@ -140,7 +103,7 @@
 
             <!-- Barre d'outils compacte sur mobile -->
             <div
-              v-if="currentPlan && !isGeneratingSynthesis"
+              v-if="currentPlan"
               class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-between cursor-pointer"
               style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
               @click="toggleDrawingTools"
@@ -154,24 +117,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Interface de synthèse -->
-        <div v-if="isGeneratingSynthesis"
-          class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
-          <div class="text-center">
-            <div class="mb-4">
-              <svg class="animate-spin h-10 w-10 mx-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                </path>
-              </svg>
-            </div>
-            <p class="text-lg font-medium text-gray-900">Génération de la synthèse en cours...</p>
-            <p class="text-sm text-gray-500 mt-2">Veuillez patienter pendant que nous analysons votre plan.</p>
           </div>
         </div>
       </div>
