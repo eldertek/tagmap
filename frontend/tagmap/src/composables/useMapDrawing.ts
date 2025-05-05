@@ -6,14 +6,10 @@ import 'leaflet-almostover';
 import { Line } from '../utils/Line';
 import { Polygon } from '../utils/Polygon';
 import { GeoNote } from '../utils/GeoNote';
-import type { Feature, FeatureCollection, GeoJsonProperties, Polygon as GeoJSONPolygon } from 'geojson';
 import { polygon, lineString } from '@turf/helpers';
 import area from '@turf/area';
 import length from '@turf/length';
-import circle from '@turf/circle';
-import intersect from '@turf/intersect';
 import centroid from '@turf/centroid';
-import { featureCollection } from '@turf/helpers';
 import { useDrawingStore } from '../stores/drawing';
 
 // Interface pour les événements AlmostOver de Leaflet
