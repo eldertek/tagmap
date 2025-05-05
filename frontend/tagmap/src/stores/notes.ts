@@ -1,94 +1,43 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useAuthStore } from './auth';
 import { noteService } from '@/services/api';
+import { useAuthStore } from './auth';
+import type { 
+  NoteColumn, 
+  NewNoteColumn, 
+  Note, 
+  Comment, 
+  Photo,
+  NoteApiResponse 
+} from '@/types/notes';
+import {
+  NoteAccessLevel,
+  convertAccessLevel,
+  getAccessLevelLabel,
+  determineEnterpriseId,
+  calculateNoteOrder,
+  convertApiCommentToStore,
+  convertApiPhotoToStore,
+  getCurrentTimestamp
+} from '@/utils/noteHelpers';
 
-export interface NoteColumn {
-  id: string;
-  title: string;
-  color: string;
-  order: number;
-  isDefault?: boolean;
-}
-
-export interface NewNoteColumn {
-  title: string;
-  color: string;
-  order: number;
-  isDefault?: boolean;
-}
-
-export enum NoteAccessLevel {
-  PRIVATE = 'private',
-  COMPANY = 'company',
-  EMPLOYEE = 'employee',
-  VISITOR = 'visitor'
-}
-
-export interface Comment {
-  id: number;
-  text: string;
-  createdAt: string;
-  userId: number;
-  userName: string;
-  userRole: string;
-}
-
-export interface Photo {
-  id: number;
-  url: string;
-  createdAt: string;
-  caption?: string;
-}
-
-export interface Note {
-  id: number;
-  backendId?: number; // ID explicite du backend, utilisé quand l'ID principal est un ID Leaflet
-  leafletId?: number; // ID Leaflet pour référence et mise à jour visuelle
-  title: string;
-  description: string;
-  location: [number, number] | {
-    type: string;
-    coordinates: [number, number]; // [longitude, latitude] pour GeoJSON
-  };
-  columnId: string;
-  order: number; // Added order property to track position within column
-  createdAt: string;
-  updatedAt: string;
-  accessLevel: NoteAccessLevel; // Access level for permissions
-  color?: string; // Couleur de la note
-  style: {
-    color: string;
-    weight: number;
-    opacity: number;
-    fillColor: string;
-    fillOpacity: number;
-    radius?: number;
-  };
-  comments?: Comment[];
-  photos?: Photo[];
-  enterprise_id?: number | null; // ID de l'entreprise associée à la note
-}
+// Re-export types from the former store
+export type { NoteColumn, NewNoteColumn, Note, Comment, Photo };
+export { NoteAccessLevel };
 
 export const useNotesStore = defineStore('notes', () => {
-  // État
+  // State
   const columns = ref<NoteColumn[]>([]);
   const notes = ref<Note[]>([]);
 
-  // Getters
+  // Column Getters
   const getColumnById = computed(() => (id: string) => {
     return columns.value.find(column => column.id === id);
   });
 
   const getColumnColor = computed(() => (id: string) => {
     const column = columns.value.find(column => column.id === id);
-    return column ? column.color : '#6B7280'; // Couleur grise par défaut
-  });
-
-  const getNotesByColumn = computed(() => (columnId: string) => {
-    return notes.value
-      .filter(note => note.columnId === columnId)
-      .sort((a, b) => a.order - b.order);
+    return column ? column.color : '#6B7280'; // Default gray color
   });
 
   const getDefaultColumn = computed(() => {
@@ -99,21 +48,28 @@ export const useNotesStore = defineStore('notes', () => {
     return [...columns.value].sort((a, b) => a.order - b.order);
   });
 
-  // Toutes les notes reçues du backend sont considérées comme accessibles (permissions centralisées côté backend)
+  // Note Getters
+  const getNotesByColumn = computed(() => (columnId: string) => {
+    return notes.value
+      .filter(note => note.columnId === columnId)
+      .sort((a, b) => a.order - b.order);
+  });
+
+  // All notes from backend are considered accessible (permissions centralized on backend)
   const getAccessibleNotes = computed(() => notes.value);
 
-  // Obtenir les notes par colonne (sans filtrage de permission supplémentaire)
-  // Utiliser getAccessibleNotes pour rester compatible avec la vue NotesView.vue
+  // Get notes by column (without additional permission filtering)
+  // Use getAccessibleNotes to stay compatible with NotesView.vue
   const getAccessibleNotesByColumn = computed(() => (columnId: string) => {
     return getAccessibleNotes.value
       .filter(note => note.columnId === columnId)
       .sort((a, b) => a.order - b.order);
   });
 
-  // Actions
+  // Column Management Actions
   async function loadColumns() {
-try {
-      // Colonnes fixes prédéfinies avec les IDs du backend
+    try {
+      // Predefined fixed columns with backend IDs
       const fixedColumns: NoteColumn[] = [
         { id: '1', title: 'Idées', color: '#8B5CF6', order: 0, isDefault: false },
         { id: '2', title: 'À faire', color: '#F59E0B', order: 1, isDefault: true },
@@ -122,117 +78,70 @@ try {
         { id: '5', title: 'Autres', color: '#6B7280', order: 4, isDefault: false }
       ];
 
-      // Assigner directement les colonnes fixes
+      // Directly assign fixed columns
       columns.value = fixedColumns;
-} catch (error) {
+    } catch (error) {
       console.error('[NotesStore][loadColumns] Erreur:', error);
       throw error;
     }
   }
 
-  // Les fonctions de gestion des colonnes sont simplifiées car nous utilisons des colonnes fixes
-
-  // Cette fonction est conservée pour compatibilité mais ne fait rien
+  // This function is preserved for compatibility but does nothing
   async function addColumn(_columnData: NewNoteColumn) {
-// Ne fait rien car nous utilisons des colonnes fixes
+    // Does nothing as we're using fixed columns
     return;
   }
 
-  // Cette fonction est conservée pour compatibilité mais ne modifie que localement
+  // This function is preserved for compatibility but only modifies locally
   async function updateColumn(id: string, data: Partial<NoteColumn>) {
-try {
+    try {
       const index = columns.value.findIndex(column => column.id === id);
       if (index !== -1) {
-        // Mise à jour locale uniquement
+        // Local update only
         columns.value[index] = {
           ...columns.value[index],
           ...data
         };
-}
+      }
     } catch (error) {
       console.error('[NotesStore][updateColumn] Erreur:', error);
       throw error;
     }
   }
 
-  // Fonction utilitaire pour convertir le niveau d'accès du format backend vers le format frontend
-  function convertAccessLevel(backendLevel: string | undefined): NoteAccessLevel {
-    if (!backendLevel) return NoteAccessLevel.PRIVATE;
-
-    switch (backendLevel.toLowerCase()) {
-      case 'private':
-        return NoteAccessLevel.PRIVATE;
-      case 'company':
-        return NoteAccessLevel.COMPANY;
-      case 'employee':
-        return NoteAccessLevel.EMPLOYEE;
-      case 'visitor':
-        return NoteAccessLevel.VISITOR;
-      default:
-        console.warn(`[NotesStore] Niveau d'accès inconnu: ${backendLevel}, utilisation de PRIVATE par défaut`);
-        return NoteAccessLevel.PRIVATE;
-    }
-  }
-
-  function addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'accessLevel'> & { access_level?: string, id: number, enterprise_id?: number | null, createdAt?: string, updatedAt?: string, created_at?: string, updated_at?: string }) {
+  // Note Management Actions
+  function addNote(note: Partial<NoteApiResponse> & { id: number }) {
     if (!note.id) {
       console.error('[NotesStore][addNote] Erreur: ID du backend manquant');
       throw new Error('L\'ID du backend est requis pour ajouter une note');
     }
 
-    const now = new Date().toISOString();
+    const now = getCurrentTimestamp();
+    const order = calculateNoteOrder(notes.value, note.columnId || '');
+    const accessLevel = convertAccessLevel(note.access_level);
+    const enterprise_id = determineEnterpriseId(note.enterprise_id);
 
-    // Calculate the order for the new note (highest order in the column + 1)
-    const notesInColumn = notes.value.filter(n => n.columnId === note.columnId);
-    const order = notesInColumn.length > 0
-      ? Math.max(...notesInColumn.map(n => n.order)) + 1
-      : 0;
-
-    // Convertir le niveau d'accès du format backend
-    const accessLevel = convertAccessLevel((note as any).access_level);
-// Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
-    const authStore = useAuthStore();
-    let enterprise_id = note.enterprise_id;
-    
-    // Si aucun enterprise_id n'est fourni, essayer de le déterminer automatiquement
-    if (enterprise_id === undefined || enterprise_id === null) {
-      if (authStore.isAdmin) {
-        // Admin: peut être null si non spécifié
-        enterprise_id = null;
-      } else if (authStore.isEntreprise && authStore.user) {
-        // Entreprise: utiliser son propre ID
-        enterprise_id = authStore.user.id;
-      } else if (authStore.isSalarie && authStore.user?.enterprise_id) {
-        // Salarié: utiliser l'ID de son entreprise
-        enterprise_id = authStore.user.enterprise_id;
-      } else if (authStore.isVisiteur && authStore.user?.enterprise_id) {
-        // Visiteur: utiliser l'ID de l'entreprise associée au visiteur
-        enterprise_id = authStore.user.enterprise_id;
-      } else if (!authStore.isAdmin && authStore.user?.enterprise_id) {
-        // Fallback: utiliser l'enterprise_id de l'utilisateur si disponible
-        enterprise_id = authStore.user.enterprise_id;
-      }
-    }
-notes.value.push({
-      ...note,
+    const newNote: Note = {
+      ...note as unknown as Note,
       id: note.id,
       order,
       accessLevel,
-      createdAt: note.createdAt || note.created_at || now,
-      updatedAt: note.updatedAt || note.updated_at || now,
-      comments: [],  // Initialiser un tableau vide pour les commentaires
-      photos: [],    // Initialiser un tableau vide pour les photos
-      enterprise_id: enterprise_id
-    });
+      createdAt: note.created_at || now,
+      updatedAt: note.updated_at || now,
+      comments: [],  // Initialize empty comments array
+      photos: [],    // Initialize empty photos array
+      enterprise_id
+    };
 
+    notes.value.push(newNote);
     return note.id;
   }
 
   function updateNote(id: number, data: Partial<Note> & { access_level?: string }) {
-try {
+    try {
       const index = notes.value.findIndex(note => note.id === id);
       if (index !== -1) {
-        // Si une nouvelle couleur est fournie, mettre à jour le style également
+        // If a new color is provided, update the style as well
         if (data.color) {
           data.style = {
             ...notes.value[index].style,
@@ -241,18 +150,18 @@ try {
           };
         }
 
-        // Convertir access_level si présent
+        // Convert access_level if present
         if (data.access_level) {
           data.accessLevel = convertAccessLevel(data.access_level);
           delete data.access_level;
         }
 
-        // Mise à jour de la note
+        // Update the note
         notes.value[index] = {
           ...notes.value[index],
           ...data
         };
-}
+      }
     } catch (error) {
       console.error('[NotesStore][updateNote] Erreur:', error);
       throw error;
@@ -262,12 +171,13 @@ try {
   function removeNote(id: number) {
     const noteIndex = notes.value.findIndex(note => note.id === id);
     if (noteIndex !== -1) {
-notes.value = notes.value.filter(note => note.id !== id);
+      notes.value = notes.value.filter(note => note.id !== id);
     } else {
       console.warn('[NotesStore][removeNote] Tentative de suppression d\'une note inexistante avec ID:', id);
     }
   }
 
+  // Note Organization Actions
   function moveNote(noteId: number, targetColumnId: string) {
     const noteIndex = notes.value.findIndex(n => n.id === noteId);
     if (noteIndex !== -1) {
@@ -277,17 +187,14 @@ notes.value = notes.value.filter(note => note.id !== id);
       // If moving to a different column
       if (oldColumnId !== targetColumnId) {
         // Calculate the new order (highest order in the target column + 1)
-        const notesInTargetColumn = notes.value.filter(n => n.columnId === targetColumnId);
-        const newOrder = notesInTargetColumn.length > 0
-          ? Math.max(...notesInTargetColumn.map(n => n.order)) + 1
-          : 0;
+        const newOrder = calculateNoteOrder(notes.value, targetColumnId);
 
         // Create a new note object with updated properties
         const updatedNote = {
           ...note,
           columnId: targetColumnId,
           order: newOrder,
-          updatedAt: new Date().toISOString()
+          updatedAt: getCurrentTimestamp()
         };
 
         // Replace the note in the array
@@ -296,7 +203,7 @@ notes.value = notes.value.filter(note => note.id !== id);
         // Just update the timestamp if staying in the same column
         notes.value[noteIndex] = {
           ...notes.value[noteIndex],
-          updatedAt: new Date().toISOString()
+          updatedAt: getCurrentTimestamp()
         };
       }
     }
@@ -311,29 +218,13 @@ notes.value = notes.value.filter(note => note.id !== id);
         notes.value[noteIndex] = {
           ...notes.value[noteIndex],
           order: index,
-          updatedAt: new Date().toISOString()
+          updatedAt: getCurrentTimestamp()
         };
       }
     });
   }
 
-  // Obtenir le libellé du niveau d'accès
-  function getAccessLevelLabel(level: NoteAccessLevel): string {
-    switch (level) {
-      case NoteAccessLevel.PRIVATE:
-        return 'Privé';
-      case NoteAccessLevel.COMPANY:
-        return 'Entreprise';
-      case NoteAccessLevel.EMPLOYEE:
-        return 'Salariés';
-      case NoteAccessLevel.VISITOR:
-        return 'Visiteurs';
-      default:
-        return 'Inconnu';
-    }
-  }
-
-  // Fonctions pour gérer les commentaires
+  // Comment Management Actions
   async function addComment(noteId: number, text: string) {
     try {
       const authStore = useAuthStore();
@@ -341,48 +232,40 @@ notes.value = notes.value.filter(note => note.id !== id);
         throw new Error('Vous devez être connecté pour ajouter un commentaire');
       }
 
-      // Vérifier si l'utilisateur a le droit d'ajouter un commentaire
-      // Seuls les utilisateurs de l'entreprise peuvent commenter
+      // Check if the user has permission to add a comment
+      // Only company users can comment
       if (!authStore.isEntreprise && !authStore.isAdmin) {
         throw new Error('Seules les entreprises peuvent ajouter des commentaires');
       }
 
-      // Vérifier si la note existe dans le store
+      // Check if the note exists in the store
       const noteExists = notes.value.some(note => note.id === noteId);
       if (!noteExists) {
         throw new Error(`La note avec l'ID ${noteId} n'existe pas`);
       }
 
-      // Appel à l'API pour ajouter un commentaire
+      // API call to add a comment
       const response = await noteService.addComment(noteId, text);
-
       const newComment = response.data;
 
-      // Mettre à jour le store local
+      // Update local store
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
       if (noteIndex === -1) return;
 
       const note = notes.value[noteIndex];
 
-      // Initialiser le tableau de commentaires s'il n'existe pas
+      // Initialize comments array if it doesn't exist
       if (!note.comments) {
         note.comments = [];
       }
 
-      // Transformer le format de l'API au format du store
-      const storeComment: Comment = {
-        id: newComment.id,
-        text: newComment.text,
-        createdAt: newComment.created_at,
-        userId: newComment.user,
-        userName: newComment.user_name,
-        userRole: newComment.user_role
-      };
+      // Transform API format to store format
+      const storeComment = convertApiCommentToStore(newComment);
 
       note.comments.push(storeComment);
-      note.updatedAt = new Date().toISOString();
+      note.updatedAt = getCurrentTimestamp();
 
-      // Mettre à jour la note
+      // Update the note
       notes.value[noteIndex] = { ...note };
 
       return storeComment.id;
@@ -394,7 +277,7 @@ notes.value = notes.value.filter(note => note.id !== id);
 
   async function removeComment(noteId: number, commentId: number) {
     try {
-      // Vérifier si la note existe dans le store
+      // Check if the note exists in the store
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
       if (noteIndex === -1) {
         throw new Error(`La note avec l'ID ${noteId} n'existe pas`);
@@ -402,25 +285,25 @@ notes.value = notes.value.filter(note => note.id !== id);
 
       const note = notes.value[noteIndex];
 
-      // Vérifier si les commentaires existent
+      // Check if comments exist
       if (!note.comments || note.comments.length === 0) {
         throw new Error(`Aucun commentaire trouvé pour cette note`);
       }
 
-      // Vérifier si le commentaire spécifique existe
+      // Check if the specific comment exists
       const commentExists = note.comments.some(comment => comment.id === commentId);
       if (!commentExists) {
         throw new Error(`Le commentaire avec l'ID ${commentId} n'existe pas`);
       }
 
-      // Appel à l'API pour supprimer un commentaire
+      // API call to delete a comment
       await noteService.deleteComment(noteId, commentId);
 
-      // Mettre à jour le store local
+      // Update local store
       note.comments = note.comments.filter(comment => comment.id !== commentId);
-      note.updatedAt = new Date().toISOString();
+      note.updatedAt = getCurrentTimestamp();
 
-      // Mettre à jour la note
+      // Update the note
       notes.value[noteIndex] = { ...note };
     } catch (error) {
       console.error('Erreur lors de la suppression du commentaire:', error);
@@ -428,71 +311,60 @@ notes.value = notes.value.filter(note => note.id !== id);
     }
   }
 
-  // Fonctions pour gérer les photos
+  // Photo Management Actions
   async function addPhoto(noteId: number, photoData: { url: string, caption?: string } | any) {
     try {
-      // Si photoData est un objet de l'API, l'utiliser directement
+      // If photoData is an API object, use it directly
       if (photoData.id && photoData.image) {
-        // Mettre à jour le store local
+        // Update local store
         const noteIndex = notes.value.findIndex(note => note.id === noteId);
         if (noteIndex === -1) return;
 
         const note = notes.value[noteIndex];
 
-        // Initialiser le tableau de photos s'il n'existe pas
+        // Initialize photos array if it doesn't exist
         if (!note.photos) {
           note.photos = [];
         }
 
-        // Transformer le format de l'API au format du store
-        const storePhoto: Photo = {
-          id: photoData.id,
-          url: photoData.image,
-          caption: photoData.caption,
-          createdAt: photoData.created_at
-        };
+        // Transform API format to store format
+        const storePhoto = convertApiPhotoToStore(photoData);
 
         note.photos.push(storePhoto);
-        note.updatedAt = new Date().toISOString();
+        note.updatedAt = getCurrentTimestamp();
 
-        // Mettre à jour la note
+        // Update the note
         notes.value[noteIndex] = { ...note };
 
         return storePhoto.id;
       } else {
-        // Sinon, envoyer la photo à l'API
+        // Otherwise, send the photo to the API
         const formData = new FormData();
         formData.append('image', photoData.url);
         if (photoData.caption) {
           formData.append('caption', photoData.caption);
         }
         const response = await noteService.addPhoto(noteId, formData);
-
         const newPhoto = response.data;
 
-        // Mettre à jour le store local
+        // Update local store
         const noteIndex = notes.value.findIndex(note => note.id === noteId);
         if (noteIndex === -1) return;
 
         const note = notes.value[noteIndex];
 
-        // Initialiser le tableau de photos s'il n'existe pas
+        // Initialize photos array if it doesn't exist
         if (!note.photos) {
           note.photos = [];
         }
 
-        // Transformer le format de l'API au format du store
-        const storePhoto: Photo = {
-          id: newPhoto.id,
-          url: newPhoto.image,
-          caption: newPhoto.caption,
-          createdAt: newPhoto.created_at
-        };
+        // Transform API format to store format
+        const storePhoto = convertApiPhotoToStore(newPhoto);
 
         note.photos.push(storePhoto);
-        note.updatedAt = new Date().toISOString();
+        note.updatedAt = getCurrentTimestamp();
 
-        // Mettre à jour la note
+        // Update the note
         notes.value[noteIndex] = { ...note };
 
         return storePhoto.id;
@@ -505,17 +377,17 @@ notes.value = notes.value.filter(note => note.id !== id);
 
   async function removePhoto(noteId: number, photoId: number) {
     try {
-      // Appel à l'API pour supprimer une photo
+      // API call to delete a photo
       await noteService.deletePhoto(noteId, photoId);
 
-      // Mettre à jour le store local
+      // Update local store
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
       if (noteIndex === -1) {
         console.error('[NotesStore] Note non trouvée pour la suppression de la photo');
         return;
       }
 
-      // S'assurer que le tableau photos existe
+      // Ensure photos array exists
       if (!notes.value[noteIndex].photos) {
         notes.value[noteIndex].photos = [];
       }
@@ -523,13 +395,13 @@ notes.value = notes.value.filter(note => note.id !== id);
       const note = notes.value[noteIndex];
       const updatedPhotos = (note.photos || []).filter(photo => photo.id !== photoId);
 
-      // Créer une nouvelle référence pour la note avec les photos mises à jour
+      // Create a new reference for the note with updated photos
       notes.value[noteIndex] = {
         ...note,
         photos: updatedPhotos,
-        updatedAt: new Date().toISOString()
+        updatedAt: getCurrentTimestamp()
       };
-} catch (error) {
+    } catch (error) {
       console.error('Erreur lors de la suppression de la photo:', error);
       throw error;
     }
@@ -537,10 +409,10 @@ notes.value = notes.value.filter(note => note.id !== id);
 
   async function updatePhoto(noteId: number, photoId: number, caption: string) {
     try {
-      // Appel à l'API pour mettre à jour la légende
+      // API call to update the caption
       await noteService.updatePhoto(noteId, photoId, { caption });
 
-      // Mettre à jour le store local
+      // Update local store
       const noteIndex = notes.value.findIndex(note => note.id === noteId);
       if (noteIndex === -1 || !notes.value[noteIndex].photos) return;
 
@@ -549,9 +421,9 @@ notes.value = notes.value.filter(note => note.id !== id);
       if (photoIndex === -1) return;
 
       note.photos![photoIndex].caption = caption;
-      note.updatedAt = new Date().toISOString();
+      note.updatedAt = getCurrentTimestamp();
 
-      // Mettre à jour la note
+      // Update the note
       notes.value[noteIndex] = { ...note };
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la légende:', error);
@@ -560,26 +432,41 @@ notes.value = notes.value.filter(note => note.id !== id);
   }
 
   return {
+    // State
     columns,
     notes,
+    
+    // Column getters
     getColumnById,
     getColumnColor,
-    getNotesByColumn,
     getDefaultColumn,
     getSortedColumns,
+    
+    // Note getters
+    getNotesByColumn,
     getAccessibleNotes,
     getAccessibleNotesByColumn,
+    
+    // Utility functions
     getAccessLevelLabel,
+    
+    // Column actions
     loadColumns,
     addColumn,
     updateColumn,
+    
+    // Note actions
     addNote,
     updateNote,
     removeNote,
     moveNote,
     reorderNotes,
+    
+    // Comment actions
     addComment,
     removeComment,
+    
+    // Photo actions
     addPhoto,
     removePhoto,
     updatePhoto
