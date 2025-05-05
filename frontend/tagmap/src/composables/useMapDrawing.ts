@@ -156,7 +156,6 @@ interface MapDrawingReturn {
   updateShapeProperties: (properties: Record<string, unknown>) => void;
   adjustView: () => void;
   clearActiveControlPoints: () => void;
-  calculateTotalCoverageArea: (layers: L.Layer[]) => number;
   addLinesToAlmostOver: () => void;
 }
 // Ajouter cette fonction en haut du fichier, après les imports
@@ -2254,83 +2253,6 @@ export function useMapDrawing(): MapDrawingReturn {
       console.error('[generateTempControlPoints] Erreur lors de la génération des points temporaires:', error);
     }
   };
-  const calculateTotalCoverageArea = (layers: L.Layer[]): number => {
-
-    // Filtrer les couches valides et afficher leurs propriétés
-    const validLayers = layers.filter(layer => {
-      if (!layer) return false;
-
-      let surface = 0;
-      return surface > 0;
-    });
-
-    // Si aucune forme valide, retourner 0
-    if (validLayers.length === 0) return 0;
-
-    // Traiter chaque forme individuellement 
-    const processedLayers = new Set<L.Layer>();
-    const connectedGroups: L.Layer[][] = validLayers.map(layer => [layer]);
-
-    // Pour chaque groupe, calculer sa surface
-    const groupAreas = connectedGroups.map((group, groupIndex) => {
-
-      // Convertir les formes du groupe en GeoJSON
-      const features = group.map(layer => {
-        try {
-          let feature: Feature<GeoJSONPolygon, GeoJsonProperties>;
-          if (layer instanceof L.Circle) {
-            const center = layer.getLatLng();
-            const radius = layer.getRadius();
-            feature = circle([center.lng, center.lat], radius / 1000, {
-              units: 'kilometers',
-              steps: 256
-            }) as unknown as Feature<GeoJSONPolygon, GeoJsonProperties>;
-            const geoJsonArea = area(feature);
-            const propertyArea = (layer as any).properties?.surface || 0;
-            return feature;
-          } 
-          return null;
-        } catch (error) {
-          console.error('[useMapDrawing] Erreur lors de la conversion en GeoJSON:', error);
-          return null;
-        }
-      }).filter((f): f is Feature<GeoJSONPolygon, GeoJsonProperties> => f !== null);
-
-      if (features.length === 0) return 0;
-
-      // Calculer la surface totale du groupe
-      const individualAreas = features.map(feature => {
-        const featureArea = area(feature);
-        return featureArea;
-      });
-
-      let intersectionArea = 0;
-      for (let i = 0; i < features.length; i++) {
-        for (let j = i + 1; j < features.length; j++) {
-          try {
-            const collection = featureCollection([features[i], features[j]]) as FeatureCollection<GeoJSONPolygon, GeoJsonProperties>;
-            const intersectionResult = intersect(collection);
-
-            if (intersectionResult) {
-              const overlapArea = area(intersectionResult);
-              intersectionArea += overlapArea;
-            }
-          } catch (error) {
-            console.error(`Erreur lors du calcul d'intersection entre les formes ${i + 1} et ${j + 1}:`, error);
-          }
-        }
-      }
-
-      const totalArea = individualAreas.reduce((sum, area) => sum + area, 0);
-      const groupArea = totalArea - intersectionArea;
-
-      return groupArea;
-    });
-
-    // Retourner la surface du groupe sélectionné ou la plus grande surface si aucun groupe n'est sélectionné
-    const maxArea = Math.max(...groupAreas);
-    return maxArea;
-  };
 
   // Gestionnaire d'événements par défaut pour pm:create
   const defaultCreateHandler = (e: any) => {
@@ -2477,7 +2399,6 @@ export function useMapDrawing(): MapDrawingReturn {
     updateShapeProperties,
     adjustView,
     clearActiveControlPoints,
-    calculateTotalCoverageArea,
     addLinesToAlmostOver
   };
 }
