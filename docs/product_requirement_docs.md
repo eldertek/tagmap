@@ -147,6 +147,28 @@ L'implémentation du système de permissions repose sur une gestion précise des
 
 Cette approche garantit que les utilisateurs ne peuvent voir que les notes auxquelles ils devraient avoir accès selon leur rôle et l'entreprise à laquelle ils sont associés.
 
+## Gestion des niveaux d'accès des notes géolocalisées (GeoNote)
+
+Chaque note géolocalisée possède un niveau d'accès (`access_level`) qui détermine qui peut la voir :
+
+- **private** : visible uniquement par le créateur
+- **company** : visible par l'entreprise
+- **employee** : visible par l'entreprise et ses salariés
+- **visitor** : visible par l'entreprise, ses salariés et ses visiteurs
+
+### Matrice d'accès
+
+| Rôle         | private | company | employee | visitor |
+|--------------|---------|---------|----------|---------|
+| Admin        | ✅      | ✅      | ✅       | ✅      |
+| Entreprise   | ✅*     | ✅      | ✅       | ✅      |
+| Salarié      | ✅*     |         | ✅       | ✅      |
+| Visiteur     | ✅*     |         |          | ✅      |
+
+- ✅* : uniquement si créateur de la note
+
+**Remarque** : L'administrateur a accès à toutes les notes sans restriction. Ce comportement est garanti côté backend.
+
 ## Mobile Map Editing (2024-06)
 
 - Users can now edit polygons, lines, and move GeoNotes directly on mobile devices using touch gestures.

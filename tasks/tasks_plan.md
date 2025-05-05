@@ -85,6 +85,11 @@
    - [ ] Écrire tests automatisés pour chaque niveau d'accès GeoNote
    - [ ] Write note feature tests
    - [ ] **Test : Vérifier que les dates de modification (`updatedAt`) des notes ne changent que lors d'une modification réelle et restent cohérentes après rechargement de la page**
+   - [ ] Vérifier la matrice d'accès des notes géolocalisées (GeoNote) :
+       - [ ] L'admin voit toutes les notes (private, company, employee, visitor)
+       - [ ] L'entreprise voit toutes les notes liées à son entreprise
+       - [ ] Le salarié voit ses notes privées, celles de type employee et visitor
+       - [ ] Le visiteur voit ses notes privées et celles de type visitor
 
 6. **Drawing Tools**
    - [ ] Implement polygon drawing

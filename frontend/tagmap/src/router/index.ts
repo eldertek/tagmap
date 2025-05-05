@@ -4,7 +4,6 @@ import ChangePasswordForm from '@/components/auth/ChangePasswordForm.vue'
 import LoginView from '../views/LoginView.vue'
 import MapView from '../views/MapView.vue'
 import UserListView from '@/views/UserListView.vue'
-import PlansView from '../views/PlansView.vue'
 import NotesView from '../views/NotesView.vue'
 import MeteoView from '../views/MeteoView.vue'
 import ParametresView from '../views/ParametresView.vue'
@@ -26,15 +25,6 @@ const router = createRouter({
       path: '/meteo',
       name: 'meteo',
       component: MeteoView,
-      meta: {
-        requiresAuth: true,
-        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']
-      }
-    },
-    {
-      path: '/plans',
-      name: 'plans',
-      component: PlansView,
       meta: {
         requiresAuth: true,
         allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur']

@@ -555,6 +555,10 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = GeoNote.objects.all()
 
+        # Cas explicite pour l'admin : il voit tout
+        if user.role == ROLE_ADMIN:
+            return qs
+
         # Conditions de base
         private_q = Q(access_level='private', createur=user)
         company_q = Q(access_level='company', enterprise_id=user.id)

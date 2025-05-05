@@ -84,4 +84,15 @@
 
 - Mobile editing for polygons, lines, and GeoNotes is now supported. Control points are touch-friendly and larger on mobile. All drag/move logic is unified for mouse and touch. See docs/technical.md for implementation details and test plan.
 
-- Suppression de tous les appels à print dans api/views.py pour nettoyage production et conformité au cahier des charges. 
+- Suppression de tous les appels à print dans api/views.py pour nettoyage production et conformité au cahier des charges.
+
+# Rappel : Matrice d'accès des notes géolocalisées (GeoNote)
+| Rôle         | private | company | employee | visitor |
+|--------------|---------|---------|----------|---------|
+| Admin        | ✅      | ✅      | ✅       | ✅      |
+| Entreprise   | ✅*     | ✅      | ✅       | ✅      |
+| Salarié      | ✅*     |         | ✅       | ✅      |
+| Visiteur     | ✅*     |         |          | ✅      |
+- ✅* : uniquement si créateur de la note
+
+L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté dans tous les développements et tests. 

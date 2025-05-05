@@ -348,3 +348,19 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 ## Nettoyage production : suppression des prints
 
 Tous les appels à `print` ont été supprimés de `api/views.py` afin d'assurer un code propre pour la production et conforme au cahier des charges. Les logs de debug doivent être remplacés par un système de logging structuré si besoin de suivi en production.
+
+# Matrice d'accès aux notes géolocalisées (GeoNote)
+
+| Rôle         | private (privé) | company (entreprise) | employee (salariés) | visitor (visiteurs) |
+|--------------|-----------------|----------------------|---------------------|---------------------|
+| **Admin**    | ✅              | ✅                   | ✅                  | ✅                  |
+| **Entreprise**| ✅ (créateur)   | ✅                   | ✅                  | ✅                  |
+| **Salarié**  | ✅ (créateur)   |                      | ✅                  | ✅                  |
+| **Visiteur** | ✅ (créateur)   |                      |                     | ✅                  |
+
+- L'admin voit toutes les notes sans restriction.
+- L'entreprise voit toutes les notes liées à son entreprise.
+- Le salarié voit ses notes privées, celles de type employee et visitor.
+- Le visiteur voit ses notes privées et celles de type visitor.
+
+Cette matrice est appliquée dans `GeoNoteViewSet.get_queryset` (backend).
