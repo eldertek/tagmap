@@ -157,7 +157,6 @@ interface MapDrawingReturn {
   adjustView: () => void;
   clearActiveControlPoints: () => void;
   calculateTotalCoverageArea: (layers: L.Layer[]) => number;
-  showCoverageOverlay: (layers: L.Layer[], targetLayer?: L.Layer) => void;
   addLinesToAlmostOver: () => void;
 }
 // Ajouter cette fonction en haut du fichier, après les imports
@@ -1060,21 +1059,6 @@ export function useMapDrawing(): MapDrawingReturn {
               }
             });
             break;
-          case 'Text':
-            showHelpMessage('Cliquez pour ajouter du texte, double-cliquez pour éditer');
-            if (map.value) {
-              const onClick = (e: L.LeafletMouseEvent) => {
-                if (!map.value || !featureGroup.value) return;
-                const marker = createTextMarker(e.latlng);
-                featureGroup.value.addLayer(marker);
-                selectedShape.value = marker;
-                // Désactiver le mode texte après l'ajout
-                map.value.off('click', onClick);
-                setDrawingTool('');
-              };
-              map.value.on('click', onClick);
-            }
-            break;
           case 'GeoNote':
             showHelpMessage('Cliquez pour ajouter une note géolocalisée, double-cliquez pour éditer');
             if (map.value) {
@@ -1267,21 +1251,7 @@ export function useMapDrawing(): MapDrawingReturn {
     layer.properties = layer.properties || {};
     layer.properties.style = layer.properties.style || {};
     layer.properties.style = { ...layer.properties.style, ...style };
-    if (layer.properties.type === 'text') {
-      const textLayer = layer.properties._textLayer;
-      const element = textLayer?.getElement()?.querySelector('.text-annotation') as HTMLElement;
-      if (element) {
-        updateTextStyle(element, layer.properties.style);
-      }
-      const leafletStyle: L.PathOptions = {
-        color: style.borderColor || layer.properties.style.borderColor,
-        weight: parseInt(style.borderWidth || layer.properties.style.borderWidth),
-        opacity: style.borderOpacity ?? layer.properties.style.borderOpacity
-      };
-      if ('setStyle' in layer) {
-        (layer as L.Path).setStyle(leafletStyle);
-      }
-    } else {
+    {
       const leafletStyle: L.PathOptions = {};
       if (style.fillColor) leafletStyle.fillColor = style.fillColor;
       if (style.fillOpacity !== undefined) leafletStyle.fillOpacity = style.fillOpacity;
@@ -2371,132 +2341,6 @@ export function useMapDrawing(): MapDrawingReturn {
     const maxArea = Math.max(...groupAreas);
     return maxArea;
   };
-  // Fonction pour cacher la visualisation
-  const hideCoverageOverlay = () => {
-    if (coverageOverlayGroup.value && map.value) {
-      map.value.removeLayer(coverageOverlayGroup.value);
-      coverageOverlayGroup.value = null;
-    }
-  };
-
-  // Fonction pour afficher la visualisation de la couverture
-  const showCoverageOverlay = (layers: L.Layer[], targetLayer?: L.Layer) => {
-    if (!map.value) return;
-
-    // Hide existing overlay first
-    hideCoverageOverlay();
-
-    // If targetLayer is provided, only show coverage for connected shapes
-    const shapesToShow = targetLayer ?
-      getConnectedShapes(layers, targetLayer) :
-      layers;
-
-    // Create the overlay group if it doesn't exist
-    if (!coverageOverlayGroup.value) {
-      coverageOverlayGroup.value = L.layerGroup().addTo(map.value);
-    }
-
-    // Create and add each coverage overlay
-    shapesToShow.forEach(layer => {
-      const type = (layer as any).properties?.type;
-
-      if (type === 'Circle' || type === 'Semicircle') {
-        const center = (layer as any).getLatLng();
-        const radius = (layer as any).getRadius();
-
-        // Add a circle with dashed outline for better visual indication
-        const circleOverlay = L.circle(center, {
-          radius: radius,
-          fillColor: '#3B82F6',
-          fillOpacity: 0.1,
-          stroke: true,
-          color: '#3B82F6',
-          weight: 1,
-          opacity: 0.8,
-          dashArray: '5, 5',
-          interactive: false,
-          renderer: L.canvas({ padding: 0.5 })
-        });
-
-        // Add another circle for the filled pattern
-        const patternCircle = L.circle(center, {
-          radius: radius,
-          fillColor: '#3B82F6',
-          fillOpacity: 0.05,
-          stroke: false,
-          interactive: false,
-          renderer: L.canvas({ padding: 0.5 })
-        });
-
-        if (coverageOverlayGroup.value) {
-          coverageOverlayGroup.value.addLayer(patternCircle);
-          coverageOverlayGroup.value.addLayer(circleOverlay);
-        }
-
-      } else if (type === 'Polygon') {
-        const latLngs = (layer as any).getLatLngs();
-
-        // Add polygon with dashed outline
-        const polygonOverlay = L.polygon(latLngs, {
-          fillColor: '#3B82F6',
-          fillOpacity: 0.1,
-          stroke: true,
-          color: '#3B82F6',
-          weight: 1,
-          opacity: 0.8,
-          dashArray: '5, 5',
-          interactive: false,
-          renderer: L.canvas({ padding: 0.5 })
-        });
-
-        // Add another polygon for the filled pattern
-        const patternPolygon = L.polygon(latLngs, {
-          fillColor: '#3B82F6',
-          fillOpacity: 0.05,
-          stroke: false,
-          interactive: false,
-          renderer: L.canvas({ padding: 0.5 })
-        });
-
-        if (coverageOverlayGroup.value) {
-          coverageOverlayGroup.value.addLayer(patternPolygon);
-          coverageOverlayGroup.value.addLayer(polygonOverlay);
-        }
-      }
-    });
-
-    // Add a label to indicate this is a connected group
-    if (targetLayer && shapesToShow.length > 1 && map.value) {
-      // Get bounds of all shapes in the group
-      const bounds = L.latLngBounds([]);
-
-      shapesToShow.forEach(layer => {
-        if ((layer as any).getBounds) {
-          bounds.extend((layer as any).getBounds());
-        } else if ((layer as any).getLatLng) {
-          bounds.extend((layer as any).getLatLng());
-        }
-      });
-
-      // Add a tooltip at the center of the bounds
-      const center = bounds.getCenter();
-      const tooltip = L.tooltip({
-        permanent: true,
-        direction: 'center',
-        className: 'connected-group-tooltip'
-      })
-        .setContent('<div>Groupe connecté</div>')
-        .setLatLng(center);
-
-      if (coverageOverlayGroup.value) {
-        coverageOverlayGroup.value.addLayer(L.marker(center, {
-          opacity: 0,
-          interactive: false
-        }).bindTooltip(tooltip).openTooltip());
-      }
-    }
-  };
-
   // Function to find all shapes connected to a given shape (directly or indirectly)
   const getConnectedShapes = (layers: L.Layer[], startLayer: L.Layer): L.Layer[] => {
     if (!startLayer) return [];
@@ -2579,21 +2423,6 @@ export function useMapDrawing(): MapDrawingReturn {
     // For more complex shapes, we could perform more detailed intersection checks here
     // But for simple case, bounding box intersection is a good approximation
     return true;
-  };
-
-  // Function to calculate the total coverage area of connected shapes
-  const calculateConnectedCoverageArea = (layers: L.Layer[], startLayer: L.Layer): number => {
-    const connectedLayers = getConnectedShapes(layers, startLayer);
-
-    // Si la forme n'est connectée à aucune autre (seulement elle-même dans connectedLayers)
-    if (connectedLayers.length === 1) {
-      // Pour un rectangle seul, retourner sa propre surface
-      if ((startLayer as any).properties?.surface) {
-        return (startLayer as any).properties.surface;
-      }
-    }
-
-    return calculateTotalCoverageArea(connectedLayers);
   };
 
   // Gestionnaire d'événements par défaut pour pm:create
@@ -2742,9 +2571,6 @@ export function useMapDrawing(): MapDrawingReturn {
     adjustView,
     clearActiveControlPoints,
     calculateTotalCoverageArea,
-    showCoverageOverlay,
-    hideCoverageOverlay,
-    calculateConnectedCoverageArea,
     getConnectedShapes,
     disableAlmostOver,
     addLinesToAlmostOver

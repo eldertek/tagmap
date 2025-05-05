@@ -494,7 +494,7 @@ export const useDrawingStore = defineStore('drawing', {
     },
     setCurrentTool(tool: string) {
       this.currentTool = tool;
-      if (['CERCLE', 'RECTANGLE', 'DEMI_CERCLE', 'LIGNE', 'TEXTE'].includes(tool)) {
+      if (['CERCLE', 'RECTANGLE', 'DEMI_CERCLE', 'LIGNE'].includes(tool)) {
         this.lastUsedType = tool;
       }
     },
@@ -597,49 +597,18 @@ export const useDrawingStore = defineStore('drawing', {
     async loadPlanElements(planId: number) {
       // Si le plan est déjà chargé avec des éléments, ne pas recharger
       if (this.currentMapId === planId && this.elements.length > 0) {
-        console.log(`[ISSUE01][DrawingStore] Plan ${planId} déjà chargé avec ${this.elements.length} éléments, ne pas recharger`);
         return this.elements;
       }
 
       this.loading = true;
       try {
-        console.log('[ISSUE01][DrawingStore] Début du chargement du plan', { 
-          planId,
-          currentMapId: this.currentMapId,
-          currentElements: this.elements.length
-        });
         const response = await api.get(`/plans/${planId}/`);
         const plan = response.data;
-        console.log('[ISSUE01][DrawingStore] Données du plan reçues', {
-          formesCount: plan.formes?.length || 0,
-          preferences: plan.preferences
-        });
-
-        // Analyse détaillée des formes reçues
-        if (plan.formes && Array.isArray(plan.formes)) {
-          plan.formes.forEach((forme: any, index: number) => {
-            console.log(`[ISSUE01][DrawingStore] Analyse détaillée forme ${index}:`, {
-              id: forme.id,
-              type_forme: forme.type_forme,
-              hasData: !!forme.data,
-              dataKeys: forme.data ? Object.keys(forme.data) : [],
-              name: forme.data?.name
-            });
-          });
-        }
 
         // Convertir les formes en éléments de dessin
         this.elements = plan.formes.map((forme: any) => {
-          console.log('[ISSUE01][DrawingStore] Traitement de la forme stockée', {
-            id: forme.id,
-            type_forme: forme.type_forme
-          });
           // Si la forme a déjà été convertie en élément de dessin
           if (forme.type_forme) {
-            console.log('[ISSUE01][DrawingStore] Forme déjà au format élément', {
-              type_forme: forme.type_forme,
-              id: forme.id
-            });
             return {
               id: forme.id,
               type_forme: forme.type_forme,
@@ -650,35 +619,22 @@ export const useDrawingStore = defineStore('drawing', {
           try {
             const convertedShape = convertStoredElementToShape(forme);
             if (convertedShape) {
-              console.log('[ISSUE01][DrawingStore] Forme convertie avec succès', {
-                originalType: forme.type_forme,
-                convertedType: convertedShape.type,
-                id: forme.id
-              });
               return convertShapeToDrawingElement(convertedShape);
             }
           } catch (error) {
-            console.error('[ISSUE01][DrawingStore] Erreur lors de la conversion de la forme', {
+            console.error('Erreur lors de la conversion de la forme', {
               error,
               id: forme.id,
               type: forme.type_forme
             });
           }
           // En cas d'échec, retourner la forme telle quelle
-          console.warn('[ISSUE01][DrawingStore] Utilisation de la forme sans conversion', {
-            type_forme: forme.type_forme,
-            id: forme.id
-          });
           return forme;
-        });
-        console.log(`[ISSUE01][DrawingStore] Plan ${planId} - Chargé ${this.elements.length} éléments`, {
-          elementsIds: this.elements.map(el => el.id)
         });
         this.currentMapId = planId;
         this.unsavedChanges = false;
         // Charger les préférences du plan
         if (plan.preferences) {
-          console.log('[ISSUE01][DrawingStore] Chargement des préférences', plan.preferences);
           if (plan.preferences.currentTool) {
             this.setCurrentTool(plan.preferences.currentTool);
           }
@@ -702,13 +658,6 @@ export const useDrawingStore = defineStore('drawing', {
       this.loading = true;
       try {
         const targetPlanId = planId || this.currentMapId;
-        console.log('[ISSUE01][DrawingStore][saveToPlan] Début de la sauvegarde', {
-          targetPlanId,
-          currentPlanId: this.currentMapId,
-          elementsCount: this.elements.length,
-          elementsIds: this.elements.map(el => el.id),
-          elementsToDelete: options?.elementsToDelete
-        });
 
         if (!targetPlanId) {
           throw new Error('Aucun plan sélectionné pour la sauvegarde');
@@ -718,11 +667,6 @@ export const useDrawingStore = defineStore('drawing', {
           ...element,
           type_forme: element.type_forme || this.lastUsedType
         }));
-
-        console.log('[ISSUE01][DrawingStore][saveToPlan] Formes préparées pour sauvegarde:', {
-          formesCount: formesAvecType.length,
-          formesIds: formesAvecType.map(el => el.id)
-        });
 
         const elementsToDelete = options?.elementsToDelete || [];
         const requestUrl = `/plans/${targetPlanId}/save_with_elements/`;
@@ -739,31 +683,6 @@ export const useDrawingStore = defineStore('drawing', {
           }
         });
 
-        console.log('[ISSUE01][DrawingStore][saveToPlan] Réponse reçue du serveur:', {
-          formesCount: response.data.formes?.length || 0,
-          formesIds: response.data.formes?.map((f: any) => f.id) || []
-        });
-        
-        // Log supplémentaire pour investigation
-        console.log('[ISSUE01][DrawingStore][saveToPlan] Détail de la réponse du serveur:', {
-          requestFormeCount: formesAvecType.length,
-          responseFormeCount: response.data.formes?.length || 0,
-          formesDuplicates: response.data.formes
-            ?.map((f: any) => f.id)
-            .filter((id: number, index: number, self: number[]) => self.indexOf(id) !== index),
-          detailedResponseFormes: response.data.formes?.map((f: any) => ({
-            id: f.id,
-            type: f.type_forme,
-            pointCount: f.data && f.data.points ? f.data.points.length : 'N/A'
-          })),
-          requestBody: {
-            formesCount: formesAvecType.length,
-            formesTypes: formesAvecType.map(el => el.type_forme),
-            formesIds: formesAvecType.map(el => el.id),
-            elementsToDelete
-          }
-        });
-
         // Filtrer les éléments supprimés de la réponse
         const deletedIds = new Set(elementsToDelete);
         this.elements = response.data.formes
@@ -773,17 +692,10 @@ export const useDrawingStore = defineStore('drawing', {
             type_forme: forme.type_forme
           }));
 
-        console.log('[ISSUE01][DrawingStore][saveToPlan] Éléments après filtrage:', {
-          totalElements: this.elements.length,
-          elementsIds: this.elements.map(el => el.id),
-          elementsToDelete: elementsToDelete
-        });
-
         this.unsavedChanges = false;
         return response.data;
       } catch (error) {
-        console.error('[ISSUE01][DrawingStore][saveToPlan] ERREUR:', error);
-        console.error('[ISSUE01][DrawingStore][saveToPlan] Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+        console.error('Erreur lors de la sauvegarde du plan:', error);
         this.error = 'Erreur lors de la sauvegarde du plan';
         throw error;
       } finally {

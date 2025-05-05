@@ -727,7 +727,6 @@ const {
   featureGroup,
   adjustView,
   clearActiveControlPoints,
-  calculateConnectedCoverageArea,
   isDrawing
 } = useMapDrawing();
 const {

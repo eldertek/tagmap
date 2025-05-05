@@ -502,10 +502,6 @@ watch(activeTab, (newTab, oldTab) => {
   }
 })
 
-const sectionsCollapsed = ref({
-  samplePoints: true,
-  circleSections: true
-})
 
 // Style properties
 const strokeColor = ref('#2b6451')
@@ -658,14 +654,7 @@ const localProperties = computed(() => {
 })
 
 // Define types for method parameters
-type SectionKey = 'samplePoints' | 'circleSections';
 type StyleProps = { [key: string]: any };
-
-// Methods
-const toggleSection = (section: SectionKey): void => {
-  // Comportement simple : basculer l'état de la section
-  sectionsCollapsed.value[section] = !sectionsCollapsed.value[section];
-}
 
 const selectPresetColor = (color: string): void => {
   strokeColor.value = color
@@ -844,9 +833,6 @@ const formatArea = (value: number): string => {
   return `${Math.round(value)} m²`
 }
 
-const formatSlope = (value: number): string => {
-  return `${value.toFixed(1)}%`
-}
 
 // Méthode pour formater le nom d'une catégorie
 const formatCategoryName = (category: string): string => {
