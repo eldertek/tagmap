@@ -316,9 +316,9 @@ const columnsForDrag = computed(() => {
 // Niveaux d'accès disponibles
 const accessLevels = [
   { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
-  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible uniquement par l\'entreprise' },
+  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise' },
   { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
-  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous (entreprise, salariés et visiteurs)' }
+  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par l\'entreprise, ses salariés et ses visiteurs' }
 ];
 
 // Filtres

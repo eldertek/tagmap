@@ -142,9 +142,10 @@
                   </div>
                   <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                    <option value="company">Entreprise uniquement</option>
-                    <option value="employee">Entreprise et salariés</option>
-                    <option value="visitor">Tous (visiteurs inclus)</option>
+                    <option value="private">Privé - visible uniquement par vous</option>
+                    <option value="company">Entreprise - visible par l'entreprise</option>
+                    <option value="employee">Salariés - visible par l'entreprise et ses salariés</option>
+                    <option value="visitor">Visiteurs - visible par l'entreprise, ses salariés et ses visiteurs</option>
                   </select>
                 </div>
 

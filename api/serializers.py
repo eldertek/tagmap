@@ -349,8 +349,6 @@ class GeoNoteSerializer(serializers.ModelSerializer):
         return obj.location is not None
 
     def validate(self, data):
-        print(f"\n[GeoNoteSerializer][validate] Validation des données de note: {data}")
-
         # Vérifier que le plan existe s'il est fourni
         if 'plan' in data and data['plan'] is not None and not Plan.objects.filter(id=data['plan'].id).exists():
             raise serializers.ValidationError({
@@ -379,9 +377,6 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             elif not self.instance:  # Seulement pour les nouvelles notes
                 data['column'] = '1'  # Colonne "Idées" par défaut
 
-        if 'column' in data:
-            print(f"[GeoNoteSerializer][validate] Colonne finale: {data['column']}")
-
         # Si l'utilisateur n'est pas admin, on associe automatiquement à son entreprise
         request = self.context.get('request')
         if request and request.user and request.user.role != 'ADMIN':
@@ -396,8 +391,6 @@ class GeoNoteSerializer(serializers.ModelSerializer):
         """
         S'assurer que la note est bien créée avec une colonne assignée
         """
-        print(f"\n[GeoNoteSerializer][create] Création de note avec données: {validated_data}")
-
         # S'assurer que la colonne est définie
         if 'column' not in validated_data:
             validated_data['column'] = '1'  # Colonne "Idées" par défaut
@@ -410,9 +403,7 @@ class GeoNoteSerializer(serializers.ModelSerializer):
             elif request.user.role in ['SALARIE', 'VISITEUR'] and hasattr(request.user, 'entreprise') and request.user.entreprise:
                 validated_data['enterprise_id'] = request.user.entreprise
 
-        print(f"[GeoNoteSerializer][create] Données finales pour création: {validated_data}")
         instance = super().create(validated_data)
-        print(f"[GeoNoteSerializer][create] Note créée avec succès, ID: {instance.id}, Colonne: {instance.column}, Entreprise: {instance.enterprise_id}")
         return instance
 
 class PlanDetailSerializer(serializers.ModelSerializer):

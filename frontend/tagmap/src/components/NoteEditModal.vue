@@ -410,9 +410,9 @@ const photosCount = computed(() => {
 // Niveaux d'accès
 const accessLevels = [
   { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
-  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise uniquement' },
-  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et les salariés' },
-  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par tous' }
+  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise' },
+  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
+  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par l\'entreprise, ses salariés et ses visiteurs' }
 ];
 
 // Couleurs disponibles

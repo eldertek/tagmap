@@ -70,43 +70,26 @@ class UserViewSet(viewsets.ModelViewSet):
         entreprise_id = self.request.query_params.get('entreprise')
         salarie_id = self.request.query_params.get('salarie')
 
-        print(f"\n[UserViewSet][get_queryset] ====== DÉBUT REQUÊTE ======")
-        print(f"Utilisateur connecté: {user.username} (role: {user.role}, id: {user.id})")
-        print(f"Paramètres reçus:")
-        print(f"- role demandé: {role}")
-        print(f"- entreprise_id: {entreprise_id}")
-        print(f"- salarie_id: {salarie_id}")
-
         # Appliquer les filtres de base selon le rôle demandé
         if role:
-            print(f"\nApplication du filtre de rôle: {role}")
             base_queryset = base_queryset.filter(role=role)
-            print(f"Nombre d'utilisateurs après filtre de rôle: {base_queryset.count()}")
 
         # Filtrer selon le rôle de l'utilisateur connecté
         if user.role == ROLE_ADMIN:
-            print("\nTraitement pour ADMIN")
             if entreprise_id:
                 if role == ROLE_DEALER:
-                    print(f"Filtrage des salaries pour l'entreprise {entreprise_id}")
                     base_queryset = base_queryset.filter(entreprise_id=entreprise_id)
                 elif role == ROLE_AGRICULTEUR:
-                    print(f"Filtrage des visiteurs pour l'entreprise {entreprise_id}")
                     base_queryset = base_queryset.filter(salarie__entreprise_id=entreprise_id)
             if salarie_id:
-                print(f"Filtrage par salarie: {salarie_id}")
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
 
         elif user.role == ROLE_USINE:
-            print("\nTraitement pour ENTREPRISE")
             if role == ROLE_DEALER:
-                print("Filtrage des salaries de l'entreprise")
                 base_queryset = base_queryset.filter(entreprise=user)
             elif role == ROLE_AGRICULTEUR:
-                print("Filtrage des visiteurs de l'entreprise")
                 base_queryset = base_queryset.filter(salarie__entreprise=user)
                 if salarie_id:
-                    print(f"Filtrage supplémentaire par salarie: {salarie_id}")
                     base_queryset = base_queryset.filter(salarie_id=salarie_id)
 
                 # Debug des visiteurs trouvés
@@ -116,22 +99,15 @@ class UserViewSet(viewsets.ModelViewSet):
                     print(f"- {agri['username']} (ID: {agri['id']}, Salarie: {agri['salarie__username']})")
 
         elif user.role == ROLE_DEALER:
-            print("\nTraitement pour SALARIE")
             if role == ROLE_AGRICULTEUR:
-                print("Filtrage des visiteurs du salarie")
                 base_queryset = base_queryset.filter(salarie=user)
             else:
                 base_queryset = base_queryset.filter(id=user.id)
 
         else:  # ROLE_AGRICULTEUR
-            print("\nTraitement pour VISITEUR")
             base_queryset = base_queryset.filter(id=user.id)
 
-        print(f"\nRequête SQL finale: {base_queryset.query}")
-        result = base_queryset.distinct()
-        print(f"Nombre total de résultats: {result.count()}")
-        print("[UserViewSet][get_queryset] ====== FIN REQUÊTE ======\n")
-        return result
+        return base_queryset.distinct()
 
     def get_permissions(self):
         if self.action == 'create':
