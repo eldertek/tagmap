@@ -119,4 +119,24 @@ This document captures important patterns, preferences, and project intelligence
 
 ## [2024-06-10] Implémenter explicitement les méthodes d'action utilisateur (ex : openInGoogleMaps sur GeoNote) pour chaque entité cartographique. Cela garantit que les boutons de l'UI (DrawingTools.vue) déclenchent bien l'action attendue. L'absence de méthode dédiée peut entraîner des bugs silencieux ou des comportements non réactifs côté interface.
 
+## [2024-07-05] Centralisation des fonctions utilitaires pour Google Maps et coordonnées géographiques
+
+### Contexte
+- Des doublons de code ont été identifiés dans plusieurs composants (GeoNote.ts, NotesView.vue, MeteoView.vue) pour les fonctions d'ouverture de liens Google Maps et de conversion de coordonnées.
+- Cette duplication rendait la maintenance difficile et risquait d'introduire des incohérences dans l'application.
+
+### Leçon
+- Centraliser les fonctions utilitaires communes dans des fichiers dédiés:
+  - `googleMapsLoader.ts`: Gestion de l'API Google Maps et génération des URLs (directions, recherche)
+  - `geoUtils.ts`: Conversion et manipulation des différents formats de coordonnées géographiques
+- Préférer l'importation dynamique `import()` pour les utilitaires qui ne sont pas nécessaires au chargement initial, afin d'améliorer les performances
+- Standardiser les types de données géographiques pour faciliter leur manipulation (LatLng, CoordinateType)
+- Éviter les fallbacks manuels en faisant confiance aux fonctions utilitaires, pour un code plus concis et maintenable
+
+### Impact
+- Code plus DRY (Don't Repeat Yourself), plus facile à maintenir
+- Meilleure séparation des responsabilités
+- Uniformité dans la gestion des URLs et des coordonnées à travers l'application
+- Facilité à implémenter de nouveaux comportements liés aux cartes (il suffit de modifier les utilitaires centralisés)
+
 This document will be updated continuously as development progresses and new insights are gained.

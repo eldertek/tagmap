@@ -674,23 +674,21 @@ function openInGoogleMaps(note: Note) {
     return;
   }
 
-  // Récupérer les coordonnées de la note
-  let lat: number, lng: number;
-
-  if (Array.isArray(note.location)) {
-    lat = note.location[0];
-    lng = note.location[1];
-  } else {
-    lat = note.location.coordinates[1]; // Format GeoJSON: latitude est à l'index 1
-    lng = note.location.coordinates[0]; // Format GeoJSON: longitude est à l'index 0
-  }
-
-  // Construire l'URL Google Maps pour l'itinéraire
-  // L'origine sera la position actuelle de l'utilisateur (laissée vide pour que Google l'utilise automatiquement)
-  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-
-  // Ouvrir l'URL dans un nouvel onglet
-  window.open(url, '_blank');
+  // Importer les utilitaires
+  import('@/utils/geoUtils').then(geoUtils => {
+    import('@/utils/googleMapsLoader').then(googleMapsLoader => {
+      // Extraire les coordonnées à l'aide de l'utilitaire
+      const latLng = geoUtils.extractLatLng(note.location);
+      
+      if (!latLng) {
+        notificationStore.warning('Coordonnées de la note invalides');
+        return;
+      }
+      
+      // Ouvrir Google Maps en utilisant l'utilitaire
+      googleMapsLoader.openInGoogleMaps(latLng.lat, latLng.lng, 'directions', note.title);
+    });
+  });
 }
 
 // Éditer une note

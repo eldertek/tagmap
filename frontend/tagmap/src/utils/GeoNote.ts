@@ -1188,8 +1188,10 @@ export class GeoNote extends L.Marker {
       notificationStore.warning('La position de la note est invalide ou manquante');
       return;
     }
-    // Construire l'URL Google Maps pour l'itinéraire
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${latlng.lat},${latlng.lng}`;
-    window.open(url, '_blank');
+    
+    // Utiliser la fonction utilitaire pour ouvrir Google Maps
+    import('@/utils/googleMapsLoader').then(googleMapsLoader => {
+      googleMapsLoader.openInGoogleMaps(latlng.lat, latlng.lng, 'directions', this.properties.name);
+    });
   }
 }

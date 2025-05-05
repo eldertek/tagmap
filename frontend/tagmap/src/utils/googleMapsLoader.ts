@@ -85,6 +85,67 @@ export function isGoogleMapsLoaded(): boolean {
   return isLoaded || (window.google && window.google.maps);
 }
 
+/**
+ * Generate Google Maps directions URL for a given latitude and longitude
+ * @param lat - Latitude of the destination
+ * @param lng - Longitude of the destination
+ * @param name - Optional name for the destination
+ * @returns URL string for Google Maps directions
+ */
+export function getGoogleMapsDirectionsUrl(lat: number, lng: number, name?: string): string {
+  if (isNaN(lat) || isNaN(lng)) {
+    return '#';
+  }
+  
+  let url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  
+  if (name) {
+    url += `&destination_place_id=${encodeURIComponent(name)}`;
+  }
+  
+  return url;
+}
+
+/**
+ * Generate Google Maps search URL for a given latitude and longitude
+ * @param lat - Latitude of the location
+ * @param lng - Longitude of the location
+ * @param name - Optional name for the location
+ * @returns URL string for Google Maps search
+ */
+export function getGoogleMapsSearchUrl(lat: number, lng: number, name?: string): string {
+  if (isNaN(lat) || isNaN(lng)) {
+    return '#';
+  }
+  
+  let url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  
+  if (name) {
+    url += `&query_place_id=${encodeURIComponent(name)}`;
+  }
+  
+  return url;
+}
+
+/**
+ * Open a Google Maps URL in a new tab
+ * @param lat - Latitude of the location
+ * @param lng - Longitude of the location
+ * @param mode - 'directions' or 'search'
+ * @param name - Optional name for the location
+ */
+export function openInGoogleMaps(lat: number, lng: number, mode: 'directions' | 'search' = 'directions', name?: string): void {
+  if (isNaN(lat) || isNaN(lng)) {
+    return;
+  }
+  
+  const url = mode === 'directions' 
+    ? getGoogleMapsDirectionsUrl(lat, lng, name)
+    : getGoogleMapsSearchUrl(lat, lng, name);
+  
+  window.open(url, '_blank');
+}
+
 // Add Google Maps to Window type
 declare global {
   interface Window {
@@ -94,5 +155,8 @@ declare global {
 
 export default {
   loadGoogleMapsApi,
-  isGoogleMapsLoaded
+  isGoogleMapsLoaded,
+  getGoogleMapsDirectionsUrl,
+  getGoogleMapsSearchUrl,
+  openInGoogleMaps
 }; 

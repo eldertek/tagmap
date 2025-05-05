@@ -444,10 +444,12 @@ function getGoogleMapsUrl(device: any): string {
 
   const latitude = device.latitude;
   const longitude = device.longitude;
-  const name = encodeURIComponent(device.name || 'Station météo');
+  const name = device.name || 'Station météo';
 
-  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&query_place_id=${name}`;
+  const googleMapsLoader = require('@/utils/googleMapsLoader');
+  return googleMapsLoader.getGoogleMapsSearchUrl(latitude, longitude, name);
 }
+
 
 // Fonction pour récupérer la liste des appareils
 async function fetchDevices() {
