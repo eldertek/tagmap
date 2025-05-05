@@ -339,3 +339,8 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 - All control point event handlers now listen to both mouse and touch events.
 - A utility function normalizes event coordinates for both input types.
 - This enables a Figma/Google Maps/Procreate-like editing experience on mobile.
+
+## Update: Line Class Method Implementation (2024-06)
+
+- The custom `Line` class in `frontend/tagmap/src/utils/Line.ts` now implements its key methods (such as `updateProperties`, `setName`, `getName`, `getMidPoints`, `getMidPointAt`, `moveVertex`, `getSegmentLengths`, `getSegmentLengthAt`, `getLength`, `getLengthToVertex`) as class properties using arrow functions. This change ensures compatibility with the base `L.Polyline` class from Leaflet, which defines these as instance properties, and resolves TypeScript linter errors about member type mismatches.
+- This update is required for correct subclassing and to avoid runtime and type errors when extending Leaflet geometry classes in TypeScript.

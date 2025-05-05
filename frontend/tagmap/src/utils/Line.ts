@@ -13,7 +13,7 @@ interface ExtendedPolylineOptions extends L.PolylineOptions {
  * Custom Line class that extends L.Polyline to add specific
  * functionality for our application.
  */
-export class Line extends (L.Polyline as any) {
+export class Line extends L.Polyline {
   properties: any;
   private cachedProperties: {
     length?: number;
@@ -131,7 +131,7 @@ export class Line extends (L.Polyline as any) {
     return false;
   }
 
-  updateProperties(): void {
+  updateProperties = (): void => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     if (!latLngs || latLngs.length < 2) {
       console.warn('Line has less than 2 points, cannot calculate properties');
@@ -196,7 +196,7 @@ export class Line extends (L.Polyline as any) {
     }
   }
 
-  setName(name: string): void {
+  setName = (name: string): void => {
     if (!this.properties.style) {
       this.properties.style = {};
     }
@@ -207,7 +207,7 @@ export class Line extends (L.Polyline as any) {
     });
   }
 
-  getName(): string {
+  getName = (): string => {
     return this.properties?.style?.name || '';
   }
 
@@ -231,7 +231,7 @@ export class Line extends (L.Polyline as any) {
     return this;
   }
 
-  getMidPoints(): L.LatLng[] {
+  getMidPoints = (): L.LatLng[] => {
     if (!this.needsUpdate && this.cachedProperties.midPoints) {
       return this.cachedProperties.midPoints;
     }
@@ -260,7 +260,7 @@ export class Line extends (L.Polyline as any) {
     return midPoints;
   }
 
-  getMidPointAt(segmentIndex: number): L.LatLng | null {
+  getMidPointAt = (segmentIndex: number): L.LatLng | null => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
       return null;
@@ -279,7 +279,7 @@ export class Line extends (L.Polyline as any) {
     );
   }
 
-  moveVertex(vertexIndex: number, newLatLng: L.LatLng, updateProps: boolean = false): void {
+  moveVertex = (vertexIndex: number, newLatLng: L.LatLng, updateProps: boolean = false): void => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     if (vertexIndex >= 0 && vertexIndex < latLngs.length) {
       latLngs[vertexIndex] = newLatLng;
@@ -385,7 +385,7 @@ export class Line extends (L.Polyline as any) {
     }
   }
 
-  getSegmentLengths(): number[] {
+  getSegmentLengths = (): number[] => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     const distances: number[] = [];
     if (latLngs.length < 2) {
@@ -401,7 +401,7 @@ export class Line extends (L.Polyline as any) {
     return distances;
   }
 
-  getSegmentLengthAt(segmentIndex: number): number {
+  getSegmentLengthAt = (segmentIndex: number): number => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     if (segmentIndex < 0 || segmentIndex >= latLngs.length - 1 || latLngs.length < 2) {
       return 0;
@@ -411,8 +411,7 @@ export class Line extends (L.Polyline as any) {
     return p1.distanceTo(p2);
   }
 
-
-  getLength(): number {
+  getLength = (): number => {
     if (!this.needsUpdate && this.cachedProperties.length) {
       return this.cachedProperties.length;
     }
@@ -432,7 +431,7 @@ export class Line extends (L.Polyline as any) {
    * @param vertexIndex The index of the vertex
    * @returns The distance from the start of the line to the specified vertex in meters
    */
-  getLengthToVertex(vertexIndex: number): number {
+  getLengthToVertex = (vertexIndex: number): number => {
     const latLngs = this.getLatLngs() as L.LatLng[];
     if (vertexIndex < 0 || vertexIndex >= latLngs.length || latLngs.length < 2) {
       return 0;

@@ -425,9 +425,9 @@ export function useMapDrawing(): MapDrawingReturn {
         updatePolygonControlPoints(clickedLayer);
       } else if (clickedLayer instanceof Line) {
         // Si c'est notre Line personnalisée, traiter spécifiquement
-        updateLineControlPoints(clickedLayer);
+        updateLineControlPoints(clickedLayer as Line);
       } else if (clickedLayer instanceof L.Polyline) {
-        updateLineControlPoints(clickedLayer);
+        updateLineControlPoints(clickedLayer as L.Polyline);
       } else if (clickedLayer instanceof GeoNote) {
         // Si c'est une note géolocalisée, traiter spécifiquement
         updateGeoNoteControlPoints(clickedLayer);
@@ -447,9 +447,9 @@ export function useMapDrawing(): MapDrawingReturn {
           layer.updateProperties();
           updateLayerProperties(layer, 'Line');
           // Mettre à jour les points de contrôle
-          updateLineControlPoints(layer);
+          updateLineControlPoints(layer as Line);
         } else if (layer instanceof L.Polyline) {
-          updateLineControlPoints(layer);
+          updateLineControlPoints(layer as L.Polyline);
         } else if (layer instanceof GeoNote) {
           // Si c'est une note géolocalisée, mettre à jour ses propriétés
           layer.updateProperties();
@@ -473,7 +473,7 @@ export function useMapDrawing(): MapDrawingReturn {
           layer.updateProperties();
           updateLayerProperties(layer, 'Line');
           // Mettre à jour les points de contrôle
-          updateLineControlPoints(layer);
+          updateLineControlPoints(layer as Line);
         } else {
           updateLayerProperties(layer, shapeType);
         }
@@ -523,9 +523,10 @@ export function useMapDrawing(): MapDrawingReturn {
         if (layer instanceof Line) {
           const originalStyle = { ...layer.options };
           layer._originalStyle = originalStyle;
+          const style = originalStyle as L.PathOptions;
           layer.setStyle({ 
-            weight: (originalStyle.weight || 3) + 2,
-            opacity: Math.min((originalStyle.opacity || 1) + 0.2, 1)
+            weight: (style.weight || 3) + 2,
+            opacity: Math.min((style.opacity || 1) + 0.2, 1)
           });
           
           // Afficher un message d'aide indiquant que l'utilisateur peut cliquer pour sélectionner la ligne
@@ -697,7 +698,7 @@ export function useMapDrawing(): MapDrawingReturn {
         clearActiveControlPoints();
         
         // Mettre à jour les points de contrôle de la ligne
-        updateLineControlPoints(layer);
+        updateLineControlPoints(layer as Line);
         
         // Afficher le message d'aide
         showHelpMessage('Utilisez les points de contrôle pour modifier la ligne');
@@ -1290,7 +1291,7 @@ export function useMapDrawing(): MapDrawingReturn {
       selectedShape.value = layer;
     });
   };
-  const updateLayerProperties = (layer: L.Layer, shapeType: string) => {
+  const updateLayerProperties = (layer: L.Layer | Line, shapeType: string) => {
     // Utiliser debouncedCalculateProperties au lieu de calculateShapeProperties directement
     const debouncedCalculateProperties = debounce((layer: L.Layer, shapeType: string) => {
       const newProperties = calculateShapeProperties(layer, shapeType);
@@ -1314,7 +1315,7 @@ export function useMapDrawing(): MapDrawingReturn {
     );
   };
   // Fonction pour mettre à jour les points de contrôle d'une ligne
-  const updateLineControlPoints = (layer: L.Polyline) => {
+  const updateLineControlPoints = (layer: L.Polyline | Line) => {
     if (!map.value || !featureGroup.value) {
       return;
     }
@@ -2245,7 +2246,7 @@ export function useMapDrawing(): MapDrawingReturn {
       selectedShape.value = polygon;
       updatePolygonControlPoints(polygon);
     } else if (layer instanceof Line) {
-      updateLineControlPoints(layer);
+      updateLineControlPoints(layer as Line);
       // Ajouter la ligne au almostOver pour la détection améliorée
       if (map.value && map.value.almostOver) {
         map.value.almostOver.addLayer(layer);
@@ -2261,7 +2262,7 @@ export function useMapDrawing(): MapDrawingReturn {
       featureGroup.value?.removeLayer(layer);
       featureGroup.value?.addLayer(line);
       selectedShape.value = line;
-      updateLineControlPoints(line);
+      updateLineControlPoints(line as Line);
       
       // Ajouter la ligne au almostOver pour la détection améliorée
       if (map.value && map.value.almostOver) {

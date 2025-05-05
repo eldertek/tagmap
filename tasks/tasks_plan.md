@@ -17,6 +17,7 @@
 | Base Map Integration | Not started | High | - | Integrate Leaflet with base map layers |
 | Geolocation Notes | Not started | Medium | - | Create and manage geolocated notes |
 | Drawing Tools | Not started | Medium | - | Implement polygon and line drawing tools |
+|              |            |        |   | **Note:** The Line class methods are now implemented as class properties (arrow functions) to match Leaflet's Polyline base class and resolve TypeScript compatibility issues. |
 | Media Management | Not started | Medium | - | Photo capture and attachment to points |
 | Route Planning | Not started | Low | - | Calculate and display routes |
 | PDF Generation | Not started | Low | - | Generate reports from map data |
