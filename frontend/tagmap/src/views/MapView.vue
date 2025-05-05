@@ -158,7 +158,7 @@
                       <button v-for="entreprise in entreprises" :key="entreprise.id" @click="selectEntreprise(entreprise)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(entreprise) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(entreprise) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -179,7 +179,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedEntreprise) }}
+                      {{ formatUserName(selectedEntreprise) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Sélectionnez un salarie</h3>
@@ -197,7 +197,7 @@
                         @click="selectSalarie(salarie)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(salarie) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(salarie) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -219,7 +219,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedSalarie) }}
+                      {{ formatUserName(selectedSalarie) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
@@ -254,7 +254,7 @@
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(client) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -275,7 +275,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedClient) }}
+                      {{ formatUserName(selectedClient) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Plans disponibles</h3>
@@ -296,7 +296,7 @@
                           <div class="font-medium text-gray-900">{{ plan.nom }}</div>
                           <div class="text-sm text-gray-500">{{ plan.description }}</div>
                           <div class="text-xs text-gray-400 mt-1">
-                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                            Modifié le {{ formatDate(plan.date_modification) }}
                           </div>
                         </button>
                         <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
@@ -345,7 +345,7 @@
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(client) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -365,7 +365,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedClient) }}
+                      {{ formatUserName(selectedClient) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Plans disponibles</h3>
@@ -386,7 +386,7 @@
                           <div class="font-medium text-gray-900">{{ plan.nom }}</div>
                           <div class="text-sm text-gray-500">{{ plan.description }}</div>
                           <div class="text-xs text-gray-400 mt-1">
-                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                            Modifié le {{ formatDate(plan.date_modification) }}
                           </div>
                         </button>
                         <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
@@ -418,7 +418,7 @@
                         @click="selectSalarie(salarie)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(salarie) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(salarie) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -440,7 +440,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedSalarie) }}
+                      {{ formatUserName(selectedSalarie) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
@@ -475,7 +475,7 @@
                       <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
                         class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
                         <div>
-                          <div class="font-medium text-gray-900">{{ formatUserDisplay(client) }}</div>
+                          <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
                         </div>
                         <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -496,7 +496,7 @@
                     </button>
                     <span class="mx-2 text-gray-400">|</span>
                     <span class="text-sm text-gray-600">
-                      {{ formatUserDisplay(selectedClient) }}
+                      {{ formatUserName(selectedClient) }}
                     </span>
                   </div>
                   <h3 class="font-medium text-gray-700">Plans disponibles</h3>
@@ -517,7 +517,7 @@
                           <div class="font-medium text-gray-900">{{ plan.nom }}</div>
                           <div class="text-sm text-gray-500">{{ plan.description }}</div>
                           <div class="text-xs text-gray-400 mt-1">
-                            Modifié le {{ formatLastSaved(plan.date_modification) }}
+                            Modifié le {{ formatDate(plan.date_modification) }}
                           </div>
                         </button>
                         <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
@@ -542,7 +542,7 @@
                       <div class="font-medium text-gray-900">{{ plan.nom }}</div>
                       <div class="text-sm text-gray-500">{{ plan.description }}</div>
                       <div class="text-xs text-gray-400 mt-1">
-                        Modifié le {{ formatLastSaved(plan.date_modification) }}
+                        Modifié le {{ formatDate(plan.date_modification) }}
                       </div>
                     </button>
                     <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
@@ -617,12 +617,13 @@ import type { Plan } from '@/stores/irrigation';
 import type { DrawingElement, ShapeType, LineData, PolygonData, DrawingElementType } from '@/types/drawing';
 import { Line } from '@/utils/Line';
 import { Polygon } from '@/utils/Polygon';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore, formatUserName } from '@/stores/auth';
 import api, { noteService } from '@/services/api';
 import NewPlanModal from '@/components/NewPlanModal.vue';
 import jsPDF from 'jspdf';
 import logo from '@/assets/logo.svg';
 import { debounce } from 'lodash';
+import { formatDate } from '@/utils/dateUtils';
 import { GeoNote } from '@/utils/GeoNote';
 import { useMapFilterStore } from '@/stores/mapFilters';
 
@@ -1893,30 +1894,6 @@ selectedLeafletShape.value.bindPopup(selectedLeafletShape.value.createPopupConte
     }
   }
 }
-// Fonction pour formater la date de dernière sauvegarde
-function formatLastSaved(date: string): string {
-  try {
-    // Créer un objet Date à partir de la chaîne ISO
-    const dateObj = new Date(date);
-    // Vérifier si la date est valide
-    if (isNaN(dateObj.getTime())) {
-      console.error('Date invalide reçue:', date);
-      return 'Date invalide';
-    }
-    // Formater la date en utilisant l'API Intl avec la timezone de Paris
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Paris'
-    }).format(dateObj);
-  } catch (error) {
-    console.error('Erreur lors du formatage de la date:', error);
-    return 'Date invalide';
-  }
-}
 // Handlers pour les intégrations avec MapToolbar
 const handleAdjustView = () => {
   if (featureGroup.value) {
@@ -2076,15 +2053,6 @@ return salarieEntrepriseId === selectedEntreprise.value?.id;
   });
 return filtered;
 });
-
-// Fonction pour formater l'affichage des utilisateurs
-function formatUserDisplay(user: ExtendedUserDetails | null): string {
-  if (!user) return '';
-  const firstName = user.first_name || '';
-  const lastName = user.last_name ? user.last_name.toUpperCase() : '';
-  const company = user.company_name || user.role || '';
-  return `${firstName} ${lastName} (${company})`;
-}
 
 // Fonction pour charger les entreprises
 async function loadEntreprises() {

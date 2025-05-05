@@ -59,6 +59,7 @@ import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useNotesStore, type Comment } from '../stores/notes';
 import { useNotificationStore } from '../stores/notification';
+import { formatDate } from '@/utils/dateUtils';
 
 const props = defineProps<{
   noteId: number;
@@ -145,34 +146,6 @@ async function deleteComment(commentId: number) {
     } else {
       notificationStore.error('Erreur lors de la suppression du commentaire');
     }
-  }
-}
-
-// Formater la date
-function formatDate(dateString: string): string {
-  try {
-    // Vérifier si la date est valide
-    if (!dateString) return 'Date inconnue';
-
-    // Essayer de créer un objet Date
-    const date = new Date(dateString);
-
-    // Vérifier si la date est valide
-    if (isNaN(date.getTime())) {
-      console.warn(`Date invalide: ${dateString}`);
-      return 'Date invalide';
-    }
-
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  } catch (error) {
-    console.error(`Erreur lors du formatage de la date: ${dateString}`, error);
-    return 'Date invalide';
   }
 }
 

@@ -275,9 +275,9 @@ import { useRouter } from 'vue-router';
 import { useNotificationStore } from '../stores/notification';
 import { useNotesStore, type Note, NoteAccessLevel } from '../stores/notes';
 import { useAuthStore, formatUserName } from '../stores/auth';
-import { useDrawingStore } from '../stores/drawing';
 import { noteService, userService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
+import { formatDate, parseDate } from '@/utils/dateUtils';
 
 import draggable from 'vuedraggable';
 
@@ -366,58 +366,6 @@ interface TransformedNote {
   enterprise_name?: string;
 }
 
-// Ajouter cette fonction pour formater les dates de manière sécurisée
-function safeFormatDate(dateString: string | undefined | null): string {
-  if (!dateString) {
-    return 'Date non définie';
-  }
-
-  try {
-    const date = new Date(dateString);
-
-    if (isNaN(date.getTime())) {
-      console.warn('[safeFormatDate] Date invalide:', dateString);
-      return 'Date invalide';
-    }
-
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  } catch (error) {
-    console.error('[safeFormatDate] Erreur lors du formatage de la date:', error);
-    return 'Date invalide';
-  }
-}
-
-// Utiliser cette fonction pour l'extraction de date sécurisée
-function safeDate(dateString: string | undefined): Date | null {
-  if (!dateString) return null;
-
-  try {
-    const date = new Date(dateString);
-
-    // Vérifier si la date est valide
-    if (isNaN(date.getTime())) {
-      console.warn('[safeDate] Date invalide:', dateString);
-      return null;
-    }
-
-    return date;
-  } catch (error) {
-    console.error('[safeDate] Erreur lors de la création de la date:', error);
-    return null;
-  }
-}
-
-// Remplacer la fonction formatDate
-function formatDate(dateString: string | undefined | null): string {
-  return safeFormatDate(dateString);
-}
-
 // Notes filtrées
 const filteredNotes = computed(() => {
   // D'abord filtrer par accès
@@ -449,7 +397,7 @@ const filteredNotes = computed(() => {
 
     filtered = filtered.filter(note => {
       // Utiliser la fonction sécurisée pour éviter les erreurs de dates invalides
-      const noteDate = safeDate(note.createdAt);
+      const noteDate = parseDate(note.createdAt);
       if (!noteDate) return false;
 
       if (filters.date === 'today') {
