@@ -2267,19 +2267,9 @@ export function useMapDrawing(): MapDrawingReturn {
     // Si aucune forme valide, retourner 0
     if (validLayers.length === 0) return 0;
 
-    // Identifier les groupes de formes connectées
+    // Traiter chaque forme individuellement 
     const processedLayers = new Set<L.Layer>();
-    const connectedGroups: L.Layer[][] = [];
-
-    for (const layer of validLayers) {
-      if (!processedLayers.has(layer)) {
-        const connectedShapes = getConnectedShapes(validLayers, layer);
-        if (connectedShapes.length > 0) {
-          connectedGroups.push(connectedShapes);
-          connectedShapes.forEach(shape => processedLayers.add(shape));
-        }
-      }
-    }
+    const connectedGroups: L.Layer[][] = validLayers.map(layer => [layer]);
 
     // Pour chaque groupe, calculer sa surface
     const groupAreas = connectedGroups.map((group, groupIndex) => {
@@ -2340,89 +2330,6 @@ export function useMapDrawing(): MapDrawingReturn {
     // Retourner la surface du groupe sélectionné ou la plus grande surface si aucun groupe n'est sélectionné
     const maxArea = Math.max(...groupAreas);
     return maxArea;
-  };
-  // Function to find all shapes connected to a given shape (directly or indirectly)
-  const getConnectedShapes = (layers: L.Layer[], startLayer: L.Layer): L.Layer[] => {
-    if (!startLayer) return [];
-
-    // Set to keep track of visited layers
-    const visited = new Set<number>();
-    // Queue for breadth-first search
-    const queue: L.Layer[] = [startLayer];
-    // Result array of connected layers
-    const connectedLayers: L.Layer[] = [startLayer];
-
-    // Add initial layer to visited set
-    if ((startLayer as any)._leaflet_id !== undefined) {
-      visited.add((startLayer as any)._leaflet_id);
-    }
-
-    while (queue.length > 0) {
-      const currentLayer = queue.shift()!;
-
-      // Check if this layer intersects with any other layers
-      for (const layer of layers) {
-        // Skip if it's the same layer or already visited
-        if (
-          layer === currentLayer ||
-          visited.has((layer as any)._leaflet_id)
-        ) {
-          continue;
-        }
-
-        // Check if layers intersect
-        const intersects = doLayersIntersect(currentLayer, layer);
-
-        if (intersects) {
-          // Add to results and queue for further processing
-          connectedLayers.push(layer);
-          queue.push(layer);
-          visited.add((layer as any)._leaflet_id);
-        }
-      }
-    }
-
-    return connectedLayers;
-  };
-
-  // Helper function to check if two layers intersect
-  const doLayersIntersect = (layer1: L.Layer, layer2: L.Layer): boolean => {
-    // Get bounds for both layers
-    let bounds1: L.LatLngBounds | null = null;
-    let bounds2: L.LatLngBounds | null = null;
-
-    // Handle Circle
-    if ((layer1 as any).getBounds && typeof (layer1 as any).getBounds === 'function') {
-      bounds1 = (layer1 as any).getBounds();
-    } else if ((layer1 as any).getLatLng && (layer1 as any).getRadius) {
-      const center = (layer1 as any).getLatLng();
-      const radius = (layer1 as any).getRadius();
-      bounds1 = L.latLngBounds(
-        [center.lat - radius / 111000, center.lng - radius / (111000 * Math.cos(center.lat * Math.PI / 180))],
-        [center.lat + radius / 111000, center.lng + radius / (111000 * Math.cos(center.lat * Math.PI / 180))]
-      );
-    }
-
-    if ((layer2 as any).getBounds && typeof (layer2 as any).getBounds === 'function') {
-      bounds2 = (layer2 as any).getBounds();
-    } else if ((layer2 as any).getLatLng && (layer2 as any).getRadius) {
-      const center = (layer2 as any).getLatLng();
-      const radius = (layer2 as any).getRadius();
-      bounds2 = L.latLngBounds(
-        [center.lat - radius / 111000, center.lng - radius / (111000 * Math.cos(center.lat * Math.PI / 180))],
-        [center.lat + radius / 111000, center.lng + radius / (111000 * Math.cos(center.lat * Math.PI / 180))]
-      );
-    }
-
-    // Return false if bounds couldn't be computed for either layer
-    if (!bounds1 || !bounds2) return false;
-
-    // Check if bounding boxes intersect
-    if (!bounds1.intersects(bounds2)) return false;
-
-    // For more complex shapes, we could perform more detailed intersection checks here
-    // But for simple case, bounding box intersection is a good approximation
-    return true;
   };
 
   // Gestionnaire d'événements par défaut pour pm:create
@@ -2571,8 +2478,6 @@ export function useMapDrawing(): MapDrawingReturn {
     adjustView,
     clearActiveControlPoints,
     calculateTotalCoverageArea,
-    getConnectedShapes,
-    disableAlmostOver,
     addLinesToAlmostOver
   };
 }
