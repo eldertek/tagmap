@@ -51,6 +51,7 @@
             @load-plan="openLoadPlanModal"
             @save-plan="savePlan"
             @adjust-view="handleAdjustView"
+            @toggle-edit-mode="handleToggleEditMode"
             class="flex-shrink-0"
           />
 
@@ -2869,6 +2870,32 @@ const isMobile = ref(window.innerWidth < 768);
 // Fonction pour mettre à jour la détection mobile
 function checkMobile() {
   isMobile.value = window.innerWidth < 768;
+}
+
+// --- Edit mode for mobile: disables map dragging/touch zoom when enabled ---
+function handleToggleEditMode(enabled: boolean) {
+  if (!map.value) return;
+  // Only apply on mobile
+  if (window.innerWidth >= 768) return;
+  if (enabled) {
+    map.value.dragging.disable();
+    map.value.touchZoom.disable();
+    map.value.doubleClickZoom.disable();
+    map.value.scrollWheelZoom.disable();
+    map.value.boxZoom.disable();
+    map.value.keyboard.disable();
+    if (map.value.tap) map.value.tap.disable();
+    map.value.getContainer().style.cursor = 'default';
+  } else {
+    map.value.dragging.enable();
+    map.value.touchZoom.enable();
+    map.value.doubleClickZoom.enable();
+    map.value.scrollWheelZoom.enable();
+    map.value.boxZoom.enable();
+    map.value.keyboard.enable();
+    if (map.value.tap) map.value.tap.enable();
+    map.value.getContainer().style.cursor = '';
+  }
 }
 </script>
 <style>
