@@ -85,7 +85,7 @@
    - [x] Fix enterprise_name preservation when editing notes
    - [ ] Écrire tests automatisés pour chaque niveau d'accès GeoNote
    - [ ] Write note feature tests
-   - [ ] **Test : Vérifier que les dates de modification (`updatedAt`) des notes ne changent que lors d'une modification réelle et restent cohérentes après rechargement de la page**
+   - [ ] **Test automatisé : Vérifier que le champ `updatedAt` d'une note (GeoNote) n'est modifié que si un champ significatif change (title, description, access_level, style, column, location, order, category), et reste inchangé sinon.**
    - [ ] Vérifier la matrice d'accès des notes géolocalisées (GeoNote) :
        - [ ] L'admin voit toutes les notes (private, company, employee, visitor)
        - [ ] L'entreprise voit toutes les notes liées à son entreprise

@@ -328,8 +328,6 @@ class GeoNoteSerializer(serializers.ModelSerializer):
     is_geolocated = serializers.SerializerMethodField(read_only=True)
     enterprise_name = serializers.CharField(source='enterprise_id.company_name', read_only=True)
 
-    # Ajouter des logs pour le style
-
     class Meta:
         model = GeoNote
         fields = [
@@ -405,6 +403,35 @@ class GeoNoteSerializer(serializers.ModelSerializer):
 
         instance = super().create(validated_data)
         return instance
+
+    def update(self, instance, validated_data):
+        # Champs qui doivent déclencher la mise à jour de updated_at
+        significant_fields = [
+            'title', 'description', 'access_level', 'style', 'column', 'location', 'order', 'category'
+        ]
+        has_changed = False
+        for field in significant_fields:
+            if field in validated_data:
+                old = getattr(instance, field, None)
+                new = validated_data[field]
+                # Pour les dicts (style), comparer le contenu
+                if isinstance(old, dict) and isinstance(new, dict):
+                    if old != new:
+                        has_changed = True
+                        break
+                else:
+                    if old != new:
+                        has_changed = True
+                        break
+        # Si rien n'a changé, ne pas toucher à updated_at
+        if not has_changed:
+            # On applique quand même les updates, mais on restaure updated_at
+            old_updated_at = instance.updated_at
+            instance.updated_at = old_updated_at
+            instance.save(update_fields=[f for f in validated_data.keys() if f != 'updated_at'])
+            return instance
+        # Sinon, comportement normal (updated_at auto)
+        return super().update(instance, validated_data)
 
 class PlanDetailSerializer(serializers.ModelSerializer):
     createur = UserDetailsSerializer(read_only=True)

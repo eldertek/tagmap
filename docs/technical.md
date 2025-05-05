@@ -365,3 +365,18 @@ Tous les appels à `print` ont été supprimés de `api/views.py` afin d'assurer
 - Le visiteur voit ses notes privées et celles de type visitor.
 
 Cette matrice est appliquée dans `GeoNoteViewSet.get_queryset` (backend).
+
+## Règle de mise à jour du champ updatedAt pour les notes géolocalisées (GeoNote)
+
+Depuis 2024-06, la logique de mise à jour du champ `updatedAt` (date de modification) des notes géolocalisées (GeoNote) a été renforcée côté backend :
+
+- Le champ `updatedAt` n'est mis à jour que si au moins un des champs suivants change : `title`, `description`, `access_level`, `style`, `column`, `location`, `order`, `category`.
+- Si une requête PATCH/PUT ne modifie aucun de ces champs (valeurs identiques à l'existant), la date `updatedAt` reste inchangée.
+- Cela évite les faux historiques de modification lors de sauvegardes ou synchronisations sans modification réelle.
+- Cette règle est testée automatiquement (voir tasks/).
+
+**Impact :**
+- L'historique des modifications est fiable et reflète uniquement les vraies modifications de contenu.
+- Les utilisateurs voient la date de dernière modification uniquement si la note a réellement changé.
+
+Voir aussi : `GeoNoteSerializer.update()` dans `api/serializers.py`.
