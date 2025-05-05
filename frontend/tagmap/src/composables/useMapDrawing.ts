@@ -24,6 +24,24 @@ interface AlmostOverEvent extends L.LeafletEvent {
 
 // Declare le type pour almostOver sur l'instance de Map
 declare module 'leaflet' {
+  interface Layer {
+    properties?: any;
+    pm?: any;
+    _textLayer?: L.Marker;
+    _dbId?: number | string;
+    _originalStyle?: any;
+    options: L.LayerOptions;
+    getCenter?: () => L.LatLng;
+    getLatLng?: () => L.LatLng;
+    getRadius?: () => number;
+    getStartAngle?: () => number;
+    getStopAngle?: () => number;
+    name?: string;
+    updateProperties?: () => void;
+    editNote?: () => void;
+    recreateIcon?: () => void;
+    getElement?: () => HTMLElement | null;
+  }
   interface Map {
     almostOver: {
       addLayer: (layer: L.Layer) => void;
@@ -54,27 +72,6 @@ declare module 'leaflet' {
 // Extend GlobalOptions to include snapLayers
 interface ExtendedGlobalOptions extends L.PM.GlobalOptions {
   snapLayers?: L.LayerGroup[];
-}
-// Modifier l'interface Layer pour éviter les conflits de type
-declare module 'leaflet' {
-  interface Layer {
-    properties?: any;
-    pm?: any;
-    _textLayer?: L.Marker;
-    _dbId?: number | string;
-    _originalStyle?: any;
-    options: L.LayerOptions;
-    getCenter?: () => L.LatLng;
-    getLatLng?: () => L.LatLng;
-    getRadius?: () => number;
-    getStartAngle?: () => number;
-    getStopAngle?: () => number;
-    name?: string;
-    updateProperties?: () => void;
-    editNote?: () => void;
-    recreateIcon?: () => void;
-    getElement?: () => HTMLElement | null;
-  }
 }
 // Fonction pour créer et afficher un message d'aide
 const showHelpMessage = (message: string): HTMLElement => {
@@ -1308,7 +1305,9 @@ export function useMapDrawing(): MapDrawingReturn {
       if (key === 'type' && originalType) {
         // Ne rien faire, on garde le type original
       } else {
-        selectedShape.value.properties[key] = properties[key];
+        if (selectedShape.value) {
+          selectedShape.value.properties[key] = properties[key];
+        }
       }
 
       // Si on met à jour le nom, le stocker directement sur la couche aussi pour double sécurité
