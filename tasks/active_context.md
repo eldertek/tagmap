@@ -27,7 +27,9 @@
 4. **Centralisation des utilitaires**
    - ✅ Création de fonctions utilitaires centralisées pour Google Maps dans `googleMapsLoader.ts`
    - ✅ Amélioration de `geoUtils.ts` avec des fonctions de conversion de coordonnées
-   - ✅ Suppression des doublons de code dans GeoNote.ts, NotesView.vue et MeteoView.vue
+   - ✅ Création de `dateUtils.ts` avec fonctions standardisées pour la manipulation des dates
+   - ✅ Remplacement des implémentations locales de debounce/throttle par les fonctions lodash
+   - ✅ Suppression des doublons de code dans GeoNote.ts, NotesView.vue, MeteoView.vue et NoteEditModal.vue
    - ✅ Standardisation des types de données géographiques (LatLng, CoordinateType)
 
 ## Défis techniques actuels
@@ -115,3 +117,5 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 - [2024-06-10] Fonctionnalité : Ouverture d'un itinéraire Google Maps depuis une note géolocalisée via DrawingTools.vue (méthode openInGoogleMaps sur GeoNote). Le bouton "Itinéraire" ouvre un nouvel onglet Google Maps vers la position de la note sélectionnée.
 
 - [2024-07-05] Refactorisation : Centralisation des fonctions utilitaires pour Google Maps (`googleMapsLoader.ts`) et coordonnées géographiques (`geoUtils.ts`). Mise à jour des composants GeoNote.ts, NotesView.vue et MeteoView.vue pour utiliser ces utilitaires partagés.
+
+- [2024-07-15] Refactorisation : Création de `dateUtils.ts` pour centraliser toutes les fonctions de formatage et de manipulation des dates. Remplacement des implémentations locales de debounce/throttle par les importations de lodash pour une meilleure performance et maintenabilité. Standardisation des fonctions de traitement des coordonnées avec `extractLatLng` dans `geoUtils.ts`.

@@ -185,6 +185,18 @@ Vue.js 3 with the Composition API offers:
 - Type safety with TypeScript
 - Flexible component composition
 
+### Utility Functions Organization
+To maintain a clean architecture and avoid code duplication, the following utility patterns are used:
+
+- **Utility Modules**: Specialized utility files in `src/utils/` provide reusable functions:
+  - `dateUtils.ts`: Date formatting and manipulation with robust error handling
+  - `geoUtils.ts`: Coordinate handling and geographic format conversion (GeoJSON ↔ Leaflet)
+  - `googleMapsLoader.ts`: Centralized Google Maps API integration
+
+- **Third-party Libraries**: 
+  - Lodash for performance-optimized functions like `debounce` and `throttle`
+  - Direct imports of specific functions (e.g., `import debounce from 'lodash/debounce'`) for optimized bundling
+
 ### Map Rendering
 Leaflet as the mapping library provides:
 - Lightweight and performant map rendering

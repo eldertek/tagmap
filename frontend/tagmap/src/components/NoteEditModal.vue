@@ -148,6 +148,7 @@ import { useAuthStore } from '../stores/auth';
 import { noteService, userService } from '../services/api';
 import CommentThread from './CommentThread.vue';
 import PhotoGallery from './PhotoGallery.vue';
+import { extractLatLng } from '../utils/geoUtils';
 
 const props = defineProps<{
   note: Note | null;
@@ -204,19 +205,6 @@ const editingNote = ref<any>({
   enterprise_id: null
 });
 
-// Fonction utilitaire pour traiter les différents formats de localisation
-function processLocation(location: [number, number] | { type: string; coordinates: [number, number] }): [number, number] {
-  if (Array.isArray(location)) {
-    // Format tableau [lat, lng]
-    return location;
-  } else if (typeof location === 'object' && 'type' in location && 'coordinates' in location) {
-    // Format GeoJSON { type: 'Point', coordinates: [lng, lat] }
-    // Convertir en format [lat, lng] pour le frontend
-    return [location.coordinates[1], location.coordinates[0]];
-  }
-  console.error('[NoteEditModal] Format de localisation non reconnu:', location);
-  return [0, 0]; // Valeur par défaut en cas d'erreur
-}
 
 // Fonction pour la création sécurisée de dates
 function safeDate(dateString: string | undefined): string {
@@ -383,8 +371,12 @@ onMounted(async () => {
     // Si une localisation est fournie, l'ajouter à la note
     if (props.location) {
       // Traiter la localisation pour gérer à la fois les formats [lat, lng] et GeoJSON
-      const processedLocation = processLocation(props.location);
-      editingNote.value.location = processedLocation;
+      const latLng = extractLatLng(props.location);
+      if (latLng) {
+        editingNote.value.location = [latLng.lat, latLng.lng]; // Convertir en format [lat, lng] pour le frontend
+      } else {
+        console.error('[NoteEditModal] Format de localisation non reconnu:', props.location);
+      }
     }
 
   } else {
@@ -488,7 +480,15 @@ const initializeEditingNote = () => {
       fillOpacity: 0.6,
       radius: 8
     },
-    location: props.location || props.note?.location || null,
+    location: (() => {
+      // Gérer à la fois props.location et props.note?.location
+      const locationSource = props.location || props.note?.location;
+      if (locationSource) {
+        const latLng = extractLatLng(locationSource);
+        return latLng ? [latLng.lat, latLng.lng] : null; // Format [lat, lng] pour le frontend
+      }
+      return null;
+    })(),
     comments: props.note?.comments || [],
     photos: props.note?.photos || [],
     enterprise_id: props.note?.enterprise_id || null
@@ -587,12 +587,15 @@ async function saveNote() {
 
     // Ajouter la localisation seulement si elle existe
     if (editingNote.value.location) {
-      noteData.location = Array.isArray(editingNote.value.location)
-        ? {
-            type: 'Point',
-            coordinates: [editingNote.value.location[1], editingNote.value.location[0]]
-          }
-        : editingNote.value.location;
+      // Utiliser extractLatLng pour extraire et normaliser les coordonnées
+      const latLng = extractLatLng(editingNote.value.location);
+      if (latLng) {
+        // Convertir au format GeoJSON Point pour le backend
+        noteData.location = {
+          type: 'Point',
+          coordinates: [latLng.lng, latLng.lat] // GeoJSON utilise [longitude, latitude]
+        };
+      }
     }
 
 

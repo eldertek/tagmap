@@ -11,6 +11,8 @@ import area from '@turf/area';
 import length from '@turf/length';
 import centroid from '@turf/centroid';
 import { useDrawingStore } from '../stores/drawing';
+import debounce from 'lodash/debounce';
+import throttle from 'lodash/throttle';
 import type { 
   AlmostOverEvent, 
   ExtendedGlobalOptions,
@@ -77,24 +79,6 @@ const formatMeasure = (value: number, unit: string = 'm', label: string = ''): s
     formattedUnit = unit;
   }
   return label ? `${label}: ${formattedValue} ${formattedUnit}` : `${formattedValue} ${formattedUnit}`;
-};
-// Ajouter cette fonction en haut du fichier, après les imports
-const debounce = (fn: Function, delay: number) => {
-  let timeoutId: number;
-  return function (this: any, ...args: any[]) {
-    window.clearTimeout(timeoutId);
-    timeoutId = window.setTimeout(() => fn.apply(this, args), delay);
-  };
-};
-// Ajouter cette fonction throttle pour limiter la fréquence des mises à jour
-const throttle = (fn: Function, delay: number) => {
-  let lastCall = 0;
-  return function (this: any, ...args: any[]) {
-    const now = Date.now();
-    if (now - lastCall < delay) return;
-    lastCall = now;
-    return fn.apply(this, args);
-  };
 };
 // Ajouter cette fonction en haut du fichier
 export function useMapDrawing(): MapDrawingReturn {
