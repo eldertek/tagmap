@@ -39,7 +39,14 @@ export function loadGoogleMapsApi(): Promise<void> {
         // Create script element
         const script = document.createElement('script');
         script.type = 'text/javascript';
-        script.src = googleMapsURL;
+        
+        // Ensure URL has the loading=async parameter
+        const url = new URL(googleMapsURL);
+        if (!url.searchParams.has('loading')) {
+          url.searchParams.append('loading', 'async');
+        }
+        
+        script.src = url.toString();
         script.async = true;
         script.defer = true;
 
