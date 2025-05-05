@@ -54,29 +54,19 @@ class UserViewSet(viewsets.ModelViewSet):
         - Salarie : ses visiteurs
         - Visiteur : lui-même
         """
-        print(f"\n[UserViewSet][get_queryset] ====== DÉBUT REQUÊTE ======")
-        print(f"URL de la requête: {self.request.path}")
-        print(f"Méthode: {self.request.method}")
         
         user = self.request.user
-        print(f"User: {user.username} (role: {user.role}, id: {user.id})")
         
         base_queryset = User.objects.all()
-        print(f"Queryset initial: {base_queryset.query}")
         
         # Récupérer les paramètres de filtrage
         role = self.request.query_params.get('role')
         entreprise_id = self.request.query_params.get('entreprise')
         salarie_id = self.request.query_params.get('salarie')
         
-        print(f"Paramètres de filtrage:")
-        print(f"- role: {role}")
-        print(f"- entreprise_id: {entreprise_id}")
-        print(f"- salarie_id: {salarie_id}")
 
         # Appliquer les filtres selon le rôle de l'utilisateur
         if user.role == 'ADMIN':
-            print("Traitement pour ADMIN - Accès à tous les utilisateurs")
             if role:
                 base_queryset = base_queryset.filter(role=role)
             if entreprise_id:
@@ -85,7 +75,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
         
         elif user.role == 'ENTREPRISE':
-            print("Traitement pour ENTREPRISE")
             base_queryset = base_queryset.filter(
                 Q(id=user.id) |  # Lui-même
                 Q(entreprise=user) |  # Ses salaries
@@ -97,7 +86,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 base_queryset = base_queryset.filter(salarie_id=salarie_id)
         
         elif user.role == 'SALARIE':
-            print("Traitement pour SALARIE")
             base_queryset = base_queryset.filter(
                 Q(id=user.id) |  # Lui-même
                 Q(salarie=user)  # Ses visiteurs
@@ -106,18 +94,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 base_queryset = base_queryset.filter(role=role)
         
         else:  # VISITEUR
-            print("Traitement pour VISITEUR - Accès uniquement à son propre profil")
             base_queryset = base_queryset.filter(id=user.id)
 
-        print(f"Requête SQL finale: {base_queryset.query}")
         result = base_queryset.distinct()
-        print(f"Nombre de résultats: {result.count()}")
         
         # Afficher les IDs des utilisateurs trouvés
         user_ids = list(result.values_list('id', flat=True))
-        print(f"IDs des utilisateurs trouvés: {user_ids}")
         
-        print("[UserViewSet][get_queryset] ====== FIN REQUÊTE ======\n")
         return result
 
     def get_permissions(self):
@@ -213,20 +196,15 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def upload_logo(self, request):
         """Upload d'un logo pour l'utilisateur connecté"""
-        print(f"\n[UserViewSet][upload_logo] ====== DÉBUT UPLOAD LOGO ======")
-        print(f"User: {request.user.username} (role: {request.user.role}, id: {request.user.id})")
         
         user = request.user
         if 'logo' not in request.FILES:
-            print("[UserViewSet][upload_logo] Erreur: Aucun fichier logo fourni")
             return Response({'error': 'Aucun fichier logo fourni'}, status=status.HTTP_400_BAD_REQUEST)
         
         logo = request.FILES['logo']
-        print(f"Logo reçu: {logo.name} (taille: {logo.size} bytes, type: {logo.content_type})")
         
         # Vérifier le type de fichier
         if not logo.name.lower().endswith(('.png', '.jpg', '.jpeg')):
-            print(f"[UserViewSet][upload_logo] Erreur: Format de fichier non supporté: {logo.name}")
             return Response(
                 {'error': 'Format de fichier non supporté. Utilisez PNG, JPG ou JPEG.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -234,7 +212,6 @@ class UserViewSet(viewsets.ModelViewSet):
             
         # Vérifier la taille du fichier (max 2MB)
         if logo.size > 2 * 1024 * 1024:
-            print(f"[UserViewSet][upload_logo] Erreur: Fichier trop volumineux: {logo.size} bytes")
             return Response(
                 {'error': 'Le fichier est trop volumineux. Taille maximum: 2MB.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -251,21 +228,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 try:
                     old_logo.delete(save=False)
                 except Exception as e:
-                    print(f"[UserViewSet][upload_logo] Erreur lors de la suppression de l'ancien logo: {str(e)}")
-            
-            print(f"[UserViewSet][upload_logo] Logo sauvegardé avec succès: {user.logo.url}")
-            
+                    pass
             serializer = self.get_serializer(user)
-            print(f"[UserViewSet][upload_logo] Données sérialisées: {serializer.data}")
-            print("[UserViewSet][upload_logo] ====== FIN UPLOAD LOGO ======\n")
             
             return Response(serializer.data)
             
         except Exception as e:
-            print(f"[UserViewSet][upload_logo] ERREUR lors de la sauvegarde: {str(e)}")
-            print(f"[UserViewSet][upload_logo] Type d'erreur: {type(e)}")
             import traceback
-            print(f"[UserViewSet][upload_logo] Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'error': f'Erreur lors de la sauvegarde du logo: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -273,30 +242,15 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         """Surcharge pour ajouter des logs détaillés"""
-        print(f"\n[UserViewSet][get_object] ====== DÉBUT RÉCUPÉRATION OBJET ======")
-        print(f"URL de la requête: {self.request.path}")
-        print(f"Méthode: {self.request.method}")
-        print(f"User: {self.request.user.username} (role: {self.request.user.role})")
-        print(f"Lookup URL kwargs: {self.kwargs}")
         
         try:
             obj = super().get_object()
-            print(f"[UserViewSet][get_object] Objet trouvé: {obj.id} - {obj.username}")
             return obj
         except Exception as e:
-            print(f"[UserViewSet][get_object] ERREUR lors de la récupération: {str(e)}")
-            print(f"[UserViewSet][get_object] Type d'erreur: {type(e)}")
             import traceback
-            print(f"[UserViewSet][get_object] Traceback:\n{traceback.format_exc()}")
             raise
 
     def update(self, request, *args, **kwargs):
-        print(f"\n[UserViewSet][update] ====== DÉBUT UPDATE ======")
-        print(f"URL de la requête: {request.path}")
-        print(f"Méthode: {request.method}")
-        print(f"User: {request.user.username} (role: {request.user.role})")
-        print(f"Data reçue: {request.data}")
-        print(f"URL kwargs: {kwargs}")
         
         try:
             instance = self.get_object()
@@ -364,10 +318,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(response_data)
             
         except Exception as e:
-            print(f"[UserViewSet][update] ERREUR lors de l'update: {str(e)}")
-            print(f"[UserViewSet][update] Type d'erreur: {type(e)}")
             import traceback
-            print(f"[UserViewSet][update] Traceback:\n{traceback.format_exc()}")
             raise
 
 class CustomTokenRefreshView(TokenRefreshView):
@@ -410,18 +361,12 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """Vue personnalisée pour l'obtention du token avec stockage sécurisé."""
     
     def post(self, request, *args, **kwargs):
-        print(f"\n[CustomTokenObtainPairView] ====== DÉBUT AUTHENTIFICATION ======")
-        print(f"Données reçues: username={request.data.get('username')}")
-        print(f"Headers: {request.headers}")
         
         try:
-            print("[CustomTokenObtainPairView] Tentative d'authentification...")
             response = super().post(request, *args, **kwargs)
-            print(f"[CustomTokenObtainPairView] Statut de la réponse: {response.status_code}")
             
             if response.status_code == status.HTTP_200_OK:
                 user = User.objects.get(username=request.data['username'])
-                print(f"[CustomTokenObtainPairView] Utilisateur trouvé: {user.username} (role: {user.role})")
                 response.data['user'] = UserSerializer(user).data
                 
                 # Stocker le refresh token dans un cookie httpOnly
@@ -436,21 +381,16 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 
                 # Supprimer le refresh token de la réponse JSON
                 del response.data['refresh']
-                print("[CustomTokenObtainPairView] Authentification réussie")
                 
             return response
             
         except (InvalidToken, TokenError) as e:
-            print(f"[CustomTokenObtainPairView] ERREUR - Token invalide: {str(e)}")
             return Response(
                 {'detail': 'Identifiants incorrects'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
         except Exception as e:
-            print(f"[CustomTokenObtainPairView] ERREUR - Exception inattendue: {str(e)}")
-            print(f"[CustomTokenObtainPairView] Type d'erreur: {type(e)}")
             import traceback
-            print(f"[CustomTokenObtainPairView] Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_401_UNAUTHORIZED

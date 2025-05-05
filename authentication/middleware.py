@@ -41,18 +41,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
         
         # Ne vérifier que les requêtes API
         if not request.path_info.startswith('/api/'):
-            print("[AuthenticationMiddleware] Chemin non-API, pas de vérification")
             return None
             
         # Vérifier si le chemin actuel est public
         if any(request.path_info.startswith(path) for path in public_paths):
-            print("[AuthenticationMiddleware] Chemin public, pas de vérification")
             return None
             
         # Pour les requêtes API protégées
-        print(f"[AuthenticationMiddleware] Utilisateur authentifié: {request.user.is_authenticated}")
         if not request.user.is_authenticated:
-            print("[AuthenticationMiddleware] Accès refusé - Non authentifié")
             return JsonResponse({
                 'detail': 'Authentification requise'
             }, status=401)

@@ -399,10 +399,6 @@ class PlanViewSet(viewsets.ModelViewSet):
         """
         try:
             plan = self.get_object()
-            print(f"[PlanViewSet][save_with_elements] Détails du plan:")
-            print(f" - Entreprise: {plan.entreprise.id if plan.entreprise else None} - {plan.entreprise.username if plan.entreprise else 'N/A'}")
-            print(f" - Salarie: {plan.salarie.id if plan.salarie else None} - {plan.salarie.username if plan.salarie else 'N/A'}")
-            print(f" - Visiteur: {plan.visiteur.id if plan.visiteur else None} - {plan.visiteur.username if plan.visiteur else 'N/A'}")
         except Exception as e:
             raise
 
@@ -474,9 +470,6 @@ class PlanViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             import traceback
-            print(f"Erreur lors de la sauvegarde: {str(e)}")
-            print(f"Type d'erreur: {type(e)}")
-            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'detail': f'Erreur lors de la sauvegarde: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -815,9 +808,11 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
             # Permettre l'accès si c'est une note privée créée par l'utilisateur
             if creator_access:
                 # Continuer pour ajouter la photo après vérification du quota
+                pass
             # Les admins ont toujours accès
             elif user.role == ROLE_ADMIN:
                 # Continuer pour ajouter la photo après vérification du quota
+                pass
             else:
                 raise PermissionDenied("Vous n'avez pas accès à cette note")
         else:
@@ -944,14 +939,10 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"✅ Utilisation des clés API de l'entreprise {entreprise.company_name}")
-                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     error_message = f"L'entreprise {entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
-                    print(f"❌ Erreur: {error_message}")
             except Exception as e:
                 error_message = "Erreur lors de la récupération de l'entreprise."
-                print(f"❌ Erreur lors de la récupération de l'entreprise: {str(e)}")
 
         # Sinon, utiliser l'entreprise de l'utilisateur ou sa hiérarchie
         else:
@@ -963,14 +954,11 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"✅ Utilisation des clés API de l'entreprise {user.company_name}")
-                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     if user.role == 'ADMIN':
                         error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
                     else:  # ENTREPRISE
                         error_message = "Vous n'avez pas configuré vos clés API Ecowitt.  Veuillez consulter votre administrateur."
-                    print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un salarié, utiliser les clés de son entreprise
             elif user.role == 'SALARIE' and user.entreprise:
@@ -980,15 +968,12 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"✅ Utilisation des clés API de l'entreprise {user.entreprise.company_name}")
-                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     try:
                         company_name = user.entreprise.company_name if hasattr(user.entreprise, 'company_name') and user.entreprise.company_name else "L'entreprise"
                         error_message = f"{company_name} n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
                     except Exception:
                         error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
-                    print(f"❌ Erreur: {error_message}")
 
             # Si l'utilisateur est un visiteur, utiliser les clés de l'entreprise associée
             elif user.role == 'VISITEUR' and user.salarie and user.salarie.entreprise:
@@ -998,57 +983,16 @@ class WeatherViewSet(viewsets.ViewSet):
                         'application_key': user.salarie.entreprise.ecowitt_application_key,
                         'base_url': self.ECOWITT_BASE_URL
                     }
-                    print(f"✅ Utilisation des clés API de l'entreprise {user.salarie.entreprise.company_name}")
-                    print(f"✅ Configuration trouvée avec succès")
                 else:
                     try:
                         company_name = user.entreprise.company_name if hasattr(user.entreprise, 'company_name') and user.entreprise.company_name else "L'entreprise"
                         error_message = f"{company_name} n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
                     except Exception:
                         error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
-                    print(f"❌ Erreur: {error_message}")
             else:
                 error_message = "L'entreprise n'a pas configuré ses clés API Ecowitt. Veuillez consulter votre administrateur."
-                print(f"❌ Erreur: {error_message}")
 
         return config, error_message
-
-    def log_api_response(self, endpoint: str, response: requests.Response, error: bool = False):
-        """Fonction utilitaire pour logger les réponses de l'API."""
-        print(f"\n[WeatherViewSet][{endpoint}] {'❌ ERREUR' if error else '✅ SUCCÈS'} API Ecowitt")
-        print(f"URL: {response.url}")
-        print(f"Status: {response.status_code}")
-        print(f"Headers: {dict(response.headers)}")
-
-        try:
-            data = response.json()
-            print(f"Response Code: {data.get('code')}")
-            print(f"Message: {data.get('msg')}")
-            if not error and 'data' in data:
-                self.log_data_structure(data['data'])
-        except Exception as e:
-            print(f"Erreur lors du parsing JSON: {str(e)}")
-            print(f"Contenu brut: {response.text[:500]}...")
-
-    def log_data_structure(self, data: dict, prefix: str = "", depth: int = 0):
-        """Affiche la structure des données de manière récursive."""
-        if depth > 5:  # Limite la profondeur pour éviter les boucles infinies
-            return
-
-        if isinstance(data, dict):
-            for key, value in data.items():
-                current_path = f"{prefix}.{key}" if prefix else key
-                if isinstance(value, (dict, list)):
-                    print(f"{'  ' * depth}📁 {current_path}")
-                    self.log_data_structure(value, current_path, depth + 1)
-                else:
-                    print(f"{'  ' * depth}📄 {current_path}: {type(value).__name__} = {value}")
-        elif isinstance(data, list):
-            if data:
-                print(f"{'  ' * depth}📋 {prefix} (Liste de {len(data)} éléments)")
-                self.log_data_structure(data[0], f"{prefix}[0]", depth + 1)
-            else:
-                print(f"{'  ' * depth}📋 {prefix} (Liste vide)")
 
     def get_devices(self):
         """Récupère la liste des appareils disponibles."""
@@ -1096,7 +1040,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
         except Exception as e:
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return None
 
     @action(detail=False, methods=['get'], url_path='devices')
@@ -1128,7 +1071,6 @@ class WeatherViewSet(viewsets.ViewSet):
             return Response(response_data)
         except Exception as e:
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1200,7 +1142,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
         except Exception as e:
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1315,7 +1256,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
         except Exception as e:
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1417,7 +1357,6 @@ class WeatherViewSet(viewsets.ViewSet):
             data = response.json()
             if data.get('code') != 0:
                 self.log_api_response('chart', response, error=True)
-                print(f"[WeatherViewSet][chart] ❌ Erreur API (code {data.get('code')}): {data.get('msg')}")
                 return Response(
                     {'error': data.get('msg', 'Erreur inconnue')},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
@@ -1429,7 +1368,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
         except Exception as e:
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1448,7 +1386,6 @@ class WeatherViewSet(viewsets.ViewSet):
             if isinstance(data, dict) and not isinstance(data, list):
                 # Vérifier si c'est des données historiques au format Ecowitt API v3
                 if data_type in data and isinstance(data[data_type], dict):
-                    print(f"[WeatherViewSet][format_chart_data] Traitement des données historiques pour {data_type}")
 
                     # Initialiser les configurations de datasets selon le type de données
                     if data_type == 'temp':
@@ -1508,9 +1445,7 @@ class WeatherViewSet(viewsets.ViewSet):
                                         'y': converted_value
                                     })
                                 except (ValueError, TypeError) as e:
-                                    print(f"[WeatherViewSet][format_chart_data] ⚠️ Erreur de conversion pour {config['key']} à {timestamp}: {e}")
-
-                            # Trier les points par timestamp
+                                    pass
                             dataset['data'].sort(key=lambda point: point['x'])
 
                             # Si le dataset contient des données, l'ajouter au résultat
@@ -1718,19 +1653,10 @@ class WeatherViewSet(viewsets.ViewSet):
                     'fill': False,
                     'tension': 0.1
                 })
-
-            # Afficher un résumé des données générées
-            print(f"✅ Données formatées pour {data_type}:")
-            print(f"- Nombre de datasets: {len(result['datasets'])}")
-            for i, dataset in enumerate(result['datasets']):
-                print(f"  - Dataset {i+1} ({dataset['label']}): {len(dataset['data'])} points")
-
             return result
 
         except Exception as e:
-            print(f"[WeatherViewSet][format_chart_data] ❌ Erreur lors du formatage des données: {str(e)}")
             import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             return {
                 'type': data_type,
                 'labels': [],

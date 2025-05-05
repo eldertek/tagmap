@@ -20,16 +20,12 @@ class UserDetailsSerializer(serializers.ModelSerializer):
 
     def get_logo(self, obj):
         """Retourne l'URL du logo de l'utilisateur s'il existe."""
-        print(f"\n[UserDetailsSerializer][get_logo] Vérification du logo pour {obj.username} (ID: {obj.id})")
 
         if not hasattr(obj, 'logo'):
-            print(f"[UserDetailsSerializer][get_logo] L'objet n'a pas d'attribut 'logo'")
             return None
 
-        print(f"[UserDetailsSerializer][get_logo] Attribut logo: {obj.logo}")
 
         if not obj.logo:
-            print(f"[UserDetailsSerializer][get_logo] Pas de logo configuré pour {obj.username}")
             return None
 
         try:
@@ -38,19 +34,15 @@ class UserDetailsSerializer(serializers.ModelSerializer):
             # Simplement retourner l'URL relative commençant par "/"
             if hasattr(obj.logo, 'url'):
                 logo_url = obj.logo.url
-                print(f"[UserDetailsSerializer][get_logo] URL du logo: {logo_url}")
                 return logo_url
             else:
                 # Construire un chemin relatif en préfixant avec MEDIA_URL
                 logo_path = str(obj.logo)
                 logo_url = f"{settings.MEDIA_URL}{logo_path}"
-                print(f"[UserDetailsSerializer][get_logo] URL relative construite: {logo_url}")
                 return logo_url
 
         except Exception as e:
-            print(f"[UserDetailsSerializer][get_logo] ERREUR lors de la récupération de l'URL du logo: {str(e)}")
             import traceback
-            print(f"[UserDetailsSerializer][get_logo] Traceback:\n{traceback.format_exc()}")
 
             # En cas d'erreur, tenter une solution de secours
             try:
@@ -115,7 +107,6 @@ class UserSerializer(serializers.ModelSerializer):
         salarie = data.get('salarie')
         entreprise = data.get('entreprise')
 
-        print(f"Validation des données: role={role}, salarie={salarie}, entreprise={entreprise}")
 
         # Validation pour les salaries
         if role == 'SALARIE':
@@ -152,13 +143,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         """Surcharge la représentation pour inclure les relations imbriquées."""
-        print(f"\n[UserSerializer][to_representation] ====== DÉBUT SÉRIALISATION ======")
-        print(f"Instance ID: {instance.id}")
-        print(f"Logo URL: {instance.logo.url if instance.logo else None}")
 
         data = super().to_representation(instance)
-        print(f"Données sérialisées: {data}")
-        print("[UserSerializer][to_representation] ====== FIN SÉRIALISATION ======\n")
 
         # Pour un salarie, inclure son entreprise
         if instance.role == 'SALARIE':
@@ -230,7 +216,6 @@ class UserSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         old_password = validated_data.pop('old_password', None)
 
-        print("Update validated_data:", validated_data)
 
         # Si un nouveau mot de passe est fourni
         if password:
