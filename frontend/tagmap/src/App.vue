@@ -513,10 +513,9 @@ watchEffect(() => {
     <!-- Main content -->
     <main class="app-main">
       <router-view v-slot="{ Component, route }">
-        <component 
-          :is="Component" 
-          :class="{ 'router-view-map': route.meta.isMapRoute }"
-        />
+        <div :class="{ 'router-view-map': route.meta.isMapRoute }">
+          <component :is="Component" />
+        </div>
       </router-view>
     </main>
 
@@ -577,6 +576,9 @@ body {
   /* Special case for MapView - should always be overflow hidden */
   .app-main .router-view-map {
     overflow: hidden !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -594,6 +596,9 @@ body {
   /* Special case for MapView - should always be overflow hidden */
   .app-main .router-view-map {
     overflow: hidden !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 }
 
