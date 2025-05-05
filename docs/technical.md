@@ -88,7 +88,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 ### Frontend
 - **Framework**: Vue.js 3
 - **Build Tool**: Vite
-- **Map Library**: Leaflet
+- **Map Library**: MapLibre GL JS (migration in progress from Leaflet)
 - **State Management**: Vuex or Pinia
 - **HTTP Client**: Axios
 - **CSS Framework**: Custom styling with responsive design
