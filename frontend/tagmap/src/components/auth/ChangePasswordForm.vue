@@ -153,13 +153,6 @@ const form = reactive({
 })
 const loading = ref(false)
 const error = ref('')
-onMounted(() => {
-  console.log('ChangePasswordForm mounted, auth state:', {
-    isAuthenticated: authStore.isAuthenticated,
-    userId: authStore.user?.id,
-    mustChangePassword: authStore.user?.must_change_password
-  })
-})
 const validationErrors = computed(() => {
   const errors = []
   if (form.newPassword && form.newPassword.length < 8) {
@@ -189,9 +182,7 @@ async function handleSubmit() {
   loading.value = true
   error.value = ''
   try {
-    console.log('Submitting password change...')
     await authStore.changePassword(form.oldPassword, form.newPassword)
-    console.log('Password changed successfully')
     router.push('/')
   } catch (err: any) {
     console.error('Password change failed:', err)

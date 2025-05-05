@@ -161,20 +161,6 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
-  // Cette fonction est conservée pour compatibilité mais ne fait rien
-  async function removeColumn(_id: string) {
-    console.log('\n[NotesStore][removeColumn] Fonction désactivée - Utilisation de colonnes fixes');
-    // Ne fait rien car nous utilisons des colonnes fixes
-    return;
-  }
-
-  // DÉPRÉCIÉ: Cette fonction est désactivée car le déplacement des colonnes n'est plus possible
-  async function reorderColumns(_newOrder: string[]) {
-    console.log('\n[NotesStore][reorderColumns] FONCTION DÉSACTIVÉE - Le déplacement des colonnes n\'est plus possible');
-    // Ne fait rien car le déplacement des colonnes est désactivé
-    return;
-  }
-
   // Fonction utilitaire pour convertir le niveau d'accès du format backend vers le format frontend
   function convertAccessLevel(backendLevel: string | undefined): NoteAccessLevel {
     if (!backendLevel) return NoteAccessLevel.PRIVATE;
@@ -606,8 +592,6 @@ export const useNotesStore = defineStore('notes', () => {
     loadColumns,
     addColumn,
     updateColumn,
-    removeColumn,
-    reorderColumns,
     addNote,
     updateNote,
     removeNote,

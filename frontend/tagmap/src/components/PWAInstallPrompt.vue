@@ -171,7 +171,6 @@ const initializePrompt = () => {
 
   // Écouter l'événement appinstalled
   window.addEventListener('appinstalled', (evt) => {
-    console.log('Application installée avec succès', evt)
     showInstallPrompt.value = false
   })
   
@@ -209,7 +208,6 @@ onBeforeUnmount(() => {
 // Installer la PWA
 const installPWA = async () => {
   if (!deferredPrompt.value) {
-    console.log('Installation non disponible')
     return
   }
   
@@ -225,11 +223,8 @@ const installPWA = async () => {
     
     // Fermer notre popup personnalisé
     if (choiceResult.outcome === 'accepted') {
-      console.log('Installation acceptée')
       showInstallPrompt.value = false
-    } else {
-      console.log('Installation refusée')
-    }
+    } 
   } catch (error) {
     console.error('Erreur lors de l\'installation:', error)
   }

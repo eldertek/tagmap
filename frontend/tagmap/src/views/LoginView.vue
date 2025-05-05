@@ -344,13 +344,9 @@ const totalPages = computed(() => {
 })
 
 onMounted(async () => {
-  console.log('LoginView mounted')
-  console.log('INITIAL_STATE:', window.INITIAL_STATE)
-
   try {
     // Vérifier si l'utilisateur est déjà authentifié
     if (window.INITIAL_STATE?.isAuthenticated) {
-      console.log('User is authenticated, redirecting to home')
       router.push('/')
       return
     }
@@ -358,7 +354,6 @@ onMounted(async () => {
     // Si pas d'état initial, tenter une restauration de session
     const isAuthenticated = await authStore.restoreSession()
     if (isAuthenticated) {
-      console.log('Session restored, redirecting to home')
       router.push('/')
     }
   } catch (err) {

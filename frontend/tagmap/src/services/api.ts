@@ -44,21 +44,12 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      // Log pour debug
-      console.log('Request config:', {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-        withCredentials: config.withCredentials
-      });
       return config;
     } catch (error) {
-      console.error('Error in request interceptor:', error);
       return config;
     }
   },
   (error) => {
-    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -95,7 +86,6 @@ api.interceptors.response.use(
       }
       return Promise.reject(error);
     } catch (error) {
-      console.error('Error in response interceptor:', error);
       return Promise.reject(error);
     }
   }
@@ -150,7 +140,6 @@ export const authService = {
       const response = await api.post('/token/', { username, password });
       return response.data;
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   },
@@ -159,7 +148,6 @@ export const authService = {
     try {
       await api.post('/token/logout/');
     } catch (error) {
-      console.error('Logout error:', error);
       throw error;
     }
   },
@@ -168,7 +156,6 @@ export const authService = {
     try {
       return await api.post('/register/', userData);
     } catch (error) {
-      console.error('Register error:', error);
       throw error;
     }
   },
@@ -182,8 +169,6 @@ export async function fetchUsersByHierarchy(params: {
   includeDetails?: boolean;
   search?: string;
 }) {
-  console.log(`[fetchUsersByHierarchy] Récupération des utilisateurs:`, params);
-
   const filters: UserFilter = {
     role: params.role
   };
@@ -204,14 +189,10 @@ export async function fetchUsersByHierarchy(params: {
     filters.search = params.search;
   }
 
-  console.log(`[fetchUsersByHierarchy] Filtres appliqués:`, filters);
-
   try {
     const response = await userService.getUsers(filters);
-    console.log(`[fetchUsersByHierarchy] Résultat (${response.data.length} utilisateurs):`, response.data);
     return response.data;
   } catch (error) {
-    console.error(`[fetchUsersByHierarchy] Erreur lors de la récupération des utilisateurs:`, error);
     throw error;
   }
 }
@@ -223,7 +204,6 @@ export const userService = {
     try {
       return await api.get('/users/', { params: filters });
     } catch (error) {
-      console.error('Error getting users:', error);
       throw error;
     }
   },
@@ -365,7 +345,6 @@ export const userService = {
         }
       });
     } catch (error) {
-      console.error('Error uploading logo:', error);
       throw error;
     }
   }
@@ -397,8 +376,6 @@ async function retryWithBackoff<T>(
       // Ajouter un peu de "jitter" pour éviter que tous les clients retentent en même temps
       const jitter = Math.random() * 200;
 
-      console.log(`Tentative ${retries}/${maxRetries} échouée, nouvelle tentative dans ${delay + jitter}ms`);
-
       // Attendre avant la prochaine tentative
       await new Promise(resolve => setTimeout(resolve, delay + jitter));
     }
@@ -411,7 +388,6 @@ export const irrigationService = {
     try {
       return await api.get('/plans/');
     } catch (error) {
-      console.error('Error getting plans:', error);
       throw error;
     }
   },
@@ -427,7 +403,6 @@ export const irrigationService = {
 
       return await api.post('/plans/', formattedData);
     } catch (error) {
-      console.error('Error creating plan:', error);
       throw error;
     }
   },
@@ -436,7 +411,6 @@ export const irrigationService = {
     try {
       return await api.put(`/plans/${planId}/`, planData);
     } catch (error) {
-      console.error('Error updating plan:', error);
       throw error;
     }
   },
@@ -445,7 +419,6 @@ export const irrigationService = {
     try {
       return await api.delete(`/plans/${planId}/`);
     } catch (error) {
-      console.error('Error deleting plan:', error);
       throw error;
     }
   },
