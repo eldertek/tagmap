@@ -8,7 +8,7 @@ TagMap is a web-based application built using a modern client-server architectur
 flowchart TD
     subgraph Client
         FE[Vue.js Frontend]
-        Map[MapLibre Map Component]
+        Map[Leaflet Map Component]
         Auth[Authentication Module]
         Notes[Notes Management]
         Drawing[Drawing Tools]
@@ -47,7 +47,7 @@ flowchart TD
    - Responsive design for both desktop and mobile
    - State management with Vuex/Pinia
 
-2. **MapLibre Map Component**
+2. **Leaflet Map Component**
    - Map rendering with multiple layer support
    - Custom controls for layer switching
    - Event handling for map interactions
@@ -185,7 +185,7 @@ flowchart TD
 
 ### Frontend
 - **Framework**: Vue.js
-- **Map Library**: MapLibre GL JS (migrated from Leaflet)
+- **Map Library**: Leaflet
 - **State Management**: Vuex or Pinia
 - **Build Tools**: Vite
 - **UI Components**: Custom components with responsive design

@@ -15,7 +15,6 @@
 | Database Models | Not started | High | - | Define core models for the application |
 | Authentication System | Not started | High | - | Implement role-based authentication |
 | Base Map Integration | Not started | High | - | Integrate Leaflet with base map layers |
-|  | In progress | High | - | Migrer l'affichage de la carte de Leaflet à MapLibre GL JS (étape 1 : carte basique) |
 | Geolocation Notes | Not started | Medium | - | Create and manage geolocated notes |
 | Drawing Tools | Not started | Medium | - | Implement polygon and line drawing tools |
 |              |            |        |   | **Note:** The Line class methods are now implemented as class properties (arrow functions) to match Leaflet's Polyline base class and resolve TypeScript compatibility issues. |

@@ -1,7 +1,5 @@
 # Contexte Actif du Projet TagMap
 
-- Migration cartographique : Migration progressive de Leaflet vers MapLibre GL JS. Étape 1 : affichage d'une carte MapLibre basique (en cours).
-
 ## Objectifs actuels
 
 1. **Développement des fonctionnalités de base**

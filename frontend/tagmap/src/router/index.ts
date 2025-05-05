@@ -7,7 +7,6 @@ import UserListView from '@/views/UserListView.vue'
 import NotesView from '../views/NotesView.vue'
 import MeteoView from '../views/MeteoView.vue'
 import ParametresView from '../views/ParametresView.vue'
-import MapLibreBasicView from '@/views/MapLibreBasicView.vue'
 
 const router = createRouter({
   history: createWebHistory('/'),
@@ -101,16 +100,6 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         allowedRoles: ['admin']
-      }
-    },
-    {
-      path: '/maplibre-basic',
-      name: 'maplibre-basic',
-      component: MapLibreBasicView,
-      meta: {
-        requiresAuth: true,
-        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur'],
-        isMapRoute: true
       }
     },
     {

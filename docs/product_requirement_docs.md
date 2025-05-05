@@ -30,7 +30,6 @@ Organizations need a centralized way to:
 - Multiple map layers: Hybrid (satellite + city), Cadastral, IGN
 - Selective layer visibility through a checkbox filtering system
 - Custom filtering for specific elements (Drilling, Clients, Warehouses, etc.)
-- **La bibliothèque de rendu cartographique migre de Leaflet à MapLibre GL JS pour de meilleures performances et une compatibilité future.**
 - **Administrators can configure the Google Maps API key dynamically via a secure settings page. The key is stored securely in the database and retrieved by the frontend when needed, with no client-side storage of sensitive keys.**
 
 ### Geospatial Annotation Features
@@ -65,7 +64,6 @@ Organizations need a centralized way to:
 ### Performance
 - Responsive design for both desktop and mobile interfaces
 - Efficient handling of map data to ensure smooth interaction
-- **La migration vers MapLibre GL JS vise à améliorer la fluidité et la gestion de gros volumes de données géospatiales.**
 
 ### Security
 - Secure authentication system
