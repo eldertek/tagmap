@@ -18,7 +18,8 @@ declare module 'leaflet' {
     updateProperties?: () => void;
     editNote?: () => void;
     recreateIcon?: () => void;
-    getElement?: () => HTMLElement | null;
+    getElement?: () => HTMLElement | null | Element | undefined;
+    getLengthToVertex?: (vertex: number) => number;
   }
   interface Map {
     pm: PMMap;

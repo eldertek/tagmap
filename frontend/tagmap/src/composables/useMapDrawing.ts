@@ -11,7 +11,7 @@ import area from '@turf/area';
 import length from '@turf/length';
 import centroid from '@turf/centroid';
 import { useDrawingStore } from '../stores/drawing';
-import { 
+import type { 
   AlmostOverEvent, 
   ExtendedGlobalOptions,
   ControlPoint,
