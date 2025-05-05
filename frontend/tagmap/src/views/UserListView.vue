@@ -416,6 +416,100 @@ async function fetchUsers() {
       })
 }
 
-  return false;
+  } catch (error) {
+    console.error('Error fetching users:', error)
+    notificationStore.error('Erreur lors du chargement des utilisateurs')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Récupération des entreprises et salaries pour les filtres et le formulaire
+async function fetchDependencies() {
+  if (isAdmin.value) {
+    entreprises.value = await authStore.fetchEnterprises()
+    salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id || 0)
+  } else if (isEntreprise.value) {
+    salaries.value = await authStore.fetchEntrepriseSalaries(authStore.user?.id || 0)
+  }
+}
+
+// Ouverture du modal de création d'utilisateur
+function openCreateUserModal() {
+  selectedUser.value = null
+  apiErrors.value = []
+  showUserModal.value = true
+}
+
+// Fermeture du modal utilisateur
+function closeUserModal() {
+  showUserModal.value = false
+  selectedUser.value = null
+  apiErrors.value = []
+}
+
+// Édition d'un utilisateur existant
+function editUser(user: User) {
+  selectedUser.value = user
+  apiErrors.value = []
+  showUserModal.value = true
+}
+
+// Confirmation avant suppression
+function confirmDeleteUser(user: User) {
+  userToDelete.value = user
+  showDeleteModal.value = true
+}
+
+// Vérifie si l'utilisateur courant peut supprimer l'utilisateur cible
+function canDeleteUser(user: User): boolean {
+  if (isAdmin.value) {
+    return true
+  }
+  if (isEntreprise.value && (user.role === 'SALARIE' || user.role === 'VISITEUR')) {
+    return true
+  }
+  if (isSalarie.value && user.role === 'VISITEUR') {
+    return true
+  }
+  return false
+}
+
+// Sauvegarde d'un utilisateur (création ou modification)
+async function saveUser(userData: any) {
+  try {
+    apiErrors.value = []
+    if (selectedUser.value) {
+      // Mise à jour
+      await authStore.updateUser(selectedUser.value.id, userData)
+      notificationStore.success('Utilisateur mis à jour avec succès')
+    } else {
+      // Création
+      await authStore.createUser(userData)
+      notificationStore.success('Utilisateur créé avec succès')
+    }
+    showUserModal.value = false
+    await fetchUsers()
+  } catch (error: any) {
+    if (error.response?.data) {
+      apiErrors.value = formatApiErrors(error.response.data)
+    } else {
+      notificationStore.error('Une erreur est survenue')
+    }
+  }
+}
+
+// Suppression d'un utilisateur
+async function deleteUser() {
+  if (!userToDelete.value) return
+  
+  try {
+    await authStore.deleteUser(userToDelete.value.id)
+    notificationStore.success('Utilisateur supprimé avec succès')
+    showDeleteModal.value = false
+    await fetchUsers()
+  } catch (error) {
+    notificationStore.error('Erreur lors de la suppression de l\'utilisateur')
+  }
 }
 </script>
