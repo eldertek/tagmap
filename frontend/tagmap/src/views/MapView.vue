@@ -650,7 +650,6 @@ import 'leaflet-simple-map-screenshoter';
 import DrawingTools from '../components/DrawingTools.vue';
 import MapToolbar from '../components/MapToolbar.vue';
 import NoteEditModal from '../components/NoteEditModal.vue';
-// import MapFilterPanel from '../components/MapFilterPanel.vue'; // Supprimé car intégré dans DrawingTools
 import { useMapDrawing } from '../composables/useMapDrawing';
 import { useMapState } from '../composables/useMapState';
 import { useIrrigationStore } from '@/stores/irrigation';

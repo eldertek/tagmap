@@ -55,8 +55,7 @@ export class GeoNote extends L.Marker {
       html: iconHtml,
       className: 'geo-note-icon',
       iconSize: [24, 36],
-      iconAnchor: [12, 36],
-      // popupAnchor: [0, -36] // Commenté : Configuration du popup
+      iconAnchor: [12, 36]
     });
 
     // Ajouter du CSS pour s'assurer que l'icône est correctement positionnée
@@ -122,8 +121,6 @@ export class GeoNote extends L.Marker {
     };
 
 
-    // Commenté : Ajout du popup pour afficher la description
-    // this.bindPopup(this.createPopupContent());
 
     // Ajouter un gestionnaire d'événements pour le double-clic
     this.on('dblclick', this.onDoubleClick);
@@ -165,12 +162,8 @@ export class GeoNote extends L.Marker {
       const eventNoteId = e.detail.noteId;
       const backendId = (this as any)._dbId || this.properties.id;
 
-      console.log('[GeoNote][updateStyle] Événement reçu pour noteId:', eventNoteId,
-                  'Comparaison avec ID backend:', backendId);
-
       // Vérifier si l'ID dans l'événement correspond à l'ID backend
       if (eventNoteId === backendId) {
-        console.log('[GeoNote][updateStyle] Correspondance trouvée, mise à jour du style:', e.detail.style);
         this.setNoteStyle(e.detail.style);
 
         // Mettre à jour les propriétés de la note
@@ -181,8 +174,6 @@ export class GeoNote extends L.Marker {
           };
         }
 
-        // Mettre à jour le popup pour refléter les changements
-        // this.bindPopup(this.createPopupContent());
       }
     }) as EventListener);
 
@@ -191,12 +182,8 @@ export class GeoNote extends L.Marker {
       const eventNoteId = e.detail.noteId;
       const backendId = (this as any)._dbId || this.properties.id;
 
-      console.log('[GeoNote][update] Événement reçu pour noteId:', eventNoteId,
-                  'Comparaison avec ID backend:', backendId);
-
       // Vérifier si l'ID dans l'événement correspond à l'ID backend
       if (eventNoteId === backendId) {
-        console.log('[GeoNote][update] Correspondance trouvée, mise à jour des propriétés:', e.detail.properties);
 
         // Mettre à jour toutes les propriétés
         this.properties = {
@@ -211,19 +198,10 @@ export class GeoNote extends L.Marker {
         // Mettre à jour le style visuel
         this.setNoteStyle(e.detail.properties.style);
 
-        // Mettre à jour le popup pour refléter les changements
-        // this.bindPopup(this.createPopupContent());
 
-        console.log('[GeoNote][update] Propriétés mises à jour:', this.properties);
       }
     }) as EventListener);
 
-    console.log('[GeoNote][constructor] Note créée:', {
-      location: latlng,
-      name: this.properties.name,
-      type: this.properties.type,
-      style: this.properties.style
-    });
 
     // Ajouter des écouteurs pour les événements de survol
     this.on('mouseover', this.highlight);
@@ -299,8 +277,7 @@ export class GeoNote extends L.Marker {
         html: iconHtml,
         className: 'geo-note-icon forced-visible',
         iconSize: [24, 36],
-        iconAnchor: [12, 36],
-        popupAnchor: [0, -36]
+        iconAnchor: [12, 36]
       });
       
       // Mettre à jour l'icône
@@ -350,12 +327,6 @@ export class GeoNote extends L.Marker {
   highlight(): void {
     const element = this.getElement();
     if (element) {
-      console.log('[GeoNote][highlight] Avant application de l\'effet:', {
-        element,
-        display: element.style.display,
-        visibility: element.style.visibility,
-        opacity: element.style.opacity
-      });
       
       // Forcer la visibilité d'abord
       this.forceVisible();
@@ -736,8 +707,7 @@ export class GeoNote extends L.Marker {
         html: iconHtml,
         className: 'geo-note-icon',
         iconSize: [24, 36],
-        iconAnchor: [12, 36],
-        popupAnchor: [0, -36]
+        iconAnchor: [12, 36]
       });
 
       // Mettre à jour l'icône
@@ -814,19 +784,14 @@ export class GeoNote extends L.Marker {
       radius: (data.style as any).radius || 12
     } : this.properties.style;
 
-    console.log('[GeoNote][updateFromBackendData] Style après traitement initial:', style);
-
     // Récupérer le niveau d'accès depuis le style si disponible
     const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || this.properties.accessLevel || NoteAccessLevel.PRIVATE;
-    console.log('[GeoNote][updateFromBackendData] Niveau d\'accès récupéré:', accessLevel);
 
     // Récupérer la catégorie depuis le style si disponible
     const category = (data.style as any)?.category || data.category || this.properties.category || 'forages';
-    console.log('[GeoNote][updateFromBackendData] Catégorie récupérée:', category);
 
     // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
     const columnId = data.columnId || this.properties.columnId || '1';
-    console.log('[GeoNote][updateFromBackendData] Mise à jour de note avec columnId:', columnId);
 
     // S'assurer que le style contient le niveau d'accès et la catégorie
     const styleWithMetadata = {
@@ -858,13 +823,6 @@ export class GeoNote extends L.Marker {
     // Mettre à jour le popup
     // this.bindPopup(this.createPopupContent());
 
-    console.log('[GeoNote][updateFromBackendData] Note mise à jour:', {
-      name: this.properties.name,
-      type: this.properties.type,
-      category: this.properties.category,
-      accessLevel: this.properties.accessLevel,
-      style: this.properties.style
-    });
   }
 
   // Méthode statique pour créer une GeoNote à partir des données du backend
@@ -876,8 +834,7 @@ export class GeoNote extends L.Marker {
     if (typeof data.location === 'object' && !Array.isArray(data.location) && data.location.type === 'Point') {
       // Format GeoJSON: { type: 'Point', coordinates: [lng, lat] }
       const coords = data.location.coordinates;
-      console.log('[GeoNote][fromBackendData] Coordonnées GeoJSON reçues:', coords);
-
+  
       // Convertir du format GeoJSON [lng, lat] au format Leaflet [lat, lng]
       latLng = [coords[1], coords[0]];
     } else if (Array.isArray(data.location) && data.location.length === 2) {
@@ -887,16 +844,11 @@ export class GeoNote extends L.Marker {
       throw new Error('Les données de la note ne contiennent pas de position valide');
     }
 
-    console.log('[GeoNote][fromBackendData] Création d\'une note à partir des données:', data);
-    console.log('[GeoNote][fromBackendData] Position utilisée:', latLng);
 
     // Récupérer le niveau d'accès depuis le style si disponible
     const accessLevel = (data.style as any)?._accessLevel || (data.style as any)?.accessLevel || data.accessLevel || NoteAccessLevel.PRIVATE;
-    console.log('[GeoNote][fromBackendData] Niveau d\'accès récupéré:', accessLevel, 'Style:', data.style);
-
     // Récupérer la catégorie depuis le style si disponible
     const category = (data.style as any)?.category || data.category || 'forages';
-    console.log('[GeoNote][fromBackendData] Catégorie récupérée:', category);
 
     // Forcer la mise à jour du niveau d'accès et de la catégorie dans les données
     data.accessLevel = accessLevel;
@@ -904,7 +856,6 @@ export class GeoNote extends L.Marker {
 
     // S'assurer que columnId est défini et vaut '1' (Idées) par défaut
     const columnId = data.columnId || '1';
-    console.log('[GeoNote][fromBackendData] Création de note avec columnId:', columnId);
 
     // Créer une nouvelle instance de GeoNote avec les coordonnées au format Leaflet
     const note = new GeoNote(latLng, {
@@ -938,14 +889,6 @@ export class GeoNote extends L.Marker {
     // Mettre à jour le popup
     // note.bindPopup(note.createPopupContent());
 
-    console.log('[GeoNote][fromBackendData] Note créée:', {
-      location: latLng,
-      name: note.properties.name,
-      type: note.properties.type,
-      category: note.properties.category,
-      accessLevel: note.properties.accessLevel,
-      style: note.properties.style
-    });
 
     // Retourner la note créée
     return note;
@@ -956,18 +899,11 @@ export class GeoNote extends L.Marker {
     // Éviter les sauvegardes multiples
     if (this._planSaved) return (this as any)._dbId || 0;
 
-    console.log('[GeoNote][saveNote] Sauvegarde directe de la note via l\'API');
 
     try {
       // Mettre à jour les propriétés pour s'assurer qu'elles sont à jour
       this.updateProperties();
 
-      // Log de la couleur avant la sauvegarde
-      console.log('[GeoNote][saveNote] Couleur avant sauvegarde:', {
-        styleColor: this.properties.style?.color,
-        styleFillColor: this.properties.style?.fillColor,
-        iconColor: this.getElement()?.querySelector('.geo-note-marker svg path')?.getAttribute('fill') || 'non disponible'
-      });
 
       // S'assurer que le style contient le niveau d'accès, la catégorie et la couleur correcte
       // Vérifier si la couleur est au format rgb et la convertir en hex si nécessaire
@@ -980,7 +916,6 @@ export class GeoNote extends L.Marker {
           const fillColor = svgPath.getAttribute('fill');
           if (fillColor) {
             color = fillColor;
-            console.log('[GeoNote][saveNote] Couleur récupérée depuis SVG pour remplacer RGB:', color);
           }
         }
       }
@@ -994,7 +929,6 @@ export class GeoNote extends L.Marker {
         category: this.properties.category
       };
 
-      console.log('[GeoNote][saveNote] Style final pour l\'envoi:', styleWithMetadata);
 
       // Préparer les données pour l'envoi
       const noteData: any = {
@@ -1028,11 +962,6 @@ export class GeoNote extends L.Marker {
         noteData.plan = planId;
       }
 
-      console.log('[GeoNote][saveNote] Données à envoyer:', noteData);
-      console.log('[GeoNote][saveNote] Couleur dans les données envoyées:', {
-        styleColor: noteData.style.color,
-        styleFillColor: noteData.style.fillColor
-      });
 
       let savedNote;
 
@@ -1040,12 +969,6 @@ export class GeoNote extends L.Marker {
         // Mise à jour d'une note existante
         const response = await noteService.updateNote((this as any)._dbId, noteData);
         savedNote = response.data;
-        console.log('[GeoNote][saveNote] Note mise à jour avec succès:', savedNote);
-        console.log('[GeoNote][saveNote] Couleur dans la réponse du backend (update):', {
-          styleColor: savedNote.style?.color,
-          styleFillColor: savedNote.style?.fillColor,
-          styleObject: savedNote.style
-        });
 
         // Forcer la mise à jour du popup après la sauvegarde
         // this.bindPopup(this.createPopupContent());
@@ -1053,12 +976,6 @@ export class GeoNote extends L.Marker {
         // Création d'une nouvelle note
         const response = await noteService.createNote(noteData);
         savedNote = response.data;
-        console.log('[GeoNote][saveNote] Note créée avec succès:', savedNote);
-        console.log('[GeoNote][saveNote] Couleur dans la réponse du backend (create):', {
-          styleColor: savedNote.style?.color,
-          styleFillColor: savedNote.style?.fillColor,
-          styleObject: savedNote.style
-        });
 
         // Forcer la mise à jour du popup après la sauvegarde
         // this.bindPopup(this.createPopupContent());
@@ -1095,10 +1012,8 @@ export class GeoNote extends L.Marker {
 
     // Sauvegarder la note directement via l'API en associant au plan courant
     if (currentPlanId) {
-      console.log(`[GeoNote][triggerPlanSave] Sauvegarde de la note avec le plan ${currentPlanId}`);
       this.saveNote(parseInt(currentPlanId));
     } else {
-      console.log('[GeoNote][triggerPlanSave] Aucun plan courant, sauvegarde sans association');
       this.saveNote();
     }
 
@@ -1133,8 +1048,6 @@ export class GeoNote extends L.Marker {
   // Méthode pour commencer le déplacement
   startMoving(): void {
     this._isMoving = true;
-    // Commenté : Fermeture du popup pendant le déplacement
-    // this.closePopup();
     // Émettre un événement pour notifier du début du déplacement
     this.fire('note:movestart', {
       latlng: this.getLatLng(),

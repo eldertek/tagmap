@@ -227,7 +227,6 @@ export const useIrrigationStore = defineStore('irrigation', {
     // Sauvegarder un plan
     async savePlan(planId: number) {
       if (!this.unsavedChanges) {
-        console.log('[IrrigationStore][savePlan] Aucun changement à sauvegarder');
         return;
       }
 

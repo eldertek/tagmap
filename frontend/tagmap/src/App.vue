@@ -156,12 +156,10 @@ function handleLocationSelect(location: Location) {
 }
 // Vérifier l'authentification au chargement
 onMounted(async () => {
-  console.log('App mounted, checking auth...')
   try {
     // Vérifier si un token existe
     const token = localStorage.getItem('token')
     if (token) {
-      console.log('Token found, checking auth...')
       await authStore.checkAuth()
       // Forcer la récupération du profil utilisateur
       await authStore.fetchUserProfile()
@@ -174,8 +172,6 @@ onMounted(async () => {
           detail: { planId: lastPlanId }
         }))
       }
-    } else {
-      console.log('No token found')
     }
   } catch (error) {
     console.error('Auth check error:', error)
