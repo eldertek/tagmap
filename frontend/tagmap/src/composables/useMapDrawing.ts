@@ -1251,9 +1251,9 @@ export function useMapDrawing(): MapDrawingReturn {
 
     // Si la forme a un ID de base de données et que la catégorie a été mise à jour,
     // mettre à jour la catégorie dans le store
-    if (selectedShape.value._dbId && isCategoryUpdated) {
+    if (selectedShape.value && selectedShape.value._dbId && isCategoryUpdated) {
       const drawingStore = useDrawingStore();
-      const storeElement = drawingStore.elements.find((e: any) => e.id === selectedShape.value._dbId);
+      const storeElement = drawingStore.elements.find((e: any) => e.id === selectedShape.value?._dbId);
 
       if (storeElement) {
         // Utiliser une assertion de type pour éviter les erreurs TypeScript
@@ -1439,7 +1439,7 @@ export function useMapDrawing(): MapDrawingReturn {
       addMeasureEvents(pointMarker, layer, () => {
         if (layer instanceof Line) {
           const totalLength = layer.getLength() || 0;
-          const distanceFromStart = layer.getLengthToVertex(i);
+          const distanceFromStart = layer.getLengthToVertex ? layer.getLengthToVertex(i) : 0;
           return [
             formatMeasure(distanceFromStart, 'm', 'Distance depuis le début'),
             formatMeasure(totalLength, 'm', 'Longueur totale')
@@ -1542,7 +1542,7 @@ export function useMapDrawing(): MapDrawingReturn {
           if (layer instanceof Line) {
             const segmentLength = layer.getSegmentLengthAt(i);
             const totalLength = layer.getLength() || 0;
-            const distanceFromStart = layer.getLengthToVertex(i) + segmentLength / 2;
+            const distanceFromStart = (layer.getLengthToVertex ? layer.getLengthToVertex(i) : 0) + segmentLength / 2;
             return [
               formatMeasure(segmentLength, 'm', 'Longueur du segment'),
               formatMeasure(segmentLength / 2, 'm', 'Demi-segment'),

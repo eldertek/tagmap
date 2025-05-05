@@ -13,7 +13,7 @@ interface ExtendedPolylineOptions extends L.PolylineOptions {
  * Custom Line class that extends L.Polyline to add specific
  * functionality for our application.
  */
-export class Line extends L.Polyline {
+export class Line extends (L.Polyline as any) {
   properties: any;
   private cachedProperties: {
     length?: number;
@@ -63,15 +63,15 @@ export class Line extends L.Polyline {
       this._originalStyle = {...this.options};
       
       // Appliquer un style plus visible pour le survol
-      const newWeight = (this._originalStyle.weight || 3) * 1.75; // Augmentation plus importante de l'épaisseur
-      const newColor = this._originalStyle.color || '#2b6451';
+      const newWeight = (this._originalStyle?.weight || 3) * 1.75; // Augmentation plus importante de l'épaisseur
+      const newColor = this._originalStyle?.color || '#2b6451';
       
       this.setStyle({
         weight: newWeight,
         opacity: 1,
         // Ajouter un effet de "glow" léger avec shadow
         className: 'line-hover-effect'
-      });
+      } as L.PathOptions);
       
       // Ajouter une classe CSS pour l'effet de lueur si on peut accéder à l'élément DOM
       try {
@@ -425,5 +425,24 @@ export class Line extends L.Polyline {
 
     this.cachedProperties.length = totalLength;
     return totalLength;
+  }
+
+  /**
+   * Calculate the distance from the start of the line to a specific vertex
+   * @param vertexIndex The index of the vertex
+   * @returns The distance from the start of the line to the specified vertex in meters
+   */
+  getLengthToVertex(vertexIndex: number): number {
+    const latLngs = this.getLatLngs() as L.LatLng[];
+    if (vertexIndex < 0 || vertexIndex >= latLngs.length || latLngs.length < 2) {
+      return 0;
+    }
+    
+    let distance = 0;
+    for (let i = 0; i < vertexIndex; i++) {
+      distance += latLngs[i].distanceTo(latLngs[i + 1]);
+    }
+    
+    return distance;
   }
 }
