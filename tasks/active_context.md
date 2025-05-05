@@ -97,4 +97,6 @@
 | Visiteur     | ✅*     |         |          | ✅      |
 - ✅* : uniquement si créateur de la note
 
-L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté dans tous les développements et tests. 
+L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté dans tous les développements et tests.
+
+- [2024-06-10] Fonctionnalité : Ouverture d'un itinéraire Google Maps depuis une note géolocalisée via DrawingTools.vue (méthode openInGoogleMaps sur GeoNote). Le bouton "Itinéraire" ouvre un nouvel onglet Google Maps vers la position de la note sélectionnée. 

@@ -179,4 +179,8 @@ Chaque note géolocalisée possède un niveau d'accès (`access_level`) qui dét
 
 ## Nettoyage production : suppression des prints
 
-Tous les appels à `print` ont été supprimés de `api/views.py` pour garantir la conformité production et le respect du cahier des charges. Aucun log de debug ne doit subsister dans le code livré en production. 
+Tous les appels à `print` ont été supprimés de `api/views.py` pour garantir la conformité production et le respect du cahier des charges. Aucun log de debug ne doit subsister dans le code livré en production.
+
+### [2024-06-10] Itinéraire Google Maps depuis une note géolocalisée
+
+L'utilisateur peut cliquer sur le bouton "Itinéraire" d'une note géolocalisée (depuis le panneau DrawingTools) pour ouvrir directement un itinéraire Google Maps vers la position de la note. Cette fonctionnalité est disponible pour chaque note disposant d'une position géographique et ouvre un nouvel onglet Google Maps avec l'itinéraire calculé. 

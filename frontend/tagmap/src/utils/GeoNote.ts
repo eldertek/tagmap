@@ -1179,4 +1179,17 @@ export class GeoNote extends L.Marker {
       this.recreateIcon();
     }
   }
+
+  // Ouvre Google Maps avec un itinéraire vers la position de la note
+  openInGoogleMaps(): void {
+    const notificationStore = useNotificationStore();
+    const latlng = this.getLatLng();
+    if (!latlng || isNaN(latlng.lat) || isNaN(latlng.lng)) {
+      notificationStore.warning('La position de la note est invalide ou manquante');
+      return;
+    }
+    // Construire l'URL Google Maps pour l'itinéraire
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latlng.lat},${latlng.lng}`;
+    window.open(url, '_blank');
+  }
 }

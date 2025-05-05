@@ -142,3 +142,5 @@ Ce document sera mis à jour au fur et à mesure que de nouveaux problèmes et s
 
 ### Next Steps
 - Add unit tests for `loadLastPlan()` to ensure fallback works correctly on 404.
+
+[2024-06-10] Bug : Le bouton "Itinéraire" sur une note géolocalisée ne faisait rien (DrawingTools.vue). Cause : absence de la méthode openInGoogleMaps sur GeoNote. Correction : ajout de la méthode openInGoogleMaps sur GeoNote, qui ouvre un nouvel onglet Google Maps vers la position de la note. Correction validée.

@@ -380,3 +380,16 @@ Depuis 2024-06, la logique de mise à jour du champ `updatedAt` (date de modific
 - Les utilisateurs voient la date de dernière modification uniquement si la note a réellement changé.
 
 Voir aussi : `GeoNoteSerializer.update()` dans `api/serializers.py`.
+
+## [2024-06-10] Ajout de la méthode openInGoogleMaps à GeoNote
+
+Une méthode openInGoogleMaps() a été ajoutée à la classe GeoNote (frontend/tagmap/src/utils/GeoNote.ts). Elle permet d'ouvrir un itinéraire Google Maps vers la position de la note sélectionnée. Cette méthode est appelée depuis DrawingTools.vue lorsque l'utilisateur clique sur le bouton "Itinéraire" d'une note géolocalisée.
+
+- Récupère la position de la note via getLatLng()
+- Construit l'URL Google Maps pour l'itinéraire
+- Ouvre l'URL dans un nouvel onglet
+- Affiche une notification si la position est invalide
+
+Usage :
+- Utilisé dans DrawingTools.vue, méthode openGeoNoteRoute()
+- Permet à l'utilisateur d'obtenir rapidement un itinéraire vers une note depuis l'interface cartographique

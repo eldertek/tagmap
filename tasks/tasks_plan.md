@@ -104,6 +104,7 @@
    - [x] Replace Note tool icon with map pin SVG in DrawingTools.vue
    - [x] Improve Note icon with circle underneath to better represent location drop pin
    - [x] Enhance visibility of the location pin drop shadow with larger size and fill
+   - [x] Permettre à l'utilisateur d'ouvrir un itinéraire Google Maps vers la position d'une note géolocalisée depuis DrawingTools.vue (bouton "Itinéraire"). Implémenté via la méthode openInGoogleMaps sur GeoNote.
 
 7. **Media Management**
    - [ ] Create photo capture interface
