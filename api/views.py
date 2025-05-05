@@ -92,12 +92,6 @@ class UserViewSet(viewsets.ModelViewSet):
                 if salarie_id:
                     base_queryset = base_queryset.filter(salarie_id=salarie_id)
 
-                # Debug des visiteurs trouvés
-                visiteurs = base_queryset.values('id', 'username', 'first_name', 'last_name', 'salarie__username')
-                print("\nVisiteurs trouvés:")
-                for agri in visiteurs:
-                    print(f"- {agri['username']} (ID: {agri['id']}, Salarie: {agri['salarie__username']})")
-
         elif user.role == ROLE_DEALER:
             if role == ROLE_AGRICULTEUR:
                 base_queryset = base_queryset.filter(salarie=user)
@@ -197,8 +191,6 @@ class UserViewSet(viewsets.ModelViewSet):
         salarie = serializer.validated_data.get('salarie')
         visiteur = serializer.validated_data.get('visiteur')
 
-        print(f"[PlanViewSet] perform_create - Données validées: {serializer.validated_data}")
-
         # Vérifier l'existence de l'entreprise
         if entreprise:
             if entreprise.role != ROLE_USINE:
@@ -237,26 +229,17 @@ class UserViewSet(viewsets.ModelViewSet):
             data['salarie'] = salarie
             data['visiteur'] = visiteur
 
-        print(f"[PlanViewSet] perform_create - Données finales: {data}")
         serializer.save(createur=user, **data)
 
     def retrieve(self, request, *args, **kwargs):
         """
         Récupère un plan avec ses détails complets
         """
-        print(f"\n[PlanViewSet][retrieve] Début de la récupération - Plan ID: {kwargs.get('pk')}")
         try:
             instance = self.get_object()
-            print(f"[PlanViewSet][retrieve] Plan trouvé: {instance.id} - {instance.nom}")
             serializer = self.get_serializer(instance, context={'request': request})
-            print(f"[PlanViewSet][retrieve] Sérialisation terminée")
-            print(f"[PlanViewSet][retrieve] Champs disponibles: {serializer.data.keys()}")
-            print(f"[PlanViewSet][retrieve] Détails entreprise présents: {'entreprise_details' in serializer.data}")
-            print(f"[PlanViewSet][retrieve] Détails salarie présents: {'salarie_details' in serializer.data}")
-            print(f"[PlanViewSet][retrieve] Détails client présents: {'client_details' in serializer.data}")
             return Response(serializer.data)
         except Exception as e:
-            print(f"[PlanViewSet][retrieve] ERREUR: {str(e)}")
             raise
 
 class SalarieViewSet(viewsets.ModelViewSet):
@@ -374,17 +357,11 @@ class PlanViewSet(viewsets.ModelViewSet):
         """
         Retourne le serializer approprié selon le contexte.
         """
-        print(f"[PlanViewSet] get_serializer_class - Action: {self.action}, Params: {self.request.query_params}")
-
-        # Si l'action est 'list' et que le paramètre include_details est True, utiliser PlanDetailSerializer
         if self.action == 'list' and self.request.query_params.get('include_details') == 'true':
-            print("[PlanViewSet] Utilisation de PlanDetailSerializer pour la liste avec détails")
             return PlanDetailSerializer
         elif self.action in ['retrieve', 'update', 'partial_update', 'save_with_elements']:
-            print(f"[PlanViewSet] Utilisation de PlanDetailSerializer pour {self.action}")
             return PlanDetailSerializer
 
-        print(f"[PlanViewSet] Utilisation de PlanSerializer par défaut pour {self.action}")
         return PlanSerializer
 
     def get_serializer(self, *args, **kwargs):
@@ -400,8 +377,6 @@ class PlanViewSet(viewsets.ModelViewSet):
         if 'request' not in kwargs['context'] and hasattr(self, 'request'):
             kwargs['context']['request'] = self.request
 
-        print(f"[PlanViewSet][get_serializer] Création d'un sérialiseur {serializer_class.__name__} avec contexte: {kwargs['context'].keys()}")
-
         return serializer_class(*args, **kwargs)
 
     def get_serializer_context(self):
@@ -410,13 +385,9 @@ class PlanViewSet(viewsets.ModelViewSet):
         """
         context = super().get_serializer_context()
 
-        # Debug du contexte
-        print(f"[PlanViewSet][get_serializer_context] Contexte de base: {context.keys()}")
-
         # S'assurer que la requête est dans le contexte
         if 'request' not in context and hasattr(self, 'request'):
             context['request'] = self.request
-            print(f"[PlanViewSet][get_serializer_context] Ajout de la requête au contexte")
 
         return context
 
@@ -426,27 +397,19 @@ class PlanViewSet(viewsets.ModelViewSet):
         """
         Sauvegarde un plan avec ses formes géométriques, connexions et annotations
         """
-        print(f"\n[PlanViewSet][save_with_elements] Début de la sauvegarde - Plan ID: {pk}")
-        print(f"[PlanViewSet][save_with_elements] URL de la requête: {request.path}")
-        print(f"[PlanViewSet][save_with_elements] Méthode: {request.method}")
-        print(f"[PlanViewSet][save_with_elements] User: {request.user.username} (role: {request.user.role})")
-
         try:
             plan = self.get_object()
-            print(f"[PlanViewSet][save_with_elements] Plan trouvé: {plan.id} - {plan.nom}")
             print(f"[PlanViewSet][save_with_elements] Détails du plan:")
             print(f" - Entreprise: {plan.entreprise.id if plan.entreprise else None} - {plan.entreprise.username if plan.entreprise else 'N/A'}")
             print(f" - Salarie: {plan.salarie.id if plan.salarie else None} - {plan.salarie.username if plan.salarie else 'N/A'}")
             print(f" - Visiteur: {plan.visiteur.id if plan.visiteur else None} - {plan.visiteur.username if plan.visiteur else 'N/A'}")
         except Exception as e:
-            print(f"[PlanViewSet][save_with_elements] ERREUR lors de la récupération du plan: {str(e)}")
             raise
 
         # Vérifier les permissions
         if (plan.createur != request.user and
             request.user.role not in [ROLE_ADMIN, ROLE_DEALER] and
             (request.user.role == ROLE_DEALER and plan.createur.salarie != request.user)):
-            print(f"[PlanViewSet][save_with_elements] Permission refusée pour l'utilisateur {request.user.username}")
             return Response(
                 {'detail': 'Vous n\'avez pas la permission de modifier ce plan'},
                 status=status.HTTP_403_FORBIDDEN
@@ -458,28 +421,19 @@ class PlanViewSet(viewsets.ModelViewSet):
         annotations_data = request.data.get('annotations', [])
         elements_to_delete = request.data.get('elementsToDelete', [])
 
-        print(f"[PlanViewSet][save_with_elements] Données reçues:")
-        print(f"- Formes: {len(formes_data)} éléments")
-        print(f"- Connexions: {len(connexions_data)} éléments")
-        print(f"- Annotations: {len(annotations_data)} éléments")
-        print(f"- Éléments à supprimer: {elements_to_delete}")
-
         try:
             # Supprimer les éléments existants si demandé
             if request.data.get('clear_existing', False):
-                print("[PlanViewSet][save_with_elements] Suppression de tous les éléments existants")
                 plan.formes.all().delete()
                 plan.connexions.all().delete()
                 plan.annotations.all().delete()
 
             # Supprimer les éléments spécifiques demandés
             if elements_to_delete:
-                print(f"[PlanViewSet][save_with_elements] Suppression des éléments: {elements_to_delete}")
                 deleted_count = FormeGeometrique.objects.filter(
                     id__in=elements_to_delete,
                     plan=plan
                 ).delete()[0]
-                print(f"[PlanViewSet][save_with_elements] {deleted_count} éléments supprimés")
 
             # Créer/Mettre à jour les formes
             for forme_data in formes_data:
@@ -487,24 +441,19 @@ class PlanViewSet(viewsets.ModelViewSet):
                 type_forme = forme_data.get('type_forme')
                 data = forme_data.get('data', {})
 
-                print(f"[PlanViewSet][save_with_elements] Traitement forme: ID={forme_id}, Type={type_forme}")
-
                 if forme_id:
                     try:
                         forme = FormeGeometrique.objects.get(id=forme_id, plan=plan)
-                        print(f"[PlanViewSet][save_with_elements] Mise à jour forme existante: {forme_id}")
                         forme.type_forme = type_forme
                         forme.data = data
                         forme.save()
                     except FormeGeometrique.DoesNotExist:
-                        print(f"[PlanViewSet][save_with_elements] Forme {forme_id} non trouvée, création d'une nouvelle")
                         FormeGeometrique.objects.create(
                             plan=plan,
                             type_forme=type_forme,
                             data=data
                         )
                 else:
-                    print("[PlanViewSet][save_with_elements] Création d'une nouvelle forme")
                     FormeGeometrique.objects.create(
                         plan=plan,
                         type_forme=type_forme,
@@ -513,29 +462,21 @@ class PlanViewSet(viewsets.ModelViewSet):
 
             # Sauvegarder les préférences
             if preferences := request.data.get('preferences'):
-                print("[PlanViewSet][save_with_elements] Mise à jour des préférences")
                 plan.preferences = preferences
                 plan.save(update_fields=['preferences'])
 
             # Forcer la mise à jour de la date de modification
             plan.touch()
-            print("[PlanViewSet][save_with_elements] Sauvegarde réussie")
 
             # Retourner le plan mis à jour avec les détails complets
             serializer = PlanDetailSerializer(plan, context={'request': request})
-            print(f"[PlanViewSet][save_with_elements] Sérialisation du plan avec détails complets")
-            print(f"[PlanViewSet][save_with_elements] Champs sérialisés: {serializer.data.keys()}")
-            print(f"[PlanViewSet][save_with_elements] Détails entreprise présents: {'entreprise_details' in serializer.data}")
-            print(f"[PlanViewSet][save_with_elements] Détails salarie présents: {'salarie_details' in serializer.data}")
-            print(f"[PlanViewSet][save_with_elements] Détails client présents: {'client_details' in serializer.data}")
-
             return Response(serializer.data)
 
         except Exception as e:
-            print(f"[PlanViewSet][save_with_elements] ERREUR lors de la sauvegarde: {str(e)}")
-            print(f"[PlanViewSet][save_with_elements] Type d'erreur: {type(e)}")
             import traceback
-            print(f"[PlanViewSet][save_with_elements] Traceback:\n{traceback.format_exc()}")
+            print(f"Erreur lors de la sauvegarde: {str(e)}")
+            print(f"Type d'erreur: {type(e)}")
+            print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
                 {'detail': f'Erreur lors de la sauvegarde: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -621,110 +562,22 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = GeoNote.objects.all()
 
-        print(f"\n[GeoNoteViewSet][get_queryset] ==================== DÉBUT REQUÊTE NOTES ====================")
-        print(f"User ID: {user.id}, Username: {user.username}, Role: {user.role}")
-        
-        if hasattr(user, 'entreprise'):
-            print(f"Entreprise associée: ID={user.entreprise.id if user.entreprise else 'None'}, Nom={user.entreprise.username if user.entreprise else 'None'}")
-        elif hasattr(user, 'enterprise_id'):
-            print(f"Enterprise ID: {user.enterprise_id}")
-        
-        if hasattr(user, 'salarie'):
-            print(f"Salarié associé: ID={user.salarie.id if user.salarie else 'None'}, Nom={user.salarie.username if user.salarie else 'None'}")
-            if user.salarie and hasattr(user.salarie, 'entreprise'):
-                print(f"Entreprise du salarié: ID={user.salarie.entreprise.id if user.salarie.entreprise else 'None'}, Nom={user.salarie.entreprise.username if user.salarie.entreprise else 'None'}")
-        
-        # Paramètres de requête
-        print("\nParamètres de requête:")
-        for key, value in self.request.query_params.items():
-            print(f"- {key}: {value}")
-        
-        # Nombre total de notes avant filtrage
-        all_notes_count = qs.count()
-        print(f"\nNombre total de notes dans la base: {all_notes_count}")
-        
-        # Liste des 10 premières notes pour debugging
-        if all_notes_count > 0:
-            first_notes = qs[:min(10, all_notes_count)]
-            print("\nLes 10 premières notes (ou moins) avant filtrage:")
-            for note in first_notes:
-                print(f"- ID: {note.id}, Titre: {note.title}, Niveau d'accès: {note.access_level}, Créateur: {note.createur.username if note.createur else 'None'}, Enterprise: {note.enterprise_id}")
-        
-        # Admin : toutes les notes
-        if user.role == ROLE_ADMIN:
-            print("\nUtilisateur ADMIN - Aucun filtrage appliqué")
-            print(f"[GeoNoteViewSet][get_queryset] ==================== FIN REQUÊTE NOTES ====================\n")
-            return qs
-
-        # Déterminer l'ID d'entreprise à utiliser pour le filtrage
-        if user.role == ROLE_USINE:
-            entreprise_pk = user.id
-            print(f"\nUtilisateur ENTREPRISE - Utilisation de son propre ID pour le filtrage: {entreprise_pk}")
-        elif user.role == ROLE_DEALER:
-            entreprise_pk = getattr(user, 'entreprise_id', None)
-            print(f"\nUtilisateur SALARIÉ - Utilisation de l'ID entreprise: {entreprise_pk}")
-        elif user.role == ROLE_AGRICULTEUR:
-            # Pour les visiteurs, chercher l'entreprise via leur salarié
-            if hasattr(user, 'salarie') and user.salarie and hasattr(user.salarie, 'entreprise') and user.salarie.entreprise:
-                entreprise_pk = user.salarie.entreprise.id
-                print(f"\nUtilisateur VISITEUR - Utilisation de l'ID entreprise du salarié: {entreprise_pk}")
-            else:
-                print("\nUtilisateur VISITEUR - Impossible de déterminer l'entreprise!")
-                entreprise_pk = None
-        else:
-            entreprise_pk = getattr(user, 'entreprise_id', None)
-            print(f"\nUtilisateur {user.role} - Utilisation de l'ID entreprise: {entreprise_pk}")
-
-        # Ajouter un log pour aider au debugging
-        print(f"Entreprise PK final pour filtrage: {entreprise_pk}")
-
         # Conditions de base
         private_q = Q(access_level='private', createur=user)
-        company_q = Q(access_level='company', enterprise_id=entreprise_pk)
-        employee_q = Q(access_level='employee', enterprise_id=entreprise_pk)
-        visitor_q = Q(access_level='visitor', enterprise_id=entreprise_pk)
+        company_q = Q(access_level='company', enterprise_id=user.id)
+        employee_q = Q(access_level='employee', enterprise_id=user.id)
+        visitor_q = Q(access_level='visitor', enterprise_id=user.id)
         
         # Construction du filtre final selon le rôle de l'utilisateur
         if user.role == ROLE_USINE:  # Entreprise
             query_filter = private_q | company_q | employee_q | visitor_q
-            print("\nFiltres appliqués (ENTREPRISE):")
-            print(f"- Notes privées: access_level='private' AND createur={user.id}")
-            print(f"- Notes niveau 'company': access_level='company' AND enterprise_id={entreprise_pk}")
-            print(f"- Notes niveau 'employee': access_level='employee' AND enterprise_id={entreprise_pk}")
-            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
         elif user.role == ROLE_DEALER:  # Salarié
             query_filter = private_q | employee_q | visitor_q
-            print("\nFiltres appliqués (SALARIÉ):")
-            print(f"- Notes privées: access_level='private' AND createur={user.id}")
-            print(f"- Notes niveau 'employee': access_level='employee' AND enterprise_id={entreprise_pk}")
-            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
         else:  # ROLE_AGRICULTEUR (Visiteur)
             query_filter = private_q | visitor_q
-            print("\nFiltres appliqués (VISITEUR):")
-            print(f"- Notes privées: access_level='private' AND createur={user.id}")
-            print(f"- Notes niveau 'visitor': access_level='visitor' AND enterprise_id={entreprise_pk}")
 
         # Filtrer selon les règles spécifiques au rôle
         filtered_qs = qs.filter(query_filter)
-        filtered_count = filtered_qs.count()
-        
-        print(f"\nNombre de notes après filtrage: {filtered_count}")
-        
-        # Liste des notes filtrées
-        if filtered_count > 0:
-            filtered_notes = filtered_qs[:min(10, filtered_count)]
-            print("\nLes 10 premières notes (ou moins) après filtrage:")
-            for note in filtered_notes:
-                # Obtenir l'ID numérique de l'entreprise pour la comparaison
-                note_enterprise_id = note.enterprise_id.id if note.enterprise_id else None
-                print(f"- ID: {note.id}, Titre: {note.title}, Niveau d'accès: {note.access_level}, Créateur: {note.createur.username if note.createur else 'None'}, Enterprise: {note.enterprise_id}")
-                print(f"  → Critères d'accès: privé={note.createur_id == user.id}, enterprise_id={note_enterprise_id}, entreprise_pk={entreprise_pk}")
-                
-                # Pour la comparaison, utiliser l'ID numérique plutôt que l'objet complet
-                if note.enterprise_id and isinstance(entreprise_pk, int) and note_enterprise_id != entreprise_pk:
-                    print(f"  ⚠️ ATTENTION: ID d'entreprise de la note ({note_enterprise_id}) différent de celui utilisé pour le filtrage ({entreprise_pk})")
-        
-        print(f"[GeoNoteViewSet][get_queryset] ==================== FIN REQUÊTE NOTES ====================\n")
         return filtered_qs
 
     def perform_create(self, serializer):
@@ -736,40 +589,8 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         enterprise_id = serializer.validated_data.get('enterprise_id')
 
-        print(f"\n[GeoNoteViewSet][perform_create] Création de note par {user.username} (role: {user.role})")
-        print(f"Enterprise ID reçu: {enterprise_id}")
-        print(f"Plan associé: {plan.id if plan else 'Aucun'}")
-
-        # Déterminer l'enterprise_id en fonction du rôle de l'utilisateur
-        if not enterprise_id:
-            if user.role == ROLE_ADMIN:
-                # Admin: peut être null
-                print("[GeoNoteViewSet][perform_create] Utilisateur admin, entreprise peut rester null")
-                pass
-            elif user.role == ROLE_USINE:
-                # Entreprise: utiliser son propre ID
-                enterprise_id = user
-                print(f"[GeoNoteViewSet][perform_create] Utilisateur entreprise, utilisation de son ID: {enterprise_id.id}")
-            elif user.role == ROLE_DEALER and hasattr(user, 'entreprise') and user.entreprise:
-                # Salarié: utiliser l'ID de son entreprise
-                enterprise_id = user.entreprise
-                print(f"[GeoNoteViewSet][perform_create] Utilisateur salarié, utilisation de l'ID entreprise: {enterprise_id.id}")
-            elif user.role == ROLE_AGRICULTEUR and hasattr(user, 'salarie') and user.salarie and hasattr(user.salarie, 'entreprise') and user.salarie.entreprise:
-                # Visiteur: utiliser l'ID de l'entreprise de son salarié
-                enterprise_id = user.salarie.entreprise
-                print(f"[GeoNoteViewSet][perform_create] Utilisateur visiteur, utilisation de l'ID entreprise du salarié: {enterprise_id.id}")
-            elif plan and plan.entreprise:
-                # Fallback: utiliser l'entreprise du plan si disponible
-                enterprise_id = plan.entreprise
-                print(f"[GeoNoteViewSet][perform_create] Fallback au plan, utilisation de l'ID entreprise: {enterprise_id.id}")
-            else:
-                print("[GeoNoteViewSet][perform_create] Impossible de déterminer l'entreprise, enterprise_id reste null")
-
-        print(f"[GeoNoteViewSet][perform_create] Enterprise ID final: {enterprise_id.id if enterprise_id else 'Null'}")
-        
         # Si c'est une note simple sans plan, on peut créer directement
         if plan is None:
-            print(f"[GeoNoteViewSet][perform_create] Création d'une note simple sans plan")
             serializer.save(createur=user, enterprise_id=enterprise_id)
             return
 
@@ -821,9 +642,6 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         """
         Surcharge de la création pour ajouter des logs et gérer note_pk
         """
-        print("\n[NoteCommentViewSet][create] ====== DÉBUT CRÉATION COMMENTAIRE ======")
-
-        # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
         note_pk = self.kwargs.get('note_pk')
 
         # Vérifier le type des données et les traiter en conséquence
@@ -832,15 +650,12 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             try:
                 import json
                 data = json.loads(request.data)
-                print(f"[NoteCommentViewSet][create] Données converties de chaîne à dict: {data}")
             except json.JSONDecodeError:
                 # Si ce n'est pas du JSON valide, créer un nouveau dict
                 data = {}
-                print(f"[NoteCommentViewSet][create] Données invalides, création d'un nouveau dict")
         else:
             # Sinon, copier les données existantes
             data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-            print(f"[NoteCommentViewSet][create] Données copiées: {data}")
 
         if note_pk:
             data['note'] = note_pk
@@ -849,23 +664,16 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         if 'user' not in data:
             data['user'] = request.user.id
 
-        print(f"Données finales: {data}")
-        print(f"Utilisateur: {request.user.username} (role: {request.user.role})")
-
         serializer = self.get_serializer(data=data)
-        print(f"Serializer valide: {serializer.is_valid()}")
 
         if not serializer.is_valid():
-            print(f"Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             self.perform_create(serializer)
-            print("[NoteCommentViewSet][create] Commentaire créé avec succès")
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         except Exception as e:
-            print(f"[NoteCommentViewSet][create] Erreur lors de la création: {str(e)}")
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -875,15 +683,11 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         """
         Assigne l'utilisateur courant au commentaire et vérifie les permissions
         """
-        print("\n[NoteCommentViewSet][perform_create] ====== VÉRIFICATION PERMISSIONS ======")
         note = serializer.validated_data['note']
         user = self.request.user
-        print(f"Note ID: {note.id}")
-        print(f"Utilisateur: {user.username} (role: {user.role})")
 
         # Seuls les entreprises et les admins peuvent ajouter des commentaires
         if user.role not in [ROLE_ADMIN, ROLE_USINE]:
-            print(f"[NoteCommentViewSet][perform_create] Permission refusée - rôle incorrect: {user.role}")
             raise PermissionDenied('Seules les entreprises peuvent ajouter des commentaires')
 
         # Vérifier que l'utilisateur a accès à la note
@@ -891,18 +695,15 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
         creator_access = False
         if hasattr(note, 'createur') and note.createur == user:
             creator_access = True
-            print(f"[NoteCommentViewSet][perform_create] Accès en tant que créateur: {creator_access}")
 
         # 2. Pour les notes sans plan (privées ou standalone)
         if note.plan is None:
             # Permettre l'accès si c'est une note privée créée par l'utilisateur
             if creator_access:
-                print("[NoteCommentViewSet][perform_create] Accès autorisé: Note privée créée par l'utilisateur")
                 serializer.save(user=user)
                 return
             # Les admins ont toujours accès
             if user.role == ROLE_ADMIN:
-                print("[NoteCommentViewSet][perform_create] Accès autorisé: Utilisateur admin")
                 serializer.save(user=user)
                 return
 
@@ -915,14 +716,10 @@ class NoteCommentViewSet(viewsets.ModelViewSet):
             Q(plan__visiteur__salarie__entreprise=user)
         ).exists()
 
-        print(f"[NoteCommentViewSet][perform_create] Accès via plan: {plan_access}")
-
         if creator_access or plan_access or user.role == ROLE_ADMIN:
-            print("[NoteCommentViewSet][perform_create] Accès autorisé")
             serializer.save(user=user)
             return
 
-        print("[NoteCommentViewSet][perform_create] Permission refusée - pas d'accès à la note")
         raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
 class NotePhotoViewSet(viewsets.ModelViewSet):
@@ -964,7 +761,6 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         """
         Surcharge de la création pour gérer note_pk
         """
-        # Si nous sommes dans une URL imbriquée, ajouter note_id aux données
         note_pk = self.kwargs.get('note_pk')
 
         # Vérifier le type des données et les traiter en conséquence
@@ -973,15 +769,12 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
             try:
                 import json
                 data = json.loads(request.data)
-                print(f"[NotePhotoViewSet][create] Données converties de chaîne à dict: {data}")
             except json.JSONDecodeError:
                 # Si ce n'est pas du JSON valide, créer un nouveau dict
                 data = {}
-                print(f"[NotePhotoViewSet][create] Données invalides, création d'un nouveau dict")
         else:
             # Sinon, copier les données existantes
             data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-            print(f"[NotePhotoViewSet][create] Données copiées: {data}")
 
         if note_pk:
             data['note'] = note_pk
@@ -990,22 +783,16 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         if 'user' not in data:
             data['user'] = request.user.id
 
-        print(f"[NotePhotoViewSet][create] Données finales: {data}")
-        print(f"[NotePhotoViewSet][create] Utilisateur: {request.user.username} (role: {request.user.role})")
-
         serializer = self.get_serializer(data=data)
 
         if not serializer.is_valid():
-            print(f"[NotePhotoViewSet][create] Erreurs de validation: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             self.perform_create(serializer)
-            print("[NotePhotoViewSet][create] Photo créée avec succès")
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         except Exception as e:
-            print(f"[NotePhotoViewSet][create] Erreur lors de la création: {str(e)}")
             return Response(
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1018,27 +805,20 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
         note = serializer.validated_data['note']
         user = self.request.user
 
-        print(f"[NotePhotoViewSet][perform_create] Note ID: {note.id}")
-        print(f"[NotePhotoViewSet][perform_create] Utilisateur: {user.username} (role: {user.role})")
-
         # 1. Vérifier si l'utilisateur est le créateur de la note
         creator_access = False
         if hasattr(note, 'createur') and note.createur == user:
             creator_access = True
-            print(f"[NotePhotoViewSet][perform_create] Accès en tant que créateur: {creator_access}")
 
         # 2. Pour les notes sans plan (privées ou standalone)
         if note.plan is None:
             # Permettre l'accès si c'est une note privée créée par l'utilisateur
             if creator_access:
-                print("[NotePhotoViewSet][perform_create] Accès autorisé: Note privée créée par l'utilisateur")
                 # Continuer pour ajouter la photo après vérification du quota
             # Les admins ont toujours accès
             elif user.role == ROLE_ADMIN:
-                print("[NotePhotoViewSet][perform_create] Accès autorisé: Utilisateur admin")
                 # Continuer pour ajouter la photo après vérification du quota
             else:
-                print("[NotePhotoViewSet][perform_create] Permission refusée pour note privée")
                 raise PermissionDenied("Vous n'avez pas accès à cette note")
         else:
             # 3. Vérifier les accès via les relations plan-entreprise-salarie-visiteur
@@ -1052,10 +832,7 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 Q(plan__visiteur__salarie__entreprise=user)
             ).exists()
 
-            print(f"[NotePhotoViewSet][perform_create] Accès via plan: {plan_access}")
-
             if not (creator_access or plan_access or user.role == ROLE_ADMIN):
-                print("[NotePhotoViewSet][perform_create] Permission refusée - pas d'accès à la note")
                 raise PermissionDenied('Vous n\'avez pas accès à cette note')
 
         # Vérifier le quota de stockage
@@ -1070,7 +847,6 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 })
 
         serializer.save(user=user)
-        print("[NotePhotoViewSet][perform_create] Photo sauvegardée avec succès")
 
 @api_view(['POST'])
 def elevation_proxy(request):
@@ -1129,7 +905,6 @@ def elevation_proxy(request):
         )
 
     except Exception as e:
-        print("Erreur complète:", str(e))
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1158,11 +933,6 @@ class WeatherViewSet(viewsets.ViewSet):
         config = None
         error_message = None
 
-        print(f"\n[WeatherViewSet][get_ecowitt_config] 🔍 Recherche de configuration pour l'utilisateur:")
-        print(f"  - ID: {user.id}")
-        print(f"  - Rôle: {user.role}")
-        print(f"  - Entreprise ID demandé: {entreprise_id}")
-
         # Si un ID d'entreprise est spécifié et que l'utilisateur est admin
         if entreprise_id and user.role == 'ADMIN':
             try:
@@ -1180,8 +950,8 @@ class WeatherViewSet(viewsets.ViewSet):
                     error_message = f"L'entreprise {entreprise.company_name} n'a pas configuré ses clés API Ecowitt. Veuillez les ajouter dans la gestion des utilisateurs."
                     print(f"❌ Erreur: {error_message}")
             except Exception as e:
-                print(f"❌ Erreur lors de la récupération de l'entreprise: {str(e)}")
                 error_message = "Erreur lors de la récupération de l'entreprise."
+                print(f"❌ Erreur lors de la récupération de l'entreprise: {str(e)}")
 
         # Sinon, utiliser l'entreprise de l'utilisateur ou sa hiérarchie
         else:
@@ -1255,7 +1025,6 @@ class WeatherViewSet(viewsets.ViewSet):
             print(f"Response Code: {data.get('code')}")
             print(f"Message: {data.get('msg')}")
             if not error and 'data' in data:
-                print("\nDonnées disponibles:")
                 self.log_data_structure(data['data'])
         except Exception as e:
             print(f"Erreur lors du parsing JSON: {str(e)}")
@@ -1284,13 +1053,10 @@ class WeatherViewSet(viewsets.ViewSet):
     def get_devices(self):
         """Récupère la liste des appareils disponibles."""
         try:
-            print("\n[WeatherViewSet][get_devices] 🔍 Récupération des appareils")
             config, error_message = self.get_ecowitt_config()
 
             # Si aucune configuration n'est disponible, retourner l'erreur
             if not config:
-                print(f"[WeatherViewSet][get_devices] ❌ Erreur: {error_message}")
-                # Retourner un tableau avec un élément null et le message d'erreur pour que le frontend puisse le traiter
                 return [None, error_message]
 
             api_url = f"{config['base_url']}/device/list"
@@ -1298,9 +1064,6 @@ class WeatherViewSet(viewsets.ViewSet):
                 'application_key': config['application_key'],
                 'api_key': config['api_key'],
             }
-
-            print(f"URL: {api_url}")
-            print(f"Paramètres: {params}")
 
             response = requests.get(api_url, params=params)
 
@@ -1328,13 +1091,10 @@ class WeatherViewSet(viewsets.ViewSet):
                 # Si l'appareil n'a pas de MAC, utiliser l'IMEI comme identifiant primaire pour le frontend
                 if not device.get('mac') and device.get('imei'):
                     device['mac'] = device['imei']
-                    print(f"[WeatherViewSet][get_devices] Appareil sans MAC, IMEI utilisé: {device['imei']}")
 
-            print(f"[WeatherViewSet][get_devices] Nombre d'appareils trouvés: {len(devices)}")
             return devices
 
         except Exception as e:
-            print(f"\n[WeatherViewSet][get_devices] ❌ Exception: {str(e)}")
             import traceback
             print(f"Traceback:\n{traceback.format_exc()}")
             return None
@@ -1342,9 +1102,7 @@ class WeatherViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='devices')
     def devices(self, request):
         """Liste tous les appareils disponibles."""
-        print(f"\n[WeatherViewSet][devices] 📱 Récupération des appareils disponibles")
         entreprise_id = request.query_params.get('entreprise')
-        print(f"Entreprise ID: {entreprise_id}")
 
         try:
             devices = self.get_devices()
@@ -1369,7 +1127,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
             return Response(response_data)
         except Exception as e:
-            print(f"\n[WeatherViewSet][devices] ❌ Exception: {str(e)}")
             import traceback
             print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
@@ -1380,8 +1137,6 @@ class WeatherViewSet(viewsets.ViewSet):
     def list(self, request):
         """Récupère les données météo en temps réel pour un appareil spécifique."""
         device_id = request.query_params.get('mac')  # On garde 'mac' comme paramètre pour compatibilité
-        print(f"\n[WeatherViewSet][list] 🌤 Récupération des données météo en temps réel")
-        print(f"Identifiant demandé: {device_id}")
 
         # Si aucun identifiant n'est spécifié, récupérer la liste des appareils
         if not device_id:
@@ -1401,14 +1156,11 @@ class WeatherViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print(f"Utilisation du premier appareil disponible: {device_id}")
-
         try:
             config, error_message = self.get_ecowitt_config()
 
             # Si aucune configuration n'est disponible, retourner l'erreur
             if not config:
-                print(f"[WeatherViewSet][list] ❌ Erreur: {error_message}")
                 return Response(
                     {'error': error_message},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1427,10 +1179,6 @@ class WeatherViewSet(viewsets.ViewSet):
                 'call_back': 'all'
             }
 
-            print(f"URL: {api_url}")
-            print(f"Paramètres: {params}")
-            print(f"Type d'identifiant utilisé: {param_key}")
-
             response = requests.get(api_url, params=params)
 
             if response.status_code != 200:
@@ -1448,11 +1196,9 @@ class WeatherViewSet(viewsets.ViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
 
-            self.log_api_response('list', response)
             return Response(data)
 
         except Exception as e:
-            print(f"\n[WeatherViewSet][list] ❌ Exception: {str(e)}")
             import traceback
             print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
@@ -1468,12 +1214,6 @@ class WeatherViewSet(viewsets.ViewSet):
         end_date = request.query_params.get('end_date')
         cycle_type = request.query_params.get('cycle_type', '5min')
         entreprise_id = request.query_params.get('entreprise')
-
-        print(f"\n[WeatherViewSet][history] 📊 Récupération des données historiques")
-        print(f"Identifiant demandé: {device_id}")
-        print(f"Période: {start_date} - {end_date}")
-        print(f"Type de cycle: {cycle_type}")
-        print(f"Entreprise ID: {entreprise_id}")
 
         # Vérifier les paramètres obligatoires
         if not device_id:
@@ -1531,7 +1271,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
             # Si aucune configuration n'est disponible, retourner l'erreur
             if not config:
-                print(f"[WeatherViewSet][history] ❌ Erreur: {error_message}")
                 return Response(
                     {'error': error_message},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1555,10 +1294,6 @@ class WeatherViewSet(viewsets.ViewSet):
                 'call_back': 'outdoor,indoor,pressure,wind,rainfall,solar_and_uvi,battery'  # Valeurs spécifiques au lieu de 'all'
             }
 
-            print(f"URL: {api_url}")
-            print(f"Paramètres: {params}")
-            print(f"Type d'identifiant utilisé: {param_key}")
-
             response = requests.get(api_url, params=params)
 
             if response.status_code != 200:
@@ -1576,11 +1311,9 @@ class WeatherViewSet(viewsets.ViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
 
-            self.log_api_response('history', response)
             return Response(data)
 
         except Exception as e:
-            print(f"\n[WeatherViewSet][history] ❌ Exception: {str(e)}")
             import traceback
             print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
@@ -1597,13 +1330,6 @@ class WeatherViewSet(viewsets.ViewSet):
         cycle_type = request.query_params.get('cycle_type', '5min')
         data_type = request.query_params.get('data_type')
         entreprise_id = request.query_params.get('entreprise')
-
-        print(f"\n[WeatherViewSet][chart] 📈 Récupération des données pour graphiques")
-        print(f"Identifiant demandé: {device_id}")
-        print(f"Période: {start_date} - {end_date}")
-        print(f"Type de cycle: {cycle_type}")
-        print(f"Type de données: {data_type}")
-        print(f"Entreprise ID: {entreprise_id}")
 
         # Vérifier les paramètres obligatoires
         if not device_id:
@@ -1640,7 +1366,6 @@ class WeatherViewSet(viewsets.ViewSet):
 
             # Si aucune configuration n'est disponible, retourner l'erreur
             if not config:
-                print(f"[WeatherViewSet][chart] ❌ Erreur: {error_message}")
                 return Response(
                     {'error': error_message},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1680,10 +1405,6 @@ class WeatherViewSet(viewsets.ViewSet):
                 'call_back': call_back
             }
 
-            print(f"URL: {api_url}")
-            print(f"Paramètres: {params}")
-            print(f"Type d'identifiant utilisé: {param_key}")
-
             response = requests.get(api_url, params=params)
 
             if response.status_code != 200:
@@ -1702,14 +1423,11 @@ class WeatherViewSet(viewsets.ViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
 
-            self.log_api_response('chart', response)
-
             # Traiter les données pour le graphique
             chart_data = self.format_chart_data(data.get('data', {}), data_type)
             return Response(chart_data)
 
         except Exception as e:
-            print(f"\n[WeatherViewSet][chart] ❌ Exception: {str(e)}")
             import traceback
             print(f"Traceback:\n{traceback.format_exc()}")
             return Response(
@@ -2002,7 +1720,7 @@ class WeatherViewSet(viewsets.ViewSet):
                 })
 
             # Afficher un résumé des données générées
-            print(f"[WeatherViewSet][format_chart_data] ✅ Données formatées pour {data_type}:")
+            print(f"✅ Données formatées pour {data_type}:")
             print(f"- Nombre de datasets: {len(result['datasets'])}")
             for i, dataset in enumerate(result['datasets']):
                 print(f"  - Dataset {i+1} ({dataset['label']}): {len(dataset['data'])} points")

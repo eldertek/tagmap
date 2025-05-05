@@ -344,3 +344,7 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 
 - The custom `Line` class in `frontend/tagmap/src/utils/Line.ts` now implements its key methods (such as `updateProperties`, `setName`, `getName`, `getMidPoints`, `getMidPointAt`, `moveVertex`, `getSegmentLengths`, `getSegmentLengthAt`, `getLength`, `getLengthToVertex`) as class properties using arrow functions. This change ensures compatibility with the base `L.Polyline` class from Leaflet, which defines these as instance properties, and resolves TypeScript linter errors about member type mismatches.
 - This update is required for correct subclassing and to avoid runtime and type errors when extending Leaflet geometry classes in TypeScript.
+
+## Nettoyage production : suppression des prints
+
+Tous les appels à `print` ont été supprimés de `api/views.py` afin d'assurer un code propre pour la production et conforme au cahier des charges. Les logs de debug doivent être remplacés par un système de logging structuré si besoin de suivi en production.

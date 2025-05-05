@@ -153,4 +153,8 @@ Cette approche garantit que les utilisateurs ne peuvent voir que les notes auxqu
 - The editing experience is designed to be as intuitive as Google Maps, Figma, or Procreate.
 - Control points are larger on mobile for easier touch interaction.
 - All drag/move logic is unified for mouse and touch events.
-- See `docs/technical.md` for implementation details. 
+- See `docs/technical.md` for implementation details.
+
+## Nettoyage production : suppression des prints
+
+Tous les appels à `print` ont été supprimés de `api/views.py` pour garantir la conformité production et le respect du cahier des charges. Aucun log de debug ne doit subsister dans le code livré en production. 

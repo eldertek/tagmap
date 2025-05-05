@@ -82,4 +82,6 @@
 - Architecture globale: `/docs/architecture.md`
 - Exigences produit: `/docs/product_requirement_docs.md`
 
-- Mobile editing for polygons, lines, and GeoNotes is now supported. Control points are touch-friendly and larger on mobile. All drag/move logic is unified for mouse and touch. See docs/technical.md for implementation details and test plan. 
+- Mobile editing for polygons, lines, and GeoNotes is now supported. Control points are touch-friendly and larger on mobile. All drag/move logic is unified for mouse and touch. See docs/technical.md for implementation details and test plan.
+
+- Suppression de tous les appels à print dans api/views.py pour nettoyage production et conformité au cahier des charges. 

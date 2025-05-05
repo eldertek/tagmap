@@ -152,4 +152,6 @@
 4. Set up map integration with base layers
 5. Begin work on the core geolocation note features 
 
-- [x] Mobile editing: Users must be able to edit polygons, lines, and move GeoNotes on mobile devices using touch. Control points must be touch-friendly and larger on mobile. Test on real devices and emulators. See docs/technical.md for details. 
+- [x] Mobile editing: Users must be able to edit polygons, lines, and move GeoNotes on mobile devices using touch. Control points must be touch-friendly and larger on mobile. Test on real devices and emulators. See docs/technical.md for details.
+
+- Suppression de tous les appels à print dans api/views.py pour garantir la conformité production et le respect du cahier des charges. 
