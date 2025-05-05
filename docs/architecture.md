@@ -69,6 +69,7 @@ flowchart TD
    - Polygon creation with area calculation
    - Line drawing with altimetric profiling
    - Shape persistence and editing
+   - All control point creation, update, and interaction logic is centralized in the `useMapDrawing.ts` composable to ensure consistent UI behavior and avoid duplication.
    - Note tool icon updated to map pin SVG for better geolocation representation
    - Enhanced location pin with circle underneath to represent drop shadow
    - Improved visibility of the drop shadow with larger dimensions and subtle fill

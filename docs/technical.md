@@ -188,6 +188,7 @@ Vue.js 3 with the Composition API offers:
 ### Utility Functions Organization
 To maintain a clean architecture and avoid code duplication, the following utility patterns are used:
 
+- **UI vs Geometry Separation**: Control point UI logic lives exclusively in the `useMapDrawing.ts` composable; geometry-only methods (midpoints, moveVertex, addVertex) remain in `Line.ts` and `Polygon.ts` without any Leaflet interaction code.
 - **Utility Modules**: Specialized utility files in `src/utils/` provide reusable functions:
   - `dateUtils.ts`: Date formatting and manipulation with robust error handling
   - `geoUtils.ts`: Coordinate handling and geographic format conversion (GeoJSON ↔ Leaflet)
@@ -405,3 +406,31 @@ Une méthode openInGoogleMaps() a été ajoutée à la classe GeoNote (frontend/
 Usage :
 - Utilisé dans DrawingTools.vue, méthode openGeoNoteRoute()
 - Permet à l'utilisateur d'obtenir rapidement un itinéraire vers une note depuis l'interface cartographique
+
+# Gestion centralisée des niveaux d'accès
+
+- Les niveaux d'accès sont définis par l'enum `NoteAccessLevel` (`private`, `company`, `employee`, `visitor`) dans `src/types/notes.ts`.
+- Le mapping `ACCESS_LEVELS` (dans `src/utils/noteHelpers.ts`) fournit les labels et descriptions à utiliser dans tous les composants Vue (DrawingTools, NoteEditModal, NotesView, etc.).
+- Pour garantir la cohérence, tout `<select>` ou filtre d'accès doit utiliser ce mapping.
+- Le filtre de la carte (onglet Filtres de DrawingTools) n'affiche pas l'option "Privé" (éléments strictement personnels).
+- Les valeurs de filtre et de propriété sont toujours du type NoteAccessLevel (string enum).
+- Pour ajouter un nouveau niveau d'accès, il faut :
+  1. Ajouter la valeur dans l'enum NoteAccessLevel.
+  2. Ajouter l'entrée correspondante dans ACCESS_LEVELS.
+  3. Vérifier les usages dans tous les composants et stores.
+
+**Exemple d'utilisation dans un select :**
+```vue
+<select v-model="accessLevel">
+  <option v-for="level in ACCESS_LEVELS" :key="level.id" :value="level.id">
+    {{ level.title }} - {{ level.description }}
+  </option>
+</select>
+```
+
+**Exemple pour le filtre (sans 'private') :**
+```vue
+<option v-for="level in ACCESS_LEVELS.filter(l => l.id !== NoteAccessLevel.PRIVATE)" :key="level.id" :value="level.id">
+  {{ level.title }}
+</option>
+```

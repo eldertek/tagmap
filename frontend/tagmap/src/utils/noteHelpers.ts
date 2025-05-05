@@ -118,3 +118,10 @@ export function convertApiPhotoToStore(apiPhoto: PhotoApiResponse): Photo {
 export function getCurrentTimestamp(): string {
   return new Date().toISOString();
 }
+
+export const ACCESS_LEVELS = [
+  { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
+  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise' },
+  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
+  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par l\'entreprise, ses salariés et ses visiteurs' }
+];

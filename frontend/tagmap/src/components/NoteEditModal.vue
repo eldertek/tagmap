@@ -86,7 +86,7 @@
             <div class="form-group">
               <label for="accessLevel">Niveau d'accès</label>
               <select id="accessLevel" v-model="editingNote.accessLevel">
-                <option v-for="level in accessLevels" :key="level.id" :value="level.id">
+                <option v-for="level in ACCESS_LEVELS" :key="level.id" :value="level.id">
                   {{ level.title }} - {{ level.description }}
                 </option>
               </select>
@@ -149,6 +149,7 @@ import { noteService, userService } from '../services/api';
 import CommentThread from './CommentThread.vue';
 import PhotoGallery from './PhotoGallery.vue';
 import { extractLatLng } from '../utils/geoUtils';
+import { ACCESS_LEVELS } from '../utils/noteHelpers';
 
 const props = defineProps<{
   note: Note | null;
@@ -398,14 +399,6 @@ const photosCount = computed(() => {
   const count = editingNote.value.photos?.length || 0;
   return count;
 });
-
-// Niveaux d'accès
-const accessLevels = [
-  { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
-  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise' },
-  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
-  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par l\'entreprise, ses salariés et ses visiteurs' }
-];
 
 // Couleurs disponibles
 const colors = [

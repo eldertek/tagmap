@@ -38,6 +38,7 @@ Organizations need a centralized way to:
 - Line drawing with altimetric profile generation
 - Side panel dialog box interface for note management
 - Display enterprise name on each note for Administrators only
+- **Centralized control point management**: All control point display and interaction is handled by a dedicated composable (`useMapDrawing.ts`), while geometry utilities (`Line.ts`, `Polygon.ts`) provide only pure geometric computations without UI code.
 
 ### Media Management
 - In-app photo capture capability
@@ -184,3 +185,19 @@ Tous les appels à `print` ont été supprimés de `api/views.py` pour garantir 
 ### [2024-06-10] Itinéraire Google Maps depuis une note géolocalisée
 
 L'utilisateur peut cliquer sur le bouton "Itinéraire" d'une note géolocalisée (depuis le panneau DrawingTools) pour ouvrir directement un itinéraire Google Maps vers la position de la note. Cette fonctionnalité est disponible pour chaque note disposant d'une position géographique et ouvre un nouvel onglet Google Maps avec l'itinéraire calculé. 
+
+# Uniformisation des niveaux d'accès
+
+Tous les composants manipulant des niveaux d'accès (création, édition, filtrage, affichage de notes ou d'éléments cartographiques) utilisent désormais la source unique `ACCESS_LEVELS` définie dans `src/utils/noteHelpers.ts`.
+
+- Les valeurs possibles sont :
+  - `private` : Privé — visible uniquement par l'utilisateur
+  - `company` : Entreprise — visible par l'entreprise
+  - `employee` : Salariés — visible par l'entreprise et ses salariés
+  - `visitor` : Visiteurs — visible par l'entreprise, ses salariés et ses visiteurs
+
+- Les labels et descriptions sont centralisés et utilisés dans tous les `<select>` et filtres.
+- Le filtre de la carte n'affiche pas l'option "Privé" (car les éléments privés ne sont visibles que par leur créateur).
+- Toute modification future des niveaux d'accès doit passer par ce mapping centralisé.
+
+Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.ts` (type AccessLevel). 

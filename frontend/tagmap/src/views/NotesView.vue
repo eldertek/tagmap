@@ -78,7 +78,7 @@
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
             >
               <option value="">Tous les niveaux</option>
-              <option v-for="level in accessLevels" :key="level.id" :value="level.id">{{ level.title }}</option>
+              <option v-for="level in ACCESS_LEVELS" :key="level.id" :value="level.id">{{ level.title }}</option>
             </select>
           </div>
         </div>
@@ -278,6 +278,7 @@ import { useAuthStore, formatUserName } from '../stores/auth';
 import { noteService, userService } from '../services/api';
 import NoteEditModal from '../components/NoteEditModal.vue';
 import { formatDate, parseDate } from '@/utils/dateUtils';
+import { ACCESS_LEVELS } from '../utils/noteHelpers';
 
 import draggable from 'vuedraggable';
 
@@ -314,12 +315,6 @@ const columnsForDrag = computed(() => {
 // La colonne par défaut est gérée directement dans le store
 
 // Niveaux d'accès disponibles
-const accessLevels = [
-  { id: NoteAccessLevel.PRIVATE, title: 'Privé', description: 'Visible uniquement par vous' },
-  { id: NoteAccessLevel.COMPANY, title: 'Entreprise', description: 'Visible par l\'entreprise' },
-  { id: NoteAccessLevel.EMPLOYEE, title: 'Salariés', description: 'Visible par l\'entreprise et ses salariés' },
-  { id: NoteAccessLevel.VISITOR, title: 'Visiteurs', description: 'Visible par l\'entreprise, ses salariés et ses visiteurs' }
-];
 
 // Filtres
 const filters = reactive({

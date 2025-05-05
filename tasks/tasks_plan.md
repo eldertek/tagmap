@@ -105,6 +105,7 @@
    - [x] Improve Note icon with circle underneath to better represent location drop pin
    - [x] Enhance visibility of the location pin drop shadow with larger size and fill
    - [x] Permettre à l'utilisateur d'ouvrir un itinéraire Google Maps vers la position d'une note géolocalisée depuis DrawingTools.vue (bouton "Itinéraire"). Implémenté via la méthode openInGoogleMaps sur GeoNote.
+   - [ ] **Enforce control point separation**: Create non-regression test to validate that all Leaflet control point creation/interaction code resides in `useMapDrawing.ts` and none exists in `Line.ts` or `Polygon.ts` utils.
 
 7. **Media Management**
    - [ ] Create photo capture interface
@@ -162,4 +163,26 @@
 
 - [x] Mobile editing: Users must be able to edit polygons, lines, and move GeoNotes on mobile devices using touch. Control points must be touch-friendly and larger on mobile. Test on real devices and emulators. See docs/technical.md for details.
 
-- Suppression de tous les appels à print dans api/views.py pour garantir la conformité production et le respect du cahier des charges. 
+- Suppression de tous les appels à print dans api/views.py pour garantir la conformité production et le respect du cahier des charges.
+
+# Tâche : Uniformisation des niveaux d'accès (NoteAccessLevel/AccessLevel)
+
+## Objectif
+Garantir que tous les composants (DrawingTools, NoteEditModal, NotesView, etc.) utilisent la source unique `ACCESS_LEVELS` pour l'affichage, la sélection et le filtrage des niveaux d'accès.
+
+## Critères d'acceptation
+- Tous les `<select>` de niveau d'accès utilisent ACCESS_LEVELS (labels, descriptions, valeurs).
+- Le filtre de la carte (onglet Filtres) n'affiche pas l'option "Privé".
+- Les valeurs sélectionnées sont toujours du type NoteAccessLevel.
+- Les tests couvrent :
+  - Création d'une note avec chaque niveau d'accès
+  - Édition d'une note et changement de niveau d'accès
+  - Filtrage des éléments sur la carte selon le niveau d'accès
+  - Affichage correct des labels dans toutes les vues
+- Toute modification future des niveaux d'accès doit être faite dans ACCESS_LEVELS et synchronisée partout.
+
+## Cas de test
+- [ ] Création d'une note privée, entreprise, salariés, visiteurs
+- [ ] Filtrage sur la carte : seuls les éléments autorisés sont visibles selon le filtre
+- [ ] Les labels/descriptions sont cohérents dans tous les écrans
+- [ ] Ajout d'un nouveau niveau d'accès : propagation automatique dans tous les composants 

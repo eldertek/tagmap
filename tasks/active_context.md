@@ -9,6 +9,7 @@
    - Gestion des médias (photos)
    - **Permettre à l'administrateur de configurer de manière sécurisée la clé d'API Google Maps via une page Paramètres dédiée, avec stockage côté serveur dans un modèle ApplicationSetting et récupération par le frontend via une API dédiée.**
    - Les salariés peuvent désormais voir et charger les plans sans visiteur associé via un bouton dédié dans MapView.vue (alignement UX avec les entreprises)
+   - Centralisation de toute la logique des points de contrôle (création, mise à jour et interaction) dans le composable `useMapDrawing.ts`, séparée des utilitaires géométriques.
 
 2. **Amélioration de l'expérience utilisateur**
    - Interface responsive pour mobile et desktop
@@ -119,3 +120,10 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 - [2024-07-05] Refactorisation : Centralisation des fonctions utilitaires pour Google Maps (`googleMapsLoader.ts`) et coordonnées géographiques (`geoUtils.ts`). Mise à jour des composants GeoNote.ts, NotesView.vue et MeteoView.vue pour utiliser ces utilitaires partagés.
 
 - [2024-07-15] Refactorisation : Création de `dateUtils.ts` pour centraliser toutes les fonctions de formatage et de manipulation des dates. Remplacement des implémentations locales de debounce/throttle par les importations de lodash pour une meilleure performance et maintenabilité. Standardisation des fonctions de traitement des coordonnées avec `extractLatLng` dans `geoUtils.ts`.
+
+# Contexte actif : Uniformisation des niveaux d'accès
+
+- Toute gestion, affichage ou filtrage de niveau d'accès doit utiliser le mapping ACCESS_LEVELS de src/utils/noteHelpers.ts.
+- Les valeurs autorisées sont : private, company, employee, visitor (voir enum NoteAccessLevel).
+- Les tests doivent vérifier la cohérence des labels, la propagation des changements et l'absence de divergence entre composants.
+- Le filtre de la carte n'affiche pas l'option "Privé".

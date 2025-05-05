@@ -142,10 +142,9 @@
                   </div>
                   <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                    <option value="private">Privé - visible uniquement par vous</option>
-                    <option value="company">Entreprise - visible par l'entreprise</option>
-                    <option value="employee">Salariés - visible par l'entreprise et ses salariés</option>
-                    <option value="visitor">Visiteurs - visible par l'entreprise, ses salariés et ses visiteurs</option>
+                    <option v-for="level in ACCESS_LEVELS" :key="level.id" :value="level.id">
+                      {{ level.title }} - {{ level.description }}
+                    </option>
                   </select>
                 </div>
 
@@ -227,9 +226,9 @@
                   <div>
                     <select v-model="selectedAccessLevel" @change="updateAccessLevelFilterAndDeselect(selectedAccessLevel)"
                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
-                      <option value="company">Entreprise (accès à tout)</option>
-                      <option value="employee">Salariés (accès niveau salariés et visiteurs)</option>
-                      <option value="visitor">Visiteurs (accès niveau visiteurs uniquement)</option>
+                      <option v-for="level in ACCESS_LEVELS.filter(l => l.id !== NoteAccessLevel.PRIVATE)" :key="level.id" :value="level.id">
+                        {{ level.title }} ({{ level.description }})
+                      </option>
                     </select>
                     <div class="mt-2 text-xs text-gray-500">
                       <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
@@ -352,6 +351,7 @@ import { useDrawingStore } from '@/stores/drawing'
 import { useAuthStore } from '@/stores/auth'
 import { useMapFilterStore } from '@/stores/mapFilters'
 import { useIrrigationStore } from '@/stores/irrigation'
+import { ACCESS_LEVELS, NoteAccessLevel } from '@/utils/noteHelpers'
 
 // Les types pour les filtres sont définis plus bas dans le fichier
 
