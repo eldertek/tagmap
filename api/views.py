@@ -555,6 +555,11 @@ class GeoNoteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = GeoNote.objects.all()
 
+        # Filtrage par plan si le paramètre est présent
+        plan_id = self.request.query_params.get('plan')
+        if plan_id:
+            qs = qs.filter(plan_id=plan_id)
+
         # Cas explicite pour l'admin : il voit tout
         if user.role == ROLE_ADMIN:
             return qs
