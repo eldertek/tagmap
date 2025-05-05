@@ -1,4 +1,4 @@
-import { ref, onUnmounted, nextTick, type Ref } from 'vue';
+import { ref, onUnmounted, nextTick } from 'vue';
 import * as L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
 import 'leaflet-geometryutil';
@@ -11,64 +11,16 @@ import area from '@turf/area';
 import length from '@turf/length';
 import centroid from '@turf/centroid';
 import { useDrawingStore } from '../stores/drawing';
+import { 
+  AlmostOverEvent, 
+  ExtendedGlobalOptions,
+  ControlPoint,
+  MapRef,
+  FeatureGroupRef,
+  LayerRef,
+  MapDrawingReturn
+} from '../types/drawing';
 
-// Interface pour les événements AlmostOver de Leaflet
-interface AlmostOverEvent extends L.LeafletEvent {
-  latlng: L.LatLng;
-  layer: L.Layer;
-}
-
-// Declare le type pour almostOver sur l'instance de Map
-declare module 'leaflet' {
-  interface Layer {
-    properties?: any;
-    pm?: any;
-    _textLayer?: L.Marker;
-    _dbId?: number | string;
-    _originalStyle?: any;
-    options: L.LayerOptions;
-    getCenter?: () => L.LatLng;
-    getLatLng?: () => L.LatLng;
-    getRadius?: () => number;
-    getStartAngle?: () => number;
-    getStopAngle?: () => number;
-    name?: string;
-    updateProperties?: () => void;
-    editNote?: () => void;
-    recreateIcon?: () => void;
-    getElement?: () => HTMLElement | null;
-  }
-  interface Map {
-    almostOver: {
-      addLayer: (layer: L.Layer) => void;
-      removeLayer: (layer: L.Layer) => void;
-      options: {
-        tolerance: number;
-      };
-    };
-  }
-  
-  // Étendre MapOptions plutôt que de redéfinir options sur Map
-  interface MapOptions {
-    almostOnMouseMove?: boolean;
-    zoomAnimation?: boolean;
-    fadeAnimation?: boolean;
-    markerZoomAnimation?: boolean;
-  }
-  
-  // Étendre la définition des événements Leaflet pour les événements AlmostOver
-  namespace LeafletEvent {
-    interface AlmostOverEvent extends L.LeafletEvent {
-      latlng: L.LatLng;
-      layer: L.Layer;
-    }
-  }
-}
-
-// Extend GlobalOptions to include snapLayers
-interface ExtendedGlobalOptions extends L.PM.GlobalOptions {
-  snapLayers?: L.LayerGroup[];
-}
 // Fonction pour créer et afficher un message d'aide
 const showHelpMessage = (message: string): HTMLElement => {
   // Supprimer tous les messages d'aide existants
@@ -126,31 +78,6 @@ const formatMeasure = (value: number, unit: string = 'm', label: string = ''): s
   }
   return label ? `${label}: ${formattedValue} ${formattedUnit}` : `${formattedValue} ${formattedUnit}`;
 };
-// Interface pour les points de contrôle avec mesure
-interface ControlPoint extends L.CircleMarker {
-  measureDiv?: HTMLElement;
-}
-// Définissons des types plus flexibles pour les références
-type MapRef = Ref<L.Map | null>;
-type FeatureGroupRef = Ref<L.FeatureGroup | null>;
-type LayerRef = Ref<L.Layer | null>;
-
-interface MapDrawingReturn {
-  map: MapRef;
-  featureGroup: FeatureGroupRef;
-  controlPointsGroup: FeatureGroupRef;
-  tempControlPointsGroup: FeatureGroupRef;
-  currentTool: Ref<string>;
-  selectedShape: LayerRef;
-  isDrawing: Ref<boolean>;
-  initMap: (element: HTMLElement, center: L.LatLngExpression, zoom: number) => L.Map;
-  setDrawingTool: (tool: string) => void;
-  updateShapeStyle: (style: Record<string, unknown>) => void;
-  updateShapeProperties: (properties: Record<string, unknown>) => void;
-  adjustView: () => void;
-  clearActiveControlPoints: () => void;
-  addLinesToAlmostOver: () => void;
-}
 // Ajouter cette fonction en haut du fichier, après les imports
 const debounce = (fn: Function, delay: number) => {
   let timeoutId: number;

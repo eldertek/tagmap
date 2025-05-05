@@ -1,4 +1,45 @@
 import type L from 'leaflet';
+import type { Ref } from 'vue';
+
+// Interface pour les événements AlmostOver de Leaflet
+export interface AlmostOverEvent extends L.LeafletEvent {
+  latlng: L.LatLng;
+  layer: L.Layer;
+}
+
+// Extend GlobalOptions to include snapLayers
+export interface ExtendedGlobalOptions extends L.PM.GlobalOptions {
+  snapLayers?: L.LayerGroup[];
+}
+
+// Interface pour les points de contrôle avec mesure
+export interface ControlPoint extends L.CircleMarker {
+  measureDiv?: HTMLElement;
+}
+
+// Types pour les références
+export type MapRef = Ref<L.Map | null>;
+export type FeatureGroupRef = Ref<L.FeatureGroup | null>;
+export type LayerRef = Ref<L.Layer | null>;
+
+// Interface pour le retour de useMapDrawing
+export interface MapDrawingReturn {
+  map: MapRef;
+  featureGroup: FeatureGroupRef;
+  controlPointsGroup: FeatureGroupRef;
+  tempControlPointsGroup: FeatureGroupRef;
+  currentTool: Ref<string>;
+  selectedShape: LayerRef;
+  isDrawing: Ref<boolean>;
+  initMap: (element: HTMLElement, center: L.LatLngExpression, zoom: number) => L.Map;
+  setDrawingTool: (tool: string) => void;
+  updateShapeStyle: (style: Record<string, unknown>) => void;
+  updateShapeProperties: (properties: Record<string, unknown>) => void;
+  adjustView: () => void;
+  clearActiveControlPoints: () => void;
+  addLinesToAlmostOver: () => void;
+}
+
 // Interface for drawable layers
 export interface DrawableLayer extends L.Layer {
   getBounds(): L.LatLngBounds;
@@ -9,6 +50,7 @@ export interface DrawableLayer extends L.Layer {
   updateResizePreview?(bounds: L.LatLngBounds): void;
   endResize?(bounds: L.LatLngBounds): void;
 }
+
 export interface Style {
   color?: string;
   fillColor?: string;
@@ -20,10 +62,12 @@ export interface Style {
   name?: string;
   radius?: number;
 }
+
 export interface Bounds {
   southWest: [number, number];
   northEast: [number, number];
 }
+
 // Type pour les niveaux d'accès
 export type AccessLevel = 'company' | 'employee' | 'visitor';
 
@@ -37,12 +81,15 @@ export interface BaseData {
   category?: ElementCategory;
   accessLevel?: AccessLevel;
 }
+
 export interface LineData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
 }
+
 export interface PolygonData extends BaseData {
   points: [number, number][];  // Array of [longitude, latitude]
 }
+
 export interface ShapeType {
   type: string; // Accepte n'importe quelle chaîne de caractères pour le type
   properties: {
