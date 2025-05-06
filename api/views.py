@@ -852,62 +852,73 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
 
         serializer.save(user=user)
 
-@api_view(['POST'])
-def elevation_proxy(request):
+@api_view(['GET'])
+def hybrid_tile_proxy(request, z, x, y):
     """
-    Proxy pour les requêtes d'élévation vers l'API Open-Elevation.
+    Proxy pour les tuiles Google Maps 2D API qui préserve la confidentialité de la clé API.
+    Permet d'utiliser Google Maps dans MapLibre sans exposer la clé API au client.
+    
+    Les tuiles sont récupérées depuis le service Google Maps et renvoyées directement 
+    au client avec tous les en-têtes nécessaires.
+    
+    Google Maps dispose de plusieurs types de tuiles via le paramètre lyrs:
+    - m: standard roadmap (default)
+    - s: satellite only
+    - y: hybrid (satellite + roads/labels)
+    - t: terrain
+    - h: roads only
     """
     try:
-        points = request.data.get('points', [])
-
-        # Reformater les points pour l'API Open-Elevation
+        # Récupérer la clé API Google Maps depuis les paramètres de l'application
         try:
-            locations = [
-                {
-                    'latitude': float(point['latitude']),
-                    'longitude': float(point['longitude'])
-                }
-                for point in points
-            ]
-        except (KeyError, TypeError, ValueError) as e:
+            setting = ApplicationSetting.objects.get(key='google_maps_api_key')
+            api_key = setting.value
+            
+            # Note: Pour les tuiles standards de Google Maps, la clé API n'est pas toujours nécessaire,
+            # mais nous utilisons la clé si disponible pour respecter les conditions d'utilisation
+            
+        except ApplicationSetting.DoesNotExist:
+            api_key = None
+        
+        # Construire l'URL pour la tuile Google Maps
+        # 'y' = hybrid (satellite + roads/labels)
+        base_url = f"https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+        
+        # Ajouter la clé API si disponible
+        if api_key:
+            url = f"{base_url}&key={api_key}"
+        else:
+            url = base_url
+        
+        # Récupérer la tuile depuis Google Maps
+        response = requests.get(url, stream=True)
+        
+        if response.status_code != 200:
             return Response(
-                {'error': f'Format de données invalide: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': f'Erreur lors de la récupération de la tuile: {response.status_code}'},
+                status=response.status_code
             )
-
-        # Appel à l'API Open-Elevation
-        response = requests.post(
-            'https://api.open-elevation.com/api/v1/lookup',
-            json={'locations': locations}
+        
+        # Retourner l'image avec les en-têtes appropriés
+        from django.http import HttpResponse
+        
+        # Créer une réponse Django avec le contenu de l'image
+        http_response = HttpResponse(
+            response.content,
+            content_type=response.headers.get('Content-Type', 'image/png')
         )
-
-        if response.status_code == 200:
-            return Response(response.json())
-
-        # Si l'API principale échoue, essayer l'API de fallback
-        fallback_response = requests.post(
-            'https://elevation-api.io/api/elevation',
-            json={'points': [{'lat': p['latitude'], 'lng': p['longitude']} for p in points]}
-        )
-
-        if fallback_response.status_code == 200:
-            # Reformater la réponse pour correspondre au format attendu
-            elevation_data = fallback_response.json()
-            results = [
-                {
-                    'latitude': points[i]['latitude'],
-                    'longitude': points[i]['longitude'],
-                    'elevation': e['elevation']
-                }
-                for i, e in enumerate(elevation_data['elevations'])
-            ]
-            return Response({'results': results})
-
-        return Response(
-            {'error': 'Les services d\'élévation sont indisponibles'},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
-
+        
+        # Copier les en-têtes pertinents
+        for header in ['Cache-Control', 'Expires', 'ETag']:
+            if header in response.headers:
+                http_response[header] = response.headers[header]
+                
+        # Ajouter des en-têtes de cache pour optimiser les performances
+        if 'Cache-Control' not in response.headers:
+            http_response['Cache-Control'] = 'public, max-age=86400'  # 24h
+            
+        return http_response
+        
     except Exception as e:
         return Response(
             {'error': str(e)},

@@ -69,6 +69,7 @@
    - [x] Appliquer des styles CSS globaux pour forcer la visibilité des notes
    - [x] Ajouter une gestion robuste des erreurs et des logs détaillés pour le debug frontend
    - [x] Correction UI : scroll fiable dans tous les tabs de DrawingTools.vue avec architecture flex optimisée (parent flex avec height: 100%, barre d'onglets hauteur fixe, .tab-content avec flex: 1 et max-height en pourcentage, padding-bottom adapté sur mobile). Documentation technique mise à jour.
+   - [ ] Corriger les URLs des fonds de carte IGN et Cadastre dans MapLibreTest.vue pour utiliser les endpoints publics data.geopf.fr (voir useMapState.ts). Documenter la correction dans docs/technical.md et synchroniser toute modification future dans les tests et la doc.
 
 ### Phase 2: Core Features (Priority: Medium)
 
@@ -85,7 +86,7 @@
    - [x] Fix enterprise_name preservation when editing notes
    - [ ] Écrire tests automatisés pour chaque niveau d'accès GeoNote
    - [ ] Write note feature tests
-   - [ ] **Test automatisé : Vérifier que le champ `updatedAt` d'une note (GeoNote) n'est modifié que si un champ significatif change (title, description, access_level, style, column, location, order, category), et reste inchangé sinon.**
+   - [ ] **Test automatisé : Vérifier que le champ `updatedAt` d'une note (GeoNote) n'est modifié que si un champ significatif change (title, description, access_level, style, column, location, order, category), et reste inchangé sinon.**
    - [ ] Vérifier la matrice d'accès des notes géolocalisées (GeoNote) :
        - [ ] L'admin voit toutes les notes (private, company, employee, visitor)
        - [ ] L'entreprise voit toutes les notes liées à son entreprise
@@ -185,4 +186,47 @@ Garantir que tous les composants (DrawingTools, NoteEditModal, NotesView, etc.) 
 - [ ] Création d'une note privée, entreprise, salariés, visiteurs
 - [ ] Filtrage sur la carte : seuls les éléments autorisés sont visibles selon le filtre
 - [ ] Les labels/descriptions sont cohérents dans tous les écrans
-- [ ] Ajout d'un nouveau niveau d'accès : propagation automatique dans tous les composants 
+- [ ] Ajout d'un nouveau niveau d'accès : propagation automatique dans tous les composants
+
+# Tâche : Optimisation des interactions tactiles sur mobile
+
+## Analyse du problème
+Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobile, notamment avec la manipulation des points de contrôle pour l'édition des formes (polygones, lignes). Malgré les adaptations CSS et les hacks d'événements dans le code actuel, l'expérience tactile reste sous-optimale.
+
+## Options techniques
+
+### Option 1: Améliorer Leaflet (Actuel)
+- [x] Vérifier les options de configuration Leaflet non exploitées
+- [x] Explorer les plugins Leaflet spécifiques au tactile
+- [ ] Optimiser davantage les styles CSS pour le mobile
+
+### Option 2: Solution tactile maison
+- [ ] Implémenter un gestionnaire d'événements tactiles personnalisé
+- [ ] Créer un système de détection et gestion des points de contrôle optimisé
+- [ ] Refactoriser la logique d'édition des formes pour le tactile
+
+### Option 3: Migration vers MapLibre GL JS (Recommandée)
+- [ ] Créer une preuve de concept MapLibre dans le dossier `frontend/tagmap/src/maplibre/`
+- [ ] Tester les interactions tactiles avec les points de contrôle sur divers appareils
+- [ ] Comparer les performances et l'UX avec la solution Leaflet actuelle
+- [ ] Documenter les résultats et élaborer un plan de migration complet
+
+## Prochaines étapes
+- [x] Documenter l'analyse complète des options dans `docs/maplibre_vs_leaflet.md`
+- [x] Planifier un prototype minimal pour évaluer MapLibre dans `tasks/maplibre_migration_analysis.md`
+- [ ] Démarrer l'implémentation du prototype MapLibre pour validation
+- [ ] Présenter les résultats et décider de la stratégie à adopter
+
+## Current Active Tasks
+
+### Frontend - MapLibre Integration
+
+- [x] Set up MapLibre GL JS in the Vue.js application
+- [x] Implement basic map display with controls
+- [x] Add drawing tools for points, lines, and polygons
+- [x] Fix TypeScript type issues with RasterTileSource
+- [x] Integrate with backend API for hybrid tile authentication
+- [x] Implement robust error handling for layer management
+- [ ] Create reusable map component that can be used across the application
+- [ ] Implement feature saving with the backend API
+- [ ] Add layer control for toggling different map features

@@ -508,7 +508,7 @@ export const noteService = {
 
   // Mettre à jour une note existante
   async updateNote(noteId: number, noteData: any) {
-try {
+    try {
       // Utiliser l'ID backend si disponible
       const backendId = noteData.backendId || noteId;
 
@@ -540,8 +540,8 @@ try {
       // Conserver explicitement enterprise_id mais supprimer enterprise_name qui est juste pour affichage
       const enterpriseId = updateData.enterprise_id;
       delete updateData.enterprise_name; // Supprimer le nom de l'entreprise qui n'est pas attendu par l'API
-const response = await api.patch(`/notes/${backendId}/`, updateData);
-// Réinjecter enterprise_id si présent, car il pourrait ne pas être retourné par le serveur
+      const response = await api.patch(`/notes/${backendId}/`, updateData);
+      // Réinjecter enterprise_id si présent, car il pourrait ne pas être retourné par le serveur
       if (enterpriseId !== undefined) {
         response.data.enterprise_id = enterpriseId;
       }
@@ -573,7 +573,7 @@ const response = await api.patch(`/notes/${backendId}/`, updateData);
     const data = typeof commentText === 'string'
       ? { text: commentText }
       : commentText;
-return await api.post(`/notes/${noteId}/comments/`, data);
+    return await api.post(`/notes/${noteId}/comments/`, data);
   },
 
   async updateComment(noteId: number, commentId: number, commentData: any) {
@@ -610,9 +610,9 @@ return await api.post(`/notes/${noteId}/comments/`, data);
 export const columnService = {
   // Récupérer toutes les colonnes
   async getColumns() {
-try {
+    try {
       const response = await api.get('/columns/');
-return response;
+      return response;
     } catch (error) {
       console.error('[columnService][getColumns] Erreur:', error);
       throw error;
@@ -621,9 +621,9 @@ return response;
 
   // Créer une nouvelle colonne
   async createColumn(columnData: any) {
-try {
+    try {
       const response = await api.post('/columns/', columnData);
-return response;
+      return response;
     } catch (error) {
       console.error('[columnService][createColumn] Erreur:', error);
       throw error;
@@ -632,9 +632,9 @@ return response;
 
   // Mettre à jour une colonne
   async updateColumn(columnId: string, columnData: any) {
-try {
+    try {
       const response = await api.patch(`/columns/${columnId}/`, columnData);
-return response;
+      return response;
     } catch (error) {
       console.error('[columnService][updateColumn] Erreur:', error);
       throw error;
@@ -798,6 +798,86 @@ export const settingsService = {
       return await api.post('/settings/set_google_maps_api_key/', { key });
     } catch (error) {
       console.error('Error setting Google Maps API key:', error);
+      throw error;
+    }
+  }
+};
+
+// Service pour les fonctionnalités cartographiques
+export const mapService = {
+  /**
+   * Récupère une tuile de carte avec l'authentification nécessaire
+   * @param tileType Type de tuile (hybrid, cadastre, etc.)
+   * @param z Niveau de zoom
+   * @param x Coordonnée X
+   * @param y Coordonnée Y
+   * @returns Blob de l'image de la tuile
+   */
+  async getTile(tileType: string, z: number, x: number, y: number): Promise<Blob> {
+    try {
+      const response = await api.get(`/tiles/${tileType}/${z}/${x}/${y}.png`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching map tile (${tileType}/${z}/${x}/${y}):`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Crée une URL pour les tuiles avec authentification
+   * @param tileType Type de tuile (hybrid, cadastre, etc.)
+   * @returns Fonction de génération d'URL pour les tuiles
+   */
+  getTileUrlFunction(tileType: string): (x: number, y: number, z: number) => string {
+    return (x: number, y: number, z: number) => {
+      // Ajouter un timestamp pour éviter les problèmes de cache
+      const timestamp = Date.now();
+      return `/api/tiles/${tileType}/${z}/${x}/${y}.png?_t=${timestamp}`;
+    };
+  },
+
+  /**
+   * Crée un transformRequest pour ajouter l'authentification aux requêtes de tuiles
+   * @returns Fonction transformRequest pour MapLibre
+   */
+  getTransformRequest(): (url: string, resourceType: string) => { url: string, headers?: Record<string, string> } {
+    return (url: string, resourceType: string) => {
+      // Uniquement pour les requêtes de tuiles de notre API
+      if (resourceType === 'Tile' && url.includes('/api/tiles/')) {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('access_token='))
+          ?.split('=')[1];
+        
+        // Ajouter le token d'authentification si disponible
+        if (token) {
+          return {
+            url,
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          };
+        }
+      }
+      
+      // Pour les autres ressources, ne pas modifier la requête
+      return { url };
+    };
+  },
+
+  /**
+   * Récupère les informations d'élévation pour un ensemble de points
+   * @param points Tableau de points avec latitude et longitude
+   * @returns Données d'élévation
+   */
+  async getElevation(points: { latitude: number; longitude: number }[]) {
+    try {
+      const response = await api.post('/elevation/', { points });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching elevation data:', error);
       throw error;
     }
   }

@@ -15,6 +15,7 @@
    - Interface responsive pour mobile et desktop
    - Navigation intuitive entre les différentes vues
    - Optimisation des performances de chargement
+   - **Résolution des problèmes d'interactions tactiles sur mobile, particulièrement pour l'édition des formes via les points de contrôle**
 
 3. **Map Layer Integration**
    - ✅ Implemented Google Maps for high-quality hybrid view
@@ -47,6 +48,7 @@
    - Support cohérent sur tous les navigateurs
    - Adaptation aux différentes tailles d'écran
    - Gestion optimale des performances sur appareils mobiles
+   - **Amélioration des interactions tactiles pour l'édition des formes (points de contrôle)**
 
 4. **Assurer un rechargement de secours du dernier plan consulté (fonction `loadLastPlan`) si le chargement du plan initial échoue (404). Correction appliquée pour préserver `lastPlanId` et attendre l'appel.**
 
@@ -69,6 +71,30 @@
 - ✅ Système de permissions par niveau d'accès
 - ✅ Gestion des médias
 - 🔄 Optimisation des requêtes pour les données géospatiales
+
+## Problématique mobile et options techniques
+
+Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobile, notamment avec la manipulation des points de contrôle pour l'édition des formes (polygones, lignes). Malgré les adaptations CSS et les hacks d'événements, l'expérience tactile reste sous-optimale.
+
+### Trois options sont à l'étude:
+
+1. **Continuer à améliorer Leaflet (solution actuelle)**
+   - Avantages: Continuité, intégration existante
+   - Inconvénients: Limitations structurelles, hacks compliqués
+
+2. **Développer une solution tactile maison**
+   - Avantages: Contrôle total sur l'UX
+   - Inconvénients: Complexité élevée, maintenance difficile
+
+3. **Migration vers MapLibre GL JS (recommandée)**
+   - Avantages: Gestion tactile native, performances WebGL
+   - Inconvénients: Migration substantielle
+
+Une analyse détaillée est disponible dans:
+- `docs/maplibre_vs_leaflet.md`: Comparaison technique des deux bibliothèques
+- `tasks/maplibre_migration_analysis.md`: Plan d'approche pour une potentielle migration
+
+La prochaine étape consiste à développer un prototype MapLibre pour valider les gains réels en termes d'UX mobile avant toute décision définitive.
 
 ## Optimisations planifiées
 
@@ -99,6 +125,8 @@
 - Documentation API: `/api/docs/`
 - Architecture globale: `/docs/architecture.md`
 - Exigences produit: `/docs/product_requirement_docs.md`
+- Analyse MapLibre vs Leaflet: `/docs/maplibre_vs_leaflet.md`
+- Plan de migration: `/tasks/maplibre_migration_analysis.md`
 
 - Mobile editing for polygons, lines, and GeoNotes is now supported. Control points are touch-friendly and larger on mobile. All drag/move logic is unified for mouse and touch. See docs/technical.md for implementation details and test plan.
 
@@ -119,6 +147,8 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 
 - [2024-07-05] Refactorisation : Centralisation des fonctions utilitaires pour Google Maps (`googleMapsLoader.ts`) et coordonnées géographiques (`geoUtils.ts`). Mise à jour des composants GeoNote.ts, NotesView.vue et MeteoView.vue pour utiliser ces utilitaires partagés.
 
+- [2024-07-10] Correction : Les fonds de carte IGN et Cadastre dans MapLibreTest.vue utilisaient des URLs obsolètes (wxs.ign.fr) provoquant des erreurs réseau. Les URLs ont été remplacées par les endpoints publics data.geopf.fr, comme dans useMapState.ts. Cette correction garantit la disponibilité des couches et la cohérence entre les composants MapLibre et Leaflet. Toute modification future des fonds de carte doit être synchronisée dans la doc et les tests.
+
 - [2024-07-15] Refactorisation : Création de `dateUtils.ts` pour centraliser toutes les fonctions de formatage et de manipulation des dates. Remplacement des implémentations locales de debounce/throttle par les importations de lodash pour une meilleure performance et maintenabilité. Standardisation des fonctions de traitement des coordonnées avec `extractLatLng` dans `geoUtils.ts`.
 
 # Contexte actif : Uniformisation des niveaux d'accès
@@ -127,3 +157,10 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 - Les valeurs autorisées sont : private, company, employee, visitor (voir enum NoteAccessLevel).
 - Les tests doivent vérifier la cohérence des labels, la propagation des changements et l'absence de divergence entre composants.
 - Le filtre de la carte n'affiche pas l'option "Privé".
+
+# Contexte actif : Optimisation tactile mobile
+
+Une analyse approfondie des options pour améliorer l'expérience tactile sur mobile a été réalisée. Elle conclut que:
+1. Les limitations actuelles de Leaflet sont structurelles et difficilement contournables
+2. La meilleure approche serait une migration vers MapLibre GL JS qui offre un support tactile natif
+3. Un prototype doit être développé pour valider les gains réels avant toute décision
