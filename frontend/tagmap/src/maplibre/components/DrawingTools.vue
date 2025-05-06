@@ -399,6 +399,10 @@ const props = defineProps({
   isDrawing: {
     type: Boolean,
     default: false
+  },
+  activeTabProp: {
+    type: String,
+    default: 'tools'
   }
 })
 
@@ -452,7 +456,7 @@ const getToolIcon = (type: string) => {
 }
 
 // Define reactive variables for the component
-const activeTab = ref('tools') // Onglet actif par défaut
+const activeTab = ref(props.activeTabProp) // Onglet actif par défaut
 // Watch for tab changes to ensure filters are applied when switching to the filters tab
 watch(activeTab, (newTab, oldTab) => {
   // If we're switching to the filters tab, make sure filters are up to date
@@ -472,8 +476,17 @@ watch(activeTab, (newTab, oldTab) => {
   if (oldTab === 'filters' && newTab !== 'filters') {
     applyFilters();
   }
+  
+  // Emit the tab change event
+  emit('tab-change', newTab);
 })
 
+// Watch for changes in the activeTabProp
+watch(() => props.activeTabProp, (newValue) => {
+  if (newValue && newValue !== activeTab.value) {
+    activeTab.value = newValue;
+  }
+})
 
 // Style properties
 const strokeColor = ref('#2b6451')
@@ -620,8 +633,29 @@ const selectPresetColor = (color: string): void => {
 const updateStyle = (styleProps: StyleProps): void => {
   if (!props.selectedShape) return
 
+  // Log the style props being updated
+  console.log('DrawingTools: Updating style with props:', styleProps)
+
   // Emit the style update to the parent component
   emit('style-update', styleProps)
+  
+  // Force an immediate UI update to show the style change in the drawing tools panel
+  // Update local state to reflect new values
+  if (styleProps.strokeColor) {
+    strokeColor.value = styleProps.strokeColor
+  }
+  if (styleProps.strokeWidth !== undefined) {
+    strokeWidth.value = styleProps.strokeWidth
+  }
+  if (styleProps.strokeStyle) {
+    strokeStyle.value = styleProps.strokeStyle
+  }
+  if (styleProps.fillColor) {
+    fillColor.value = styleProps.fillColor
+  }
+  if (styleProps.fillOpacity !== undefined) {
+    fillOpacity.value = styleProps.fillOpacity
+  }
 }
 
 // Méthode pour mettre à jour le nom de la forme
@@ -836,17 +870,35 @@ async function createFilter() {
   }
 };
 
-// Fonction pour passer à l'onglet filtres et désélectionner la forme actuelle
+// Méthode pour passer à l'onglet filtres et désélectionner la forme actuelle
 const switchToFiltersTab = () => {
-  // Désélectionner la forme actuelle
-  deselectCurrentShape();
+  try {
+    // Désélectionner la forme actuelle
+    deselectCurrentShape();
 
-  // Passer à l'onglet filtres
-  activeTab.value = 'filters';
+    // Passer à l'onglet filtres
+    activeTab.value = 'filters';
+    
+    // Emit the tab change event
+    emit('tab-change', 'filters');
+  } catch (error) {
+    console.error('Error switching to filters tab:', error);
+    // Fallback - set the tab directly
+    activeTab.value = 'filters';
+  }
 }
 
 // Define emits
-const emit = defineEmits(['update:show', 'tool-selected', 'style-update', 'properties-update', 'delete-shape', 'filter-change', 'close-drawer'])
+const emit = defineEmits([
+  'update:show', 
+  'tool-selected', 
+  'style-update', 
+  'properties-update', 
+  'delete-shape', 
+  'filter-change', 
+  'close-drawer',
+  'tab-change'
+])
 
 // Watch for changes in the selected shape to update the style controls
 watchEffect(() => {
@@ -958,13 +1010,23 @@ watch(filters, (newFilters, oldFilters) => {
 
 // Méthode pour gérer le clic sur un outil
 const handleToolClick = (toolType: string) => {
-  // Émettre l'événement tool-selected
-  // Si l'outil cliqué est déjà sélectionné, on le désélectionne, sinon on le sélectionne
-  emit('tool-selected', props.selectedTool === toolType ? '' : toolType);
+  try {
+    // Make sure we have a valid toolType
+    if (!toolType || typeof toolType !== 'string') {
+      console.warn('Invalid tool type:', toolType);
+      return;
+    }
+    
+    // Émettre l'événement tool-selected
+    // Si l'outil cliqué est déjà sélectionné, on le désélectionne, sinon on le sélectionne
+    emit('tool-selected', props.selectedTool === toolType ? '' : toolType);
 
-  // Sur mobile, fermer le panneau d'outils après la sélection
-  if (window.innerWidth < 768) {
-    emit('update:show', false);
+    // Sur mobile, fermer le panneau d'outils après la sélection
+    if (window.innerWidth < 768) {
+      emit('update:show', false);
+    }
+  } catch (error) {
+    console.error('Error handling tool click:', error);
   }
 }
 

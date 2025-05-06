@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.18.3",
+    "@geoman-io/maplibre-geoman-free": "^0.3.0",
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
     "@mapbox/mapbox-gl-draw": "^1.5.0",

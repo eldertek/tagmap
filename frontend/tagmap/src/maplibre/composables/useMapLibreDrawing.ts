@@ -5,10 +5,11 @@
  * Équivalent à useMapDrawing.ts pour Leaflet, mais optimisé pour MapLibre et le tactile
  */
 
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import maplibregl from 'maplibre-gl'
-import MapboxDraw from '@mapbox/mapbox-gl-draw'
-import type { DrawHandlers, DrawingMode, DrawEvent } from '../utils/maplibreTypes'
+import { createGeomanInstance, type GmOptionsPartial, type Geoman } from '@geoman-io/maplibre-geoman-free';
+import '@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css';
+import type { DrawHandlers, DrawEvent } from '../utils/mapLibreTypes'
 
 /**
  * Options pour le composable useMapLibreDrawing
@@ -27,13 +28,21 @@ interface UseMapLibreDrawingOptions {
   onDrawDelete?: (event: DrawEvent) => void
 }
 
+// Mapping des types de géométrie aux modes de dessin
+const DRAW_MODES: Record<string, string> = {
+  'point': 'draw_point',
+  'line': 'draw_line_string',
+  'polygon': 'draw_polygon',
+  'select': 'simple_select'
+};
+
 /**
  * Composable principal pour gérer le dessin sur une carte MapLibre
  */
 export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
   // État interne
   const map = ref<maplibregl.Map | null>(null)
-  const draw = ref<MapboxDraw | null>(null)
+  let geoman: Geoman;
   const isDrawing = ref(false)
   const activeTool = ref<string | null>(null)
   const selectedFeature = ref<GeoJSON.Feature | null>(null)
@@ -52,323 +61,202 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
   /**
    * Initialise le système de dessin avec une carte MapLibre
    */
-  const initDrawing = (mapInstance: maplibregl.Map) => {
-    map.value = mapInstance
+  const initDrawing = async (mapInstance: maplibregl.Map) => {
+    if (!mapInstance) return;
     
-    // Créer une instance du plugin de dessin avec des styles optimisés pour le tactile
-    draw.value = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: {
-        point: true,
-        line_string: true,
-        polygon: true,
-        trash: true
-      },
-      // Styles personnalisés pour optimiser l'affichage tactile
-      styles: getCustomDrawStyles()
-    })
+    map.value = mapInstance;
     
-    // Ajouter le contrôle de dessin à la carte
-    map.value.addControl(draw.value)
-    
-    // Attacher les événements de dessin
-    setupDrawEvents()
-  }
-  
-  /**
-   * Obtient des styles personnalisés pour le dessin, optimisés pour le tactile
-   */
-  const getCustomDrawStyles = () => {
-    return [
-      // Style pour le point de contrôle actif
-      {
-        'id': 'gl-draw-point-active',
-        'type': 'circle',
-        'filter': ['all', ['==', '$type', 'Point'], ['==', 'meta', 'feature'], ['==', 'active', 'true']],
-        'paint': {
-          'circle-radius': mergedOptions.controlPointRadius + 2, // Plus grand quand actif
-          'circle-color': mergedOptions.activePointColor,
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#FFFFFF'
-        }
-      },
-      // Style pour les points de contrôle inactifs
-      {
-        'id': 'gl-draw-point',
-        'type': 'circle',
-        'filter': ['all', ['==', '$type', 'Point'], ['==', 'meta', 'feature'], ['==', 'active', 'false']],
-        'paint': {
-          'circle-radius': mergedOptions.controlPointRadius,
-          'circle-color': mergedOptions.inactivePointColor,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF'
-        }
-      },
-      // Style pour les lignes actives
-      {
-        'id': 'gl-draw-line-active',
-        'type': 'line',
-        'filter': ['all', ['==', '$type', 'LineString'], ['==', 'active', 'true']],
-        'layout': {
-          'line-cap': 'round',
-          'line-join': 'round'
-        },
-        'paint': {
-          'line-color': mergedOptions.activePointColor,
-          'line-width': 4
-        }
-      },
-      // Style pour les lignes inactives
-      {
-        'id': 'gl-draw-line',
-        'type': 'line',
-        'filter': ['all', ['==', '$type', 'LineString'], ['==', 'active', 'false']],
-        'layout': {
-          'line-cap': 'round',
-          'line-join': 'round'
-        },
-        'paint': {
-          'line-color': mergedOptions.inactivePointColor,
-          'line-width': 3
-        }
-      },
-      // Style pour les polygones actifs
-      {
-        'id': 'gl-draw-polygon-active',
-        'type': 'fill',
-        'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'true']],
-        'paint': {
-          'fill-color': mergedOptions.activePointColor,
-          'fill-opacity': 0.4
-        }
-      },
-      // Style pour les polygones inactifs
-      {
-        'id': 'gl-draw-polygon',
-        'type': 'fill',
-        'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'false']],
-        'paint': {
-          'fill-color': mergedOptions.inactivePointColor,
-          'fill-opacity': 0.2
-        }
-      },
-      // Style pour le contour des polygones actifs
-      {
-        'id': 'gl-draw-polygon-stroke-active',
-        'type': 'line',
-        'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'true']],
-        'layout': {
-          'line-cap': 'round',
-          'line-join': 'round'
-        },
-        'paint': {
-          'line-color': mergedOptions.activePointColor,
-          'line-width': 4
-        }
-      },
-      // Style pour le contour des polygones inactifs
-      {
-        'id': 'gl-draw-polygon-stroke',
-        'type': 'line',
-        'filter': ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'false']],
-        'layout': {
-          'line-cap': 'round',
-          'line-join': 'round'
-        },
-        'paint': {
-          'line-color': mergedOptions.inactivePointColor,
-          'line-width': 3
-        }
-      },
-      // Style pour les points de contrôle des vertex (en mode édition)
-      {
-        'id': 'gl-draw-point-vertex',
-        'type': 'circle',
-        'filter': ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point']],
-        'paint': {
-          'circle-radius': mergedOptions.controlPointRadius, // Plus grand pour être plus facile à toucher
-          'circle-color': '#FFFFFF',
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#D20C0C'
-        }
-      },
-      // Style pour le point de milieu (pour ajouter un vertex)
-      {
-        'id': 'gl-draw-point-mid-point',
-        'type': 'circle',
-        'filter': ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point']],
-        'paint': {
-          'circle-radius': mergedOptions.midPointRadius, // Plus grand pour être plus facile à toucher
-          'circle-color': '#FFFFFF',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#D20C0C'
-        }
-      }
-    ]
-  }
-  
-  /**
-   * Configure les écouteurs d'événements de dessin
-   */
-  const setupDrawEvents = () => {
-    if (!map.value || !draw.value) return
-    
-    // Événement de création d'une forme
-    map.value.on('draw.create', (e: any) => {
-      // When a shape is created, disable drawing mode and reset the active tool
-      isDrawing.value = false
-      activeTool.value = null
-      
-      // Call the callback if provided
-      if (options.onDrawCreate) {
-        options.onDrawCreate(e)
-      }
-      
-      // Use setTimeout to avoid recursive stack calls
-      setTimeout(() => {
-        if (draw.value) {
-          draw.value.changeMode('simple_select')
-        }
-      }, 0)
-    })
-    
-    // Événement de mise à jour d'une forme
-    map.value.on('draw.update', (e: any) => {
-      if (options.onDrawUpdate) {
-        options.onDrawUpdate(e)
-      }
-    })
-    
-    // Événement de changement de sélection
-    map.value.on('draw.selectionchange', (e: any) => {
-      selectedFeature.value = e.features.length > 0 ? e.features[0] : null
-      if (options.onDrawSelect) {
-        options.onDrawSelect(e)
-      }
-    })
-    
-    // Événement de suppression d'une forme
-    map.value.on('draw.delete', (e: any) => {
-      selectedFeature.value = null
-      if (options.onDrawDelete) {
-        options.onDrawDelete(e)
-      }
-    })
-    
-    // Événement de changement de mode
-    map.value.on('draw.modechange', (e: any) => {
-      isDrawing.value = e.mode !== 'simple_select' && e.mode !== 'direct_select'
-    })
+    // Initialize Geoman plugin for MapLibre
+    const gmOptions: GmOptionsPartial = {};
+    geoman = await createGeomanInstance(mapInstance, gmOptions);
+    await geoman.addControls();
+    geomanReady.value = true;
+
+    // Register Geoman events
+    mapInstance.on('gm:create', (e: any) => {
+      isDrawing.value = false;
+      selectedFeature.value = e.layer.feature;
+      options.onDrawCreate?.({ type: 'create', features: [e.layer.feature] });
+    });
+    mapInstance.on('gm:update', (e: any) =>
+      options.onDrawUpdate?.({ type: 'update', features: [e.layer.feature] })
+    );
+    mapInstance.on('gm:drawend', (e: any) =>
+      options.onDrawSelect?.({ type: 'select', features: [e.layer.feature] })
+    );
+    mapInstance.on('gm:remove', (e: any) => {
+      selectedFeature.value = null;
+      options.onDrawDelete?.({
+        type: 'delete',
+        features: e.layers.map((l: any) => l.feature),
+      });
+    });
   }
   
   /**
    * Change le mode de dessin actif
    */
   const changeDrawingMode = (mode: string) => {
-    if (!draw.value) return
-    
-    // Store the draw mode based on the tool type
-    let drawMode: string;
-    
-    switch (mode) {
-      case 'point':
-        drawMode = 'draw_point';
-        activeTool.value = 'Note'; // Update activeTool with proper tool name
-        isDrawing.value = true;
-        break;
-      case 'line':
-        drawMode = 'draw_line_string';
-        activeTool.value = 'Line'; // Update activeTool with proper tool name
-        isDrawing.value = true;
-        break;
-      case 'polygon':
-        drawMode = 'draw_polygon';
-        activeTool.value = 'Polygon'; // Update activeTool with proper tool name
-        isDrawing.value = true;
-        break;
-      case 'select':
-        drawMode = 'simple_select';
-        activeTool.value = null;
-        isDrawing.value = false;
-        break;
-      default:
-        drawMode = 'simple_select';
-        activeTool.value = null;
-        isDrawing.value = false;
-        break;
+    if (!map.value) return;
+    const geomanMode = DRAW_MODES[mode];
+    geoman?.disableDraw();
+    if (geomanMode) {
+      geoman?.enableDraw(geomanMode as any);
+      activeTool.value = mode;
+      isDrawing.value = true;
+    } else {
+      activeTool.value = null;
+      isDrawing.value = false;
     }
-    
-    // Apply the draw mode to the mapbox draw instance
-    draw.value.changeMode(drawMode);
   }
   
   /**
-   * Désactive le dessin et revient en mode sélection
+   * Désactive le dessin et passe en mode sélection
    */
   const disableDrawing = () => {
-    if (!draw.value) return
-    
-    activeTool.value = null
-    isDrawing.value = false
-    draw.value.changeMode('simple_select')
+    if (!map.value) return;
+    try {
+      geoman?.disableDraw();
+      activeTool.value = null;
+      isDrawing.value = false;
+    } catch { }
   }
   
   /**
    * Supprime toutes les formes dessinées
    */
   const clearAllDrawings = () => {
-    if (!draw.value) return
+    if (!map.value) return;
     
-    draw.value.deleteAll()
-    selectedFeature.value = null
+    try {
+      // Delete all features
+      geoman?.removeAll();
+      selectedFeature.value = null;
+    } catch (error) {
+      console.error('Error clearing all drawings:', error);
+    }
   }
   
   /**
    * Supprime la forme actuellement sélectionnée
    */
   const deleteSelectedFeature = () => {
-    if (!draw.value || !selectedFeature.value) return
+    if (!map.value || !selectedFeature.value) return;
     
-    draw.value.delete(selectedFeature.value.id)
-    selectedFeature.value = null
+    try {
+      // Remove the feature from map
+      geoman?.removeLayer(selectedFeature.value.id as string);
+      selectedFeature.value = null;
+    } catch (error) {
+      console.error('Error deleting selected feature:', error);
+    }
   }
   
   /**
-   * Affiche toutes les formes dessinées
+   * Récupère toutes les formes dessinées
    */
   const getAllFeatures = () => {
-    if (!draw.value) return []
+    if (!map.value) return [];
     
-    return draw.value.getAll().features
+    try {
+      // Return all drawn geometries
+      return geoman?.getGeometries().map((g: any) => g.feature) || [];
+    } catch (error) {
+      console.error('Error getting all features:', error);
+      return [];
+    }
   }
 
   /**
    * Nettoie les événements lors de la destruction du composant
    */
   const cleanup = () => {
-    if (!map.value) return
+    if (!map.value) return;
     
-    map.value.off('draw.create')
-    map.value.off('draw.update')
-    map.value.off('draw.selectionchange')
-    map.value.off('draw.delete')
-    map.value.off('draw.modechange')
-    
-    if (draw.value && map.value) {
-      map.value.removeControl(draw.value)
+    // Remove event listeners
+    if (map.value) {
+      map.value.off('gm:create', () => {});
+      map.value.off('gm:update', () => {});
+      map.value.off('gm:drawend', () => {});
+      map.value.off('gm:remove', () => {});
+    }
+  }
+  
+  /**
+   * Met à jour le style d'une forme sélectionnée
+   * @param featureId ID de la feature à mettre à jour
+   * @param styleProps Propriétés de style à appliquer
+   */
+  const updateFeatureStyle = (featureId: string | number, styleProps: any) => {
+    if (!map.value || !selectedFeature.value) return;
+
+    try {
+      console.log('Updating feature style for ID:', featureId);
+      console.log('Style properties:', styleProps);
+
+      // Get the feature by ID
+      const feature = geoman?.getLayer(selectedFeature.value.id as string);
+      if (!feature) {
+        console.error(`Feature with ID ${selectedFeature.value.id} not found`);
+        return;
+      }
+      
+      console.log('Original feature:', feature);
+
+      // Create a copy of the feature to modify
+      const updatedFeature = JSON.parse(JSON.stringify(feature));
+
+      // Make sure properties object exists
+      if (!updatedFeature.properties) {
+        updatedFeature.properties = {};
+      }
+
+      // Make sure style object exists
+      if (!updatedFeature.properties.style) {
+        updatedFeature.properties.style = {};
+      }
+
+      // Apply the style updates to properties.style
+      Object.keys(styleProps).forEach(key => {
+        updatedFeature.properties.style[key] = styleProps[key];
+      });
+
+      console.log('Updated feature to add:', updatedFeature);
+
+      // Update feature in MapLibre
+      geoman?.updateLayer(selectedFeature.value.id as string, updatedFeature);
+
+      // The critical step - call setFeatureProperty to ensure MapLibre updates its internal state
+      Object.keys(styleProps).forEach(key => {
+        // Convert style property names to match expected format
+        const propName = `style.${key}`;
+        geoman?.setFeatureProperty(selectedFeature.value.id as string, propName, styleProps[key]);
+      });
+
+      // Force a redraw to apply style changes - THE KEY PART
+      const currentSelectedFeatures = geoman?.getSelectedIds() || [];
+      console.log('Currently selected features:', currentSelectedFeatures);
+      
+      // If there were selected features, re-select them
+      if (currentSelectedFeatures.length > 0) {
+        geoman?.select(currentSelectedFeatures);
+      }
+      
+      console.log('Feature style update complete');
+    } catch (error) {
+      console.error('Error updating feature style:', error);
     }
   }
   
   // Nettoyage lors de la destruction du composant
   onUnmounted(() => {
-    cleanup()
-  })
+    cleanup();
+  });
   
   // API publique
   return {
     initDrawing,
     map,
-    draw,
     isDrawing,
     activeTool,
     selectedFeature,
@@ -377,6 +265,6 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
     clearAllDrawings,
     deleteSelectedFeature,
     getAllFeatures,
-    cleanup
+    updateFeatureStyle
   }
 }

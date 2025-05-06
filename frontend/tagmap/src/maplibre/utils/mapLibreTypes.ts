@@ -4,7 +4,7 @@
  */
 
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import type { DrawFeature, Options as DrawOptions, DrawMode } from '@mapbox/mapbox-gl-draw'
+import type { DrawFeature } from '@mapbox/mapbox-gl-draw'
 
 /**
  * Types des sources de tuiles
@@ -41,8 +41,19 @@ export interface MapLibreInitOptions {
 /**
  * Options pour les contrôles de dessin
  */
-export interface DrawControlOptions extends DrawOptions {
+export interface DrawControlOptions {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  displayControlsDefault?: boolean
+  controls?: {
+    point?: boolean
+    line_string?: boolean
+    polygon?: boolean
+    trash?: boolean
+    combine_features?: boolean
+    uncombine_features?: boolean
+  }
+  styles?: any[]
+  default_mode?: string
 }
 
 /**
@@ -51,6 +62,7 @@ export interface DrawControlOptions extends DrawOptions {
 export interface DrawEvent {
   type: string
   features: DrawFeature[]
+  [key: string]: any
 }
 
 /**
@@ -77,7 +89,7 @@ export interface DrawHandlers {
   update?: (event: DrawEvent) => void
   selectionchange?: (event: DrawEvent) => void
   delete?: (event: DrawEvent) => void
-  modechange?: (event: { mode: DrawMode }) => void
+  modechange?: (event: { mode: string }) => void
   render?: (event: any) => void
   actionable?: (event: { actions: Record<string, boolean> }) => void
 }

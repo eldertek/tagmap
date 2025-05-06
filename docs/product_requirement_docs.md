@@ -39,6 +39,7 @@ Organizations need a centralized way to:
 - Side panel dialog box interface for note management
 - Display enterprise name on each note for Administrators only
 - **Centralized control point management**: All control point display and interaction is handled by a dedicated composable (`useMapDrawing.ts`), while geometry utilities (`Line.ts`, `Polygon.ts`) provide only pure geometric computations without UI code.
+- **Drawing tool mode mapping**: When using MapLibre drawing tools, the correct Geoman mode names must be used (e.g., 'draw_polygon', 'draw_line_string', 'draw_point'). See `docs/technical.md` for the full mapping table and usage details.
 
 ### Media Management
 - In-app photo capture capability
@@ -200,4 +201,9 @@ Tous les composants manipulant des niveaux d'accès (création, édition, filtra
 - Le filtre de la carte n'affiche pas l'option "Privé" (car les éléments privés ne sont visibles que par leur créateur).
 - Toute modification future des niveaux d'accès doit passer par ce mapping centralisé.
 
-Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.ts` (type AccessLevel). 
+Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.ts` (type AccessLevel).
+
+## Frontend Features
+
+- [ ] Map integration with drawing tools
+- [2024-07-19] Fixed delete button event binding in MapLibreTest.vue to correctly call handleDrawDelete instead of non-existent deleteSelectedFeature. 

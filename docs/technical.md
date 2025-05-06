@@ -95,6 +95,32 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 - **Auto-Save Feature**: Frontend now automatically triggers plan save every minute and upon any drawing modification (creation, deletion, update).
 - **Les salariés peuvent voir et charger les plans sans visiteur associé, via un bouton dédié dans MapView.vue (cohérence UX avec les entreprises).**
 
+### Drawing Tool Mode Mapping (MapLibre-Geoman)
+
+> **Important:** When enabling drawing modes with MapLibre-Geoman, you must use the correct mode names as expected by the plugin. Using incorrect names (e.g., 'Polygon', 'Polyline', 'Marker') will result in errors such as "Unable to enable mode, ... is not available".
+
+**Mapping table:**
+
+| UI Tool Name | Geoman Mode Name      |
+|--------------|-----------------------|
+| Polygon      | polygon               |
+| Line         | line_string           |
+| Note         | point                 |
+
+**Usage Example:**
+```js
+const modeMap = {
+  'Polygon': 'polygon',
+  'Line': 'line_string',
+  'Note': 'point'
+};
+const drawMode = modeMap[tool];
+mapInstance.value.gm.enableDraw(drawMode);
+```
+
+- Always refer to the [@geoman-io/maplibre-geoman-free documentation](https://github.com/geoman-io/maplibre-geoman-free#api) for the latest mode names.
+- Update this table if new drawing modes are added or if the plugin changes its API.
+
 ### Testing
 - **Backend**: Django Test Framework, pytest-django
 - **Frontend**: Jest, Vue Test Utils
@@ -348,6 +374,7 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 - Control points are larger on mobile for easier interaction.
 - All drag/move logic is unified for mouse and touch events, ensuring a consistent experience across devices.
 - Mobile UX best practices: only one control point can be dragged at a time, and the UI avoids accidental map pans during editing.
+- Clicking on an existing shape when no drawing tool is active enters selection mode, allowing modification via control points.
 
 ### Technical Details
 - All control point event handlers now listen to both mouse and touch events.
@@ -472,3 +499,15 @@ Toutes les requêtes de tuiles cartographiques (hybride, cadastre, IGN) passent 
 4. Protéger les clés API externes
 
 Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter automatiquement les headers d'authentification dans les requêtes de tuiles. Ce mécanisme garantit que seules les requêtes authentifiées accèdent aux tuiles premium et que la sécurité est maximale.
+
+## Known Issues
+
+- [2024-07-19] Vue warning: Property "deleteSelectedFeature" was accessed during render but is not defined; resolved by renaming the `@delete-shape` binding to `handleDrawDelete` in `MapLibreTest.vue`.
+- [2024-07-20] MapLibre-Geoman errors "Can't add controls: controls already added" and "An image named \"default-marker\" already exists"; resolved by using `.once` for the `load` and `gm:loaded` events and monkey-patching `addImage` to guard against duplicate images.
+
+## [2024-06] Mise à jour PWA/mobile
+
+- La balise `<meta name="apple-mobile-web-app-capable" content="yes">` est désormais dépréciée et doit être remplacée par `<meta name="mobile-web-app-capable" content="yes">` dans le fichier HTML principal.
+- Toutes les icônes référencées dans le manifest (ex: `/static/frontend/img/icons/msapplication-icon-144x144.png`) doivent exister et être des images PNG valides. Vérifier leur présence dans le dossier `frontend/tagmap/public/img/icons/`.
+- Voir aussi le manifest à l'emplacement `static/frontend/manifest.webmanifest` pour la liste complète des icônes attendues.
+- Les chemins d'icônes dans le manifest doivent être relatifs à la racine publique (ex: `/img/icons/msapplication-icon-144x144.png`) pour garantir la compatibilité avec le serveur de développement Vite et le mode PWA.

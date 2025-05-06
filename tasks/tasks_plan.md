@@ -18,6 +18,8 @@
 | Geolocation Notes | Not started | Medium | - | Create and manage geolocated notes |
 | Drawing Tools | Not started | Medium | - | Implement polygon and line drawing tools |
 |              |            |        |   | **Note:** The Line class methods are now implemented as class properties (arrow functions) to match Leaflet's Polyline base class and resolve TypeScript compatibility issues. |
+|              |            |        |   | **Checklist:**
+|              |            |        |   | - [ ] Drawing tool mode mapping for MapLibre-Geoman is correct and matches the mapping table in docs/technical.md (e.g., 'draw_polygon', 'draw_line_string', 'draw_point').
 | Media Management | Not started | Medium | - | Photo capture and attachment to points |
 | Route Planning | Not started | Low | - | Calculate and display routes |
 | PDF Generation | Not started | Low | - | Generate reports from map data |
@@ -106,6 +108,7 @@
    - [x] Improve Note icon with circle underneath to better represent location drop pin
    - [x] Enhance visibility of the location pin drop shadow with larger size and fill
    - [x] Permettre à l'utilisateur d'ouvrir un itinéraire Google Maps vers la position d'une note géolocalisée depuis DrawingTools.vue (bouton "Itinéraire"). Implémenté via la méthode openInGoogleMaps sur GeoNote.
+   - [x] Allow click on existing shapes when no drawing tool is active to enter selection mode and enable control-point editing
    - [ ] **Enforce control point separation**: Create non-regression test to validate that all Leaflet control point creation/interaction code resides in `useMapDrawing.ts` and none exists in `Line.ts` or `Polygon.ts` utils.
 
 7. **Media Management**
@@ -152,8 +155,8 @@
 ## Known Issues
 
 - Fallback reload of the last consulted plan (`loadLastPlan`) fails when `loadPlan` returns a 404 for an invalid `planId`, because `lastPlanId` was being removed before fallback. Fixed by preserving `lastPlanId` in `loadPlan` catch blocks.
-- Tests: Manual verification of fallback loading after API 404.
-- [2024-07-15] Nouvelle architecture proxy tuiles hybrides Google Maps : backend utilise l'API officielle Map Tiles (POST createSession, GET 2dtiles, session token, logs structurés, clé API côté serveur uniquement). Toute évolution doit être synchronisée dans la documentation technique et les tests automatisés.
+- [2024-07-19] Vue warning: Property "deleteSelectedFeature" was accessed during render but is not defined; resolved by renaming the `@delete-shape` binding to `handleDrawDelete` in `MapLibreTest.vue`.
+- [2024-07-15] Nouvelle architecture proxy tuiles hybrides Google Maps : backend utilise l'API officielle Map Tiles (POST createSession, GET 2dtiles, session token, logs structurés, clé API côté serveur uniquement). Toute évolution doit être synchronisée dans la documentation technique et les tests automatisés.
 
 ## Next Steps
 
@@ -231,3 +234,9 @@ Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobil
 - [ ] Create reusable map component that can be used across the application
 - [ ] Implement feature saving with the backend API
 - [ ] Add layer control for toggling different map features
+
+- [ ] Vérifier la validité et l'accessibilité de toutes les icônes référencées dans le manifest :
+    - Présence du fichier dans `frontend/tagmap/public/img/icons/`
+    - Format PNG valide
+    - Accessibilité HTTP en dev et prod
+    - Chemins relatifs à la racine publique (`/img/icons/...`) pour compatibilité Vite/PWA

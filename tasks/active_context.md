@@ -16,6 +16,8 @@
    - Navigation intuitive entre les différentes vues
    - Optimisation des performances de chargement
    - **Résolution des problèmes d'interactions tactiles sur mobile, particulièrement pour l'édition des formes via les points de contrôle**
+   - Permettre de cliquer sur une forme existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et modifier via les points de contrôle
+   - **Non-regression requirement:** The Geoman drawing mode mapping for MapLibre must always match the mapping table in docs/technical.md (e.g., 'draw_polygon', 'draw_line_string', 'draw_point'). Any future changes to drawing tools must verify this mapping is correct.
 
 3. **Map Layer Integration**
    - ✅ Implemented Google Maps for high-quality hybrid view
@@ -61,6 +63,7 @@
 - ✅ Système d'authentification
 - ✅ Interface de gestion des utilisateurs pour les administrateurs
 - ✅ Correction du bug de rechargement automatique du dernier plan consulté (`loadLastPlan`) lorsque le plan spécifié dans l'URL est introuvable (404).
+- ✅ Correction du warning Vue : propriété "deleteSelectedFeature" référencée sans définition dans le template; renommage du binding `@delete-shape` en `handleDrawDelete` dans MapLibreTest.vue
 - ✅ Page Paramètres admin accessible uniquement aux administrateurs avec stockage sécurisé côté serveur de la clé d'API Google Maps (modèle ApplicationSetting) et API dédiée pour sa récupération/mise à jour.
 - ✅ Service settings.ts créé pour encapsuler les appels API liés aux paramètres, et implémentation dans ParametresView.vue pour utiliser ce service au lieu de l'API directement.
 - ✅ Refactorisation des fonctions Google Maps et coordonnées géographiques pour éliminer la duplication de code.
