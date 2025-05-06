@@ -215,10 +215,21 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
     
     // Événement de création d'une forme
     map.value.on('draw.create', (e: any) => {
+      // When a shape is created, disable drawing mode and reset the active tool
       isDrawing.value = false
+      activeTool.value = null
+      
+      // Call the callback if provided
       if (options.onDrawCreate) {
         options.onDrawCreate(e)
       }
+      
+      // Use setTimeout to avoid recursive stack calls
+      setTimeout(() => {
+        if (draw.value) {
+          draw.value.changeMode('simple_select')
+        }
+      }, 0)
     })
     
     // Événement de mise à jour d'une forme

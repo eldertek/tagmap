@@ -60,11 +60,12 @@
             <button v-for="tool in drawingTools.filter(t => t.type !== 'delete')" :key="tool.type"
               class="flex items-center justify-center p-2 rounded-md border transition-all duration-200"
               :class="{
-                'bg-primary-50 border-primary-500 text-primary-600': props.selectedTool === tool.type,
+                'bg-primary-500 border-primary-700 text-white font-bold shadow-md': props.selectedTool === tool.type,
                 'hover:bg-gray-50 border-gray-300 text-gray-700': props.selectedTool !== tool.type
               }"
               @click="handleToolClick(tool.type)" :title="tool.label">
               <span class="icon" v-html="getToolIcon(tool.type)"></span>
+              <span class="ml-1 text-xs" v-if="props.selectedTool === tool.type">Actif</span>
             </button>
           </div>
           <!-- Boutons spécifiques pour les GeoNotes -->

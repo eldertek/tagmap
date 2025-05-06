@@ -405,6 +405,8 @@ function handleDrawCreate(e: any) {
   console.log('Feature created:', e.features)
   // Refresh the feature list
   allLayers.value = getAllFeatures()
+  // Reset selected tool to none
+  selectedTool.value = ''
   // Simulate saving
   simulateSave()
 }
@@ -463,57 +465,165 @@ function handleToolSelection(tool: string) {
 
 // Update shape style
 function updateShapeStyle(styleProps: any) {
-  if (!selectedFeature.value || !drawInstance.value) return
+  if (!selectedFeature.value || !drawInstance.value || !mapInstance.value) return
   
-  // Get current feature
-  const feature = { ...selectedFeature.value }
+  console.log('Selected feature:', selectedFeature.value);
+  console.log('Style props to update:', styleProps);
   
-  // Update style properties
-  if (!feature.properties) {
-    feature.properties = {}
+  try {
+    // Get feature ID
+    const featureId = selectedFeature.value.id;
+    
+    // Create a deep clone of the feature
+    const updatedFeature = JSON.parse(JSON.stringify(selectedFeature.value));
+    
+    // Make sure properties and style objects exist
+    if (!updatedFeature.properties) {
+      updatedFeature.properties = {};
+    }
+    
+    if (!updatedFeature.properties.style) {
+      updatedFeature.properties.style = {};
+    }
+    
+    // Apply the style updates
+    Object.keys(styleProps).forEach(key => {
+      updatedFeature.properties.style[key] = styleProps[key];
+    });
+    
+    // Store the updated style in the feature for visual rendering
+    selectedFeature.value.properties.style = { ...updatedFeature.properties.style };
+    
+    // Safely check if getMode is available before calling it
+    let currentMode = 'simple_select'; // Default mode
+    if (drawInstance.value && typeof drawInstance.value.getMode === 'function') {
+      try {
+        currentMode = drawInstance.value.getMode();
+      } catch (modeError) {
+        console.warn('Could not get current draw mode:', modeError);
+      }
+    }
+    
+    // Apply the style directly to the map
+    if (mapInstance.value) {
+      // Apply styling based on feature type
+      if (updatedFeature.geometry.type === 'Polygon') {
+        // Find and update fill layers
+        const fillLayer = mapInstance.value.getStyle().layers.find(
+          (layer) => layer.id.includes('gl-draw-polygon') && !layer.id.includes('stroke')
+        );
+        
+        if (fillLayer && styleProps.fillColor) {
+          mapInstance.value.setPaintProperty(
+            fillLayer.id, 
+            'fill-color', 
+            styleProps.fillColor
+          );
+          
+          if (styleProps.fillOpacity !== undefined) {
+            mapInstance.value.setPaintProperty(
+              fillLayer.id, 
+              'fill-opacity', 
+              styleProps.fillOpacity
+            );
+          }
+        }
+        
+        // Find and update stroke layers
+        const strokeLayer = mapInstance.value.getStyle().layers.find(
+          (layer) => layer.id.includes('gl-draw-polygon-stroke')
+        );
+        
+        if (strokeLayer && styleProps.strokeColor) {
+          mapInstance.value.setPaintProperty(
+            strokeLayer.id, 
+            'line-color', 
+            styleProps.strokeColor
+          );
+          
+          if (styleProps.strokeWidth !== undefined) {
+            mapInstance.value.setPaintProperty(
+              strokeLayer.id, 
+              'line-width', 
+              styleProps.strokeWidth
+            );
+          }
+        }
+      } else if (updatedFeature.geometry.type === 'LineString') {
+        // Find and update line layers
+        const lineLayer = mapInstance.value.getStyle().layers.find(
+          (layer) => layer.id.includes('gl-draw-line')
+        );
+        
+        if (lineLayer && styleProps.strokeColor) {
+          mapInstance.value.setPaintProperty(
+            lineLayer.id, 
+            'line-color', 
+            styleProps.strokeColor
+          );
+          
+          if (styleProps.strokeWidth !== undefined) {
+            mapInstance.value.setPaintProperty(
+              lineLayer.id, 
+              'line-width', 
+              styleProps.strokeWidth
+            );
+          }
+        }
+      }
+    }
+    
+    // Force UI update
+    selectedFeature.value = { ...selectedFeature.value };
+    
+    // Simulate saving
+    simulateSave();
+    
+    console.log('Style updated successfully:', selectedFeature.value.properties.style);
+  } catch (error) {
+    console.error('Error updating feature style:', error);
   }
-  
-  if (!feature.properties.style) {
-    feature.properties.style = {}
-  }
-  
-  // Apply the style props
-  Object.keys(styleProps).forEach(key => {
-    feature.properties.style[key] = styleProps[key]
-  })
-  
-  // Update the feature in the draw control
-  drawInstance.value.add(feature)
-  
-  // Simulate saving
-  simulateSave()
 }
 
 // Update shape properties
 function updateShapeProperties(props: any) {
-  if (!selectedFeature.value || !drawInstance.value) return
+  if (!selectedFeature.value || !drawInstance.value || !mapInstance.value) return
   
-  // Get current feature
-  const feature = { ...selectedFeature.value }
+  console.log('Selected feature for property update:', selectedFeature.value);
+  console.log('Properties to update:', props);
   
-  // Update properties
-  if (!feature.properties) {
-    feature.properties = {}
+  try {
+    // Create a deep clone of the feature
+    const updatedFeature = JSON.parse(JSON.stringify(selectedFeature.value));
+    
+    // Make sure properties object exists
+    if (!updatedFeature.properties) {
+      updatedFeature.properties = {};
+    }
+    
+    // Apply property updates
+    Object.keys(props).forEach(key => {
+      updatedFeature.properties[key] = props[key];
+    });
+    
+    // Directly update properties on the selected feature
+    Object.keys(props).forEach(key => {
+      if (!selectedFeature.value.properties) {
+        selectedFeature.value.properties = {};
+      }
+      selectedFeature.value.properties[key] = props[key];
+    });
+    
+    // Force UI update
+    selectedFeature.value = { ...selectedFeature.value };
+    
+    // Simulate saving
+    simulateSave();
+    
+    console.log('Properties updated successfully:', updatedFeature.properties);
+  } catch (error) {
+    console.error('Error updating feature properties:', error);
   }
-  
-  // Apply the property updates
-  Object.keys(props).forEach(key => {
-    feature.properties[key] = props[key]
-  })
-  
-  // Update the feature in the draw control
-  drawInstance.value.add(feature)
-  
-  // Refresh selected feature
-  selectedFeature.value = feature
-  
-  // Simulate saving
-  simulateSave()
 }
 
 // Handle filter changes
