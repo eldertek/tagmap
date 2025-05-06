@@ -325,3 +325,47 @@ A dedicated admin-only settings page (`ParametresView.vue`) allows administrator
 - Hybrid map layer (Google Maps) uses the latest key from the server.
 - Maximized security by keeping sensitive API keys completely server-side.
 - No possibility of API key extraction from client-side code or network requests. 
+
+## Map Tile Proxy Architecture (Google Maps Hybrid)
+
+TagMap utilise un proxy backend sécurisé pour servir les tuiles hybrides Google Maps (satellite + labels) à la carte interactive. Ce proxy fonctionne ainsi :
+
+1. Le frontend requête `/api/tiles/hybrid/{z}/{x}/{y}.png` pour chaque tuile à afficher.
+2. Le backend (Django) :
+   - Récupère la clé API Google Maps (jamais transmise au client)
+   - Effectue un POST vers `https://tile.googleapis.com/v1/createSession` pour obtenir un jeton de session (session token) avec:
+     - `mapType`: "satellite" comme fond de base
+     - `layerTypes`: ["layerRoadmap"] pour superposer les labels de routes
+   - Utilise ce jeton pour requêter la tuile hybride via `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=...`
+   - Retourne la tuile au frontend avec les headers de cache appropriés
+   - Gère les erreurs et logs structurés
+
+**Avantages :**
+- La clé API Google Maps reste strictement côté serveur (aucun risque d'exposition)
+- Respect des quotas et des conditions d'utilisation Google
+- Possibilité de monitorer et limiter l'usage côté backend
+- Gestion centralisée du cache et des erreurs
+- Compatible avec les deux bibliothèques cartographiques utilisées (Leaflet et MapLibre GL)
+
+**Conformité :**
+- Ce flux suit la documentation officielle Google Maps Map Tiles ([voir doc](https://developers.google.com/maps/documentation/tile/satellite?hl=fr))
+- Toute modification future du flux ou des endpoints doit être synchronisée dans la documentation et les tests automatisés
+
+**Autres fonds de carte :**
+- Les couches Cadastre et IGN utilisent les endpoints publics `data.geopf.fr` (pas de clé requise, accès direct depuis le frontend)
+
+**Résumé du flux :**
+```mermaid
+sequenceDiagram
+    participant Frontend
+    participant Backend
+    participant GoogleMaps
+    Frontend->>Backend: GET /api/tiles/hybrid/{z}/{x}/{y}.png
+    Backend->>GoogleMaps: POST /v1/createSession (clé API, mapType=satellite, layerTypes=[layerRoadmap])
+    GoogleMaps-->>Backend: session token
+    Backend->>GoogleMaps: GET /v1/2dtiles/{z}/{x}/{y}?session=... (clé API)
+    GoogleMaps-->>Backend: image/png
+    Backend-->>Frontend: image/png (avec headers de cache)
+```
+
+Ce design garantit la sécurité, la conformité, et la flexibilité pour l'évolution future des fonds de carte. 

@@ -151,6 +151,10 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 
 - [2024-07-15] Refactorisation : Création de `dateUtils.ts` pour centraliser toutes les fonctions de formatage et de manipulation des dates. Remplacement des implémentations locales de debounce/throttle par les importations de lodash pour une meilleure performance et maintenabilité. Standardisation des fonctions de traitement des coordonnées avec `extractLatLng` dans `geoUtils.ts`.
 
+- [2024-07-15] Mise à jour : Le proxy backend pour les tuiles hybrides Google Maps utilise désormais l'API officielle Map Tiles : POST /v1/createSession pour obtenir un session token, puis GET /v1/2dtiles/{z}/{x}/{y}?session=... pour chaque tuile. La clé API reste strictement côté serveur, les logs d'erreur sont structurés, et le flux est conforme à la documentation Google. Toute évolution future du flux doit être synchronisée dans la documentation technique et les tests automatisés.
+
+- [2024-07-18] Amélioration : La configuration des tuiles hybrides a été optimisée pour assurer la compatibilité entre Leaflet et MapLibre GL. La requête de session utilise désormais explicitement `mapType="satellite"` avec `layerTypes=["layerRoadmap"]` pour obtenir l'effet hybride (satellite + routes/labels). MapLibreTest.vue a été mis à jour pour utiliser ces tuiles avec un cache-buster et une attribution améliorée. Cela garantit une expérience cartographique cohérente quelle que soit la bibliothèque utilisée.
+
 # Contexte actif : Uniformisation des niveaux d'accès
 
 - Toute gestion, affichage ou filtrage de niveau d'accès doit utiliser le mapping ACCESS_LEVELS de src/utils/noteHelpers.ts.

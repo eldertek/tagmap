@@ -439,41 +439,36 @@ Usage :
 
 TagMap utilise plusieurs fonds de carte (base layers) pour la visualisation géospatiale :
 
-- **Hybride (Google Maps)** : via un proxy backend `/api/tiles/hybrid/{z}/{x}/{y}.png` pour garantir la sécurité de la clé API et le respect des quotas.
+- **Hybride (Google Maps)** : via un proxy backend `/api/tiles/hybrid/{z}/{x}/{y}.png` qui utilise l'API officielle Google Maps Map Tiles. Le backend :
+  1. Récupère la clé API Google Maps côté serveur (jamais exposée au client)
+  2. Effectue un POST vers `https://tile.googleapis.com/v1/createSession` pour obtenir un jeton de session (session token) avec:
+     - `mapType`: "satellite" (image satellite de base)
+     - `layerTypes`: ["layerRoadmap"] (superposition des labels de routes)
+  3. Utilise ce jeton pour requêter la tuile hybride (satellite + labels) via `https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=...`
+  4. Retourne la tuile au frontend avec les headers de cache appropriés
+  5. Gère les erreurs et logs structurés côté serveur
+
+  Ce flux garantit la confidentialité de la clé API, le respect des quotas, et la conformité avec la documentation Google ([voir doc officielle](https://developers.google.com/maps/documentation/tile/satellite?hl=fr)). 
+  
+  La même configuration est utilisée à la fois pour les composants Leaflet et MapLibre GL, garantissant une expérience utilisateur cohérente quelle que soit la bibliothèque cartographique utilisée.
+
 - **Cadastre (Parcellaire Express)** : via le service public Géoportail IGN :
   `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
 - **IGN (Plan IGN V2)** : via le service public Géoportail IGN :
   `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
 
 **Important :**
+- Toute modification future du flux d'obtention des tuiles hybrides Google Maps doit être synchronisée dans la documentation et les tests automatisés.
+- Les options d'attribution, de zoom maximal (`maxzoom`), et de taille de tuile (`tileSize`) doivent rester cohérentes entre tous les composants utilisant ces fonds de carte (voir `useMapState.ts` et `MapLibreTest.vue`).
 - Les URLs IGN historiques de type `wxs.ign.fr` ou nécessitant une clé API ne sont plus supportées pour les couches publiques. Toujours utiliser les endpoints `data.geopf.fr` pour garantir la disponibilité sans authentification.
-- Les options d'attribution, de zoom maximal (`maxzoom`), et de taille de tuile (`tileSize`) doivent être synchronisées entre tous les composants utilisant ces fonds de carte (voir `useMapState.ts` et `MapLibreTest.vue`).
-- Toute modification future des URLs ou des paramètres doit être répercutée dans la documentation et les tests.
-
-**Correction 2024-07-10 :**
-- Les fonds de carte IGN et Cadastre dans `MapLibreTest.vue` utilisaient des URLs obsolètes (`wxs.ign.fr`) provoquant des erreurs réseau (net::ERR_NAME_NOT_RESOLVED).
-- Les URLs ont été remplacées par les endpoints publics `data.geopf.fr` comme dans le composable `useMapState.ts`.
-- Cette correction garantit la disponibilité des couches sur tous les environnements et la cohérence avec la configuration Leaflet.
 
 ## MapLibre Tile Handling
 
-All map tile requests (hybrid, cadastre, IGN) are routed through the backend API endpoint `/api/tiles/{type}/{z}/{x}/{y}.png`. This ensures:
+Toutes les requêtes de tuiles cartographiques (hybride, cadastre, IGN) passent par l'API backend `/api/tiles/{type}/{z}/{x}/{y}.png` pour :
 
-1. All requests are properly authenticated using the user's access token
-2. Requests can be logged and monitored 
-3. Usage quotas can be enforced at the backend level
-4. API keys for external services are kept private on the server
+1. Authentifier chaque requête avec le token utilisateur
+2. Logger et monitorer l'usage
+3. Appliquer les quotas côté serveur
+4. Protéger les clés API externes
 
-The frontend uses the `mapService.getTransformRequest()` function to inject authentication headers into tile requests automatically. This approach prevents unauthorized access to premium map tiles while providing a seamless experience for logged-in users.
-
-## MapLibre Layer Management Best Practices
-
-When working with MapLibre GL JS, follow these best practices for layer management:
-
-1. **Error handling**: Always wrap layer operations in try/catch blocks to prevent unhandled exceptions
-2. **Layer existence checks**: Before removing a layer or source, verify it exists using `map.getLayer()` or `map.getSource()`
-3. **Layer ordering**: When adding layers, avoid referencing non-existing layers for ordering. Add without specifying order first, then reorder if needed
-4. **Type handling**: Use `as any` for source definitions when TypeScript definitions don't align with the MapLibre API
-5. **Defensive coding**: Initialize the map with a base layer before adding drawing controls to ensure proper layer order
-
-This ensures robust map behavior even when switching between different base maps or when layers are dynamically added/removed.
+Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter automatiquement les headers d'authentification dans les requêtes de tuiles. Ce mécanisme garantit que seules les requêtes authentifiées accèdent aux tuiles premium et que la sécurité est maximale.

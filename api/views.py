@@ -7,6 +7,7 @@ Gère les endpoints REST pour les utilisateurs, plans, notes et autres ressource
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q, Count
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from datetime import datetime
 
@@ -20,6 +21,8 @@ from rest_framework.views import APIView
 # Imports tiers
 import requests
 import time
+import logging
+import json
 
 # Imports locaux
 from .permissions import IsAdmin, IsSalarie, IsEntreprise
@@ -851,79 +854,6 @@ class NotePhotoViewSet(viewsets.ModelViewSet):
                 })
 
         serializer.save(user=user)
-
-@api_view(['GET'])
-def hybrid_tile_proxy(request, z, x, y):
-    """
-    Proxy pour les tuiles Google Maps 2D API qui préserve la confidentialité de la clé API.
-    Permet d'utiliser Google Maps dans MapLibre sans exposer la clé API au client.
-    
-    Les tuiles sont récupérées depuis le service Google Maps et renvoyées directement 
-    au client avec tous les en-têtes nécessaires.
-    
-    Google Maps dispose de plusieurs types de tuiles via le paramètre lyrs:
-    - m: standard roadmap (default)
-    - s: satellite only
-    - y: hybrid (satellite + roads/labels)
-    - t: terrain
-    - h: roads only
-    """
-    try:
-        # Récupérer la clé API Google Maps depuis les paramètres de l'application
-        try:
-            setting = ApplicationSetting.objects.get(key='google_maps_api_key')
-            api_key = setting.value
-            
-            # Note: Pour les tuiles standards de Google Maps, la clé API n'est pas toujours nécessaire,
-            # mais nous utilisons la clé si disponible pour respecter les conditions d'utilisation
-            
-        except ApplicationSetting.DoesNotExist:
-            api_key = None
-        
-        # Construire l'URL pour la tuile Google Maps
-        # 'y' = hybrid (satellite + roads/labels)
-        base_url = f"https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        
-        # Ajouter la clé API si disponible
-        if api_key:
-            url = f"{base_url}&key={api_key}"
-        else:
-            url = base_url
-        
-        # Récupérer la tuile depuis Google Maps
-        response = requests.get(url, stream=True)
-        
-        if response.status_code != 200:
-            return Response(
-                {'error': f'Erreur lors de la récupération de la tuile: {response.status_code}'},
-                status=response.status_code
-            )
-        
-        # Retourner l'image avec les en-têtes appropriés
-        from django.http import HttpResponse
-        
-        # Créer une réponse Django avec le contenu de l'image
-        http_response = HttpResponse(
-            response.content,
-            content_type=response.headers.get('Content-Type', 'image/png')
-        )
-        
-        # Copier les en-têtes pertinents
-        for header in ['Cache-Control', 'Expires', 'ETag']:
-            if header in response.headers:
-                http_response[header] = response.headers[header]
-                
-        # Ajouter des en-têtes de cache pour optimiser les performances
-        if 'Cache-Control' not in response.headers:
-            http_response['Cache-Control'] = 'public, max-age=86400'  # 24h
-            
-        return http_response
-        
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
 
 class WeatherViewSet(viewsets.ViewSet):
     """ViewSet pour la gestion des données météo."""

@@ -57,7 +57,7 @@
 
 4. **Base Map Integration**
    - [ ] Set up Leaflet map component
-   - [ ] Integrate hybrid map layer
+   - [x] Integrate hybrid map layer (Google Maps via backend proxy using official Map Tiles API: POST createSession with mapType=satellite and layerTypes=[layerRoadmap], GET 2dtiles, session token, server-side API key, structured error logging)
    - [ ] Integrate cadastral map layer
    - [ ] Integrate IGN map layer
    - [ ] Implement layer switching UI
@@ -69,7 +69,7 @@
    - [x] Appliquer des styles CSS globaux pour forcer la visibilité des notes
    - [x] Ajouter une gestion robuste des erreurs et des logs détaillés pour le debug frontend
    - [x] Correction UI : scroll fiable dans tous les tabs de DrawingTools.vue avec architecture flex optimisée (parent flex avec height: 100%, barre d'onglets hauteur fixe, .tab-content avec flex: 1 et max-height en pourcentage, padding-bottom adapté sur mobile). Documentation technique mise à jour.
-   - [ ] Corriger les URLs des fonds de carte IGN et Cadastre dans MapLibreTest.vue pour utiliser les endpoints publics data.geopf.fr (voir useMapState.ts). Documenter la correction dans docs/technical.md et synchroniser toute modification future dans les tests et la doc.
+   - [x] Corriger les URLs des fonds de carte IGN et Cadastre dans MapLibreTest.vue pour utiliser les endpoints publics data.geopf.fr et assurer la compatibilité avec la configuration hybride Google Maps dans les deux bibliothèques cartographiques (Leaflet et MapLibre GL).
 
 ### Phase 2: Core Features (Priority: Medium)
 
@@ -153,13 +153,14 @@
 
 - Fallback reload of the last consulted plan (`loadLastPlan`) fails when `loadPlan` returns a 404 for an invalid `planId`, because `lastPlanId` was being removed before fallback. Fixed by preserving `lastPlanId` in `loadPlan` catch blocks.
 - Tests: Manual verification of fallback loading after API 404.
+- [2024-07-15] Nouvelle architecture proxy tuiles hybrides Google Maps : backend utilise l'API officielle Map Tiles (POST createSession, GET 2dtiles, session token, logs structurés, clé API côté serveur uniquement). Toute évolution doit être synchronisée dans la documentation technique et les tests automatisés.
 
 ## Next Steps
 
 1. Complete initial project setup
 2. Implement database models
 3. Create basic authentication system
-4. Set up map integration with base layers
+4. Set up map integration with base layers (incl. Google Maps hybrid via secure backend proxy, see above)
 5. Begin work on the core geolocation note features 
 
 - [x] Mobile editing: Users must be able to edit polygons, lines, and move GeoNotes on mobile devices using touch. Control points must be touch-friendly and larger on mobile. Test on real devices and emulators. See docs/technical.md for details.

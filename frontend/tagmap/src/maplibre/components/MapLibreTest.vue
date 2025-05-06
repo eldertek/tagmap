@@ -81,7 +81,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
-import { mapService } from '@/services/api'
+import { mapService } from '@/maplibre/utils/MapService'
 
 // Références
 const mapContainer = ref<HTMLElement | null>(null)
@@ -92,61 +92,40 @@ const zoomLevel = ref<number | null>(null)
 const selectedBaseMap = ref('hybrid') // Utiliser la carte hybride par défaut
 const selectedFeature = ref<GeoJSON.Feature | null>(null)
 
-// Sources de tuiles
-const tileSources = {
-  ign: {
-    type: 'raster',
-    tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
-    tileSize: 256,
-    attribution: 'Carte IGN © IGN/Geoportail',
-    maxzoom: 22
-  },
-  hybrid: {
-    type: 'raster',
-    tiles: ['/api/tiles/hybrid/{z}/{x}/{y}.png?_t=' + Date.now()],
-    tileSize: 256,
-    attribution: '© Google Maps',
-    maxzoom: 22
-  },
-  cadastre: {
-    type: 'raster',
-    tiles: ['https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'],
-    tileSize: 256,
-    attribution: 'Cadastre - Carte © IGN/Geoportail',
-    maxzoom: 22
-  }
-}
-
 // Initialisation de la carte
-const initMap = () => {
+const initMap = async () => {
   if (!mapContainer.value) return
 
-  // Utiliser le service de mapService pour obtenir transformRequest
-  const transformRequest = mapService.getTransformRequest();
+  // Définir le style initial en fonction du fond de carte sélectionné
+  let initialStyle;
+  
+  try {
+    if (selectedBaseMap.value === 'hybrid') {
+      // Créer un style pour Google Maps Hybrid
+      initialStyle = await mapService.createGoogleMapStyle('google', 'hybrid', false);
+    } else if (selectedBaseMap.value === 'cadastre') {
+      // Utiliser Google Maps Roadmap avec couche cadastre superposée
+      initialStyle = await mapService.createGoogleMapStyle('google', 'roadmap', true);
+    } else {
+      // Utiliser des tuiles standard IGN
+      initialStyle = mapService.createStandardMapStyle('ign');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création du style de carte:', error);
+    // Fallback à IGN si Google Maps échoue
+    initialStyle = mapService.createStandardMapStyle('ign');
+  }
   
   // Vérifier que le conteneur n'est pas null
   if (!mapContainer.value) return;
   
   mapInstance.value = new maplibregl.Map({
     container: mapContainer.value,
-    style: {
-      version: 8,
-      sources: {
-        'base-tiles': tileSources[selectedBaseMap.value as keyof typeof tileSources] as any
-      },
-      layers: [
-        {
-          id: 'base-tiles',
-          type: 'raster',
-          source: 'base-tiles',
-          minzoom: 0,
-          maxzoom: 22
-        }
-      ]
-    },
+    style: initialStyle,
     center: [2.35, 48.85], // Paris
     zoom: 10,
-    transformRequest: transformRequest as maplibregl.RequestTransformFunction,
+    maxZoom: 17,
+    transformRequest: mapService.getTransformRequest(),
   });
 
   // Initialisation de MapboxDraw (pour le dessin de formes)
@@ -286,7 +265,7 @@ const initMap = () => {
         }
       }
     ]
-  })
+  });
 
   // Ajout des contrôles standard
   mapInstance.value.addControl(new maplibregl.NavigationControl() as maplibregl.IControl)
@@ -352,67 +331,32 @@ const handleDrawDelete = (e: any) => {
   console.log('Feature deleted:', e.features)
 }
 
-// Changement de fond de carte
-const changeBaseMap = () => {
-  if (!mapInstance.value) return
+// Changement du fond de carte
+const changeBaseMap = async () => {
+  if (!mapInstance.value) return;
+  
+  // Définir le style selon le fond de carte sélectionné
+  let newStyle;
 
-  // Si la source existe déjà, on la remplace
   try {
-    if (mapInstance.value.getSource('base-tiles')) {
-      if (mapInstance.value.getLayer('base-tiles')) {
-        mapInstance.value.removeLayer('base-tiles')
-      }
-      mapInstance.value.removeSource('base-tiles')
-    }
-
-    // Ajout de la nouvelle source
-    mapInstance.value.addSource('base-tiles', tileSources[selectedBaseMap.value as keyof typeof tileSources] as any)
-
-    // Ajout de la nouvelle couche sans spécifier l'emplacement
-    mapInstance.value.addLayer({
-      id: 'base-tiles',
-      type: 'raster',
-      source: 'base-tiles',
-      minzoom: 0,
-      maxzoom: 22
-    })
-    
-    // Cas spécifique pour le cadastre: ajouter comme calque au-dessus d'une autre couche
-    if (selectedBaseMap.value === 'cadastre') {
-      // On vérifie d'abord si une couche IGN existe déjà que l'on pourrait utiliser comme fond
-      const useIgnAsBase = !mapInstance.value.getSource('ign-base')
-      
-      if (useIgnAsBase) {
-        try {
-          // Ajout de la couche IGN comme fond de carte sous le cadastre
-          mapInstance.value.addSource('ign-base', tileSources.ign as any)
-          mapInstance.value.addLayer({
-            id: 'ign-base',
-            type: 'raster',
-            source: 'ign-base',
-            minzoom: 0,
-            maxzoom: 22
-          }, 'base-tiles') // Ajouter sous le cadastre
-        } catch (error) {
-          console.error('Error adding IGN base layer:', error)
-        }
-      }
+    if (selectedBaseMap.value === 'hybrid') {
+      // Créer un style pour Google Maps Hybrid
+      newStyle = await mapService.createGoogleMapStyle('google', 'hybrid', false);
+    } else if (selectedBaseMap.value === 'cadastre') {
+      // Remplacer par Google Maps Roadmap avec couche cadastre superposée
+      newStyle = await mapService.createGoogleMapStyle('google', 'roadmap', true);
     } else {
-      // Si on a changé pour une autre couche, supprimer la couche IGN de base si elle existe
-      try {
-        if (mapInstance.value.getSource('ign-base')) {
-          if (mapInstance.value.getLayer('ign-base')) {
-            mapInstance.value.removeLayer('ign-base')
-          }
-          mapInstance.value.removeSource('ign-base')
-        }
-      } catch (error) {
-        console.error('Error removing IGN base layer:', error)
-      }
+      // Utiliser des tuiles standard IGN
+      newStyle = mapService.createStandardMapStyle('ign');
     }
   } catch (error) {
-    console.error('Error changing base map:', error)
+    console.error('Erreur lors de la création du style de carte:', error);
+    // Fallback à IGN si erreur
+    newStyle = mapService.createStandardMapStyle('ign');
   }
+
+  // Appliquer le nouveau style
+  mapInstance.value.setStyle(newStyle);
 }
 
 // Gestion du redimensionnement
@@ -460,10 +404,10 @@ const deleteSelectedFeature = () => {
   selectedFeature.value = null
 }
 
-// Cycle de vie du composant
+// Initialisation du composant
 onMounted(() => {
-  initMap()
-})
+  initMap();
+});
 
 onUnmounted(() => {
   // Nettoyage

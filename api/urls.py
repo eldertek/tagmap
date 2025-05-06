@@ -14,7 +14,6 @@ from .views import (
     NoteColumnViewSet,
     MapFilterViewSet,
     WeatherViewSet,
-    hybrid_tile_proxy,
     ApplicationSettingViewSet,
 )
 
@@ -44,6 +43,4 @@ notes_router.register(r'photos', NotePhotoViewSet, basename='note-photos')
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(notes_router.urls)),  # Include nested routes
-    # Proxy pour les tuiles Google Maps Hybrid
-    path('tiles/hybrid/<int:z>/<int:x>/<int:y>.png', hybrid_tile_proxy, name='hybrid-tile-proxy'),
 ]
