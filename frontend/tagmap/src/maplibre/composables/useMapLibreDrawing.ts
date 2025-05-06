@@ -8,7 +8,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import maplibregl from 'maplibre-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
-import { DrawHandlers, DrawingMode, DrawEvent } from '../utils/mapLibreTypes'
+import type { DrawHandlers, DrawingMode, DrawEvent } from '../utils/maplibreTypes'
 
 /**
  * Options pour le composable useMapLibreDrawing
@@ -246,7 +246,7 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
     
     // Événement de changement de mode
     map.value.on('draw.modechange', (e: any) => {
-      isDrawing.value = e.mode !== DrawingMode.SIMPLE_SELECT && e.mode !== DrawingMode.DIRECT_SELECT
+      isDrawing.value = e.mode !== 'simple_select' && e.mode !== 'direct_select'
     })
   }
   
@@ -256,30 +256,39 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
   const changeDrawingMode = (mode: string) => {
     if (!draw.value) return
     
-    activeTool.value = mode
+    // Store the draw mode based on the tool type
+    let drawMode: string;
     
     switch (mode) {
       case 'point':
-        draw.value.changeMode(DrawingMode.DRAW_POINT)
-        isDrawing.value = true
-        break
+        drawMode = 'draw_point';
+        activeTool.value = 'Note'; // Update activeTool with proper tool name
+        isDrawing.value = true;
+        break;
       case 'line':
-        draw.value.changeMode(DrawingMode.DRAW_LINE)
-        isDrawing.value = true
-        break
+        drawMode = 'draw_line_string';
+        activeTool.value = 'Line'; // Update activeTool with proper tool name
+        isDrawing.value = true;
+        break;
       case 'polygon':
-        draw.value.changeMode(DrawingMode.DRAW_POLYGON)
-        isDrawing.value = true
-        break
+        drawMode = 'draw_polygon';
+        activeTool.value = 'Polygon'; // Update activeTool with proper tool name
+        isDrawing.value = true;
+        break;
       case 'select':
-        draw.value.changeMode(DrawingMode.SIMPLE_SELECT)
-        isDrawing.value = false
-        break
+        drawMode = 'simple_select';
+        activeTool.value = null;
+        isDrawing.value = false;
+        break;
       default:
-        draw.value.changeMode(DrawingMode.SIMPLE_SELECT)
-        isDrawing.value = false
-        break
+        drawMode = 'simple_select';
+        activeTool.value = null;
+        isDrawing.value = false;
+        break;
     }
+    
+    // Apply the draw mode to the mapbox draw instance
+    draw.value.changeMode(drawMode);
   }
   
   /**
@@ -290,7 +299,7 @@ export function useMapLibreDrawing(options: UseMapLibreDrawingOptions = {}) {
     
     activeTool.value = null
     isDrawing.value = false
-    draw.value.changeMode(DrawingMode.SIMPLE_SELECT)
+    draw.value.changeMode('simple_select')
   }
   
   /**

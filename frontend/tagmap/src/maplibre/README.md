@@ -11,7 +11,7 @@ Ce dossier contient un prototype d'implémentation de MapLibre GL JS pour TagMap
   - `useMapLibreDrawing.ts` : Gestionnaire de dessin avec points de contrôle optimisés pour le tactile
 
 - `utils/` : Utilitaires et types
-  - `mapLibreTypes.ts` : Types TypeScript pour MapLibre et ses plugins
+  - `maplibreTypes.ts` : Types TypeScript pour MapLibre et ses plugins
 
 ## Pourquoi MapLibre GL JS ?
 

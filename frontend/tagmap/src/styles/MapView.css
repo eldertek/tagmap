@@ -514,7 +514,6 @@
 /* Styles pour les indicateurs de mesure */
 .measurement-label {
   background: white;
-  border: 1px solid #ccc;
   border-radius: 3px;
   padding: 2px 4px;
   font-size: 11px;
