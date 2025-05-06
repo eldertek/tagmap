@@ -210,27 +210,6 @@ export function useMapDrawing(): MapDrawingReturn {
       controlPointsGroup.value.addLayer(point);
     }
 
-    // Proxy touch events to mouse events so existing mouse-based handlers work on
-    // touch devices (mobile / tablets). This enables dragging control points
-    // with a finger just like with a mouse.
-    const aliasTouchAsMouse = (
-      leafletObj: L.CircleMarker,
-      touchEvent: string,
-      mouseEvent: string,
-    ) => {
-      leafletObj.on(touchEvent as any, (ev: L.LeafletEvent) => {
-        // Prevent the map from starting a drag when interacting with the control point.
-        if (ev.originalEvent && 'stopPropagation' in ev.originalEvent) {
-          (ev.originalEvent as any).stopPropagation();
-        }
-        leafletObj.fire(mouseEvent as any, ev);
-      });
-    };
-
-    aliasTouchAsMouse(point, 'touchstart', 'mousedown');
-    aliasTouchAsMouse(point, 'touchmove', 'mousemove');
-    aliasTouchAsMouse(point, 'touchend', 'mouseup');
-
     return point;
   };
   // Fonction pour calculer les propriétés d'une forme
@@ -756,29 +735,6 @@ export function useMapDrawing(): MapDrawingReturn {
         mapInstance.almostOver.removeLayer(e.layer);
       }
     });
-    
-    // Ensure better touch interaction: prevent browser panning when interacting
-    // with control points by setting appropriate CSS on the map container.
-    // This avoids the page scrolling while dragging a point.
-    if (mapInstance.getContainer()) {
-      mapInstance.getContainer().style.touchAction = 'none';
-    }
-    
-    // Proxy fundamental touch events (touchmove, touchend) to their mouse
-    // counterparts on the map instance. This ensures that any logic listening
-    // for mouse events (e.g., during control point drag) will also work when
-    // interacting with the map using touch.
-    const touchToMouse = (
-      src: string,
-      dest: string,
-    ) => {
-      mapInstance.on(src as any, (ev: L.LeafletEvent) => {
-        mapInstance.fire(dest as any, ev);
-      });
-    };
-
-    touchToMouse('touchmove', 'mousemove');
-    touchToMouse('touchend', 'mouseup');
     
     return mapInstance;
   };
