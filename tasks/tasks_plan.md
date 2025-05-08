@@ -163,6 +163,7 @@
 - Fallback reload of the last consulted plan (`loadLastPlan`) fails when `loadPlan` returns a 404 for an invalid `planId`, because `lastPlanId` was being removed before fallback. Fixed by preserving `lastPlanId` in `loadPlan` catch blocks.
 - [2024-07-19] Vue warning: Property "deleteSelectedFeature" was accessed during render but is not defined; resolved by renaming the `@delete-shape` binding to `handleDrawDelete` in `MapLibreTest.vue`.
 - [2024-07-15] Nouvelle architecture proxy tuiles hybrides Google Maps : backend utilise l'API officielle Map Tiles (POST createSession, GET 2dtiles, session token, logs structurés, clé API côté serveur uniquement). Toute évolution doit être synchronisée dans la documentation technique et les tests automatisés.
+- [2025-05-08] Bug : le endpoint `PATCH /plans/{id}/elements` ne persistait pas le champ JSONField `elements`; corrigé pour sauvegarder `elements` en base via `plan.save(update_fields=['elements'])`.
 
 ## Next Steps
 

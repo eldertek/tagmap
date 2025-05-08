@@ -534,3 +534,17 @@ Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter
   - Utilise `olMap.getView().fit(globalExtent, { size, maxZoom, duration })` pour adapter la vue à l'ensemble des formes.
   - Si aucune feature n'est présente, la vue est réinitialisée à l'état initial du projet.
 - L'algorithme utilise les méthodes natives d'OpenLayers pour garantir la compatibilité et la performance.
+
+## API Endpoints for Plan Elements
+
+### PATCH /plans/{id}/elements/
+- Description: Met à jour uniquement les éléments vecteur (formes, connexions, annotations) d'un Plan.
+- Corps de la requête : JSON avec champ `elements` — tableau d'objets `{ type, geometry, properties }`.
+- Comportement : persiste le champ JSONField `elements` du modèle Plan via `plan.save(update_fields=['elements'])`, met à jour `date_modification`, et incrémente `version` si présent.
+- Réponse : JSON contenant :
+  - `id` : ID du plan
+  - `elements` : tableau des éléments sauvegardés
+  - `date_modification` : date de dernière modification (mise à jour côté serveur)
+  - `version` : numéro de version du plan (si géré)
+
+***

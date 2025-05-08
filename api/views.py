@@ -420,6 +420,9 @@ class PlanViewSet(viewsets.ModelViewSet):
         # Mettre à jour les éléments du plan
         plan.elements = elements
         
+        # Persister les éléments dans la base de données
+        plan.save(update_fields=['elements'])
+        
         # Mettre à jour la version du plan si elle existe
         if hasattr(plan, 'version'):
             plan.version = getattr(plan, 'version', 0) + 1

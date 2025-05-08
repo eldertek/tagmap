@@ -895,9 +895,13 @@ function backToClientList() {
 
 // Load a plan by ID
 async function loadPlanById(planId: number) {
+  console.log(`[MapView] loadPlanById: start loading plan id=${planId}`);
   try {
+    console.log(`[MapView] loadPlanById: fetching plan id=${planId}`);
     const plan = await irrigationStore.fetchPlanById(planId)
+    console.log(`[MapView] loadPlanById: fetched plan`, plan);
     if (!plan) {
+      console.warn(`[MapView] loadPlanById: plan ${planId} not found`);
       notificationStore.error('Le plan demandé n\'existe pas')
       return
     }
@@ -909,42 +913,56 @@ async function loadPlanById(planId: number) {
     planName.value = plan.nom
     planDescription.value = plan.description
     lastSave.value = new Date(plan.date_modification)
+    console.log(`[MapView] loadPlanById: planName="${plan.nom}", planDescription="${plan.description}", lastSave="${new Date(plan.date_modification).toISOString()}"`);
     
     // Clear existing features
     drawSource.clear()
+    console.log(`[MapView] loadPlanById: drawSource cleared`);
     
     // Load plan elements if they exist
     if (plan.elements && Array.isArray(plan.elements)) {
+      console.log(`[MapView] loadPlanById: plan.elements length=${plan.elements.length}`);
       const geoJson = new GeoJSON()
-      plan.elements.forEach(element => {
-        if (!element.geometry) return
+      plan.elements.forEach((element, index) => {
+        console.log(`[MapView] loadPlanById: processing element index=${index}`, element);
+        if (!element.geometry) {
+          console.warn(`[MapView] loadPlanById: element index=${index} has no geometry, skipping`, element);
+          return
+        }
         
         try {
-          // Create a new feature from the geometry
           const geometry = geoJson.readGeometry(element.geometry)
+          console.log(`[MapView] loadPlanById: geometry for element ${index}`, geometry);
+          // Create a new feature from the geometry
           const feature = new Feature({
             geometry,
             ...element.properties
           })
+          console.log(`[MapView] loadPlanById: created feature for element ${index}`, feature);
           
           // Add the feature to the source
           drawSource.addFeature(feature)
+          console.log(`[MapView] loadPlanById: added feature to drawSource, total features now=${drawSource.getFeatures().length}`);
         } catch (error) {
           console.error('Error loading feature:', error)
+          console.error(`[MapView] loadPlanById: error processing element index=${index}`, error);
         }
       })
     }
     
     // Adjust the view to show all features
+    console.log(`[MapView] loadPlanById: adjusting view after loading features`);
     adjustView()
     
   } catch (error) {
     console.error('Error loading plan:', error)
+    console.error(`[MapView] loadPlanById: error loading plan id=${planId}`, error);
     notificationStore.error('Erreur lors du chargement du plan')
   }
 }
 
 const savePlan = async () => {
+  console.log(`[MapView] savePlan: start saving plan id=${currentPlan.value?.id}`);
   if (!currentPlan.value) return
   
   saveStatus.value = 'saving'
@@ -952,9 +970,14 @@ const savePlan = async () => {
     // Convert features to GeoJSON
     const geoJson = new GeoJSON()
     const features = drawSource.getFeatures()
-    const elements = features.map(feature => {
+    console.log(`[MapView] savePlan: number of features to save=${features.length}`, features);
+    const elements = features.map((feature, index) => {
+      console.log(`[MapView] savePlan: processing feature index=${index}`, feature);
       const geometry = feature.getGeometry()
-      if (!geometry) return null
+      if (!geometry) {
+        console.warn(`[MapView] savePlan: feature index=${index} has no geometry, skipping`, feature);
+        return null
+      }
       
       const properties = feature.getProperties()
       delete properties.geometry // Remove geometry from properties
@@ -965,11 +988,14 @@ const savePlan = async () => {
         properties
       }
     }).filter(Boolean)
+    console.log(`[MapView] savePlan: prepared ${elements.length} elements to save`, elements);
     
     // Save to backend
     await irrigationStore.updatePlanElements(currentPlan.value.id, { elements })
+    console.log(`[MapView] savePlan: updatePlanElements API call complete for plan id=${currentPlan.value.id}`);
     saveStatus.value = 'success'
     lastSave.value = new Date()
+    console.log(`[MapView] savePlan: save successful for plan id=${currentPlan.value.id}, lastSave=${lastSave.value.toISOString()}`);
     
     // Reset status after a delay
     setTimeout(() => {
@@ -977,6 +1003,7 @@ const savePlan = async () => {
     }, 2000)
   } catch (error) {
     console.error('Error saving plan:', error)
+    console.error(`[MapView] savePlan: error saving plan id=${currentPlan.value?.id}`, error);
     notificationStore.error('Erreur lors de la sauvegarde du plan')
     saveStatus.value = null
   }
