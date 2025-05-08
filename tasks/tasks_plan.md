@@ -60,7 +60,7 @@
 4. **Base Map Integration**
    - [ ] Set up Leaflet map component
    - [x] Integrate hybrid map layer (Google Maps via backend proxy using official Map Tiles API: POST createSession with mapType=satellite and layerTypes=[layerRoadmap], GET 2dtiles, session token, server-side API key, structured error logging)
-   - [ ] Integrate cadastral map layer
+   - [x] Integrate cadastral map layer
    - [ ] Integrate IGN map layer
    - [ ] Implement layer switching UI
    - [ ] Create map controls
@@ -72,10 +72,10 @@
    - [x] Ajouter une gestion robuste des erreurs et des logs détaillés pour le debug frontend
    - [x] Correction UI : scroll fiable dans tous les tabs de DrawingTools.vue avec architecture flex optimisée (parent flex avec height: 100%, barre d'onglets hauteur fixe, .tab-content avec flex: 1 et max-height en pourcentage, padding-bottom adapté sur mobile). Documentation technique mise à jour.
    - [x] Corriger les URLs des fonds de carte IGN et Cadastre dans MapLibreTest.vue pour utiliser les endpoints publics data.geopf.fr et assurer la compatibilité avec la configuration hybride Google Maps dans les deux bibliothèques cartographiques (Leaflet et MapLibre GL).
-   - [ ] Create experimental OpenLayers integration directory (`src/openlayers`)
-   - [ ] Add `MapView.vue` stub in `src/openlayers`
-   - [ ] Add `useMapState.ts` stub in `src/openlayers`
-   - [ ] Add `useMapDrawing.ts` stub in `src/openlayers`
+   - [x] Create experimental OpenLayers integration directory (`src/openlayers`)
+   - [x] Add `MapView.vue` stub in `src/openlayers`
+   - [x] Add `useMapState.ts` stub in `src/openlayers`
+   - [x] Add `useMapDrawing.ts` stub in `src/openlayers`
 
 ### Phase 2: Core Features (Priority: Medium)
 

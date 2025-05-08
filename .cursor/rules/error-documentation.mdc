@@ -144,3 +144,25 @@ Ce document sera mis à jour au fur et à mesure que de nouveaux problèmes et s
 - Add unit tests for `loadLastPlan()` to ensure fallback works correctly on 404.
 
 [2024-06-10] Bug : Le bouton "Itinéraire" sur une note géolocalisée ne faisait rien (DrawingTools.vue). Cause : absence de la méthode openInGoogleMaps sur GeoNote. Correction : ajout de la méthode openInGoogleMaps sur GeoNote, qui ouvre un nouvel onglet Google Maps vers la position de la note. Correction validée.
+
+## [2024-07-22] Changement de fond de carte ne fonctionne pas
+
+### Problème
+Lorsque l'utilisateur change le fond de carte via la toolbar OpenLayers, la carte ne se met pas à jour visuellement.
+
+### Investigation
+- Vérification que l'événement `change-map-type` était bien émis depuis `MapToolbar.vue`.
+- Analyse du composable `useMapState.ts`: chaque appel à `useMapState()` créait une nouvelle instance d'état, de sorte que `changeBaseMap` dans `MapToolbar` n'agissait pas sur la même instance de carte que celle initialisée dans `MapView.vue`.
+
+### Root Cause
+`useMapState` retournait une nouvelle instance à chaque invocation, ce qui empêchait `changeBaseMap` appelé depuis le composant de la toolbar d'affecter l'instance de `Map` utilisée dans `MapView.vue`.
+
+### Solution
+Refactorisation de `useMapState` pour utiliser un pattern singleton, garantissant qu'une seule instance partagée de l'état de la carte est utilisée partout. Ainsi, `MapToolbar` et `MapView` opèrent désormais sur le même objet `Map`.
+
+### Prevention
+- Utiliser un store ou un composable singleton pour partager l'état critique du composant carte.
+- Documenter clairement ce pattern dans `docs/technical.md`.
+
+### Fixed in
+`frontend/tagmap/src/openlayers/useMapState.ts`

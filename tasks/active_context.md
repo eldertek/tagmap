@@ -21,6 +21,7 @@
 
 3. **Map Layer Integration**
    - ✅ Implemented Google Maps for high-quality hybrid view
+   - ✅ Implemented composite Cadastre view (Google Maps hybrid + cadastre overlay)
    - **New Requirement**: Display enterprise name on each note for Administrators in the NotesView.vue component
    - ✅ Fixed issue with enterprise_name not being preserved when editing notes
    - Ensuring efficient layer switching and rendering

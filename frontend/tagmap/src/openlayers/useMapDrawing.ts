@@ -1,26 +1,492 @@
 import { ref } from 'vue'
+import Map from 'ol/Map'
+import Draw from 'ol/interaction/Draw'
+import Modify from 'ol/interaction/Modify'
+import Select from 'ol/interaction/Select'
+import Snap from 'ol/interaction/Snap'
+import VectorSource from 'ol/source/Vector'
+import VectorLayer from 'ol/layer/Vector'
+import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style'
+import { GeoJSON } from 'ol/format'
+import type { DrawEvent } from 'ol/interaction/Draw'
+import Feature from 'ol/Feature'
+import { click } from 'ol/events/condition'
+import { getArea, getLength } from 'ol/sphere'
+import { Geometry, LineString, Point, Polygon } from 'ol/geom'
+import { unByKey } from 'ol/Observable'
+import type { FeatureLike } from 'ol/Feature'
 
 export function useMapDrawing() {
   // Active drawing tool name
   const activeTool = ref<string>('')
+  
+  // Selected feature
+  const selectedFeature = ref<Feature<Geometry> | null>(null)
+  const isDrawing = ref<boolean>(false)
+  
+  // Vector source for drawing features
+  const drawSource = new VectorSource<Feature<Geometry>>();
+  
+  // Draw, modify and select interactions
+  let drawInteraction: Draw | null = null
+  let modifyInteraction: Modify | null = null
+  let selectInteraction: Select | null = null
+  let snapInteraction: Snap | null = null
+  
+  // Event listeners
+  let drawStartKey: any = null
+  let drawEndKey: any = null
 
-  function initDrawing(map: import('ol/Map').Map) {
-    // Initialize drawing interactions here
+  // Get feature style based on properties
+  const getFeatureStyle = (feature: Feature<Geometry>, selected: boolean = false) => {
+    const properties = feature.get('properties') || {}
+    const style = properties.style || {}
+    
+    const strokeColor = style.color || '#3388ff'
+    const fillColor = style.fillColor || 'rgba(51, 136, 255, 0.2)'
+    const strokeWidth = style.weight || 3
+    
+    const defaultStyle = new Style({
+      fill: new Fill({
+        color: fillColor
+      }),
+      stroke: new Stroke({
+        color: strokeColor,
+        width: strokeWidth
+      }),
+      image: new CircleStyle({
+        radius: 7,
+        fill: new Fill({
+          color: strokeColor
+        }),
+        stroke: new Stroke({
+          color: '#ffffff',
+          width: 2
+        })
+      })
+    })
+    
+    // Add text if the feature has a name
+    const name = feature.get('name') || properties.name
+    if (name) {
+      defaultStyle.setText(new Text({
+        text: name,
+        font: '12px Calibri,sans-serif',
+        fill: new Fill({ color: '#000' }),
+        stroke: new Stroke({ color: '#fff', width: 2 }),
+        offsetY: -15
+      }))
+    }
+    
+    // Highlight style for selected features
+    if (selected) {
+      const highlightStyle = new Style({
+        fill: new Fill({
+          color: 'rgba(255, 255, 255, 0.4)'
+        }),
+        stroke: new Stroke({
+          color: '#ff9933',
+          width: strokeWidth + 1
+        }),
+        image: new CircleStyle({
+          radius: 9,
+          fill: new Fill({
+            color: '#ff9933'
+          }),
+          stroke: new Stroke({
+            color: '#ffffff',
+            width: 2
+          })
+        })
+      })
+      
+      const text = defaultStyle.getText()
+      if (text) {
+        highlightStyle.setText(text)
+      }
+      
+      return highlightStyle
+    }
+    
+    return defaultStyle
+  }
+  
+  // Style function for vector layer
+  const styleFunction = (feature: FeatureLike) => {
+    const f = feature as Feature<Geometry>;
+    return f === selectedFeature.value ? 
+      getFeatureStyle(f, true) : 
+      getFeatureStyle(f, false)
+  }
+  
+  // Vector layer for drawings with style function
+  const drawLayer = new VectorLayer({
+    source: drawSource,
+    style: styleFunction
+  })
+
+  // Currently drawn features
+  const features = ref<any[]>([])
+  
+  // Initialize the drawing functionality
+  function initDrawing(map: Map) {
+    // First, clear any existing interactions and layers
+    clearDrawingInteractions(map);
+    
+    // Add vector layer to map
+    map.addLayer(drawLayer)
+    
+    // Create select interaction - use layer style function
+    selectInteraction = new Select({
+      condition: click,
+      style: null, // Use the layer's style function
+      layers: [drawLayer] // Only select from our draw layer
+    })
+    
+    // Create modify interaction
+    modifyInteraction = new Modify({
+      features: selectInteraction.getFeatures(), // Only modify selected features
+      pixelTolerance: 15
+    })
+    
+    // Create snap interaction for better editing
+    snapInteraction = new Snap({
+      source: drawSource
+    })
+    
+    // Add the select interaction to the map
+    map.addInteraction(selectInteraction)
+    
+    // Listen for selection changes
+    selectInteraction.on('select', (e) => {
+      selectedFeature.value = e.selected.length > 0 ? e.selected[0] : null
+      console.log('[useMapDrawing] Selection changed:', selectedFeature.value ? 'Feature selected' : 'No selection')
+    })
+    
+    // Listen to changes in the source
+    drawSource.on('addfeature', (event) => {
+      const feature = event.feature
+      if (feature) {
+        // Set initial properties
+        if (!feature.get('properties')) {
+          feature.set('properties', {
+            type: getGeometryType(feature),
+            category: 'forages',
+            accessLevel: 'visitor',
+            style: {
+              color: '#3388ff',
+              fillColor: 'rgba(51, 136, 255, 0.2)',
+              weight: 3
+            }
+          })
+        }
+        
+        // Add a unique ID to the feature
+        if (!feature.get('id')) {
+          feature.set('id', Date.now().toString())
+        }
+        
+        // Convert to GeoJSON for storage or API calls
+        const geojson = new GeoJSON().writeFeatureObject(feature)
+        features.value.push(geojson)
+      }
+    })
+    
+    // Listen for feature removal
+    drawSource.on('removefeature', (event) => {
+      const feature = event.feature
+      if (feature) {
+        const id = feature.get('id')
+        features.value = features.value.filter(f => f.id !== id)
+      }
+    })
+  }
+  
+  // Get geometry type as a string
+  function getGeometryType(feature: Feature<Geometry>): string {
+    const geometry = feature.getGeometry()
+    if (!geometry) return 'unknown'
+    
+    if (geometry instanceof Point) return 'Point'
+    if (geometry instanceof LineString) return 'LineString'
+    if (geometry instanceof Polygon) return 'Polygon'
+    
+    return geometry.getType()
   }
 
-  function setDrawingTool(tool: string) {
+  // Remove all interactions before adding new ones
+  function removeAllInteractions(map: Map) {
+    // Get all interactions to remove
+    const interactions = map.getInteractions().getArray().slice();
+    
+    // Remove all custom interactions
+    interactions.forEach(interaction => {
+      if (interaction instanceof Draw || 
+          interaction instanceof Modify || 
+          interaction instanceof Snap || 
+          interaction instanceof Select) {
+        map.removeInteraction(interaction);
+      }
+    });
+    
+    // Reset interaction references
+    if (drawInteraction) {
+      if (drawStartKey) unByKey(drawStartKey);
+      if (drawEndKey) unByKey(drawEndKey);
+      drawInteraction = null;
+    }
+  }
+
+  // Set the active drawing tool
+  function setDrawingTool(tool: string, map: Map) {
+    console.log('[useMapDrawing] setDrawingTool:', tool)
+    
+    // First remove all existing interactions
+    removeAllInteractions(map);
+    
+    // Set the active tool
     activeTool.value = tool
-    // TODO: switch drawing interaction based on selected tool
+    isDrawing.value = ['draw_polygon', 'draw_line_string', 'draw_point'].includes(tool)
+    
+    // Always add select interaction first
+    map.addInteraction(selectInteraction!);
+    
+    // Debug openLayer interactions before adding new ones
+    console.log('[useMapDrawing] Map interactions before:', map.getInteractions().getArray().map(i => i.constructor.name))
+    
+    // Add the appropriate interaction based on the tool
+    switch (tool) {
+      case 'draw_polygon':
+        console.log('[useMapDrawing] activating draw_polygon')
+        drawInteraction = new Draw({
+          source: drawSource,
+          type: 'Polygon',
+          stopClick: true
+        })
+        
+        // Add draw start and end listeners
+        drawStartKey = drawInteraction.on('drawstart', () => {
+          console.log('[useMapDrawing] Draw polygon started')
+          isDrawing.value = true
+        })
+        
+        drawEndKey = drawInteraction.on('drawend', (event: DrawEvent) => {
+          console.log('[useMapDrawing] drawend (Polygon) geometry type:', event.feature.getGeometry()?.getType())
+          isDrawing.value = false
+          
+          // Set properties on the newly drawn feature
+          const feature = event.feature as Feature<Geometry>
+          
+          // Calculate area
+          const polygon = feature.getGeometry() as Polygon
+          const area = getArea(polygon)
+          
+          feature.set('properties', {
+            type: 'Polygon',
+            category: 'forages',
+            accessLevel: 'visitor',
+            area: Math.round(area * 100) / 100,
+            style: {
+              color: '#3388ff',
+              fillColor: 'rgba(51, 136, 255, 0.2)',
+              weight: 3
+            }
+          })
+          
+          // Make this the selected feature
+          selectedFeature.value = feature
+        })
+        
+        map.addInteraction(drawInteraction)
+        break
+        
+      case 'draw_line_string':
+        console.log('[useMapDrawing] activating draw_line_string')
+        drawInteraction = new Draw({
+          source: drawSource,
+          type: 'LineString',
+          stopClick: true
+        })
+        
+        // Add draw start and end listeners
+        drawStartKey = drawInteraction.on('drawstart', () => {
+          console.log('[useMapDrawing] Draw line_string started')
+          isDrawing.value = true
+        })
+        
+        drawEndKey = drawInteraction.on('drawend', (event: DrawEvent) => {
+          console.log('[useMapDrawing] drawend (LineString) geometry type:', event.feature.getGeometry()?.getType())
+          isDrawing.value = false
+          
+          // Set properties on the newly drawn feature
+          const feature = event.feature as Feature<Geometry>
+          
+          // Calculate length
+          const line = feature.getGeometry() as LineString
+          const length = getLength(line)
+          
+          feature.set('properties', {
+            type: 'LineString',
+            category: 'forages',
+            accessLevel: 'visitor',
+            length: Math.round(length * 100) / 100,
+            style: {
+              color: '#3388ff',
+              weight: 3
+            }
+          })
+          
+          // Make this the selected feature
+          selectedFeature.value = feature
+        })
+        
+        map.addInteraction(drawInteraction)
+        break
+        
+      case 'draw_point':
+        console.log('[useMapDrawing] activating draw_point')
+        drawInteraction = new Draw({
+          source: drawSource,
+          type: 'Point',
+          stopClick: true
+        })
+        
+        // Add draw start and end listeners
+        drawStartKey = drawInteraction.on('drawstart', () => {
+          console.log('[useMapDrawing] Draw point started')
+          isDrawing.value = true
+        })
+        
+        drawEndKey = drawInteraction.on('drawend', (event: DrawEvent) => {
+          console.log('[useMapDrawing] drawend (Point) geometry type:', event.feature.getGeometry()?.getType())
+          isDrawing.value = false
+          
+          // Set properties on the newly drawn feature
+          const feature = event.feature as Feature<Geometry>
+          
+          feature.set('properties', {
+            type: 'Note',
+            category: 'forages',
+            accessLevel: 'visitor',
+            style: {
+              color: '#3388ff',
+              weight: 3
+            }
+          })
+          
+          // Make this the selected feature
+          selectedFeature.value = feature
+        })
+        
+        map.addInteraction(drawInteraction)
+        break
+        
+      case 'modify':
+        console.log('[useMapDrawing] activating modify')
+        // Add modify interaction
+        map.addInteraction(modifyInteraction!)
+        // Add snap for better editing
+        map.addInteraction(snapInteraction!)
+        break
+        
+      case 'select':
+        console.log('[useMapDrawing] activating select')
+        // We already added select interaction above
+        break
+        
+      default:
+        console.log('[useMapDrawing] deactivating all tools')
+        // Just use selection for navigation (added above)
+        break
+    }
+    
+    // Debug openLayer interactions after
+    console.log('[useMapDrawing] Map interactions after:', map.getInteractions().getArray().map(i => i.constructor.name))
   }
 
-  function clearDrawing() {
-    // TODO: remove all drawing interactions from the map
+  // Clear drawing interactions
+  function clearDrawingInteractions(map: Map) {
+    removeAllInteractions(map);
+  }
+
+  // Clear all drawings
+  function clearDrawing(map: Map) {
+    // Clear all features
+    drawSource.clear()
+    features.value = []
+    selectedFeature.value = null
+    
+    // Clear interactions
+    clearDrawingInteractions(map)
+    activeTool.value = ''
+    isDrawing.value = false
+  }
+  
+  // Delete a specific feature
+  function deleteFeature(feature: Feature<Geometry>) {
+    if (!feature) return
+    
+    console.log('[useMapDrawing] Deleting feature:', feature.getId() || 'unnamed feature')
+    
+    try {
+      // Remove from source
+      drawSource.removeFeature(feature)
+      
+      // Clear selection if deleted feature was selected
+      if (selectedFeature.value === feature) {
+        selectedFeature.value = null
+      }
+      console.log('[useMapDrawing] Feature deleted successfully')
+    } catch (error) {
+      console.error('[useMapDrawing] Error deleting feature:', error)
+    }
+  }
+  
+  // Update feature properties
+  function updateFeatureProperties(feature: Feature<Geometry>, props: any) {
+    if (!feature) return
+    
+    const properties = feature.get('properties') || {}
+    feature.set('properties', { ...properties, ...props })
+    
+    // Update the name if provided
+    if (props.name) {
+      feature.set('name', props.name)
+    }
+    
+    // Trigger redraw
+    drawSource.changed()
+  }
+  
+  // Update feature style
+  function updateFeatureStyle(feature: Feature<Geometry>, style: any) {
+    if (!feature) return
+    
+    const properties = feature.get('properties') || {}
+    const currentStyle = properties.style || {}
+    
+    feature.set('properties', {
+      ...properties,
+      style: { ...currentStyle, ...style }
+    })
+    
+    // Trigger redraw
+    drawSource.changed()
   }
 
   return {
     initDrawing,
     setDrawingTool,
     clearDrawing,
+    clearDrawingInteractions,
+    deleteFeature,
+    updateFeatureProperties,
+    updateFeatureStyle,
     activeTool,
+    isDrawing,
+    drawSource,
+    drawLayer,
+    features,
+    selectedFeature
   }
 } 

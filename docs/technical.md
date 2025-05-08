@@ -90,6 +90,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 - **Build Tool**: Vite
 - **Map Library**: Leaflet
 - **Experimental Map Library**: OpenLayers (`src/openlayers`)
+- **OpenLayers State Management**: `useMapState` now uses a singleton pattern to ensure `MapView` and `MapToolbar` share the same map instance for consistent layer switching.
 - **State Management**: Vuex or Pinia
 - **HTTP Client**: Axios
 - **CSS Framework**: Custom styling with responsive design
@@ -481,8 +482,9 @@ TagMap utilise plusieurs fonds de carte (base layers) pour la visualisation géo
   
   La même configuration est utilisée à la fois pour les composants Leaflet et MapLibre GL, garantissant une expérience utilisateur cohérente quelle que soit la bibliothèque cartographique utilisée.
 
-- **Cadastre (Parcellaire Express)** : via le service public Géoportail IGN :
-  `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
+- **Cadastre (Parcellaire Express)** : fond Google Maps hybride (satellite + labels) avec superposition cadastrale (Géoportail IGN) :
+  - Satellite + labels : `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}`
+  - Superposition cadastrale : `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
 - **IGN (Plan IGN V2)** : via le service public Géoportail IGN :
   `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
 
@@ -491,6 +493,8 @@ TagMap utilise plusieurs fonds de carte (base layers) pour la visualisation géo
 - Les options d'attribution, de zoom maximal (`maxzoom`), et de taille de tuile (`tileSize`) doivent rester cohérentes entre tous les composants utilisant ces fonds de carte (voir `useMapState.ts` et `MapLibreTest.vue`).
 - Les URLs IGN historiques de type `wxs.ign.fr` ou nécessitant une clé API ne sont plus supportées pour les couches publiques. Toujours utiliser les endpoints `data.geopf.fr` pour garantir la disponibilité sans authentification.
 
+**Important :**
+- Toute modification future du flux d'obtention des tuiles hybrides Google Maps doit être synchronisée dans la documentation et les tests automatisés.
 ## MapLibre Tile Handling
 
 Toutes les requêtes de tuiles cartographiques (hybride, cadastre, IGN) passent par l'API backend `/api/tiles/{type}/{z}/{x}/{y}.png` pour :
