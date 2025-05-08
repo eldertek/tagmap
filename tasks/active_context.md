@@ -16,6 +16,7 @@
    - Interface responsive pour mobile et desktop
    - Navigation intuitive entre les différentes vues
    - Optimisation des performances de chargement
+   - **Suppression de l'affichage de la date/heure sur la carte de note (NotesView.vue) :** la date de création et de modification n'est plus affichée sur les cartes de note pour alléger l'interface. Les champs restent présents dans le modèle/API mais ne sont plus visibles dans la liste des notes.
    - **Résolution des problèmes d'interactions tactiles sur mobile, particulièrement pour l'édition des formes via les points de contrôle**
    - Permettre de cliquer sur une forme existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et modifier via les points de contrôle
    - **Non-regression requirement:** The Geoman drawing mode mapping for MapLibre must always match the mapping table in docs/technical.md (e.g., 'draw_polygon', 'draw_line_string', 'draw_point'). Any future changes to drawing tools must verify this mapping is correct.

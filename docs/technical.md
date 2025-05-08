@@ -557,6 +557,7 @@ Depuis [date de modification], l'icône affichée pour les GeoNotes (notes géol
   - Le SVG est celui défini dans `DrawingTools.vue` pour l'outil `draw_point`.
   - Les couleurs de contour et de remplissage sont dynamiques et dépendent des propriétés de style de la note (`style.color`, `style.fillColor`).
   - L'ancre de l'icône est positionnée pour que la pointe du marqueur corresponde exactement à la position géographique.
+  - L'icône GeoNote utilise désormais une échelle fixe (scale=1.5) pour garantir une visibilité optimale, même à faible niveau de zoom.
 
 - **Impact** :
   - Toutes les GeoNotes existantes et futures s'affichent avec ce nouveau marqueur.
@@ -564,5 +565,11 @@ Depuis [date de modification], l'icône affichée pour les GeoNotes (notes géol
 
 - **Fichier concerné** :
   - `frontend/tagmap/src/openlayers/MapView.vue` (fonction `addNoteToMap`).
+
+## [2024-07-20] Suppression de l'affichage de la date/heure sur la carte de note (NotesView.vue)
+
+- L'affichage de la date de création et de modification (createdAt, updatedAt) a été supprimé des cartes de note dans la vue NotesView.vue.
+- Cette décision vise à alléger l'interface et à se concentrer sur les informations essentielles pour l'utilisateur.
+- Les champs de date restent présents dans le modèle et l'API, mais ne sont plus affichés dans la liste des notes.
 
 ***

@@ -83,6 +83,30 @@
             <span class="text-sm">Supprimer</span>
           </button>
 
+          <!-- Boutons d'édition et itinéraire pour GeoNotes -->
+          <div v-if="props.selectedFeature && getFeatureType() === 'Note'" class="grid grid-cols-2 gap-2 mt-2 mb-2">
+            <!-- Bouton d'édition -->
+            <button
+              class="p-2 rounded-md border border-primary-200 bg-primary-50 text-primary-600 hover:bg-primary-100 flex items-center justify-center"
+              @click="emit('edit-geo-note')" title="Éditer la note">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span class="text-sm">Éditer</span>
+            </button>
+            <!-- Bouton itinéraire -->
+            <button
+              class="p-2 rounded-md border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center"
+              @click="emit('route-geo-note')" title="Obtenir l'itinéraire">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span class="text-sm">Itinéraire</span>
+            </button>
+          </div>
+
           <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
           <div v-if="props.selectedFeature" class="mt-4">
             <!-- Champ pour nommer la forme (masqué pour les Notes) -->
@@ -307,13 +331,15 @@ const props = defineProps({
 
 // Define emits
 const emit = defineEmits([
-  'update:show', 
-  'tool-selected', 
+  'update:show',
+  'tool-selected',
   'delete-feature',
   'properties-update',
   'style-update',
   'filter-change',
-  'close-drawer'
+  'close-drawer',
+  'edit-geo-note',
+  'route-geo-note'
 ])
 
 // Automatically show on desktop and hide on mobile, update on resize

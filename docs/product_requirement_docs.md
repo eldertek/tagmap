@@ -219,4 +219,10 @@ Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.t
 
 - L'icône affichée sur la carte pour chaque note géolocalisée (GeoNote) est désormais identique à celle de l'outil dessin "point" dans la barre d'outils.
 - Cette évolution garantit une expérience utilisateur cohérente entre la création et la visualisation des notes.
-- La couleur du marqueur peut être personnalisée selon les propriétés de chaque note. 
+- La couleur du marqueur peut être personnalisée selon les propriétés de chaque note.
+- - L'icône GeoNote est maintenant affichée avec une taille fixe plus grande (scale=1.5) pour assurer une visibilité optimale, même à faible niveau de zoom.
+- L'icône GeoNote est maintenant affichée avec une taille fixe plus grande (scale=1.5) pour assurer une visibilité optimale, même à faible niveau de zoom.
+
+### [2024-07-20] Suppression de l'affichage de la date/heure sur la carte de note (NotesView.vue)
+- L'affichage de la date de création et de modification (createdAt, updatedAt) a été retiré des cartes de note dans la vue NotesView.vue pour simplifier l'interface utilisateur.
+- Les informations de date restent disponibles dans le backend et l'API, mais ne sont plus visibles dans la liste principale des notes. 

@@ -16,6 +16,7 @@
 | Authentication System | Not started | High | - | Implement role-based authentication |
 | Base Map Integration | Not started | High | - | Integrate Leaflet with base map layers |
 | Geolocation Notes | Not started | Medium | - | Create and manage geolocated notes |
+|                   |            |        |   | **[2024-07-20] Suppression de l'affichage de la date/heure sur la carte de note (NotesView.vue) : la date de création et de modification n'est plus affichée sur les cartes de note pour alléger l'interface. Les champs restent présents dans le modèle/API mais ne sont plus visibles dans la liste des notes.** |
 | Drawing Tools | Not started | Medium | - | Implement polygon and line drawing tools |
 |              |            |        |   | **Note:** The Line class methods are now implemented as class properties (arrow functions) to match Leaflet's Polyline base class and resolve TypeScript compatibility issues. |
 |              |            |        |   | **Checklist:**

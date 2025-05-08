@@ -54,12 +54,16 @@
         <DrawingTools v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
           :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
           @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
-          @style-update="handleStyleUpdate" @filter-change="handleFilterChange" class="md:w-80 md:flex-shrink-0" />
+          @style-update="handleStyleUpdate" @filter-change="handleFilterChange"
+          @edit-geo-note="handleEditGeoNote" @route-geo-note="handleRouteGeoNote"
+          class="md:w-80 md:flex-shrink-0" />
         </Teleport>
       <DrawingTools v-else v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
         :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
         @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
-        @style-update="handleStyleUpdate" @filter-change="handleFilterChange" class="md:w-80 md:flex-shrink-0" />
+        @style-update="handleStyleUpdate" @filter-change="handleFilterChange"
+        @edit-geo-note="handleEditGeoNote" @route-geo-note="handleRouteGeoNote"
+        class="md:w-80 md:flex-shrink-0" />
 
         <!-- Mobile bottom toolbar -->
       <div v-if="isMobile"
@@ -543,6 +547,10 @@
         </div>
       </div>
     </Teleport>
+    <!-- Note Edit Modal -->
+    <Teleport to="body">
+      <NoteEditModal v-if="showNoteEditModal" :note="noteToEdit" @close="showNoteEditModal = false" @save="onGeoNoteSaved" />
+    </Teleport>
   </div>
 </template>
 
@@ -572,6 +580,8 @@ import api from '@/services/api'
 import { formatDate } from '@/utils/dateUtils'
 import { useNotesStore } from '@/stores/notes'
 import { noteService } from '@/services/api'
+import NoteEditModal from '@/components/NoteEditModal.vue'
+import type { Note } from '@/types/notes'
 import { 
   Style, 
   Fill, 
@@ -627,6 +637,9 @@ const showLoadPlanModal = ref(false)
 const showDeletePlanModal = ref(false)
 const planToDelete = ref<Plan | null>(null)
 const newPlanModalRef = ref<InstanceType<typeof NewPlanModal> | null>(null)
+// Note editing modal state
+const showNoteEditModal = ref(false)
+const noteToEdit = ref<Note | null>(null)
 
 // Plan loading variables
 const selectedEntreprise = ref<any>(null)
@@ -1246,11 +1259,10 @@ function addNoteToMap(feature: Feature<Geometry>, id: number) {
     style: new Style({
       image: new Icon({
         src: svgUrl,
-        imgSize: [32, 32],
         anchor: [0.5, 1],
         anchorXUnits: 'fraction',
         anchorYUnits: 'fraction',
-        scale: (style.radius || 1) / 8 // Ajuste la taille selon le radius
+        scale: 1.5 // Fixed larger icon scale for optimal visibility
       }),
       text: props.name ? new Text({
         text: String(props.name),
@@ -1673,6 +1685,62 @@ const toggleEditMode = (enabled: boolean) => {
       isDrawingToolsVisible.value = false
       selectedDrawingTool.value = 'none'
     }
+  }
+}
+
+// Handle edit GeoNote event
+const handleEditGeoNote = () => {
+  if (!selectedFeature.value) return;
+  const id = selectedFeature.value.getId() as number;
+  const note = notesStore.notes.find(n => n.id === id);
+  if (!note) {
+    console.warn(`[MapView] Note not found: id=${id}`);
+    return;
+  }
+  noteToEdit.value = { ...note };
+  showNoteEditModal.value = true;
+}
+
+// Handle route GeoNote event
+const handleRouteGeoNote = () => {
+  if (!selectedFeature.value) return;
+  const geometry = (selectedFeature.value as Feature<Geometry>).getGeometry();
+  if (geometry instanceof Point) {
+    const coords = geometry.getCoordinates();
+    const [lng, lat] = toLonLat(coords);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,'_blank');
+  }
+}
+
+// Handle save from NoteEditModal
+const onGeoNoteSaved = async (updatedNote: Note) => {
+  try {
+    // Update on backend
+    await noteService.updateNote(updatedNote.id, {
+      title: updatedNote.title,
+      description: updatedNote.description,
+      access_level: updatedNote.accessLevel
+    });
+    // Update in store
+    notesStore.updateNote(updatedNote.id, {
+      title: updatedNote.title,
+      description: updatedNote.description,
+      access_level: updatedNote.accessLevel
+    });
+    // Update properties on the map feature
+    if (selectedFeature.value) {
+      updateFeatureProperties(selectedFeature.value as Feature<Geometry>, {
+        name: updatedNote.title,
+        description: updatedNote.description,
+        accessLevel: updatedNote.accessLevel
+      });
+    }
+    notificationStore.success('Note mise à jour avec succès');
+  } catch (err) {
+    console.error('[MapView] Error updating note:', err);
+    notificationStore.error('Erreur lors de la mise à jour de la note');
+  } finally {
+    showNoteEditModal.value = false;
   }
 }
 </script>

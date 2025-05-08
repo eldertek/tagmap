@@ -154,9 +154,6 @@
                               <p class="text-sm text-gray-500 line-clamp-2">{{ note.description || 'Aucune description' }}</p>
                             </div>
                             <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center space-x-2">
-                              <span class="text-xs text-gray-500">
-                                {{ note.updatedAt ? formatDate(note.updatedAt) : (note.createdAt ? formatDate(note.createdAt) : 'Date non définie') }}
-                              </span>
                               <span v-if="authStore.isAdmin" class="text-xs text-gray-700">
                                 {{ note.enterprise_name || 'Non assignée' }}
                               </span>
