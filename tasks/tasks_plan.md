@@ -113,6 +113,7 @@
    - [x] Enhance visibility of the location pin drop shadow with larger size and fill
    - [x] Permettre à l'utilisateur d'ouvrir un itinéraire Google Maps vers la position d'une note géolocalisée depuis DrawingTools.vue (bouton "Itinéraire"). Implémenté via la méthode openInGoogleMaps sur GeoNote.
    - [x] Allow click on existing shapes when no drawing tool is active to enter selection mode and enable control-point editing
+   - [ ] Add delete button for selected feature in OpenLayers DrawingTools.vue
    - [ ] **Enforce control point separation**: Create non-regression test to validate that all Leaflet control point creation/interaction code resides in `useMapDrawing.ts` and none exists in `Line.ts` or `Polygon.ts` utils.
    - [ ] Add reactive handle dragging: implement real-time geometry updates on `translating` events in `useMapDrawing.ts` for vertex, midpoint, and center handles.
 

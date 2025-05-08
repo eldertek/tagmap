@@ -37,6 +37,7 @@ Organizations need a centralized way to:
 - Drawing tools for creating polygons with automatic area calculation
 - Line drawing with altimetric profile generation
 - Side panel dialog box interface for note management
+- Ability to delete the selected shape using a delete button in the Drawing Tools panel (OpenLayers)
 - Display enterprise name on each note for Administrators only
 - **Centralized control point management**: All control point display and interaction is handled by a dedicated composable (`useMapDrawing.ts`), while geometry utilities (`Line.ts`, `Polygon.ts`) provide only pure geometric computations without UI code.
 - **Drawing interactions**: Implemented using OpenLayers Draw and Modify interactions, managed via `useMapDrawing.ts` composable.

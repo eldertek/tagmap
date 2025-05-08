@@ -297,12 +297,13 @@ const deleteSelectedFeature = () => {
   if (selectedFeature.value && olMap) {
     // TypeScript requires a type assertion here since Feature<Geometry> is expected
     const feature = selectedFeature.value as unknown as Feature<Geometry>
-    console.log('[MapView] deleteSelectedFeature: deleting feature with id', feature.get('id'))
+    // Retrieve the feature ID before deletion
+    const featureId = feature.get('id')
+    console.log('[MapView] deleteSelectedFeature: deleting feature with id', featureId)
     deleteFeature(feature)
     console.log('[MapView] deleteSelectedFeature: feature removed from drawSource')
-    
+
     // Update shapes collection
-    const featureId = selectedFeature.value.get('id')
     shapes.value = shapes.value.filter(shape => shape.id !== featureId)
     console.log('[MapView] deleteSelectedFeature: shapes collection updated', shapes.value)
   }

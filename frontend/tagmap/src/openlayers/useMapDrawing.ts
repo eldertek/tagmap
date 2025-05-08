@@ -606,6 +606,8 @@ export function useMapDrawing() {
       // Clear selection if deleted feature was selected
       if (selectedFeature.value === feature) {
         selectedFeature.value = null
+        // Clear control point handles when the feature is deleted
+        recreateHandles()
       }
       console.log('[useMapDrawing] Feature deleted successfully')
     } catch (error) {
