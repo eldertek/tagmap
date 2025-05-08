@@ -400,6 +400,7 @@ import { useAuthStore } from '@/stores/auth';
 import { weatherService, userService } from '@/services/api';
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
+import * as googleMapsLoader from '@/utils/googleMapsLoader';
 
 const notificationStore = useNotificationStore();
 const authStore = useAuthStore();
@@ -446,7 +447,6 @@ function getGoogleMapsUrl(device: any): string {
   const longitude = device.longitude;
   const name = device.name || 'Station météo';
 
-  const googleMapsLoader = require('@/utils/googleMapsLoader');
   return googleMapsLoader.getGoogleMapsSearchUrl(latitude, longitude, name);
 }
 
@@ -464,67 +464,87 @@ async function fetchDevices() {
     if (isAdmin.value && selectedCompany.value) {
       params.entreprise = selectedCompany.value;
     }
-const response = await weatherService.getDevices(params);
-// Extraire les appareils de la réponse
-    let devicesData = [];
     
-    // Vérifier si la réponse contient un message d'erreur spécifique (chaîne de caractères)
-    if (response.data && response.data.devices && Array.isArray(response.data.devices) && 
-        response.data.devices.length > 0 && typeof response.data.devices[1] === 'string') {
-      // Si le second élément est une chaîne, c'est probablement un message d'erreur
-      let errorMessage = response.data.devices[1];
+    try {
+      const response = await weatherService.getDevices(params);
+      // Extraire les appareils de la réponse
+      let devicesData = [];
       
-      // Ne pas modifier le message, conserver celui fourni par le backend
-      apiError.value = errorMessage;
+      // Vérifier si la réponse contient un message d'erreur spécifique (chaîne de caractères)
+      if (response.data && response.data.devices && Array.isArray(response.data.devices) && 
+          response.data.devices.length > 0 && typeof response.data.devices[1] === 'string') {
+        // Si le second élément est une chaîne, c'est probablement un message d'erreur
+        let errorMessage = response.data.devices[1];
+        
+        // Ne pas modifier le message, conserver celui fourni par le backend
+        apiError.value = errorMessage;
+        
+        console.warn('[fetchDevices] Message d\'erreur API reçu:', apiError.value);
+        return;
+      }
       
-      console.warn('[fetchDevices] Message d\'erreur API reçu:', apiError.value);
-      return;
-    }
-    
-    // Extraction normale des données
-    if (response.data && response.data.devices && Array.isArray(response.data.devices)) {
-      // Si la réponse contient un tableau d'appareils sous la clé 'devices'
-      devicesData = response.data.devices;
-    } else if (Array.isArray(response.data)) {
-      // Si la réponse est directement un tableau d'appareils
-      devicesData = response.data;
-    } else {
-      // Fallback: essayer d'extraire des données de la réponse
-      if (typeof response.data === 'object' && response.data !== null) {
-        // Parcourir les propriétés de l'objet response.data
-        for (const key in response.data) {
-          if (Array.isArray(response.data[key])) {
-            devicesData = response.data[key];
-            break;
+      // Extraction normale des données
+      if (response.data && response.data.devices && Array.isArray(response.data.devices)) {
+        // Si la réponse contient un tableau d'appareils sous la clé 'devices'
+        devicesData = response.data.devices;
+      } else if (Array.isArray(response.data)) {
+        // Si la réponse est directement un tableau d'appareils
+        devicesData = response.data;
+      } else {
+        // Fallback: essayer d'extraire des données de la réponse
+        if (typeof response.data === 'object' && response.data !== null) {
+          // Parcourir les propriétés de l'objet response.data
+          for (const key in response.data) {
+            if (Array.isArray(response.data[key])) {
+              devicesData = response.data[key];
+              break;
+            }
           }
         }
       }
-    }
-    
-    // Traiter les données des appareils pour normaliser leur format
-    devices.value = devicesData.filter((device: any) => device !== null && typeof device === 'object').map((device: any) => {
-      // Utiliser l'IMEI comme identifiant si le MAC n'est pas disponible
-      const deviceId = device.mac || device.imei;
       
-      return {
-        id: device.id,
-        name: device.name || `Station ${deviceId}`,
-        mac: deviceId, // Stocker l'IMEI dans le champ mac si pas de MAC disponible
-        model: device.stationtype?.split('_')[0] || 'Inconnu',
-        firmware_version: device.stationtype?.includes('_V') ? device.stationtype.split('_V')[1] : '1.0',
-        timezone: device.date_zone_id || 'UTC',
-        created_at: device.createtime ? new Date(device.createtime * 1000).toISOString() : new Date().toISOString(),
-        latitude: device.latitude || 0,
-        longitude: device.longitude || 0
-      };
-    });
-if (devices.value.length > 0) {
-      // Sélectionner le premier appareil
-      // Note: Pas besoin d'appeler fetchWeatherData() ici, le watcher sur selectedDevice le fera
-      selectedDevice.value = devices.value[0].mac;
-    } else {
-      console.warn('[fetchDevices] Aucun appareil disponible');
+      // Traiter les données des appareils pour normaliser leur format
+      devices.value = devicesData.filter((device: any) => device !== null && typeof device === 'object').map((device: any) => {
+        // Utiliser l'IMEI comme identifiant si le MAC n'est pas disponible
+        const deviceId = device.mac || device.imei;
+        
+        return {
+          id: device.id,
+          name: device.name || `Station ${deviceId}`,
+          mac: deviceId, // Stocker l'IMEI dans le champ mac si pas de MAC disponible
+          model: device.stationtype?.split('_')[0] || 'Inconnu',
+          firmware_version: device.stationtype?.includes('_V') ? device.stationtype.split('_V')[1] : '1.0',
+          timezone: device.date_zone_id || 'UTC',
+          created_at: device.createtime ? new Date(device.createtime * 1000).toISOString() : new Date().toISOString(),
+          latitude: device.latitude || 0,
+          longitude: device.longitude || 0
+        };
+      });
+      
+      if (devices.value.length > 0) {
+        // Sélectionner le premier appareil
+        // Note: Pas besoin d'appeler fetchWeatherData() ici, le watcher sur selectedDevice le fera
+        selectedDevice.value = devices.value[0].mac;
+      } else {
+        console.warn('[fetchDevices] Aucun appareil disponible');
+        // Réinitialiser les données
+        weatherData.value = {};
+      }
+    } catch (error: any) {
+      // Handle API-level errors from the weatherService
+      if (error.response && error.response.data && error.response.data.error) {
+        apiError.value = error.response.data.error;
+      } else if (error.message) {
+        apiError.value = error.message;
+      } else {
+        apiError.value = 'Erreur lors de la récupération des stations météo';
+      }
+      
+      console.error('[fetchDevices] Erreur spécifique:', error);
+      
       // Réinitialiser les données
+      devices.value = [];
+      selectedDevice.value = '';
       weatherData.value = {};
     }
   } catch (error: any) {

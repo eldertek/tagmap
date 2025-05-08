@@ -675,12 +675,20 @@ export const weatherService = {
   // Récupérer la liste des appareils disponibles
   async getDevices(params: any = {}) {
     try {
-      return await retryWithBackoff(
+      const response = await retryWithBackoff(
         () => api.get('/weather/devices/', { params }),
         3, // maxRetries
         1000, // baseDelay
         10000 // maxDelay
       );
+      
+      // Check if response contains an error message from the backend
+      if (response.data && response.data.error) {
+        console.error('Error in getDevices response:', response.data.error);
+        throw new Error(response.data.error);
+      }
+      
+      return response;
     } catch (error) {
       console.error('Error getting weather devices:', error);
       throw error;

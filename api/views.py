@@ -49,6 +49,9 @@ ROLE_USINE = 'ENTREPRISE'
 ROLE_DEALER = 'SALARIE'
 ROLE_AGRICULTEUR = 'VISITEUR'
 
+# Configure logger
+logger = logging.getLogger(__name__)
+
 # Create your views here.
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -916,6 +919,16 @@ class WeatherViewSet(viewsets.ViewSet):
         elif self.action == 'chart':
             return WeatherChartDataSerializer
         return WeatherDataSerializer
+        
+    def log_api_response(self, endpoint, response, error=False):
+        """Enregistre les réponses de l'API dans les logs."""
+        try:
+            if error:
+                logger.error(f"Ecowitt API {endpoint} error: {response.status_code}, {response.text}")
+            else:
+                logger.debug(f"Ecowitt API {endpoint} response: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error logging API response: {str(e)}")
 
     def get_ecowitt_config(self):
         """Récupère la configuration Ecowitt pour l'utilisateur actuel."""
@@ -1048,12 +1061,17 @@ class WeatherViewSet(viewsets.ViewSet):
             
             # Vérifier si la réponse est un tableau contenant une erreur
             if isinstance(devices, list) and len(devices) == 2 and devices[0] is None and isinstance(devices[1], str):
-                # C'est un message d'erreur, mais on le renvoie quand même avec un code 200
+                # C'est un message d'erreur, mais on le renvoie avec un code 200
                 # pour que le frontend puisse le traiter correctement
                 return Response({'devices': devices})
             
             # Si devices est None ou vide, on retourne une erreur
-            if not devices:
+            if devices is None:
+                return Response(
+                    {'error': 'Erreur lors de la récupération des appareils'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            elif len(devices) == 0:
                 return Response(
                     {'error': 'Aucun appareil disponible'},
                     status=status.HTTP_404_NOT_FOUND
@@ -1067,6 +1085,8 @@ class WeatherViewSet(viewsets.ViewSet):
             return Response(response_data)
         except Exception as e:
             import traceback
+            logger.error(f"Error in devices endpoint: {str(e)}")
+            logger.error(traceback.format_exc())
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

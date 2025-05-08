@@ -35,6 +35,9 @@ router.register(r'settings', ApplicationSettingViewSet, basename='settings')
 # Routes pour l'API météo (séparer les endpoints)
 router.register(r'weather', WeatherViewSet, basename='weather')
 
+# Add explicit path for devices endpoint
+devices_path = path('weather/devices/', WeatherViewSet.as_view({'get': 'devices'}), name='weather-devices')
+
 # Nested routes for notes
 notes_router = NestedDefaultRouter(router, r'notes', lookup='note')
 notes_router.register(r'comments', NoteCommentViewSet, basename='note-comments')
@@ -43,4 +46,5 @@ notes_router.register(r'photos', NotePhotoViewSet, basename='note-photos')
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(notes_router.urls)),  # Include nested routes
+    devices_path,  # Add explicit devices path
 ]
