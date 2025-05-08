@@ -7,8 +7,6 @@ import UserListView from '@/views/UserListView.vue'
 import NotesView from '../views/NotesView.vue'
 import MeteoView from '../views/MeteoView.vue'
 import ParametresView from '../views/ParametresView.vue'
-// Import du composant de test MapLibre
-import MapLibreTest from '@/maplibre/components/MapLibreTest.vue'
 
 const router = createRouter({
   history: createWebHistory('/'),
@@ -105,12 +103,13 @@ const router = createRouter({
       }
     },
     {
-      path: '/maplibre-test',
-      name: 'maplibre-test',
-      component: MapLibreTest,
+      path: '/ol',
+      name: 'openlayers',
+      component: () => import('@/openlayers/MapView.vue'),
       meta: {
         requiresAuth: true,
-        allowedRoles: ['admin']
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur'],
+        isMapRoute: true
       }
     },
     {

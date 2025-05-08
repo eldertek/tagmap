@@ -54,20 +54,25 @@ flowchart TD
    - Custom controls for layer switching
    - Event handling for map interactions
 
-3. **Authentication Module**
+3. **OpenLayers Map Component (experimental)**
+   - Map rendering with OpenLayers for high-performance WebGL mapping
+   - Composable-based integration in `src/openlayers` that parallels the Leaflet implementation
+   - Includes `MapView.vue`, `useMapState.ts`, and `useMapDrawing.ts` composables
+
+4. **Authentication Module**
    - Login/logout functionality
    - Role-based interface adaptation
    - Permission checks
    - Les salariés disposent d'un bouton pour charger les plans sans visiteur dans MapView (alignement UX avec les entreprises)
 
-4. **Notes Management**
+5. **Notes Management**
    - Creation and editing of geolocated notes
    - Permission management for notes
    - Filtering and searching
    - Side panel dialog box interface for note management
    - Display enterprise name on notes for administrators
 
-5. **Drawing Tools**
+6. **Drawing Tools**
    - Polygon creation with area calculation
    - Line drawing with altimetric profiling
    - Shape persistence and editing
@@ -76,16 +81,16 @@ flowchart TD
    - Enhanced location pin with circle underneath to represent drop shadow
    - Improved visibility of the drop shadow with larger dimensions and subtle fill
 
-6. **Media Management**
+7. **Media Management**
    - Photo capture interface
    - Media attachment to geographic points
    - Quota management
 
-7. **Route Planning**
+8. **Route Planning**
    - Route calculation interface
    - Integration with external mapping services
 
-8. **PDF Generation**
+9. **PDF Generation**
    - Client-side report generation
    - Selection of points for inclusion
    - PDF formatting
@@ -188,6 +193,7 @@ flowchart TD
 ### Frontend
 - **Framework**: Vue.js
 - **Map Library**: Leaflet
+- **Experimental Map Library**: OpenLayers (integration under `src/openlayers`)
 - **State Management**: Vuex or Pinia
 - **Build Tools**: Vite
 - **UI Components**: Custom components with responsive design

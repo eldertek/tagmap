@@ -89,6 +89,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 - **Framework**: Vue.js 3
 - **Build Tool**: Vite
 - **Map Library**: Leaflet
+- **Experimental Map Library**: OpenLayers (`src/openlayers`)
 - **State Management**: Vuex or Pinia
 - **HTTP Client**: Axios
 - **CSS Framework**: Custom styling with responsive design
@@ -174,6 +175,7 @@ frontend/tagmap/
 │   ├── composables/     # Vue composables
 │   ├── lib/             # Third-party libraries
 │   │   └── leaflet/     # Leaflet map library
+│   ├── openlayers/      # Experimental OpenLayers integration
 │   ├── router/          # Vue Router configuration
 │   ├── services/        # API services
 │   ├── stores/          # Vuex/Pinia stores

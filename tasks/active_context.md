@@ -27,6 +27,7 @@
    - Ensuring cross-platform compatibility
    - Implement proper error handling for map services in case of API failures or quota limits
    - Create a backup plan for map layers if Google Maps API becomes unavailable
+   - Experimental OpenLayers integration (src/openlayers) for new map stack
 
 4. **Centralisation des utilitaires**
    - ✅ Création de fonctions utilitaires centralisées pour Google Maps dans `googleMapsLoader.ts`

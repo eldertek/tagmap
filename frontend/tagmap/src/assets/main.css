@@ -330,3 +330,8 @@
   cursor: text;
   outline: none;
 }
+
+/* Hide MapLibre-Geoman controls */
+.geoman-controls {
+  display: none !important;
+}

@@ -39,7 +39,7 @@ Organizations need a centralized way to:
 - Side panel dialog box interface for note management
 - Display enterprise name on each note for Administrators only
 - **Centralized control point management**: All control point display and interaction is handled by a dedicated composable (`useMapDrawing.ts`), while geometry utilities (`Line.ts`, `Polygon.ts`) provide only pure geometric computations without UI code.
-- **Drawing tool mode mapping**: When using MapLibre drawing tools, the correct Geoman mode names must be used (e.g., 'draw_polygon', 'draw_line_string', 'draw_point'). See `docs/technical.md` for the full mapping table and usage details.
+- **Drawing interactions**: Implemented using OpenLayers Draw and Modify interactions, managed via `useMapDrawing.ts` composable.
 
 ### Media Management
 - In-app photo capture capability
