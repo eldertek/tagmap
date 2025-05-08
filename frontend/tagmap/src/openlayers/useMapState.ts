@@ -8,7 +8,6 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { defaults as defaultControls } from 'ol/control';
 import Collection from 'ol/Collection';
-import { loadGoogleMapsApi } from '@/utils/googleMapsLoader';
 import Feature from 'ol/Feature';
 import { Geometry } from 'ol/geom';
 
@@ -37,13 +36,14 @@ export function useMapState() {
     tileSize: 256,
   };
 
-  // Define base layers
+  // Define base layers with high DPI support for better quality
   const googleHybridLayer = new TileLayer({
     visible: true, // Default to visible
     source: new XYZ({
-      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', // Remove API key requirement
+      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&scale=2', // Added scale=2 for high DPI/Retina support
       attributions: '© Google',
       ...commonSourceOptions,
+      tilePixelRatio: 2, // Support for high DPI displays
     }),
   });
 
@@ -53,6 +53,7 @@ export function useMapState() {
       url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
       attributions: 'Cadastre - Carte © IGN/Geoportail',
       ...commonSourceOptions,
+      tilePixelRatio: 2, // Support for high DPI displays
     }),
   });
 
@@ -62,6 +63,7 @@ export function useMapState() {
       url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
       attributions: 'Carte IGN © IGN/Geoportail',
       ...commonSourceOptions,
+      tilePixelRatio: 2, // Support for high DPI displays
     }),
   });
 
