@@ -126,6 +126,7 @@ La prochaine étape consiste à développer un prototype MapLibre pour valider l
 - Le système de permissions est centralisé côté backend pour plus de sécurité
 - Lors de l'édition des notes, il faut préserver l'enterprise_name pour maintenir l'affichage pour les admins
 - Les fonctions d'ouverture de liens Google Maps et de conversion de coordonnées sont maintenant centralisées dans les utilitaires dédiés
+- L'icône des GeoNotes sur la carte est synchronisée avec celle de l'outil dessin "point" (SVG DrawingTools.vue). Toute évolution de l'icône dans l'UI doit être répercutée sur la carte. La couleur du marqueur reste personnalisable selon les propriétés de la note.
 
 ## Références
 - Documentation API: `/api/docs/`
@@ -174,3 +175,6 @@ Une analyse approfondie des options pour améliorer l'expérience tactile sur mo
 1. Les limitations actuelles de Leaflet sont structurelles et difficilement contournables
 2. La meilleure approche serait une migration vers MapLibre GL JS qui offre un support tactile natif
 3. Un prototype doit être développé pour valider les gains réels avant toute décision
+
+- Permettre de cliquer sur une GeoNote existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et accéder aux actions spécifiques (Éditer, Itinéraire, Supprimer) dans le panneau DrawingTools
+- Permettre de cliquer sur une forme existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et modifier via les points de contrôle

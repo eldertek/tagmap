@@ -254,3 +254,7 @@ Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobil
 - Cliquer sur le bouton "Ajuster" dans la barre d'outils.
 - La vue doit automatiquement s'ajuster pour englober toutes les formes tracées.
 - Si aucune forme n'est présente, la vue doit revenir à l'état initial (vue par défaut du projet).
+
+- [ ] L'icône des GeoNotes sur la carte doit toujours être identique à celle de l'outil dessin "point" (SVG DrawingTools.vue).
+    - Toute modification de l'icône dans l'UI doit être répercutée sur la carte.
+    - La couleur du marqueur reste personnalisable selon les propriétés de la note.

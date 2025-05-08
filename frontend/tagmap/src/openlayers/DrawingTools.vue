@@ -117,10 +117,9 @@
               </div>
               <select id="accessLevel" v-model="accessLevel" @change="updateAccessLevel"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                <option value="admin">Administrateur uniquement</option>
-                <option value="company">Entreprise et salariés</option>
-                <option value="employee">Salariés uniquement</option>
-                <option value="visitor">Tout le monde (public)</option>
+                <option v-for="level in accessLevelsList" :key="level.id" :value="level.id">
+                  {{ level.title }} - {{ level.description }}
+                </option>
               </select>
             </div>
 
@@ -198,19 +197,12 @@
               <div class="p-2 bg-blue-50 rounded mb-2 text-xs text-blue-700">
                 Sélectionnez votre niveau d'accès pour filtrer les éléments visibles sur la carte.
               </div>
-              <div>
-                <select v-model="selectedAccessLevel" @change="updateAccessLevelFilter(selectedAccessLevel)"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
-                  <option value="company">Entreprise (tous les éléments)</option>
-                  <option value="employee">Salariés (éléments salariés et visiteurs)</option>
-                  <option value="visitor">Visiteurs (éléments public uniquement)</option>
-                </select>
-                <div class="mt-2 text-xs text-gray-500">
-                  <p><strong>Entreprise</strong> : Vous verrez tous les éléments (entreprise, salariés, visiteurs)</p>
-                  <p><strong>Salariés</strong> : Vous verrez les éléments pour salariés et visiteurs</p>
-                  <p><strong>Visiteurs</strong> : Vous ne verrez que les éléments pour visiteurs</p>
-                </div>
-              </div>
+              <select v-model="selectedAccessLevel" @change="updateAccessLevelFilter(selectedAccessLevel)"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 text-sm">
+                <option v-for="level in accessLevelsList" :key="level.id" :value="level.id">
+                  {{ level.title }} - {{ level.description }}
+                </option>
+              </select>
             </div>
 
             <!-- Section des catégories -->
@@ -291,6 +283,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import Feature from 'ol/Feature'
 import { Geometry, Polygon, LineString, Point } from 'ol/geom'
 import { getArea, getLength } from 'ol/sphere'
+import { ACCESS_LEVELS, NoteAccessLevel } from '@/utils/noteHelpers'
 
 // Define props for the component
 const props = defineProps({
@@ -343,7 +336,7 @@ const activeTab = ref('tools')
 // Feature properties
 const shapeName = ref('')
 const shapeCategory = ref('forages')
-const accessLevel = ref('visitor')
+const accessLevel = ref<NoteAccessLevel>(NoteAccessLevel.VISITOR)
 
 // Style properties
 const strokeColor = ref('#2b6451')
@@ -377,12 +370,13 @@ const drawingTools = [
 ]
 
 // Filters
-const selectedAccessLevel = ref('company')
+const selectedAccessLevel = ref<NoteAccessLevel>(NoteAccessLevel.COMPANY)
 const filters = ref({
   accessLevels: {
-    company: true,
-    employee: false,
-    visitor: false
+    [NoteAccessLevel.PRIVATE]: false,
+    [NoteAccessLevel.COMPANY]: true,
+    [NoteAccessLevel.EMPLOYEE]: false,
+    [NoteAccessLevel.VISITOR]: false
   },
   categories: {
     forages: true,
@@ -398,6 +392,9 @@ const filters = ref({
     Note: true
   }
 })
+
+// DEFINE: list of access levels
+const accessLevelsList = ACCESS_LEVELS
 
 // Helper methods
 const getFeatureType = () => {
@@ -536,7 +533,7 @@ const selectPresetColor = (color: string) => {
 }
 
 // Update access level filter
-const updateAccessLevelFilter = (level: string) => {
+const updateAccessLevelFilter = (level: NoteAccessLevel) => {
   // Reset all access level filters
   Object.keys(filters.value.accessLevels).forEach(key => {
     filters.value.accessLevels[key as keyof typeof filters.value.accessLevels] = false
@@ -562,11 +559,12 @@ const resetFilters = () => {
   })
   
   // Reset access level to company (all)
-  selectedAccessLevel.value = 'company'
+  selectedAccessLevel.value = NoteAccessLevel.COMPANY
   filters.value.accessLevels = {
-    company: true,
-    employee: false,
-    visitor: false
+    [NoteAccessLevel.PRIVATE]: false,
+    [NoteAccessLevel.COMPANY]: true,
+    [NoteAccessLevel.EMPLOYEE]: false,
+    [NoteAccessLevel.VISITOR]: false
   }
   
   emitFilterChange()
@@ -590,7 +588,7 @@ watch(() => props.selectedFeature, (newFeature) => {
     
     shapeName.value = newFeature.get('name') || properties.name || ''
     shapeCategory.value = properties.category || 'forages'
-    accessLevel.value = properties.accessLevel || 'visitor'
+    accessLevel.value = properties.accessLevel || NoteAccessLevel.COMPANY
     
     // Set style values
     if (properties.style) {

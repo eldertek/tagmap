@@ -572,6 +572,16 @@ import api from '@/services/api'
 import { formatDate } from '@/utils/dateUtils'
 import { useNotesStore } from '@/stores/notes'
 import { noteService } from '@/services/api'
+import { 
+  Style, 
+  Fill, 
+  Stroke, 
+  Text, 
+  Circle as CircleStyle, 
+  Icon // Ajout de Icon
+} from 'ol/style'
+import VectorSource from 'ol/source/Vector'
+import VectorLayer from 'ol/layer/Vector'
 
 // Store references
 const authStore = useAuthStore()
@@ -705,8 +715,96 @@ onMounted(async () => {
       // Initialize drawing tools
       if (olMap) {
         initDrawing(olMap!);
+        
+        // Set up drawSource listener for GeoNotes
+        drawSource.on('addfeature', async (e: any) => {
+          const feature = e.feature as Feature<Geometry>
+          const props = feature.get('properties') as any
+          if (props && props.type === 'Note') {
+            // Only process notes
+            try {
+              console.log('[MapView] Added feature is a GeoNote, processing...');
+              
+              const geometry = feature.getGeometry()
+              if (geometry && geometry instanceof Point) {
+                // Get coordinates and convert to longitude/latitude
+                const coords = geometry.getCoordinates()
+                console.log('[MapView] GeoNote raw coordinates (EPSG:3857):', coords);
+                
+                const [lng, lat] = toLonLat(coords)
+                console.log('[MapView] GeoNote converted coordinates (EPSG:4326):', [lng, lat]);
+                
+                // Create note data for API
+                const noteData: any = {
+                  title: props.name || 'Nouvelle note',
+                  description: props.description || '',
+                  location: { 
+                    type: 'Point', 
+                    coordinates: [lng, lat]  // GeoJSON uses [longitude, latitude] format
+                  },
+                  column: notesStore.getDefaultColumn.id,
+                  access_level: props.accessLevel || 'visitor',
+                  style: props.style || {
+                    color: '#3388ff',
+                    weight: 3,
+                    fillColor: 'rgba(51, 136, 255, 0.6)',
+                    radius: 8
+                  },
+                  category: props.category || 'forages',
+                  plan: irrigationStore.currentPlan?.id
+                }
+                
+                console.log('[MapView] Sending GeoNote data to API:', noteData);
+                
+                // Create note via API
+                const response = await noteService.createNote(noteData)
+                const created = response.data
+                console.log('[MapView] Created GeoNote API response:', created);
+                
+                // Remove the temporary feature from the draw source (important!)
+                // so it doesn't get saved twice (once as a shape, once as a note)
+                drawSource.removeFeature(feature)
+                
+                // Create a brand new feature with the correct ID from the server
+                const newFeature = new Feature({
+                  geometry: new Point(coords) // Use original OpenLayers coordinates (EPSG:3857)
+                });
+                
+                // Copy properties and set ID
+                newFeature.setId(created.id);
+                newFeature.set('properties', props);
+                
+                // Add the note to the map separately from drawSource
+                addNoteToMap(newFeature, created.id);
+                
+                // Add to notes store
+                notesStore.addNote({
+                  ...created,
+                  id: created.id,
+                  columnId: created.column
+                });
+                
+                // Select the new feature
+                selectedFeature.value = null; // Clear first to trigger reactivity
+                setTimeout(() => {
+                  selectedFeature.value = newFeature;
+                }, 100);
+                
+                // Notify creation success
+                notificationStore.success('Note créée avec succès')
+              } else {
+                console.warn('[MapView] Feature is not a Point geometry or is invalid:', geometry);
+              }
+            } catch (err) {
+              console.error('[MapView] Error creating GeoNote:', err)
+              notificationStore.error('Erreur lors de la création de la note')
+              drawSource.removeFeature(feature)
+            }
+          }
+        })
+        
         // Ensure default interactions are active on initial load
-        setDrawingTool('none', olMap!);
+        setDrawingTool('none', olMap);
         
         // Load last viewed plan from localStorage
         try {
@@ -727,7 +825,7 @@ onMounted(async () => {
       }
     });
   }
-})
+});
 
 // Clean up when component is unmounted
 onUnmounted(() => {
@@ -929,136 +1027,362 @@ function backToClientList() {
 
 // Load a plan by ID
 async function loadPlanById(planId: number) {
-  console.log(`[MapView] loadPlanById: start loading plan id=${planId}`);
+  if (!planId) {
+    console.error('[MapView] loadPlanById: Invalid plan ID');
+    return;
+  }
+
+  console.log(`[MapView] loadPlanById: Loading plan ${planId}`);
   try {
-    console.log(`[MapView] loadPlanById: fetching plan id=${planId}`);
-    const plan = await irrigationStore.fetchPlanById(planId)
-    console.log(`[MapView] loadPlanById: fetched plan`, plan);
+    // Clear current state without touching the computed currentPlan
+    drawSource.clear();
+    shapes.value = [];
+    selectedFeature.value = null;
+    planName.value = '';
+    planDescription.value = '';
+    lastSave.value = null;
+
+    // Get plan details
+    const plan = await irrigationStore.fetchPlanById(planId);
     if (!plan) {
-      console.warn(`[MapView] loadPlanById: plan ${planId} not found`);
-      notificationStore.error('Le plan demandé n\'existe pas')
-      return
+      throw new Error(`Plan with ID ${planId} not found`);
     }
-    
+
     // Set the current plan in the store
-    irrigationStore.setCurrentPlan(plan)
+    irrigationStore.setCurrentPlan(plan);
     
     // Save plan ID to localStorage for future loading
-    localStorage.setItem('lastPlanId', planId.toString())
+    localStorage.setItem('lastPlanId', planId.toString());
     
-    // Update local state
-    planName.value = plan.nom
-    planDescription.value = plan.description
-    lastSave.value = new Date(plan.date_modification)
-    console.log(`[MapView] loadPlanById: planName="${plan.nom}", planDescription="${plan.description}", lastSave="${new Date(plan.date_modification).toISOString()}"`);
-    
-    // Clear existing features
-    drawSource.clear()
-    console.log(`[MapView] loadPlanById: drawSource cleared`);
-    
-    // Load plan elements if they exist
+    // Update local state - without setting readonly values
+    planName.value = plan.nom || '';
+    planDescription.value = plan.description || '';
+    if (plan.date_modification) {
+      lastSave.value = new Date(plan.date_modification);
+    }
+
+    // Load elements/shapes from plan
     if (plan.elements && Array.isArray(plan.elements)) {
-      console.log(`[MapView] loadPlanById: plan.elements length=${plan.elements.length}`);
-      const geoJson = new GeoJSON()
-      plan.elements.forEach((element, index) => {
-        console.log(`[MapView] loadPlanById: processing element index=${index}`, element);
-        if (!element.geometry) {
-          console.warn(`[MapView] loadPlanById: element index=${index} has no geometry, skipping`, element);
-          return
-        }
-        
+      // Process only shapes (not points/GeoNotes)
+      plan.elements.forEach(element => {
         try {
-          const geometry = geoJson.readGeometry(element.geometry)
-          console.log(`[MapView] loadPlanById: geometry for element ${index}`, geometry);
-          // Create a new feature from the geometry
-          const feature = new Feature({
-            geometry,
-            ...element.properties
-          })
-          console.log(`[MapView] loadPlanById: created feature for element ${index}`, feature);
-          
-          // Add the feature to the source
-          drawSource.addFeature(feature)
-          console.log(`[MapView] loadPlanById: added feature to drawSource, total features now=${drawSource.getFeatures().length}`);
-        } catch (error) {
-          console.error('Error loading feature:', error)
-          console.error(`[MapView] loadPlanById: error processing element index=${index}`, error);
-        }
-      })
-    }
-    
-    // Adjust the view to show all features
-    console.log(`[MapView] loadPlanById: adjusting view after loading features`);
-    adjustView()
-    
-    // Load GeoNotes for this plan separately
-    try {
-      const resp = await noteService.getNotesByPlan(planId)
-      const notesData: any[] = resp.data
-      const noteJson = new GeoJSON()
-      notesData.forEach(n => {
-        // Read geometry from GeoJSON location
-        const geometry = noteJson.readGeometry(n.location) as Geometry
-        // Create a new feature for the note
-        const feature = new Feature({ geometry })
-        // Assign properties for rendering and identification
-        feature.setId(n.id)
-        feature.set('properties', {
-          type: 'Note',
-          category: n.category || 'forages',
-          accessLevel: n.access_level,
-          style: n.style,
-          name: n.title,
-          description: n.description
-        })
-        // Add to map and shapes list
-        drawSource.addFeature(feature)
-        shapes.value.push({ id: n.id, type: 'Note', layer: feature, properties: feature.get('properties') })
-        // Add to notes store
-        notesStore.addNote({ ...n, id: n.id })
-      })
-    } catch (err) {
-      console.error('[MapView] Error loading GeoNotes:', err)
-    }
-    
-    // ADD: Listen for new point features to create GeoNote immediately
-    // using drawSource from useMapDrawing
-    drawSource.on('addfeature', async (e: any) => {
-      const feature = e.feature as Feature<Geometry>
-      const props = feature.get('properties') as any
-      if (props.type === 'Note') {
-        const coords = (feature.getGeometry() as Point).getCoordinates()
-        const [lng, lat] = toLonLat(coords)
-        const noteData: any = {
-          location: { type: 'Point', coordinates: [lng, lat] },
-          column: notesStore.getDefaultColumn.id,
-          access_level: props.accessLevel,
-          style: props.style,
-          category: props.category,
-          plan: irrigationStore.currentPlan?.id
-        }
-        try {
-          const response = await noteService.createNote(noteData)
-          const created = response.data
-          feature.setId(created.id)
-          props.id = created.id
-          notesStore.addNote({ ...created, id: created.id })
-          notificationStore.success('Note créée avec succès')
+          if (element.type !== 'Point' && element.geometry) {
+            const geoJson = new GeoJSON();
+            const geometry = geoJson.readGeometry(element.geometry);
+            
+            // Create a feature with the geometry
+            const feature = new Feature({
+              geometry
+            });
+            
+            // Set properties and ID
+            if (element.id) {
+              feature.setId(element.id);
+            }
+            
+            // Set feature properties
+            const properties = element.properties || {};
+            feature.set('properties', {
+              type: element.type,
+              name: properties.name || '',
+              category: properties.category || 'forages',
+              accessLevel: properties.accessLevel || 'visitor',
+              style: properties.style || {
+                color: '#3388ff',
+                fillColor: 'rgba(51, 136, 255, 0.2)',
+                weight: 3
+              }
+            });
+            
+            // Add to source
+            drawSource.addFeature(feature);
+            
+            // Add to shapes collection
+            shapes.value.push({
+              id: element.id,
+              type: element.type,
+              layer: feature,
+              properties: feature.get('properties')
+            });
+          }
         } catch (err) {
-          console.error('[MapView] Error creating GeoNote:', err)
-          notificationStore.error('Erreur lors de la création de la note')
+          console.error(`[MapView] Error processing element:`, err);
         }
-      }
-    })
+      });
+    }
+
+    // Adjust view after loading shapes
+    adjustView();
+    
+    // Load GeoNotes separately
+    await loadPlanGeoNotes(planId);
+
+    return plan;
   } catch (error) {
-    console.error('Error loading plan:', error)
-    console.error(`[MapView] loadPlanById: error loading plan id=${planId}`, error);
-    notificationStore.error('Erreur lors du chargement du plan')
+    console.error('[MapView] loadPlanById error:', error);
+    notificationStore.error('Erreur lors du chargement du plan');
+    throw error;
   }
 }
 
+// Function to load GeoNotes separately - simplified to use API directly
+async function loadPlanGeoNotes(planId: number) {
+  console.log(`[MapView] loadPlanGeoNotes: Loading notes for plan ${planId}`);
+  
+  try {
+    // Get notes from API
+    const resp = await noteService.getNotesByPlan(planId);
+    const notesData = resp.data;
+    console.log(`[MapView] loadPlanGeoNotes: Found ${notesData.length} notes`);
+    
+    // Log des détails de toutes les notes
+    if (notesData.length > 0) {
+      notesData.forEach((note: any, index: number) => {
+        console.log(`[MapView] loadPlanGeoNotes: Note #${index} (id=${note.id}):`, {
+          title: note.title,
+          location: note.location,
+          column: note.column,
+          category: note.category
+        });
+      });
+    }
+    
+    // Process each note
+    notesData.forEach((note: any) => {
+      try {
+        // Skip notes without location
+        if (!note.location) {
+          console.warn(`[MapView] loadPlanGeoNotes: Note ${note.id} has no location`);
+          return;
+        }
+        
+        console.log(`[MapView] Processing note ${note.id} with location:`, note.location);
+        
+        // CORRECTION: Au lieu d'utiliser GeoJSON.readGeometry, créer manuellement un point avec les coordonnées converties
+        if (note.location.type === 'Point' && Array.isArray(note.location.coordinates) && note.location.coordinates.length === 2) {
+          const [lng, lat] = note.location.coordinates;
+          console.log(`[MapView] Note ${note.id} original GeoJSON coordinates (EPSG:4326):`, [lng, lat]);
+          
+          // Convertir les coordonnées EPSG:4326 (lon/lat) en EPSG:3857 (projection mercator utilisée par OpenLayers)
+          const mapCoords = fromLonLat([lng, lat]);
+          console.log(`[MapView] Note ${note.id} converted coordinates (EPSG:3857):`, mapCoords);
+          
+          // Créer un point OpenLayers avec les coordonnées converties
+          const geometry = new Point(mapCoords);
+          
+          // Create a new feature for the note
+          const feature = new Feature({ geometry });
+          
+          // Assign properties for rendering and identification
+          feature.setId(note.id);
+          feature.set('properties', {
+            type: 'Note',
+            category: note.category || 'forages',
+            accessLevel: note.access_level,
+            style: note.style || {
+              color: '#3388ff',
+              weight: 3,
+              fillColor: 'rgba(51, 136, 255, 0.6)',
+              radius: 8
+            },
+            name: note.title,
+            description: note.description
+          });
+          
+          // Add note to map as a separate layer (not to drawSource)
+          addNoteToMap(feature, note.id);
+          
+          // Add to notes store
+          notesStore.addNote({ 
+            ...note, 
+            id: note.id,
+            columnId: note.column 
+          });
+        } else {
+          console.warn(`[MapView] Note ${note.id} has invalid location format:`, note.location);
+        }
+      } catch (err) {
+        console.error(`[MapView] loadPlanGeoNotes: Error processing note ${note.id}:`, err);
+      }
+    });
+  } catch (err) {
+    console.error('[MapView] Error loading GeoNotes:', err);
+  }
+}
+
+// Function to add a note to the map (separate from drawSource)
+function addNoteToMap(feature: Feature<Geometry>, id: number) {
+  const geometry = feature.getGeometry();
+  if (geometry instanceof Point) {
+    const coords = geometry.getCoordinates();
+    const [lng, lat] = toLonLat(coords);
+    console.log(`[MapView] addNoteToMap: Note id=${id} positions:`, {
+      mapCoords: coords,
+      geoCoords: [lng, lat]
+    });
+  }
+  
+  // Create separate source and layer for this note
+  const noteSource = new VectorSource({
+    features: [feature]
+  });
+  
+  // Get style properties
+  const props = feature.get('properties') || {};
+  const style = props.style || {};
+
+  // SVG de l'outil dessin (draw_point)
+  const drawPointSVG =
+    `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="8.5" r="2.5" stroke="${style.color || '#2b6451'}" stroke-width="2" fill="white"/>
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="${style.color || '#2b6451'}" stroke-width="2" fill="${style.fillColor || '#e6f0ee'}"/>
+    </svg>`;
+  // Encodage en data URI
+  const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(drawPointSVG)}`;
+
+  // Create layer with custom SVG icon
+  const noteLayer = new VectorLayer({
+    source: noteSource,
+    style: new Style({
+      image: new Icon({
+        src: svgUrl,
+        imgSize: [32, 32],
+        anchor: [0.5, 1],
+        anchorXUnits: 'fraction',
+        anchorYUnits: 'fraction',
+        scale: (style.radius || 1) / 8 // Ajuste la taille selon le radius
+      }),
+      text: props.name ? new Text({
+        text: String(props.name),
+        offsetY: -35,
+        font: '12px Calibri,sans-serif',
+        fill: new Fill({ color: '#000' }),
+        stroke: new Stroke({ color: '#fff', width: 2 })
+      }) : undefined
+    })
+  });
+  
+  // Add layer to map
+  if (olMap) {
+    olMap.addLayer(noteLayer);
+    
+    // Store reference to this note for later removal
+    const noteInfo = {
+      id: id,
+      type: 'Note',
+      layer: feature,
+      properties: props,
+      mapLayer: noteLayer,
+      source: noteSource
+    };
+    
+    // Add to shapes collection (but marked specially)
+    shapes.value.push(noteInfo);
+  }
+}
+
+// Clear plan data - modified to handle note layers
+function clearPlan() {
+  // Clear drawing source for regular shapes
+  drawSource.clear();
+  
+  // Remove note layers from map
+  shapes.value.forEach(shape => {
+    if (shape.type === 'Note' && shape.mapLayer && olMap) {
+      olMap.removeLayer(shape.mapLayer);
+    }
+  });
+  
+  // Clear shapes collection
+  shapes.value = [];
+  
+  // Clear selected feature
+  selectedFeature.value = null;
+  
+  // Reset plan data - DON'T modify currentPlan here, it's set by irrigationStore.setCurrentPlan
+  planName.value = '';
+  planDescription.value = '';
+  lastSave.value = null;
+}
+
+// Modify deleteSelectedFeature to handle GeoNotes specially
+const deleteSelectedFeature = async () => {
+  console.log('[MapView] deleteSelectedFeature invoked for feature', selectedFeature.value)
+  if (selectedFeature.value && olMap) {
+    const feature = selectedFeature.value as unknown as Feature<Geometry>
+    const props = feature.get('properties') as any
+    const id = feature.getId() as number
+    
+    // Handle GeoNotes differently from regular shapes
+    if (props.type === 'Note' && id) {
+      // Log des coordonnées avant suppression
+      const geometry = feature.getGeometry();
+      if (geometry instanceof Point) {
+        const coords = geometry.getCoordinates();
+        const [lng, lat] = toLonLat(coords);
+        console.log(`[MapView] Deleting GeoNote id=${id} at coordinates:`, {
+          raw: coords,
+          lonLat: [lng, lat]
+        });
+      }
+      
+      try {
+        // Delete from backend via API
+        await noteService.deleteNote(id)
+        
+        // Remove from notes store
+        notesStore.removeNote(id)
+        
+        // Find and remove the note's layer from the map
+        const noteShape = shapes.value.find(shape => shape.id === id && shape.type === 'Note')
+        if (noteShape && noteShape.mapLayer && olMap) {
+          olMap.removeLayer(noteShape.mapLayer)
+        }
+        
+        // Remove from shapes collection
+        shapes.value = shapes.value.filter(shape => !(shape.id === id && shape.type === 'Note'))
+        
+        // Success notification
+        notificationStore.success('Note supprimée avec succès')
+      } catch (err) {
+        console.error('[MapView] Error deleting GeoNote:', err)
+        notificationStore.error('Erreur lors de la suppression de la note')
+      }
+    } else {
+      // Regular shape deletion
+      console.log('[MapView] deleteSelectedFeature: deleting regular shape with id', id)
+      deleteFeature(feature) // Removes from drawSource
+      shapes.value = shapes.value.filter(shape => shape.id !== id)
+    }
+    
+    // Clear selection
+    selectedFeature.value = null
+  }
+}
+
+// Modify savePlan to use the plan API correctly
 const savePlan = async () => {
   console.log(`[MapView] savePlan: start saving plan id=${currentPlan.value?.id}`);
+  
+  // Log des notes géolocalisées existantes
+  const noteShapes = shapes.value.filter(shape => shape.type === 'Note');
+  console.log(`[MapView] savePlan: ${noteShapes.length} GeoNotes before saving`);
+  
+  if (noteShapes.length > 0) {
+    noteShapes.forEach((note, index) => {
+      if (note.layer) {
+        const feature = note.layer as Feature<Geometry>;
+        const geometry = feature.getGeometry();
+        if (geometry && geometry instanceof Point) {
+          const coords = geometry.getCoordinates();
+          const [lng, lat] = toLonLat(coords);
+          console.log(`[MapView] savePlan: Note #${index} (id=${note.id}) coords:`, 
+            { raw: coords, lonLat: [lng, lat] });
+        }
+      }
+    });
+  }
+  
   if (!currentPlan.value) {
     notificationStore.error('Aucun plan n\'est chargé')
     return
@@ -1067,117 +1391,63 @@ const savePlan = async () => {
   // Ensure plan has a title
   if (!planName.value && !currentPlan.value.nom) {
     planName.value = 'Plan ' + new Date().toLocaleDateString()
-    // Update the plan metadata in addition to elements
-    await irrigationStore.updatePlan(currentPlan.value.id, {
-      nom: planName.value,
-      description: planDescription.value || 'Plan créé le ' + new Date().toLocaleDateString()
-    })
+    // Update plan metadata
+    try {
+      await irrigationStore.updatePlan(currentPlan.value.id, {
+        nom: planName.value,
+        description: planDescription.value || 'Plan créé le ' + new Date().toLocaleDateString()
+      });
+    } catch (error) {
+      console.error('[MapView] Error updating plan metadata:', error);
+    }
   }
   
   saveStatus.value = 'saving'
+  
   try {
-    // Convert features to GeoJSON
-    const geoJson = new GeoJSON()
-    const features = drawSource.getFeatures()
-    console.log(`[MapView] savePlan: number of features to save=${features.length}`, features);
-    const elements = features.map((feature, index) => {
-      console.log(`[MapView] savePlan: processing feature index=${index}`, feature);
-      const geometry = feature.getGeometry()
-      if (!geometry) {
-        console.warn(`[MapView] savePlan: feature index=${index} has no geometry, skipping`, feature);
-        return null
-      }
+    // Convert features to elements the API expects
+    const elements = [];
+    
+    // Get all features from drawSource
+    const features = drawSource.getFeatures();
+    for (const feature of features) {
+      // Skip any Note type features - they're handled separately
+      const props = feature.get('properties');
+      if (props && props.type === 'Note') continue;
       
-      // Check if this is a Note type - don't save in elements
-      const props = feature.getProperties()
-      if (props.properties && props.properties.type === 'Note') {
-        console.log(`[MapView] savePlan: skipping Note element index=${index}`)
-        return null
-      }
+      const geometry = feature.getGeometry();
+      if (!geometry) continue;
       
-      const properties = feature.getProperties()
-      delete properties.geometry // Remove geometry from properties
+      // Convert to GeoJSON
+      const geoJson = new GeoJSON();
+      const geomJson = geoJson.writeGeometryObject(geometry);
       
-      return {
+      // Add element data
+      elements.push({
+        id: feature.getId(),
         type: geometry.getType(),
-        geometry: geoJson.writeGeometryObject(geometry),
-        properties
-      }
-    }).filter(Boolean)
-    console.log(`[MapView] savePlan: prepared ${elements.length} elements to save`, elements);
-    
-    // Save to backend
-    await irrigationStore.updatePlanElements(currentPlan.value.id, { elements })
-    console.log(`[MapView] savePlan: updatePlanElements API call complete for plan id=${currentPlan.value.id}`);
-    saveStatus.value = 'success'
-    lastSave.value = new Date()
-    console.log(`[MapView] savePlan: save successful for plan id=${currentPlan.value.id}, lastSave=${lastSave.value.toISOString()}`);
-    
-    // Reset status after a delay
-    setTimeout(() => {
-      saveStatus.value = null
-    }, 2000)
-  } catch (error) {
-    console.error('Error saving plan:', error)
-    console.error(`[MapView] savePlan: error saving plan id=${currentPlan.value?.id}`, error);
-    notificationStore.error('Erreur lors de la sauvegarde du plan')
-    saveStatus.value = null
-  }
-}
-
-const adjustView = () => {
-  if (!olMap) return
-  
-  // Get all features from the draw source
-  const allFeatures = drawSource.getFeatures()
-  if (allFeatures.length > 0) {
-    // Calculate the extent that encompasses all features
-    const firstGeometry = allFeatures[0].getGeometry()
-    if (!firstGeometry) return
-    
-    // Initialize with the first feature's extent
-    let globalExtent = [...firstGeometry.getExtent()]
-    
-    allFeatures.forEach((feature) => {
-      const geometry = feature.getGeometry()
-      if (geometry) {
-        const extent = geometry.getExtent()
-        globalExtent = [
-          Math.min(globalExtent[0], extent[0]),
-          Math.min(globalExtent[1], extent[1]),
-          Math.max(globalExtent[2], extent[2]),
-          Math.max(globalExtent[3], extent[3])
-        ]
-      }
-    })
-    
-    // Fit the view to the calculated extent
-    olMap.getView().fit(globalExtent, {
-      padding: [50, 50, 50, 50],
-      maxZoom: 18,
-      duration: 500
-    })
-  } else {
-    // If no features, reset to initial view
-    olMap.getView().setProperties(initialView.value)
-  }
-}
-
-// Toggle edit mode
-const toggleEditMode = (enabled: boolean) => {
-  isEditModeEnabled.value = enabled
-  
-  if (olMap) {
-    if (enabled) {
-      // Show drawing tools panel when edit mode is enabled
-      isDrawingToolsVisible.value = true
-      selectedDrawingTool.value = 'none'
-    } else {
-      // Clear active drawing tool when edit mode is disabled
-      setDrawingTool('none', olMap!)
-      isDrawingToolsVisible.value = false
-      selectedDrawingTool.value = 'none'
+        geometry: geomJson,
+        properties: props
+      });
     }
+    
+    // Save elements
+    await irrigationStore.updatePlanElements(currentPlan.value.id, { elements });
+    
+    // Update last save timestamp
+    lastSave.value = new Date();
+    saveStatus.value = 'success';
+    
+    // Reset save status after delay
+    setTimeout(() => {
+      saveStatus.value = null;
+    }, 3000);
+    
+    console.log(`[MapView] savePlan: plan saved successfully`);
+  } catch (error) {
+    console.error('[MapView] savePlan error:', error);
+    notificationStore.error('Erreur lors de la sauvegarde du plan');
+    saveStatus.value = null;
   }
 }
 
@@ -1188,30 +1458,6 @@ const handleToolSelection = (toolType: string) => {
   
   if (olMap !== null) {
     setDrawingTool(toolType, olMap!)
-  }
-}
-
-// Delete the currently selected feature
-const deleteSelectedFeature = async () => {
-  console.log('[MapView] deleteSelectedFeature invoked for feature', selectedFeature.value)
-  if (selectedFeature.value && olMap) {
-    const feature = selectedFeature.value as unknown as Feature<Geometry>
-    const props = feature.get('properties') as any
-    const id = feature.getId() as number
-    if (props.type === 'Note' && id) {
-      try {
-        await noteService.deleteNote(id)
-        notesStore.removeNote(id)
-        notificationStore.success('Note supprimée avec succès')
-      } catch (err) {
-        console.error('[MapView] Error deleting GeoNote:', err)
-        notificationStore.error('Erreur lors de la suppression de la note')
-      }
-    }
-    console.log('[MapView] deleteSelectedFeature: deleting feature with id', id)
-    deleteFeature(feature)
-    shapes.value = shapes.value.filter(shape => shape.id !== id)
-    selectedFeature.value = null
   }
 }
 
@@ -1329,6 +1575,104 @@ async function loadClientPlans(clientId: number) {
     notificationStore.error('Erreur lors du chargement des plans du client')
   } finally {
     isLoadingPlans.value = false
+  }
+}
+
+// Add adjustView function before using it
+const adjustView = () => {
+  if (!olMap) return
+  
+  // Get all features from the draw source
+  const allFeatures = drawSource.getFeatures()
+  
+  // Also include notes from our shapes collection
+  const noteShapes = shapes.value.filter(shape => shape.type === 'Note' && shape.mapLayer)
+  
+  if (allFeatures.length > 0 || noteShapes.length > 0) {
+    try {
+      // Calculate the extent that encompasses all features
+      let globalExtent: number[] | undefined;
+      
+      // Start with features from drawSource
+      if (allFeatures.length > 0) {
+        const firstGeometry = allFeatures[0].getGeometry()
+        if (firstGeometry) {
+          // Initialize with the first feature's extent
+          globalExtent = [...firstGeometry.getExtent()]
+          
+          // Add all other features from drawSource
+          allFeatures.slice(1).forEach((feature) => {
+            const geometry = feature.getGeometry()
+            if (geometry) {
+              const extent = geometry.getExtent()
+              if (globalExtent) {
+                globalExtent = [
+                  Math.min(globalExtent[0], extent[0]),
+                  Math.min(globalExtent[1], extent[1]),
+                  Math.max(globalExtent[2], extent[2]),
+                  Math.max(globalExtent[3], extent[3])
+                ]
+              }
+            }
+          })
+        }
+      }
+      
+      // Add note layers to the extent
+      noteShapes.forEach(shape => {
+        if (shape.layer) {
+          const geometry = (shape.layer as Feature<Geometry>).getGeometry()
+          if (geometry) {
+            const extent = geometry.getExtent()
+            if (!globalExtent) {
+              globalExtent = [...extent]
+            } else {
+              globalExtent = [
+                Math.min(globalExtent[0], extent[0]),
+                Math.min(globalExtent[1], extent[1]),
+                Math.max(globalExtent[2], extent[2]),
+                Math.max(globalExtent[3], extent[3])
+              ]
+            }
+          }
+        }
+      })
+      
+      // Fit the view to the calculated extent
+      if (globalExtent && olMap && globalExtent.length === 4) {
+        olMap.getView().fit(globalExtent as [number, number, number, number], {
+          padding: [50, 50, 50, 50],
+          maxZoom: 18,
+          duration: 500
+        })
+      }
+    } catch (error) {
+      console.error('[MapView] adjustView error:', error)
+    }
+  } else {
+    // If no features, reset to initial view
+    if (olMap) {
+      olMap.getView().setZoom(6)
+      olMap.getView().setCenter(fromLonLat([2.213749, 46.227638])) // Center of France
+    }
+  }
+}
+
+// Add toggleEditMode function that's referenced in the template
+const toggleEditMode = (enabled: boolean) => {
+  isEditModeEnabled.value = enabled
+  
+  if (olMap) {
+    if (enabled) {
+      // Show drawing tools panel when edit mode is enabled
+      isDrawingToolsVisible.value = true
+      selectedDrawingTool.value = 'none'
+    } else {
+      // Clear active drawing tool when edit mode is disabled
+      setDrawingTool('none', olMap)
+      isDrawingToolsVisible.value = false
+      selectedDrawingTool.value = 'none'
+    }
   }
 }
 </script>

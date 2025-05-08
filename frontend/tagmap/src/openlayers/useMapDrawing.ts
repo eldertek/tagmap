@@ -405,8 +405,7 @@ export function useMapDrawing() {
     // Create select interaction - use layer style function
     selectInteraction = new Select({
       condition: click,
-      style: null, // Use the layer's style function
-      layers: [drawLayer] // Only select from our draw layer
+      style: null // Use the layer's style function
     })
     
     // Listen for selection changes
@@ -507,10 +506,7 @@ export function useMapDrawing() {
     
     // Always add select interaction first
     map.addInteraction(selectInteraction!);
-    
-    // Debug openLayer interactions before adding new ones
-    console.log('[useMapDrawing] Map interactions before:', map.getInteractions().getArray().map(i => i.constructor.name))
-    
+      
     // Add the appropriate interaction based on the tool
     switch (tool) {
       case 'draw_polygon':
@@ -639,19 +635,14 @@ export function useMapDrawing() {
         break
         
       case 'select':
-        console.log('[useMapDrawing] activating select')
         // We already added select interaction above
         break
         
       default:
-        console.log('[useMapDrawing] deactivating all tools')
         // Just use selection for navigation (added above)
         break
     }
-    
-    // Debug openLayer interactions after
-    console.log('[useMapDrawing] Map interactions after:', map.getInteractions().getArray().map(i => i.constructor.name))
-  }
+      }
 
   // Clear drawing interactions
   function clearDrawingInteractions(map: Map) {

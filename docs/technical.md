@@ -378,6 +378,7 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 - All drag/move logic is unified for mouse and touch events, ensuring a consistent experience across devices.
 - Mobile UX best practices: only one control point can be dragged at a time, and the UI avoids accidental map pans during editing.
 - Clicking on an existing shape when no drawing tool is active enters selection mode, allowing modification via control points.
+- Clicking on an existing GeoNote when no drawing tool is active now also enters selection mode, allowing GeoNote-specific actions (edit, route, delete) via the DrawingTools sidebar.
 
 ### Technical Details
 - All control point event handlers now listen to both mouse and touch events.
@@ -546,5 +547,22 @@ Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter
   - `elements` : tableau des éléments sauvegardés
   - `date_modification` : date de dernière modification (mise à jour côté serveur)
   - `version` : numéro de version du plan (si géré)
+
+## Personnalisation de l'icône GeoNote sur la carte
+
+Depuis [date de modification], l'icône affichée pour les GeoNotes (notes géolocalisées) sur la carte utilise le même SVG que l'outil dessin "point" de la barre d'outils. Cette modification garantit une cohérence visuelle entre l'outil de création et la représentation sur la carte.
+
+- **Technique** :
+  - Utilisation d'un style OpenLayers `Icon` avec une source SVG inline (data URI).
+  - Le SVG est celui défini dans `DrawingTools.vue` pour l'outil `draw_point`.
+  - Les couleurs de contour et de remplissage sont dynamiques et dépendent des propriétés de style de la note (`style.color`, `style.fillColor`).
+  - L'ancre de l'icône est positionnée pour que la pointe du marqueur corresponde exactement à la position géographique.
+
+- **Impact** :
+  - Toutes les GeoNotes existantes et futures s'affichent avec ce nouveau marqueur.
+  - La personnalisation de la couleur reste possible via les propriétés de style de chaque note.
+
+- **Fichier concerné** :
+  - `frontend/tagmap/src/openlayers/MapView.vue` (fonction `addNoteToMap`).
 
 ***

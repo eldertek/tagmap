@@ -213,4 +213,10 @@ Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.t
 
 - Le bouton "Ajuster" dans la barre d'outils permet d'adapter automatiquement la vue de la carte pour englober toutes les formes tracées (points, lignes, polygones).
 - Si aucune forme n'est présente, la vue revient à l'état initial par défaut.
-- Ce comportement fonctionne aussi bien sur desktop que sur mobile. 
+- Ce comportement fonctionne aussi bien sur desktop que sur mobile.
+
+## Cohérence visuelle des icônes de notes géolocalisées
+
+- L'icône affichée sur la carte pour chaque note géolocalisée (GeoNote) est désormais identique à celle de l'outil dessin "point" dans la barre d'outils.
+- Cette évolution garantit une expérience utilisateur cohérente entre la création et la visualisation des notes.
+- La couleur du marqueur peut être personnalisée selon les propriétés de chaque note. 
