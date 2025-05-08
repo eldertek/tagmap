@@ -206,4 +206,10 @@ Voir aussi : `src/types/notes.ts` (enum NoteAccessLevel) et `src/types/drawing.t
 ## Frontend Features
 
 - [ ] Map integration with drawing tools
-- [2024-07-19] Fixed delete button event binding in MapLibreTest.vue to correctly call handleDrawDelete instead of non-existent deleteSelectedFeature. 
+- [2024-07-19] Fixed delete button event binding in MapLibreTest.vue to correctly call handleDrawDelete instead of non-existent deleteSelectedFeature.
+
+### Fonctionnalité : Ajustement de la vue (bouton "Ajuster")
+
+- Le bouton "Ajuster" dans la barre d'outils permet d'adapter automatiquement la vue de la carte pour englober toutes les formes tracées (points, lignes, polygones).
+- Si aucune forme n'est présente, la vue revient à l'état initial par défaut.
+- Ce comportement fonctionne aussi bien sur desktop que sur mobile. 

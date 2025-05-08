@@ -245,3 +245,10 @@ Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobil
     - Format PNG valide
     - Accessibilité HTTP en dev et prod
     - Chemins relatifs à la racine publique (`/img/icons/...`) pour compatibilité Vite/PWA
+
+## Test : Ajustement de la vue sur les formes tracées
+
+- Tracer plusieurs formes (points, lignes, polygones) sur la carte.
+- Cliquer sur le bouton "Ajuster" dans la barre d'outils.
+- La vue doit automatiquement s'ajuster pour englober toutes les formes tracées.
+- Si aucune forme n'est présente, la vue doit revenir à l'état initial (vue par défaut du projet).

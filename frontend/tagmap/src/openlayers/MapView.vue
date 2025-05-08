@@ -145,7 +145,8 @@ const {
   updateFeatureStyle,
   selectedFeature,
   isDrawing: drawingInProgress,
-  features
+  features,
+  drawSource
 } = useMapDrawing()
 
 // Watch for drawing progress changes
@@ -238,9 +239,27 @@ const savePlan = () => {
 }
 
 const adjustView = () => {
-  // Reset view to initial state
   if (olMap) {
-    olMap.getView().setProperties(initialView.value)
+    // Utiliser drawSource de useMapDrawing
+    const allFeatures = drawSource.getFeatures();
+    if (allFeatures.length > 0) {
+      let globalExtent = allFeatures[0].getGeometry().getExtent().slice();
+      allFeatures.forEach((f: Feature<Geometry>) => {
+        const geom = f.getGeometry();
+        if (geom) {
+          const extent = geom.getExtent();
+          globalExtent = [
+            Math.min(globalExtent[0], extent[0]),
+            Math.min(globalExtent[1], extent[1]),
+            Math.max(globalExtent[2], extent[2]),
+            Math.max(globalExtent[3], extent[3])
+          ];
+        }
+      });
+      olMap.getView().fit(globalExtent, { size: olMap.getSize(), maxZoom: 18, duration: 500 });
+    } else {
+      olMap.getView().setProperties(initialView.value);
+    }
   }
 }
 

@@ -525,3 +525,12 @@ Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter
 - Toutes les icônes référencées dans le manifest (ex: `/static/frontend/img/icons/msapplication-icon-144x144.png`) doivent exister et être des images PNG valides. Vérifier leur présence dans le dossier `frontend/tagmap/public/img/icons/`.
 - Voir aussi le manifest à l'emplacement `static/frontend/manifest.webmanifest` pour la liste complète des icônes attendues.
 - Les chemins d'icônes dans le manifest doivent être relatifs à la racine publique (ex: `/img/icons/msapplication-icon-144x144.png`) pour garantir la compatibilité avec le serveur de développement Vite et le mode PWA.
+
+## Technique : Ajustement de la vue sur les features tracées
+
+- Lorsqu'on clique sur le bouton "Ajuster", la méthode `adjustView` de `MapView.vue` :
+  - Récupère toutes les features tracées via `vectorSource.value.getFeatures()`.
+  - Si au moins une feature existe, calcule l'emprise globale (extent) de toutes les géométries.
+  - Utilise `olMap.getView().fit(globalExtent, { size, maxZoom, duration })` pour adapter la vue à l'ensemble des formes.
+  - Si aucune feature n'est présente, la vue est réinitialisée à l'état initial du projet.
+- L'algorithme utilise les méthodes natives d'OpenLayers pour garantir la compatibilité et la performance.
