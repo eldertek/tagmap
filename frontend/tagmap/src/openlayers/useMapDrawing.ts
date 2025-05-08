@@ -4,6 +4,7 @@ import Draw from 'ol/interaction/Draw'
 import Modify from 'ol/interaction/Modify'
 import Select from 'ol/interaction/Select'
 import Snap from 'ol/interaction/Snap'
+import Translate from 'ol/interaction/Translate'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style'
@@ -36,6 +37,27 @@ export function useMapDrawing() {
   // Event listeners
   let drawStartKey: any = null
   let drawEndKey: any = null
+
+  // Define handle source and layer for vertex, midpoint, and center controls
+  const handleSource = new VectorSource<Feature<Geometry>>();
+  const handleLayer = new VectorLayer({
+    source: handleSource,
+    style: (feature: FeatureLike) => {
+      const type = feature.get('handleType');
+      let fillColor = '#DC2626'; // red for vertices
+      if (type === 'midpoint') {
+        fillColor = '#2B6451'; // darker green for midpoints
+      }
+      return new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({ color: fillColor }),
+          stroke: new Stroke({ color: '#ffffff', width: 2 })
+        })
+      });
+    }
+  });
+  let handleTranslateInteraction: Translate | null = null;
 
   // Get feature style based on properties
   const getFeatureStyle = (feature: Feature<Geometry>, selected: boolean = false) => {
@@ -128,6 +150,71 @@ export function useMapDrawing() {
   // Currently drawn features
   const features = ref<any[]>([])
   
+  // Function to (re)create handle features for the selected feature
+  function recreateHandles() {
+    handleSource.clear();
+    if (!selectedFeature.value) return;
+
+    const geom = selectedFeature.value.getGeometry();
+    if (!geom) return;
+
+    // ----- Polygon -----
+    if (geom instanceof Polygon) {
+      const ring = geom.getCoordinates()[0];
+      // `ring` ends with a duplicate of the first vertex, so ignore the last one
+      const vertexCount = ring.length - 1;
+
+      for (let i = 0; i < vertexCount; i++) {
+        // ---- vertex handle ----
+        const coord = ring[i] as [number, number];
+        const vertexHandle = new Feature(new Point(coord));
+        vertexHandle.set('handleType', 'vertex');
+        vertexHandle.set('vertexIndex', i);
+        handleSource.addFeature(vertexHandle);
+
+        // ---- midpoint handle ----
+        const nextCoord = ring[(i + 1) % vertexCount] as [number, number];
+        const midCoord: [number, number] = [
+          (coord[0] + nextCoord[0]) / 2,
+          (coord[1] + nextCoord[1]) / 2
+        ];
+        const midpointHandle = new Feature(new Point(midCoord));
+        midpointHandle.set('handleType', 'midpoint');
+        midpointHandle.set('midpointIndex', i);
+        handleSource.addFeature(midpointHandle);
+      }
+      return; // polygon handled, exit early
+    }
+
+    // ----- LineString -----
+    if (geom instanceof LineString) {
+      const coords = geom.getCoordinates() as [number, number][];
+      const vertexCount = coords.length;
+
+      for (let i = 0; i < vertexCount; i++) {
+        // ---- vertex handle ----
+        const coord = coords[i];
+        const vertexHandle = new Feature(new Point(coord));
+        vertexHandle.set('handleType', 'vertex');
+        vertexHandle.set('vertexIndex', i);
+        handleSource.addFeature(vertexHandle);
+
+        // For a line we only add a midpoint when there is a *next* vertex.
+        if (i < vertexCount - 1) {
+          const nextCoord = coords[i + 1];
+          const midCoord: [number, number] = [
+            (coord[0] + nextCoord[0]) / 2,
+            (coord[1] + nextCoord[1]) / 2
+          ];
+          const midpointHandle = new Feature(new Point(midCoord));
+          midpointHandle.set('handleType', 'midpoint');
+          midpointHandle.set('midpointIndex', i);
+          handleSource.addFeature(midpointHandle);
+        }
+      }
+    }
+  }
+
   // Initialize the drawing functionality
   function initDrawing(map: Map) {
     // First, clear any existing interactions and layers
@@ -136,6 +223,101 @@ export function useMapDrawing() {
     // Add vector layer to map
     map.addLayer(drawLayer)
     
+    // Add handle layer for control points
+    map.addLayer(handleLayer);
+    
+    // Setup handle translate interaction
+    handleTranslateInteraction = new Translate({
+      features: handleSource.getFeaturesCollection()!
+    });
+    handleTranslateInteraction.on('translatestart', (e) => {
+      e.features.getArray().forEach(handle => {
+        const geom = handle.getGeometry();
+        if (geom) handle.set('startCoord', (geom as any).getCoordinates());
+        // If the dragged handle is a midpoint, convert it to a real vertex once drag starts
+        if (handle.get('handleType') === 'midpoint') {
+          const feature = selectedFeature.value;
+          const geometry = feature ? feature.getGeometry() : null;
+          const idx = handle.get('midpointIndex');
+          const start = handle.get('startCoord') as [number, number];
+          if (geometry && Array.isArray(start) && idx !== undefined) {
+            if (geometry instanceof Polygon) {
+              const ring = geometry.getCoordinates()[0];
+              ring.splice(idx + 1, 0, start);
+              ring[ring.length - 1] = ring[0];
+              geometry.setCoordinates([ring]);
+            } else if (geometry instanceof LineString) {
+              const coordsLine = geometry.getCoordinates();
+              coordsLine.splice(idx + 1, 0, start);
+              geometry.setCoordinates(coordsLine);
+            }
+            // Promote the dragged handle to a vertex handle so subsequent drag events treat it correctly
+            handle.set('handleType', 'vertex');
+            handle.set('vertexIndex', idx + 1);
+          }
+        }
+      });
+    });
+    handleTranslateInteraction.on('translateend', (e) => {
+      e.features.getArray().forEach(handle => {
+        const type = handle.get('handleType');
+        const start = handle.get('startCoord') as [number, number];
+        const geomHandle = handle.getGeometry();
+        const end = geomHandle ? (geomHandle as any).getCoordinates() as [number, number] : null;
+        const feature = selectedFeature.value;
+        if (!feature || !start || !end) return;
+        const geometry = feature.getGeometry();
+        if (!geometry) return;
+        const dx = end[0] - start[0];
+        const dy = end[1] - start[1];
+        if (type === 'vertex') {
+          const idx = handle.get('vertexIndex');
+          if (geometry instanceof Polygon) {
+            const ring = geometry.getCoordinates()[0];
+            ring[idx] = end;
+            ring[ring.length - 1] = ring[0];
+            geometry.setCoordinates([ring]);
+          } else if (geometry instanceof LineString) {
+            const coordsLine = geometry.getCoordinates();
+            coordsLine[idx] = end;
+            geometry.setCoordinates(coordsLine);
+          }
+        }
+        handle.unset('startCoord');
+        recreateHandles();
+      });
+    });
+    // Reactive geometry update while dragging control point handles
+    handleTranslateInteraction.on('translating', (e) => {
+      e.features.getArray().forEach(handle => {
+        const type = handle.get('handleType');
+        const start = handle.get('startCoord') as [number, number];
+        const geomHandle = handle.getGeometry();
+        const end = geomHandle ? (geomHandle as any).getCoordinates() as [number, number] : null;
+        const feature = selectedFeature.value;
+        if (!feature || !start || !end) return;
+        const geometry = feature.getGeometry();
+        if (!geometry) return;
+        const dx = end[0] - start[0];
+        const dy = end[1] - start[1];
+        if (type === 'vertex') {
+          const idx = handle.get('vertexIndex');
+          if (geometry instanceof Polygon) {
+            const ring = geometry.getCoordinates()[0];
+            ring[idx] = end;
+            ring[ring.length - 1] = ring[0];
+            geometry.setCoordinates([ring]);
+          } else if (geometry instanceof LineString) {
+            const coordsLine = geometry.getCoordinates();
+            coordsLine[idx] = end;
+            geometry.setCoordinates(coordsLine);
+          }
+        }
+        recreateHandles();
+      });
+    });
+    map.addInteraction(handleTranslateInteraction);
+
     // Create select interaction - use layer style function
     selectInteraction = new Select({
       condition: click,
@@ -143,24 +325,11 @@ export function useMapDrawing() {
       layers: [drawLayer] // Only select from our draw layer
     })
     
-    // Create modify interaction
-    modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(), // Only modify selected features
-      pixelTolerance: 15
-    })
-    
-    // Create snap interaction for better editing
-    snapInteraction = new Snap({
-      source: drawSource
-    })
-    
-    // Add the select interaction to the map
-    map.addInteraction(selectInteraction)
-    
     // Listen for selection changes
     selectInteraction.on('select', (e) => {
       selectedFeature.value = e.selected.length > 0 ? e.selected[0] : null
       console.log('[useMapDrawing] Selection changed:', selectedFeature.value ? 'Feature selected' : 'No selection')
+      recreateHandles();
     })
     
     // Listen to changes in the source
@@ -200,6 +369,10 @@ export function useMapDrawing() {
         features.value = features.value.filter(f => f.id !== id)
       }
     })
+    
+    // Instantiate modify and snap interactions for editing
+    modifyInteraction = new Modify({ source: drawSource })
+    snapInteraction = new Snap({ source: drawSource })
   }
   
   // Get geometry type as a string
@@ -381,14 +554,6 @@ export function useMapDrawing() {
         map.addInteraction(drawInteraction)
         break
         
-      case 'modify':
-        console.log('[useMapDrawing] activating modify')
-        // Add modify interaction
-        map.addInteraction(modifyInteraction!)
-        // Add snap for better editing
-        map.addInteraction(snapInteraction!)
-        break
-        
       case 'select':
         console.log('[useMapDrawing] activating select')
         // We already added select interaction above
@@ -407,6 +572,12 @@ export function useMapDrawing() {
   // Clear drawing interactions
   function clearDrawingInteractions(map: Map) {
     removeAllInteractions(map);
+    // Remove handle translate interaction and clear handles
+    if (handleTranslateInteraction) {
+      map.removeInteraction(handleTranslateInteraction);
+      handleTranslateInteraction = null;
+    }
+    handleSource.clear();
   }
 
   // Clear all drawings

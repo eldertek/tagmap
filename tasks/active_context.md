@@ -10,6 +10,7 @@
    - **Permettre à l'administrateur de configurer de manière sécurisée la clé d'API Google Maps via une page Paramètres dédiée, avec stockage côté serveur dans un modèle ApplicationSetting et récupération par le frontend via une API dédiée.**
    - Les salariés peuvent désormais voir et charger les plans sans visiteur associé via un bouton dédié dans MapView.vue (alignement UX avec les entreprises)
    - Centralisation de toute la logique des points de contrôle (création, mise à jour et interaction) dans le composable `useMapDrawing.ts`, séparée des utilitaires géométriques.
+   - Mise à jour réactive des géométries lors du glissement des points de contrôle (`translating` dans `useMapDrawing.ts`).
 
 2. **Amélioration de l'expérience utilisateur**
    - Interface responsive pour mobile et desktop

@@ -15,13 +15,37 @@
     />
     
     <!-- Main content area with map and drawing tools -->
-    <div class="flex flex-grow relative">
-      <!-- OpenLayers map will be rendered here -->
-      <div ref="mapContainer" class="map-container flex-grow"></div>
-      
-      <!-- Drawing tools panel (always visible) -->
+    <div class="flex-1 flex flex-col md:flex-row relative">
+      <!-- Mobile overlay when drawing tools are open -->
+      <div
+        v-if="isMobile && showDrawingTools"
+        @click="toggleDrawingTools"
+        class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
+      ></div>
+
+      <!-- Map container -->
+      <div class="flex-1 relative">
+        <div ref="mapContainer" class="map-container"></div>
+      </div>
+
+      <!-- Drawing tools panel -->
+      <Teleport v-if="isMobile" to="body">
+        <DrawingTools
+          v-model:show="showDrawingTools"
+          :selected-tool="selectedDrawingTool"
+          :selected-feature="selectedFeature"
+          :is-drawing="isDrawing"
+          @tool-selected="handleToolSelection"
+          @delete-feature="deleteSelectedFeature"
+          @properties-update="handlePropertiesUpdate"
+          @style-update="handleStyleUpdate"
+          @filter-change="handleFilterChange"
+          class="md:w-80 md:flex-shrink-0"
+        />
+      </Teleport>
       <DrawingTools
-        v-model:show="isDrawingToolsVisible"
+        v-else
+        v-model:show="showDrawingTools"
         :selected-tool="selectedDrawingTool"
         :selected-feature="selectedFeature"
         :is-drawing="isDrawing"
@@ -30,26 +54,30 @@
         @properties-update="handlePropertiesUpdate"
         @style-update="handleStyleUpdate"
         @filter-change="handleFilterChange"
+        class="md:w-80 md:flex-shrink-0"
       />
-      
-      <!-- Mobile drawing tools toggle button (always available) -->
-      <button 
-        @click="isDrawingToolsVisible = !isDrawingToolsVisible"
-        class="md:hidden fixed bottom-6 right-6 z-[1900] w-14 h-14 rounded-full bg-primary-600 text-white shadow-lg flex items-center justify-center"
+
+      <!-- Mobile bottom toolbar -->
+      <div
+        v-if="isMobile"
+        class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-center cursor-pointer"
+        style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
+        @click="toggleDrawingTools"
       >
-        <svg v-if="!isDrawingToolsVisible" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-        </svg>
-        <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
+        <div class="flex items-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path v-if="!showDrawingTools" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span class="text-sm text-gray-500 font-medium">Outils</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed, watch } from 'vue'
+import { onMounted, ref, onUnmounted, computed, watch, Teleport } from 'vue'
 import 'ol/ol.css'
 import Map from 'ol/Map'
 import View from 'ol/View'
@@ -80,6 +108,24 @@ const isDrawingToolsVisible = ref(true)
 const isMobile = ref(false)
 const selectedDrawingTool = ref('none')
 const isDrawing = ref(false)
+
+const showDrawingTools = isDrawingToolsVisible;
+function toggleDrawingTools() {
+  showDrawingTools.value = !showDrawingTools.value;
+}
+function checkMobile() {
+  isMobile.value = window.innerWidth < 768;
+  if (!isMobile.value) {
+    showDrawingTools.value = true;
+  }
+}
+onMounted(() => {
+  window.addEventListener('resize', checkMobile);
+  checkMobile();
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile);
+});
 
 // Get map state and drawing tools
 const { 
@@ -117,10 +163,6 @@ watch(drawingInProgress, (newValue, oldValue) => {
 // Features collection
 const shapes = ref<any[]>([])
 
-function checkMobile() {
-  isMobile.value = window.innerWidth < 768;
-  isDrawingToolsVisible.value = !isMobile.value;
-}
 
 // Initialize map when component is mounted
 onMounted(() => {
@@ -135,19 +177,6 @@ onMounted(() => {
         
         // Set up the map view
         adjustView();
-        
-        // Listen for feature selection changes
-        watch(selectedFeature, (newFeature) => {
-          if (newFeature) {
-            // Update selected tool to modify when a feature is selected
-            if (selectedDrawingTool.value === 'none') {
-              selectedDrawingTool.value = 'modify';
-              if (olMap) {
-                setDrawingTool('modify', olMap);
-              }
-            }
-          }
-        });
       }
     });
   }

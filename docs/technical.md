@@ -384,6 +384,14 @@ TagMap now supports full mobile editing for all map shapes (polygons, lines, Geo
 - A utility function normalizes event coordinates for both input types.
 - This enables a Figma/Google Maps/Procreate-like editing experience on mobile.
 
+## Reactive Control Point Editing (2025-05)
+
+TagMap now updates geometries in real time as control points are dragged in OpenLayers:
+- Added a `translating` event listener on the `Translate` interaction in `useMapDrawing.ts` to apply geometry updates continuously as the handles move.
+- The geometry of the selected feature (Polygon, LineString) is recalculated on each drag event, providing immediate visual feedback.
+- Handles (vertex, midpoint, center) reposition dynamically with the updated shape.
+- Ensures consistent behavior across mouse and touch interactions.
+
 ## Update: Line Class Method Implementation (2024-06)
 
 - The custom `Line` class in `frontend/tagmap/src/utils/Line.ts` now implements its key methods (such as `updateProperties`, `setName`, `getName`, `getMidPoints`, `getMidPointAt`, `moveVertex`, `getSegmentLengths`, `getSegmentLengthAt`, `getLength`, `getLengthToVertex`) as class properties using arrow functions. This change ensures compatibility with the base `L.Polyline` class from Leaflet, which defines these as instance properties, and resolves TypeScript linter errors about member type mismatches.

@@ -11,6 +11,7 @@
       "src/views/ProfileView.vue",
       "src/views/ForgotPasswordView.vue",
       "src/views/ResetPasswordView.vue",
+      "src/openlayers/MapView.vue",
       "src/views/NotFoundView.vue",
       "node_modules/workbox-window/build/workbox-window.prod.es5.mjs"
     ],
@@ -56,6 +57,18 @@
   "src/assets/logo.svg": {
     "file": "assets/logo.svg",
     "src": "src/assets/logo.svg"
+  },
+  "src/openlayers/MapView.vue": {
+    "file": "assets/MapView.js",
+    "name": "MapView",
+    "src": "src/openlayers/MapView.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html"
+    ],
+    "css": [
+      "assets/MapView.css"
+    ]
   },
   "src/views/ForgotPasswordView.vue": {
     "file": "assets/ForgotPasswordView.js",
