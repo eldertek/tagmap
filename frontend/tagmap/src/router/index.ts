@@ -14,6 +14,16 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      component: () => import('@/openlayers/MapView.vue'),
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur'],
+        isMapRoute: true
+      }
+    },
+    {
+      path: '/leaflet',
+      name: 'leaflet',
       component: MapView,
       meta: {
         requiresAuth: true,
@@ -85,31 +95,12 @@ const router = createRouter({
       }
     },
     {
-      path: '/map',
-      name: 'map',
-      component: MapView,
-      meta: { 
-        requiresAuth: true,
-        isMapRoute: true 
-      }
-    },
-    {
       path: '/parametres',
       name: 'parametres',
       component: ParametresView,
       meta: {
         requiresAuth: true,
         allowedRoles: ['admin']
-      }
-    },
-    {
-      path: '/ol',
-      name: 'openlayers',
-      component: () => import('@/openlayers/MapView.vue'),
-      meta: {
-        requiresAuth: true,
-        allowedRoles: ['admin', 'entreprise', 'salarie', 'visiteur'],
-        isMapRoute: true
       }
     },
     {

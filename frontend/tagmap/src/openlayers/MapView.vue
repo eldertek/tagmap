@@ -1,83 +1,521 @@
 <template>
   <div class="openlayers-map-view h-full flex flex-col">
-    <!-- Map Toolbar -->
-    <MapToolbar 
-      :lastSave="lastSave ? lastSave : undefined"
-      :planName="planName"
-      :planDescription="planDescription"
-      :saveStatus="saveStatus"
-      @create-new-plan="createNewPlan"
-      @load-plan="loadPlan"
-      @save-plan="savePlan"
-      @adjust-view="adjustView"
-      @toggle-edit-mode="toggleEditMode"
-      @change-map-type="handleChangeBaseMap"
-    />
-    
-    <!-- Main content area with map and drawing tools -->
-    <div class="flex-1 flex flex-col md:flex-row relative">
-      <!-- Mobile overlay when drawing tools are open -->
-      <div
-        v-if="isMobile && showDrawingTools"
-        @click="toggleDrawingTools"
-        class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"
-      ></div>
+      <!-- Map Toolbar -->
+    <MapToolbar :lastSave="lastSave ? lastSave : undefined" :planName="planName" :planDescription="planDescription"
+      :saveStatus="saveStatus" @create-new-plan="createNewPlan" @load-plan="loadPlan" @save-plan="savePlan"
+      @adjust-view="adjustView" @toggle-edit-mode="toggleEditMode" @change-map-type="handleChangeBaseMap" />
+      
+      <!-- Main content area with map and drawing tools -->
+      <div class="flex-1 flex flex-col md:flex-row relative">
+        <!-- Mobile overlay when drawing tools are open -->
+      <div v-if="isMobile && showDrawingTools" @click="toggleDrawingTools"
+        class="md:hidden fixed inset-0 bg-black/30 z-[1800] transition-opacity duration-300"></div>
 
-      <!-- Map container -->
-      <div class="flex-1 relative">
-        <div ref="mapContainer" class="map-container"></div>
-      </div>
+        <!-- Map container -->
+        <div class="flex-1 relative">
+          <div ref="mapContainer" class="map-container"></div>
+        </div>
 
-      <!-- Drawing tools panel -->
-      <Teleport v-if="isMobile" to="body">
-        <DrawingTools
-          v-model:show="showDrawingTools"
-          :selected-tool="selectedDrawingTool"
-          :selected-feature="selectedFeature"
-          :is-drawing="isDrawing"
-          @tool-selected="handleToolSelection"
-          @delete-feature="deleteSelectedFeature"
-          @properties-update="handlePropertiesUpdate"
-          @style-update="handleStyleUpdate"
-          @filter-change="handleFilterChange"
-          class="md:w-80 md:flex-shrink-0"
-        />
-      </Teleport>
-      <DrawingTools
-        v-else
-        v-model:show="showDrawingTools"
-        :selected-tool="selectedDrawingTool"
-        :selected-feature="selectedFeature"
-        :is-drawing="isDrawing"
-        @tool-selected="handleToolSelection"
-        @delete-feature="deleteSelectedFeature"
-        @properties-update="handlePropertiesUpdate"
-        @style-update="handleStyleUpdate"
-        @filter-change="handleFilterChange"
-        class="md:w-80 md:flex-shrink-0"
-      />
+        <!-- Drawing tools panel -->
+        <Teleport v-if="isMobile" to="body">
+        <DrawingTools v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
+          :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
+          @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
+          @style-update="handleStyleUpdate" @filter-change="handleFilterChange" class="md:w-80 md:flex-shrink-0" />
+        </Teleport>
+      <DrawingTools v-else v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
+        :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
+        @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
+        @style-update="handleStyleUpdate" @filter-change="handleFilterChange" class="md:w-80 md:flex-shrink-0" />
 
-      <!-- Mobile bottom toolbar -->
-      <div
-        v-if="isMobile"
-        class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-center cursor-pointer"
-        style="height: var(--mobile-bottom-toolbar-height); bottom: 0;"
-        @click="toggleDrawingTools"
-      >
-        <div class="flex items-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path v-if="!showDrawingTools" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-          <span class="text-sm text-gray-500 font-medium">Outils</span>
+        <!-- Mobile bottom toolbar -->
+      <div v-if="isMobile"
+          class="md:hidden fixed left-0 right-0 z-[1900] bg-white py-3 px-3 shadow-lg border-t border-gray-200 flex items-center justify-center cursor-pointer"
+        style="height: var(--mobile-bottom-toolbar-height); bottom: 0;" @click="toggleDrawingTools">
+          <div class="flex items-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path v-if="!showDrawingTools" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M5 15l7-7 7 7" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span class="text-sm text-gray-500 font-medium">Outils</span>
+          </div>
         </div>
       </div>
-    </div>
+    <!-- Modal Nouveau Plan -->
+    <Teleport to="body">
+      <NewPlanModal ref="newPlanModalRef" v-model="showNewPlanModal" @created="onPlanCreated"
+        @salarieSelected="salarie => selectedSalarie = salarie"
+        @visiteurSelected="visiteur => selectedVisiteur = visiteur" />
+    </Teleport>
+    <!-- Modal Charger un Plan -->
+    <Teleport to="body">
+      <div v-if="showLoadPlanModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-[9999] p-4 overflow-y-auto">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full my-8 relative">
+          <div class="flex justify-between items-center mb-4 sticky top-0 bg-white pb-4 border-b">
+            <h2 class="text-xl font-semibold text-gray-900">Charger un plan existant</h2>
+            <button @click="showLoadPlanModal = false" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="overflow-y-auto max-h-[calc(100vh-12rem)]">
+            <!-- Interface administrateur -->
+            <div v-if="authStore.isAdmin" class="space-y-4">
+              <!-- Étape 1: Sélection de l'entreprise -->
+              <div v-if="!selectedEntreprise" class="space-y-2">
+                <h3 class="font-medium text-gray-700">Sélectionnez une entreprise</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingEntreprises">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <button v-for="entreprise in entreprises" :key="entreprise.id" @click="selectEntreprise(entreprise)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(entreprise) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Étape 2: Sélection du salarie -->
+              <div v-else-if="!selectedSalarie" class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToEntrepriseList"
+                    class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des entreprises
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedEntreprise) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Sélectionnez un salarie</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingSalaries">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <button v-for="salarie in filteredSalaries" :key="salarie.id" @click="selectSalarie(salarie)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(salarie) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Étape 3: Sélection du client -->
+              <div v-else-if="!selectedClient" class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToSalarieList"
+                    class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des salaries
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedSalarie) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <!-- Option pour charger les plans sans visiteur -->
+                  <button @click="loadPlansWithoutVisiteur"
+                    class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                    <div>
+                      <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                      <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                    </div>
+                    <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  <template v-if="isLoadingClients">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-if="filteredClients.length === 0" class="text-center py-4">
+                      <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarie</div>
+                      <div class="text-sm text-gray-400">
+                        Vous pouvez utiliser l'option "Plans sans visiteur" ci-dessus
+                      </div>
+                    </div>
+                    <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Étape 4: Liste des plans du client -->
+              <div v-else class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToClientList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des clients
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedClient) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Plans disponibles</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingPlans">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-2/3 mb-2"></div>
+                        <div class="h-3 bg-gray-50 rounded w-1/3"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-for="plan in clientPlans" :key="plan.id"
+                      class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                      <button @click="loadPlan(plan.id)" class="w-full text-left">
+                        <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                        <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                        <div class="text-xs text-gray-400 mt-1">
+                          Modifié le {{ formatDate(plan.date_modification) }}
+                        </div>
+                      </button>
+                      <button v-if="authStore.isAdmin || authStore.isEntreprise"
+                        @click.stop="confirmDeletePlanModal(plan)"
+                        class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                        Supprimer
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interface salarie -->
+            <div v-else-if="authStore.isSalarie" class="space-y-4">
+              <!-- Liste des clients -->
+              <div v-if="!selectedClient" class="space-y-2">
+                <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <!-- Option pour charger les plans sans visiteur (ajouté pour les salariés) -->
+                  <button @click="loadPlansWithoutVisiteur"
+                    class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                    <div>
+                      <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                      <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                    </div>
+                    <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <!-- Fin ajout bouton -->
+                  <template v-if="isLoadingClients">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-if="filteredClients.length === 0" class="text-center py-8">
+                      <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarie</div>
+                      <div class="text-sm text-gray-400">
+                        Veuillez vérifier que des visiteurs ont été assignés à ce salarie
+                      </div>
+                    </div>
+                    <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+              <!-- Liste des plans du client -->
+              <div v-else class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToClientList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des clients
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedClient) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Plans disponibles</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingPlans">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-2/3 mb-2"></div>
+                        <div class="h-3 bg-gray-50 rounded w-1/3"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-for="plan in clientPlans" :key="plan.id"
+                      class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                      <button @click="loadPlan(plan.id)" class="w-full text-left">
+                        <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                        <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                        <div class="text-xs text-gray-400 mt-1">
+                          Modifié le {{ formatDate(plan.date_modification) }}
+                        </div>
+                      </button>
+                      <button v-if="authStore.isAdmin || authStore.isEntreprise"
+                        @click.stop="confirmDeletePlanModal(plan)"
+                        class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                        Supprimer
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interface entreprise -->
+            <div v-else-if="authStore.isEntreprise" class="space-y-4">
+              <!-- Étape 1: Sélection du salarié -->
+              <div v-if="!selectedSalarie" class="space-y-2">
+                <h3 class="font-medium text-gray-700">Sélectionnez un salarié</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingSalaries">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <button v-for="salarie in salaries" :key="salarie.id" @click="selectSalarie(salarie)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(salarie) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Étape 2: Sélection du visiteur -->
+              <div v-else-if="!selectedClient" class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToSalarieList"
+                    class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des salariés
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedSalarie) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Sélectionnez un visiteur</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <!-- Option pour charger les plans sans visiteur -->
+                  <button @click="loadPlansWithoutVisiteur"
+                    class="flex items-center p-3 text-left bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors duration-200">
+                    <div>
+                      <div class="font-medium text-primary-700">Plans sans visiteur</div>
+                      <div class="text-xs text-primary-600">Afficher les plans créés sans visiteur associé</div>
+                    </div>
+                    <svg class="w-5 h-5 ml-auto text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  <template v-if="isLoadingClients">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-if="filteredClients.length === 0" class="text-center py-4">
+                      <div class="text-gray-500 mb-2">Aucun visiteur trouvé pour ce salarié</div>
+                      <div class="text-sm text-gray-400">
+                        Vous pouvez utiliser l'option "Plans sans visiteur" ci-dessus
+                      </div>
+                    </div>
+                    <button v-else v-for="client in filteredClients" :key="client.id" @click="selectClient(client)"
+                      class="flex items-center p-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200">
+                      <div>
+                        <div class="font-medium text-gray-900">{{ formatUserName(client) }}</div>
+                      </div>
+                      <svg class="w-5 h-5 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Étape 3: Liste des plans du visiteur -->
+              <div v-else class="space-y-2">
+                <div class="flex items-center mb-4">
+                  <button @click="backToClientList" class="flex items-center text-sm text-gray-600 hover:text-gray-900">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour à la liste des visiteurs
+                  </button>
+                  <span class="mx-2 text-gray-400">|</span>
+                  <span class="text-sm text-gray-600">
+                    {{ formatUserName(selectedClient) }}
+                  </span>
+                </div>
+                <h3 class="font-medium text-gray-700">Plans disponibles</h3>
+                <div class="grid grid-cols-1 gap-2">
+                  <template v-if="isLoadingPlans">
+                    <div v-for="i in 3" :key="i" class="animate-pulse">
+                      <div class="p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div class="h-4 bg-gray-100 rounded w-2/3 mb-2"></div>
+                        <div class="h-3 bg-gray-50 rounded w-1/3"></div>
+                      </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div v-for="plan in clientPlans" :key="plan.id"
+                      class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                      <button @click="loadPlan(plan.id)" class="w-full text-left">
+                        <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                        <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                        <div class="text-xs text-gray-400 mt-1">
+                          Modifié le {{ formatDate(plan.date_modification) }}
+                        </div>
+                      </button>
+                      <button v-if="authStore.isAdmin || authStore.isEntreprise"
+                        @click.stop="confirmDeletePlanModal(plan)"
+                        class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                        Supprimer
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interface client -->
+            <div v-else class="space-y-4">
+              <div v-if="irrigationStore.plans.length === 0" class="text-center py-8">
+                <p class="text-gray-500">Aucun plan disponible</p>
+              </div>
+              <div v-else class="space-y-2">
+                <div v-for="plan in irrigationStore.plans" :key="plan.id"
+                  class="relative w-full px-4 py-3 text-left bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors duration-200 group">
+                  <button @click="loadPlan(plan.id)" class="w-full text-left">
+                    <div class="font-medium text-gray-900">{{ plan.nom }}</div>
+                    <div class="text-sm text-gray-500">{{ plan.description }}</div>
+                    <div class="text-xs text-gray-400 mt-1">
+                      Modifié le {{ formatDate(plan.date_modification) }}
+                    </div>
+                  </button>
+                  <button v-if="authStore.isAdmin || authStore.isEntreprise" @click.stop="confirmDeletePlanModal(plan)"
+                    class="absolute top-1/2 right-3 transform -translate-y-1/2 px-3 py-1 text-sm text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-colors duration-200 h-8 flex items-center justify-center">
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+    <!-- Modal de confirmation de suppression de plan -->
+    <Teleport to="body">
+      <div v-if="showDeletePlanModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+          <div class="text-center mb-4">
+            <svg class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900">Supprimer le plan</h3>
+            <p class="mt-2 text-gray-600">
+              Êtes-vous sûr de vouloir supprimer le plan "{{ planToDelete ? planToDelete.nom : '' }}" ? Cette action est
+              irréversible.
+            </p>
+          </div>
+          <div class="flex justify-center space-x-4">
+            <button @click="cancelDeletePlan"
+              class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
+              Annuler
+            </button>
+            <button @click="confirmDeletePlan"
+              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, computed, watch, Teleport } from 'vue'
+import { useRouter } from 'vue-router'
 import 'ol/ol.css'
 import Map from 'ol/Map'
 import View from 'ol/View'
@@ -91,6 +529,23 @@ import { GeoJSON } from 'ol/format'
 import { fromLonLat, toLonLat } from 'ol/proj'
 import { getArea, getLength } from 'ol/sphere'
 import type { Geometry } from 'ol/geom'
+import NewPlanModal from '@/components/NewPlanModal.vue'
+import { useAuthStore, formatUserName } from '@/stores/auth'
+import { useIrrigationStore, type Plan } from '@/stores/irrigation'
+import { useDrawingStore } from '@/stores/drawing'
+import { useNotificationStore } from '@/stores/notification'
+import { userService } from '@/services/api'
+import api from '@/services/api'
+import { formatDate } from '@/utils/dateUtils'
+import { useNotesStore } from '@/stores/notes'
+import { noteService } from '@/services/api'
+
+// Store references
+const authStore = useAuthStore()
+const irrigationStore = useIrrigationStore()
+const drawingStore = useDrawingStore()
+const notificationStore = useNotificationStore()
+const router = useRouter()
 
 // Map container reference
 const mapContainer = ref<HTMLElement | null>(null)
@@ -108,6 +563,28 @@ const isDrawingToolsVisible = ref(true)
 const isMobile = ref(false)
 const selectedDrawingTool = ref('none')
 const isDrawing = ref(false)
+
+// Modal states
+const showNewPlanModal = ref(false)
+const showLoadPlanModal = ref(false)
+const showDeletePlanModal = ref(false)
+const planToDelete = ref<Plan | null>(null)
+const newPlanModalRef = ref<InstanceType<typeof NewPlanModal> | null>(null)
+
+// Plan loading variables
+const selectedEntreprise = ref<any>(null)
+const selectedSalarie = ref<any>(null)
+const selectedClient = ref<any>(null)
+const selectedVisiteur = ref<any>(null)
+const entreprises = ref<any[]>([])
+const salaries = ref<any[]>([])
+const filteredSalaries = ref<any[]>([])
+const filteredClients = ref<any[]>([])
+const clientPlans = ref<any[]>([])
+const isLoadingEntreprises = ref(false)
+const isLoadingSalaries = ref(false)
+const isLoadingClients = ref(false)
+const isLoadingPlans = ref(false)
 
 const showDrawingTools = isDrawingToolsVisible;
 function toggleDrawingTools() {
@@ -164,7 +641,6 @@ watch(drawingInProgress, (newValue, oldValue) => {
 // Features collection
 const shapes = ref<any[]>([])
 
-
 // Initialize map when component is mounted
 onMounted(() => {
   if (mapContainer.value) {
@@ -193,49 +669,344 @@ onUnmounted(() => {
 
 // Toolbar action methods
 const createNewPlan = () => {
-  planName.value = 'Nouveau plan'
-  planDescription.value = ''
-  lastSave.value = new Date()
-  
-  // Clear existing drawings
-  if (olMap) {
-    clearDrawing(olMap)
+  showNewPlanModal.value = true
+}
+
+const loadPlan = (planId?: number) => {
+  if (planId) {
+    // Load a specific plan by ID
+    console.log('Loading plan with ID:', planId)
+    loadPlanById(planId)
+    showLoadPlanModal.value = false
+  } else {
+    // Open the load plan modal
+    openLoadPlanModal()
   }
-  
-  // Reset shapes collection
-  shapes.value = []
 }
 
-const loadPlan = () => {
-  // Mock load action for now
-  console.log('Load plan action')
-  
-  // Here you would load GeoJSON features and add them to the vector source
-  // Example:
-  // const loadedFeatures = new GeoJSON().readFeatures(geoJsonData, { featureProjection: 'EPSG:3857' })
-  // vectorSource.value.addFeatures(loadedFeatures)
+const openLoadPlanModal = async () => {
+  // Reset selection state
+  selectedEntreprise.value = null
+  selectedSalarie.value = null
+  selectedClient.value = null
+
+  // Load initial data based on user role
+  if (authStore.isAdmin) {
+    await loadEntreprises()
+  } else if (authStore.isEntreprise) {
+    await loadSalaries()
+  } else if (authStore.isSalarie) {
+    await loadClients()
+  } else {
+    // Regular client/visitor - load their available plans
+    await irrigationStore.fetchPlans()
+  }
+
+  // Show the modal
+  showLoadPlanModal.value = true
 }
 
-const savePlan = () => {
-  // Set saving status
+// Plan loading functions
+async function loadEntreprises() {
+  isLoadingEntreprises.value = true
+  try {
+    const response = await authStore.fetchEnterprises()
+    entreprises.value = response
+  } catch (error) {
+    console.error('Error loading entreprises:', error)
+    notificationStore.error('Erreur lors du chargement des entreprises')
+  } finally {
+    isLoadingEntreprises.value = false
+  }
+}
+
+async function loadSalaries(entrepriseId?: number) {
+  isLoadingSalaries.value = true
+  try {
+    const params: any = { role: 'SALARIE' }
+    if (entrepriseId) {
+      params.entreprise = entrepriseId
+    } else if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id
+    }
+    
+    const response = await userService.getUsers(params)
+    salaries.value = response.data
+    filteredSalaries.value = response.data
+  } catch (error) {
+    console.error('Error loading salaries:', error)
+    notificationStore.error('Erreur lors du chargement des salariés')
+  } finally {
+    isLoadingSalaries.value = false
+  }
+}
+
+async function loadClients(salarieId?: number) {
+  isLoadingClients.value = true
+  try {
+    const params: any = { role: 'VISITEUR' }
+    
+    if (salarieId) {
+      params.salarie = salarieId
+    } else if (authStore.isSalarie) {
+      params.salarie = authStore.user?.id
+    }
+    
+    if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id
+    }
+    
+    const response = await userService.getUsers(params)
+    filteredClients.value = response.data
+  } catch (error) {
+    console.error('Error loading clients:', error)
+    notificationStore.error('Erreur lors du chargement des visiteurs')
+  } finally {
+    isLoadingClients.value = false
+  }
+}
+
+async function loadPlansForClient(clientId: number) {
+  isLoadingPlans.value = true
+  try {
+    // Build query params based on user type
+    const params: any = { visiteur: clientId }
+    
+    if (selectedSalarie.value) {
+      params.salarie = selectedSalarie.value.id
+    } else if (authStore.isSalarie) {
+      params.salarie = authStore.user?.id
+    }
+    
+    if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id
+    } else if (selectedEntreprise.value) {
+      params.entreprise = selectedEntreprise.value.id
+    }
+    
+    const response = await api.get('/plans/', { params })
+    clientPlans.value = response.data
+  } catch (error) {
+    console.error('Error loading plans for client:', error)
+    notificationStore.error('Erreur lors du chargement des plans')
+  } finally {
+    isLoadingPlans.value = false
+  }
+}
+
+async function loadPlansWithoutVisiteur() {
+  isLoadingPlans.value = true
+  try {
+    // Create a virtual client object to represent "no visiteur"
+    selectedClient.value = { id: -1, first_name: 'Plans', last_name: 'sans visiteur' }
+    
+    // Build query parameters based on user type
+    const params: any = { no_visiteur: true }
+    
+    if (selectedSalarie.value) {
+      params.salarie = selectedSalarie.value.id
+    } else if (authStore.isSalarie) {
+      params.salarie = authStore.user?.id
+    }
+    
+    if (authStore.isEntreprise) {
+      params.entreprise = authStore.user?.id
+    } else if (selectedEntreprise.value) {
+      params.entreprise = selectedEntreprise.value.id
+    }
+    
+    const response = await api.get('/plans/', { params })
+    clientPlans.value = response.data
+  } catch (error) {
+    console.error('Error loading plans without visiteur:', error)
+    notificationStore.error('Erreur lors du chargement des plans')
+  } finally {
+    isLoadingPlans.value = false
+  }
+}
+
+// Selection functions for plan loading
+function selectEntreprise(entreprise: any) {
+  selectedEntreprise.value = entreprise
+  loadSalaries(entreprise.id)
+}
+
+function selectSalarie(salarie: any) {
+  selectedSalarie.value = salarie
+  loadClients(salarie.id)
+}
+
+function selectClient(client: any) {
+  selectedClient.value = client
+  loadPlansForClient(client.id)
+}
+
+function backToEntrepriseList() {
+  selectedSalarie.value = null
+  selectedClient.value = null
+  clientPlans.value = []
+}
+
+function backToSalarieList() {
+  selectedClient.value = null
+  clientPlans.value = []
+}
+
+function backToClientList() {
+  selectedClient.value = null
+  clientPlans.value = []
+}
+
+// Load a plan by ID
+async function loadPlanById(planId: number) {
+  try {
+    console.log('[DEBUG][loadPlanById] Starting load for plan ID:', planId)
+    // Clear existing map data
+    if (olMap) {
+      clearDrawing(olMap)
+    }
+    shapes.value = []
+    console.log('[DEBUG][loadPlanById] Cleared existing features and shapes')
+    
+    // Fetch the plan data
+    const plan: any = await irrigationStore.fetchPlanById(planId)
+    console.log('[DEBUG][loadPlanById] Fetched plan data:', plan)
+    console.log('[DEBUG][loadPlanById] plan.elements:', plan.elements, 'elements count:', plan.elements?.length)
+    if (!plan) {
+      throw new Error('Plan not found')
+    }
+    irrigationStore.setCurrentPlan(plan)
+    drawingStore.setCurrentPlan(plan.id)
+    
+    // Set plan metadata
+    planName.value = plan.nom
+    planDescription.value = plan.description
+    if (plan.date_modification) {
+      lastSave.value = new Date(plan.date_modification)
+    }
+    
+    // Load geometric shapes (formes) and connections
+    if (plan.formes && plan.formes.length) {
+      console.log('[DEBUG][loadPlanById] Loading geometric forms count:', plan.formes.length, plan.formes)
+      plan.formes.forEach((forme: any) => {
+        let feature: Feature<Geometry> | null = null
+        const pts: number[][] = forme.data.points || []
+        const coords = pts.map((p) => fromLonLat(p))
+        if (forme.type_forme.toLowerCase().includes('poly')) {
+          if (coords.length) {
+              coords.push(coords[0])
+            feature = new Feature(new Polygon([coords]))
+          }
+        } else if (forme.type_forme.toLowerCase().includes('line')) {
+          feature = new Feature(new LineString(coords))
+        }
+        if (feature) {
+          feature.set('properties', { ...forme.data })
+          feature.set('id', forme.id)
+          if (forme.id) feature.set('_dbId', forme.id)
+          drawSource.addFeature(feature)
+          // Apply saved style data to the feature
+          const savedStyle = feature.get('properties')?.style
+          if (savedStyle) {
+            updateFeatureStyle(feature, savedStyle)
+          }
+          shapes.value.push({ id: forme.id, type: forme.type_forme, feature })
+        }
+      })
+    }
+    if (plan.connexions && plan.connexions.length) {
+      console.log('[DEBUG][loadPlanById] Loading connections count:', plan.connexions.length, plan.connexions)
+      plan.connexions.forEach((conn: any) => {
+        const geom = conn.geometrie?.coordinates || conn.geometrie || []
+        const coords = geom.map((p: number[]) => fromLonLat(p))
+        const lineFeature = new Feature(new LineString(coords))
+        lineFeature.set('properties', { type: 'Connexion', ...conn })
+        lineFeature.set('id', conn.id)
+        drawSource.addFeature(lineFeature)
+        shapes.value.push({ id: conn.id, type: 'Connexion', feature: lineFeature })
+      })
+    }
+    // Refresh the vector source so the layer re-applies styles from feature properties
+    drawSource.changed()
+    // Adjust the view to fit all features
+    adjustView()
+    
+    // Store the last loaded plan ID
+    localStorage.setItem('lastPlanId', String(planId))
+    // Re-enable selection interaction
+    if (olMap) {
+      setDrawingTool('none', olMap)
+    }
+    
+    notificationStore.success(`Plan "${plan.nom}" chargé avec succès`)
+  } catch (error) {
+    console.error('Error loading plan:', error)
+    notificationStore.error('Erreur lors du chargement du plan')
+  }
+}
+
+const savePlan = async () => {
+  if (!irrigationStore.currentPlan) {
+    console.warn('[savePlan] Aucun plan actif à sauvegarder')
+    return
+  }
   saveStatus.value = 'saving'
+  // Build FormeGeometrique elements and collect deletions
+  const elements: any[] = []
+  const existingIds = new Set(drawingStore.elements.map(el => el.id).filter(id => id !== undefined) as number[])
+  const currentLayerIds = new Set<number>()
+
+  // Iterate over OpenLayers features
+  drawSource.getFeatures().forEach((feature: Feature<Geometry>) => {
+      const geometry = feature.getGeometry()
+    if (!geometry) return
+    const props = feature.get('properties') || {}
+    let type_forme: string | undefined
+    let data: any
+    // Polygon shapes
+    if (geometry instanceof Polygon) {
+      type_forme = 'Polygon'
+      // Convert coordinates to [lng, lat]
+      const coords = (geometry as Polygon)
+        .getCoordinates()[0]
+        .map((c: [number, number]) => toLonLat(c))
+      data = { points: coords, ...props, style: props.style || {} }
+    }
+    // Line shapes
+    else if (geometry instanceof LineString) {
+      type_forme = 'Line'
+      const coords = (geometry as LineString)
+        .getCoordinates()
+        .map((c: [number, number]) => toLonLat(c))
+      data = { points: coords, ...props, style: props.style || {} }
+    }
+    // Skip GeoNotes: handled separately via notes API
+    if (type_forme && data) {
+      const dbId = feature.get('_dbId') as number | undefined
+      const id = dbId || feature.get('id')
+      if (id) currentLayerIds.add(Number(id))
+      elements.push({ id, type_forme, data })
+    }
+  })
+  // Determine deletions
+  const elementsToDelete = Array.from(existingIds).filter(id => !currentLayerIds.has(id))
+  // Update drawing store before save
+  drawingStore.elements = elements.filter(el => !el.id || !elementsToDelete.includes(el.id))
   
-  // Get all features as GeoJSON
-  const geoJsonFeatures = features.value
-  
-  // Here you would save the features to your backend
-  // For now, we'll just simulate a delay
-  setTimeout(() => {
-    saveStatus.value = 'success'
+  try {
+    // Persist via drawing store API
+    const updated = await drawingStore.saveToPlan(irrigationStore.currentPlan.id, { elementsToDelete })
+    // Sync plan details
+    await irrigationStore.updatePlanDetails(irrigationStore.currentPlan.id, updated)
+    notificationStore.success('Plan sauvegardé avec succès')
     lastSave.value = new Date()
-    
-    // Reset success state after 3 seconds
-    setTimeout(() => {
-      saveStatus.value = null
-    }, 3000)
-    
-    console.log('Features saved:', geoJsonFeatures)
-  }, 1000)
+      saveStatus.value = 'success'
+    setTimeout(() => { saveStatus.value = null }, 3000)
+  } catch (error) {
+    console.error('[savePlan] Erreur lors de la sauvegarde du plan:', error)
+    notificationStore.error('Erreur lors de la sauvegarde du plan')
+    saveStatus.value = null
+  }
 }
 
 const adjustView = () => {
@@ -353,6 +1124,88 @@ const handleChangeBaseMap = (mapType: 'Hybride' | 'Cadastre' | 'IGN') => {
   if (olMap) {
     setBaseMap(mapType)
   }
+}
+
+// Plan creation handler
+function onPlanCreated(planId: number) {
+  // Load the newly created plan
+  loadPlanById(planId)
+}
+
+// Plan deletion handlers
+function confirmDeletePlanModal(plan: Plan) {
+  planToDelete.value = plan
+  showDeletePlanModal.value = true
+}
+
+async function confirmDeletePlan() {
+  if (!planToDelete.value?.id) return
+  try {
+    // Save the ID of the plan to delete and the current context
+    const planIdToDelete = planToDelete.value.id
+    const currentContext = {
+      selectedClient: selectedClient.value,
+      selectedSalarie: selectedSalarie.value,
+      isNoVisiteurView: selectedClient.value && selectedClient.value.id === -1
+    }
+
+    // Delete the plan
+    await irrigationStore.deletePlan(planIdToDelete)
+
+    // Close the modal before reloading plans
+    showDeletePlanModal.value = false
+    planToDelete.value = null
+
+    // Wait a brief moment for the UI to update
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    // Reload plans based on context
+    if (currentContext.isNoVisiteurView) {
+      // If we were in the "plans without visiteur" view
+      await loadPlansWithoutVisiteur()
+    } else if (currentContext.selectedClient) {
+      // If we were in a client's plans view
+      const params: any = { visiteur: currentContext.selectedClient.id }
+      
+      if (currentContext.selectedSalarie) params.salarie = currentContext.selectedSalarie.id
+      if (authStore.isEntreprise) params.entreprise = authStore.user?.id
+      else if (selectedEntreprise.value) params.entreprise = selectedEntreprise.value.id
+
+      const response = await api.get('/plans/', { params })
+      clientPlans.value = response.data
+    } else {
+      // Simple client interface - force complete reload
+      await irrigationStore.fetchPlans()
+    }
+
+    // If the deleted plan was the current plan, clean it up
+    if (irrigationStore.currentPlan?.id === planIdToDelete) {
+      irrigationStore.clearCurrentPlan()
+      drawingStore.clearCurrentPlan()
+      
+      // Clear the map
+      if (olMap) {
+        clearDrawing(olMap)
+      }
+      shapes.value = []
+      
+      localStorage.removeItem('lastPlanId')
+    }
+    
+    notificationStore.success('Plan supprimé avec succès')
+  } catch (error) {
+    console.error('Error deleting plan:', error)
+    notificationStore.error('Erreur lors de la suppression du plan')
+
+    // Close the modal even on error
+    showDeletePlanModal.value = false
+    planToDelete.value = null
+  }
+}
+
+function cancelDeletePlan() {
+  showDeletePlanModal.value = false
+  planToDelete.value = null
 }
 </script>
 

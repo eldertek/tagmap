@@ -367,6 +367,78 @@ export const useIrrigationStore = defineStore('irrigation', {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // Récupérer un plan spécifique par son ID
+    async fetchPlanById(planId: number): Promise<Plan | null> {
+      this.loading = true;
+      const notificationStore = useNotificationStore();
+      try {
+        const response = await api.get(`/plans/${planId}/`, { params: { include_details: true } });
+        
+        // Process the plan data
+        const plan = {
+          ...response.data,
+          entreprise: typeof response.data.entreprise === 'object' ? response.data.entreprise : null,
+          salarie: typeof response.data.salarie === 'object' ? response.data.salarie : null,
+          visiteur: typeof response.data.visiteur === 'object' ? response.data.visiteur : null
+        };
+        
+        // Update the plan in the local store if it exists
+        const index = this.plans.findIndex(p => p.id === planId);
+        if (index !== -1) {
+          this.plans[index] = plan;
+        } else {
+          this.plans.push(plan);
+        }
+        
+        return plan;
+      } catch (error) {
+        console.error('[IrrigationStore] Error fetching plan by ID:', error);
+        notificationStore.error(`Erreur lors du chargement du plan : ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // Mettre à jour les éléments d'un plan
+    async updatePlanElements(planId: number, planData: { elements: any[] }) {
+      this.loading = true;
+      const notificationStore = useNotificationStore();
+      try {
+        const response = await api.patch(`/plans/${planId}/elements/`, planData);
+        
+        // Update the plan in the current plan if it's the one being edited
+        if (this.currentPlan && this.currentPlan.id === planId) {
+          this.currentPlan = {
+            ...this.currentPlan,
+            elements: response.data.elements,
+            date_modification: response.data.date_modification,
+            version: response.data.version
+          };
+        }
+        
+        // Update the plan in the local list if it exists
+        const index = this.plans.findIndex(p => p.id === planId);
+        if (index !== -1) {
+          this.plans[index] = {
+            ...this.plans[index],
+            elements: response.data.elements,
+            date_modification: response.data.date_modification,
+            version: response.data.version
+          };
+        }
+        
+        this.unsavedChanges = false;
+        return response.data;
+      } catch (error) {
+        console.error('[IrrigationStore] Error updating plan elements:', error);
+        notificationStore.error(`Erreur lors de la mise à jour des éléments du plan : ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+      } finally {
+        this.loading = false;
+      }
     }
   }
 }); 

@@ -394,6 +394,49 @@ class PlanViewSet(viewsets.ModelViewSet):
 
         return context
 
+    @action(detail=True, methods=['patch'])
+    @transaction.atomic
+    def elements(self, request, pk=None):
+        """
+        Met à jour uniquement les éléments d'un plan (formes, connexions, etc.)
+        """
+        try:
+            plan = self.get_object()
+        except Exception as e:
+            raise
+
+        # Vérifier les permissions
+        if (plan.createur != request.user and
+            request.user.role not in [ROLE_ADMIN, ROLE_DEALER] and
+            (request.user.role == ROLE_DEALER and plan.createur.salarie != request.user)):
+            return Response(
+                {'detail': 'Vous n\'avez pas la permission de modifier ce plan'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Récupérer les données des éléments
+        elements = request.data.get('elements', [])
+        
+        # Mettre à jour les éléments du plan
+        plan.elements = elements
+        
+        # Mettre à jour la version du plan si elle existe
+        if hasattr(plan, 'version'):
+            plan.version = getattr(plan, 'version', 0) + 1
+        
+        # Forcer la mise à jour de la date de modification
+        plan.touch()
+
+        # Préparer la réponse avec les champs attendus par le frontend
+        response_data = {
+            'id': plan.id,
+            'elements': plan.elements,
+            'date_modification': plan.date_modification,
+            'version': getattr(plan, 'version', 1)
+        }
+
+        return Response(response_data)
+
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def save_with_elements(self, request, pk=None):

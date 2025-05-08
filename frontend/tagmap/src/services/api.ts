@@ -451,6 +451,14 @@ export const irrigationService = {
   async createPlanForEntreprise(planData: any, entrepriseId: number) {
     const data = { ...planData, entreprise: entrepriseId };
     return await api.post('/plans/', data);
+  },
+
+  async updatePlanElements(planId: number, data: { elements: any[] }) {
+    try {
+      return await api.patch(`/plans/${planId}/elements/`, data);
+    } catch (error) {
+      throw error;
+    }
   }
 };
 

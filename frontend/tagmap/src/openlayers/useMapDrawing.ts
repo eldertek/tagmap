@@ -135,10 +135,78 @@ export function useMapDrawing() {
   
   // Style function for vector layer
   const styleFunction = (feature: FeatureLike) => {
-    const f = feature as Feature<Geometry>;
-    return f === selectedFeature.value ? 
-      getFeatureStyle(f, true) : 
-      getFeatureStyle(f, false)
+    // Get the feature properties
+    const props = feature.get('properties') || {}
+    const geometry = (feature as Feature<Geometry>).getGeometry()
+    const type = geometry?.getType()
+
+    // Check if this feature is currently selected
+    const selected = feature === selectedFeature.value
+
+    // Define colors based on selection state
+    const strokeColor = selected ? '#1e88e5' : (props.style?.color || '#3388ff')
+    const fillColor = selected ? 'rgba(30, 136, 229, 0.4)' : (props.style?.fillColor || 'rgba(51, 136, 255, 0.2)')
+    const strokeWidth = selected ? (props.style?.weight + 1 || 4) : (props.style?.weight || 3)
+    const radius = props.style?.radius || 12
+
+    // Special handling for Note type (GeoNote)
+    if (props.type === 'Note' && type === 'Point') {
+      // Calculate marker size based on selected state
+      const markerSize = selected ? radius * 1.5 : radius
+      
+      // Get note name for label
+      const noteName = props.name || ''
+      
+      // Custom styling for GeoNote markers
+      return new Style({
+        image: new CircleStyle({
+          radius: markerSize,
+          fill: new Fill({
+            color: props.style?.fillColor || '#2b6451'
+          }),
+          stroke: new Stroke({
+            color: props.style?.color || '#2b6451',
+            width: strokeWidth
+          })
+        }),
+        // Add a label with the note name if available
+        text: noteName ? new Text({
+          text: noteName,
+          offsetY: -markerSize - 10,
+          font: '12px Arial',
+          fill: new Fill({
+            color: '#000'
+          }),
+          stroke: new Stroke({
+            color: '#fff',
+            width: 3
+          })
+        }) : undefined
+      })
+    }
+    
+    // Standard styling for polygons and lines
+    // Return style based on geometry type
+    return new Style({
+      stroke: new Stroke({
+        color: strokeColor,
+        width: strokeWidth,
+        lineDash: props.style?.dashArray ? [6] : undefined,
+      }),
+      fill: new Fill({
+        color: fillColor
+      }),
+      image: type === 'Point' ? new CircleStyle({
+        radius: 6,
+        fill: new Fill({
+          color: fillColor
+        }),
+        stroke: new Stroke({
+          color: strokeColor,
+          width: strokeWidth
+        })
+      }) : undefined
+    })
   }
   
   // Vector layer for drawings with style function
