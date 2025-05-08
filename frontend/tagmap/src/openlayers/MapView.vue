@@ -1,5 +1,38 @@
 <template>
   <div class="openlayers-map-view h-full flex flex-col">
+      <!-- Vue d'accueil quand aucun plan n'est chargé -->
+      <div v-if="!currentPlan" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[3000]">
+        <div class="text-center max-w-lg mx-auto p-8">
+          <div
+            class="relative w-48 h-48 mx-auto mb-12 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 p-8 shadow-lg ring-4 ring-white">
+            <img src="@/assets/logo.svg" alt="TagMap Logo"
+              class="w-full h-full object-contain filter drop-shadow-md" />
+            <div
+              class="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/10 pointer-events-none">
+            </div>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-4">Bienvenue sur TagMap</h1>
+          <p class="text-gray-600 mb-8">Pour commencer à dessiner, vous devez d'abord créer un nouveau plan ou charger
+            un plan existant.</p>
+          <div class="space-y-4">
+            <button @click="showNewPlanModal = true"
+              class="w-full flex items-center justify-center px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200">
+              <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Créer un nouveau plan
+            </button>
+            <button @click="openLoadPlanModal"
+              class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200">
+              <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Charger un plan existant
+            </button>
+          </div>
+        </div>
+      </div>
       <!-- Map Toolbar -->
     <MapToolbar :lastSave="lastSave ? lastSave : undefined" :planName="planName" :planDescription="planDescription"
       :saveStatus="saveStatus" @create-new-plan="createNewPlan" @load-plan="loadPlan" @save-plan="savePlan"
@@ -547,6 +580,9 @@ const drawingStore = useDrawingStore()
 const notificationStore = useNotificationStore()
 const router = useRouter()
 
+// Computed property for current plan
+const currentPlan = computed(() => irrigationStore.currentPlan)
+
 // Map container reference
 const mapContainer = ref<HTMLElement | null>(null)
 let olMap: Map | null = null
@@ -860,85 +896,48 @@ function backToClientList() {
 // Load a plan by ID
 async function loadPlanById(planId: number) {
   try {
-    console.log('[DEBUG][loadPlanById] Starting load for plan ID:', planId)
-    // Clear existing map data
-    if (olMap) {
-      clearDrawing(olMap)
-    }
-    shapes.value = []
-    console.log('[DEBUG][loadPlanById] Cleared existing features and shapes')
-    
-    // Fetch the plan data
-    const plan: any = await irrigationStore.fetchPlanById(planId)
-    console.log('[DEBUG][loadPlanById] Fetched plan data:', plan)
-    console.log('[DEBUG][loadPlanById] plan.elements:', plan.elements, 'elements count:', plan.elements?.length)
+    const plan = await irrigationStore.fetchPlanById(planId)
     if (!plan) {
-      throw new Error('Plan not found')
+      notificationStore.error('Le plan demandé n\'existe pas')
+      return
     }
-    irrigationStore.setCurrentPlan(plan)
-    drawingStore.setCurrentPlan(plan.id)
     
-    // Set plan metadata
+    // Set the current plan in the store
+    irrigationStore.setCurrentPlan(plan)
+    
+    // Update local state
     planName.value = plan.nom
     planDescription.value = plan.description
-    if (plan.date_modification) {
-      lastSave.value = new Date(plan.date_modification)
+    lastSave.value = new Date(plan.date_modification)
+    
+    // Clear existing features
+    drawSource.clear()
+    
+    // Load plan elements if they exist
+    if (plan.elements && Array.isArray(plan.elements)) {
+      const geoJson = new GeoJSON()
+      plan.elements.forEach(element => {
+        if (!element.geometry) return
+        
+        try {
+          // Create a new feature from the geometry
+          const geometry = geoJson.readGeometry(element.geometry)
+          const feature = new Feature({
+            geometry,
+            ...element.properties
+          })
+          
+          // Add the feature to the source
+          drawSource.addFeature(feature)
+        } catch (error) {
+          console.error('Error loading feature:', error)
+        }
+      })
     }
     
-    // Load geometric shapes (formes) and connections
-    if (plan.formes && plan.formes.length) {
-      console.log('[DEBUG][loadPlanById] Loading geometric forms count:', plan.formes.length, plan.formes)
-      plan.formes.forEach((forme: any) => {
-        let feature: Feature<Geometry> | null = null
-        const pts: number[][] = forme.data.points || []
-        const coords = pts.map((p) => fromLonLat(p))
-        if (forme.type_forme.toLowerCase().includes('poly')) {
-          if (coords.length) {
-              coords.push(coords[0])
-            feature = new Feature(new Polygon([coords]))
-          }
-        } else if (forme.type_forme.toLowerCase().includes('line')) {
-          feature = new Feature(new LineString(coords))
-        }
-        if (feature) {
-          feature.set('properties', { ...forme.data })
-          feature.set('id', forme.id)
-          if (forme.id) feature.set('_dbId', forme.id)
-          drawSource.addFeature(feature)
-          // Apply saved style data to the feature
-          const savedStyle = feature.get('properties')?.style
-          if (savedStyle) {
-            updateFeatureStyle(feature, savedStyle)
-          }
-          shapes.value.push({ id: forme.id, type: forme.type_forme, feature })
-        }
-      })
-    }
-    if (plan.connexions && plan.connexions.length) {
-      console.log('[DEBUG][loadPlanById] Loading connections count:', plan.connexions.length, plan.connexions)
-      plan.connexions.forEach((conn: any) => {
-        const geom = conn.geometrie?.coordinates || conn.geometrie || []
-        const coords = geom.map((p: number[]) => fromLonLat(p))
-        const lineFeature = new Feature(new LineString(coords))
-        lineFeature.set('properties', { type: 'Connexion', ...conn })
-        lineFeature.set('id', conn.id)
-        drawSource.addFeature(lineFeature)
-        shapes.value.push({ id: conn.id, type: 'Connexion', feature: lineFeature })
-      })
-    }
-    // Refresh the vector source so the layer re-applies styles from feature properties
-    drawSource.changed()
-    // Adjust the view to fit all features
+    // Adjust the view to show all features
     adjustView()
     
-    // Store the last loaded plan ID
-    localStorage.setItem('lastPlanId', String(planId))
-    // Re-enable selection interaction
-    if (olMap) {
-      setDrawingTool('none', olMap)
-    }
-    
-    notificationStore.success(`Plan "${plan.nom}" chargé avec succès`)
   } catch (error) {
     console.error('Error loading plan:', error)
     notificationStore.error('Erreur lors du chargement du plan')
@@ -946,91 +945,75 @@ async function loadPlanById(planId: number) {
 }
 
 const savePlan = async () => {
-  if (!irrigationStore.currentPlan) {
-    console.warn('[savePlan] Aucun plan actif à sauvegarder')
-    return
-  }
-  saveStatus.value = 'saving'
-  // Build FormeGeometrique elements and collect deletions
-  const elements: any[] = []
-  const existingIds = new Set(drawingStore.elements.map(el => el.id).filter(id => id !== undefined) as number[])
-  const currentLayerIds = new Set<number>()
-
-  // Iterate over OpenLayers features
-  drawSource.getFeatures().forEach((feature: Feature<Geometry>) => {
-      const geometry = feature.getGeometry()
-    if (!geometry) return
-    const props = feature.get('properties') || {}
-    let type_forme: string | undefined
-    let data: any
-    // Polygon shapes
-    if (geometry instanceof Polygon) {
-      type_forme = 'Polygon'
-      // Convert coordinates to [lng, lat]
-      const coords = (geometry as Polygon)
-        .getCoordinates()[0]
-        .map((c: [number, number]) => toLonLat(c))
-      data = { points: coords, ...props, style: props.style || {} }
-    }
-    // Line shapes
-    else if (geometry instanceof LineString) {
-      type_forme = 'Line'
-      const coords = (geometry as LineString)
-        .getCoordinates()
-        .map((c: [number, number]) => toLonLat(c))
-      data = { points: coords, ...props, style: props.style || {} }
-    }
-    // Skip GeoNotes: handled separately via notes API
-    if (type_forme && data) {
-      const dbId = feature.get('_dbId') as number | undefined
-      const id = dbId || feature.get('id')
-      if (id) currentLayerIds.add(Number(id))
-      elements.push({ id, type_forme, data })
-    }
-  })
-  // Determine deletions
-  const elementsToDelete = Array.from(existingIds).filter(id => !currentLayerIds.has(id))
-  // Update drawing store before save
-  drawingStore.elements = elements.filter(el => !el.id || !elementsToDelete.includes(el.id))
+  if (!currentPlan.value) return
   
+  saveStatus.value = 'saving'
   try {
-    // Persist via drawing store API
-    const updated = await drawingStore.saveToPlan(irrigationStore.currentPlan.id, { elementsToDelete })
-    // Sync plan details
-    await irrigationStore.updatePlanDetails(irrigationStore.currentPlan.id, updated)
-    notificationStore.success('Plan sauvegardé avec succès')
+    // Convert features to GeoJSON
+    const geoJson = new GeoJSON()
+    const features = drawSource.getFeatures()
+    const elements = features.map(feature => {
+      const geometry = feature.getGeometry()
+      if (!geometry) return null
+      
+      const properties = feature.getProperties()
+      delete properties.geometry // Remove geometry from properties
+      
+      return {
+        type: geometry.getType(),
+        geometry: geoJson.writeGeometryObject(geometry),
+        properties
+      }
+    }).filter(Boolean)
+    
+    // Save to backend
+    await irrigationStore.updatePlanElements(currentPlan.value.id, { elements })
+    saveStatus.value = 'success'
     lastSave.value = new Date()
-      saveStatus.value = 'success'
-    setTimeout(() => { saveStatus.value = null }, 3000)
+    
+    // Reset status after a delay
+    setTimeout(() => {
+      saveStatus.value = null
+    }, 2000)
   } catch (error) {
-    console.error('[savePlan] Erreur lors de la sauvegarde du plan:', error)
+    console.error('Error saving plan:', error)
     notificationStore.error('Erreur lors de la sauvegarde du plan')
     saveStatus.value = null
   }
 }
 
 const adjustView = () => {
-  if (olMap) {
-    // Utiliser drawSource de useMapDrawing
-    const allFeatures = drawSource.getFeatures();
-    if (allFeatures.length > 0) {
-      let globalExtent = allFeatures[0].getGeometry().getExtent().slice();
-      allFeatures.forEach((f: Feature<Geometry>) => {
-        const geom = f.getGeometry();
-        if (geom) {
-          const extent = geom.getExtent();
-          globalExtent = [
-            Math.min(globalExtent[0], extent[0]),
-            Math.min(globalExtent[1], extent[1]),
-            Math.max(globalExtent[2], extent[2]),
-            Math.max(globalExtent[3], extent[3])
-          ];
-        }
-      });
-      olMap.getView().fit(globalExtent, { size: olMap.getSize(), maxZoom: 18, duration: 500 });
-    } else {
-      olMap.getView().setProperties(initialView.value);
-    }
+  if (!olMap) return
+  
+  // Get all features from the draw source
+  const allFeatures = drawSource.getFeatures()
+  if (allFeatures.length > 0) {
+    // Calculate the extent that encompasses all features
+    let globalExtent = allFeatures[0].getGeometry()?.getExtent()?.slice()
+    if (!globalExtent) return
+    
+    allFeatures.forEach((feature) => {
+      const geometry = feature.getGeometry()
+      if (geometry) {
+        const extent = geometry.getExtent()
+        globalExtent = [
+          Math.min(globalExtent[0], extent[0]),
+          Math.min(globalExtent[1], extent[1]),
+          Math.max(globalExtent[2], extent[2]),
+          Math.max(globalExtent[3], extent[3])
+        ]
+      }
+    })
+    
+    // Fit the view to the calculated extent
+    olMap.getView().fit(globalExtent, {
+      padding: [50, 50, 50, 50],
+      maxZoom: 18,
+      duration: 500
+    })
+  } else {
+    // If no features, reset to initial view
+    olMap.getView().setProperties(initialView.value)
   }
 }
 
@@ -1165,47 +1148,34 @@ async function confirmDeletePlan() {
       await loadPlansWithoutVisiteur()
     } else if (currentContext.selectedClient) {
       // If we were in a client's plans view
-      const params: any = { visiteur: currentContext.selectedClient.id }
-      
-      if (currentContext.selectedSalarie) params.salarie = currentContext.selectedSalarie.id
-      if (authStore.isEntreprise) params.entreprise = authStore.user?.id
-      else if (selectedEntreprise.value) params.entreprise = selectedEntreprise.value.id
-
-      const response = await api.get('/plans/', { params })
-      clientPlans.value = response.data
+      await loadClientPlans(currentContext.selectedClient.id)
     } else {
-      // Simple client interface - force complete reload
+      // Otherwise, just reload all plans
       await irrigationStore.fetchPlans()
     }
-
-    // If the deleted plan was the current plan, clean it up
-    if (irrigationStore.currentPlan?.id === planIdToDelete) {
-      irrigationStore.clearCurrentPlan()
-      drawingStore.clearCurrentPlan()
-      
-      // Clear the map
-      if (olMap) {
-        clearDrawing(olMap)
-      }
-      shapes.value = []
-      
-      localStorage.removeItem('lastPlanId')
-    }
-    
-    notificationStore.success('Plan supprimé avec succès')
   } catch (error) {
     console.error('Error deleting plan:', error)
     notificationStore.error('Erreur lors de la suppression du plan')
-
-    // Close the modal even on error
-    showDeletePlanModal.value = false
-    planToDelete.value = null
   }
 }
 
 function cancelDeletePlan() {
   showDeletePlanModal.value = false
   planToDelete.value = null
+}
+
+// Load client plans
+async function loadClientPlans(clientId: number) {
+  try {
+    isLoadingPlans.value = true
+    const response = await irrigationStore.fetchClientPlans(clientId)
+    clientPlans.value = response
+  } catch (error) {
+    console.error('Error loading client plans:', error)
+    notificationStore.error('Erreur lors du chargement des plans du client')
+  } finally {
+    isLoadingPlans.value = false
+  }
 }
 </script>
 

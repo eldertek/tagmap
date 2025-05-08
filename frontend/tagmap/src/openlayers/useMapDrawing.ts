@@ -143,9 +143,25 @@ export function useMapDrawing() {
     // Check if this feature is currently selected
     const selected = feature === selectedFeature.value
 
-    // Define colors based on selection state
+    // Define stroke color based on selection
     const strokeColor = selected ? '#1e88e5' : (props.style?.color || '#3388ff')
-    const fillColor = selected ? 'rgba(30, 136, 229, 0.4)' : (props.style?.fillColor || 'rgba(51, 136, 255, 0.2)')
+    // Determine base fill color and apply fillOpacity if provided
+    let fillColor = selected ? 'rgba(30, 136, 229, 0.4)' : (props.style?.fillColor || 'rgba(51, 136, 255, 0.2)')
+    if (!selected && props.style?.fillOpacity != null) {
+      const opacity = props.style.fillOpacity
+      // Handle hex colors
+      if (fillColor.startsWith('#')) {
+        const hex = fillColor.slice(1)
+        const r = parseInt(hex.length === 3 ? hex[0] + hex[0] : hex.slice(0, 2), 16)
+        const g = parseInt(hex.length === 3 ? hex[1] + hex[1] : hex.slice(2, 4), 16)
+        const b = parseInt(hex.length === 3 ? hex[2] + hex[2] : hex.slice(4, 6), 16)
+        fillColor = `rgba(${r}, ${g}, ${b}, ${opacity})`
+      }
+      // Handle existing rgba strings by replacing the alpha component
+      else if (fillColor.startsWith('rgba(')) {
+        fillColor = fillColor.replace(/rgba\(([^,]+,[^,]+,[^,]+),\s*[\d.]+\)/, `rgba($1, ${opacity})`)
+      }
+    }
     const strokeWidth = selected ? (props.style?.weight + 1 || 4) : (props.style?.weight || 3)
     const radius = props.style?.radius || 12
 
@@ -191,7 +207,7 @@ export function useMapDrawing() {
       stroke: new Stroke({
         color: strokeColor,
         width: strokeWidth,
-        lineDash: props.style?.dashArray ? [6] : undefined,
+        lineDash: props.style?.dashArray ? props.style?.dashArray.split(',').map((val: string) => Number(val.trim())) : undefined,
       }),
       fill: new Fill({
         color: fillColor
