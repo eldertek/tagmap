@@ -687,7 +687,8 @@ onMounted(() => {
       // Initialize drawing tools
       if (olMap) {
         initDrawing(olMap);
-        
+        // Ensure default interactions are active on initial load
+        setDrawingTool('none', olMap);
         // Set up the map view
         adjustView();
       }

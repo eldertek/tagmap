@@ -10,6 +10,7 @@ import { defaults as defaultControls } from 'ol/control';
 import Collection from 'ol/Collection';
 import Feature from 'ol/Feature';
 import { Geometry } from 'ol/geom';
+import { defaults as defaultInteractions } from 'ol/interaction';
 
 // Singleton instance to ensure shared state across components
 let instance: any = null;
@@ -105,7 +106,8 @@ export function useMapState() {
         zoom: false, // We'll add our own zoom controls
         attribution: true,
         rotate: false
-      })
+      }),
+      interactions: defaultInteractions()
     });
     
     changeBaseMap(currentBaseMap.value);
