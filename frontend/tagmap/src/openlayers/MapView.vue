@@ -1,7 +1,7 @@
 <template>
   <div class="openlayers-map-view h-full flex flex-col">
       <!-- Vue d'accueil quand aucun plan n'est chargé -->
-      <div v-if="!currentPlan" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[3000]">
+      <div v-if="showWelcomeScreen" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[3000]">
         <div class="text-center max-w-lg mx-auto p-8">
           <div
             class="relative w-48 h-48 mx-auto mb-12 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 p-8 shadow-lg ring-4 ring-white">
@@ -34,7 +34,7 @@
         </div>
       </div>
       <!-- Map Toolbar -->
-    <MapToolbar :lastSave="lastSave ? lastSave : undefined" :planName="planName" :planDescription="planDescription"
+    <MapToolbar :lastSave="lastSave ? lastSave : undefined" :planName="displayPlanName" :planDescription="planDescription"
       :saveStatus="saveStatus" @create-new-plan="createNewPlan" @load-plan="loadPlan" @save-plan="savePlan"
       @adjust-view="adjustView" @toggle-edit-mode="toggleEditMode" @change-map-type="handleChangeBaseMap" />
       
@@ -578,6 +578,7 @@ const authStore = useAuthStore()
 const irrigationStore = useIrrigationStore()
 const drawingStore = useDrawingStore()
 const notificationStore = useNotificationStore()
+const notesStore = useNotesStore()
 const router = useRouter()
 
 // Computed property for current plan
@@ -588,10 +589,20 @@ const mapContainer = ref<HTMLElement | null>(null)
 let olMap: Map | null = null
 
 // Plan information
-const planName = ref<string>('Plan sans titre')
+const planName = ref<string>('')
 const planDescription = ref<string>('')
 const lastSave = ref<Date | null>(null)
 const saveStatus = ref<'saving' | 'success' | null>(null)
+
+// Computed to show welcome screen only when no plan is loaded
+const showWelcomeScreen = computed(() => !currentPlan.value)
+
+// Computed for display name (fallback to default if empty)
+const displayPlanName = computed(() => {
+  if (currentPlan.value?.nom) return currentPlan.value.nom
+  if (planName.value) return planName.value
+  return 'Plan sans titre'
+})
 
 // Drawing tools state
 const isEditModeEnabled = ref(true)
@@ -669,7 +680,7 @@ watch(drawingInProgress, (newValue, oldValue) => {
   if (oldValue && !newValue) {
     if (olMap) {
       selectedDrawingTool.value = 'none'
-      setDrawingTool('none', olMap)
+      setDrawingTool('none', olMap!)
     }
   }
 })
@@ -678,19 +689,41 @@ watch(drawingInProgress, (newValue, oldValue) => {
 const shapes = ref<any[]>([])
 
 // Initialize map when component is mounted
-onMounted(() => {
+onMounted(async () => {
+  // Load note columns before using default column
+  try {
+    await notesStore.loadColumns()
+  } catch (err) {
+    console.error('[MapView] Error loading note columns:', err)
+  }
+  
   if (mapContainer.value) {
     // Create the map instance
-    initMap(mapContainer.value).then((map: Map) => {
+    initMap(mapContainer.value).then(async (map: Map) => {
       olMap = map;
       
       // Initialize drawing tools
       if (olMap) {
-        initDrawing(olMap);
+        initDrawing(olMap!);
         // Ensure default interactions are active on initial load
-        setDrawingTool('none', olMap);
-        // Set up the map view
-        adjustView();
+        setDrawingTool('none', olMap!);
+        
+        // Load last viewed plan from localStorage
+        try {
+          const lastPlanId = localStorage.getItem('lastPlanId')
+          if (lastPlanId) {
+            console.log('[MapView] Loading last opened plan:', lastPlanId)
+            await loadPlanById(parseInt(lastPlanId))
+          } else {
+            // Only adjust view if no plan is loaded
+            adjustView();
+          }
+        } catch (error) {
+          console.error('[MapView] Error loading last plan:', error)
+          // If error loading last plan, reset localStorage and adjust view
+          localStorage.removeItem('lastPlanId')
+          adjustView();
+        }
       }
     });
   }
@@ -910,6 +943,9 @@ async function loadPlanById(planId: number) {
     // Set the current plan in the store
     irrigationStore.setCurrentPlan(plan)
     
+    // Save plan ID to localStorage for future loading
+    localStorage.setItem('lastPlanId', planId.toString())
+    
     // Update local state
     planName.value = plan.nom
     planDescription.value = plan.description
@@ -955,6 +991,65 @@ async function loadPlanById(planId: number) {
     console.log(`[MapView] loadPlanById: adjusting view after loading features`);
     adjustView()
     
+    // Load GeoNotes for this plan separately
+    try {
+      const resp = await noteService.getNotesByPlan(planId)
+      const notesData: any[] = resp.data
+      const noteJson = new GeoJSON()
+      notesData.forEach(n => {
+        // Read geometry from GeoJSON location
+        const geometry = noteJson.readGeometry(n.location) as Geometry
+        // Create a new feature for the note
+        const feature = new Feature({ geometry })
+        // Assign properties for rendering and identification
+        feature.setId(n.id)
+        feature.set('properties', {
+          type: 'Note',
+          category: n.category || 'forages',
+          accessLevel: n.access_level,
+          style: n.style,
+          name: n.title,
+          description: n.description
+        })
+        // Add to map and shapes list
+        drawSource.addFeature(feature)
+        shapes.value.push({ id: n.id, type: 'Note', layer: feature, properties: feature.get('properties') })
+        // Add to notes store
+        notesStore.addNote({ ...n, id: n.id })
+      })
+    } catch (err) {
+      console.error('[MapView] Error loading GeoNotes:', err)
+    }
+    
+    // ADD: Listen for new point features to create GeoNote immediately
+    // using drawSource from useMapDrawing
+    drawSource.on('addfeature', async (e: any) => {
+      const feature = e.feature as Feature<Geometry>
+      const props = feature.get('properties') as any
+      if (props.type === 'Note') {
+        const coords = (feature.getGeometry() as Point).getCoordinates()
+        const [lng, lat] = toLonLat(coords)
+        const noteData: any = {
+          location: { type: 'Point', coordinates: [lng, lat] },
+          column: notesStore.getDefaultColumn.id,
+          access_level: props.accessLevel,
+          style: props.style,
+          category: props.category,
+          plan: irrigationStore.currentPlan?.id
+        }
+        try {
+          const response = await noteService.createNote(noteData)
+          const created = response.data
+          feature.setId(created.id)
+          props.id = created.id
+          notesStore.addNote({ ...created, id: created.id })
+          notificationStore.success('Note créée avec succès')
+        } catch (err) {
+          console.error('[MapView] Error creating GeoNote:', err)
+          notificationStore.error('Erreur lors de la création de la note')
+        }
+      }
+    })
   } catch (error) {
     console.error('Error loading plan:', error)
     console.error(`[MapView] loadPlanById: error loading plan id=${planId}`, error);
@@ -964,7 +1059,20 @@ async function loadPlanById(planId: number) {
 
 const savePlan = async () => {
   console.log(`[MapView] savePlan: start saving plan id=${currentPlan.value?.id}`);
-  if (!currentPlan.value) return
+  if (!currentPlan.value) {
+    notificationStore.error('Aucun plan n\'est chargé')
+    return
+  }
+  
+  // Ensure plan has a title
+  if (!planName.value && !currentPlan.value.nom) {
+    planName.value = 'Plan ' + new Date().toLocaleDateString()
+    // Update the plan metadata in addition to elements
+    await irrigationStore.updatePlan(currentPlan.value.id, {
+      nom: planName.value,
+      description: planDescription.value || 'Plan créé le ' + new Date().toLocaleDateString()
+    })
+  }
   
   saveStatus.value = 'saving'
   try {
@@ -977,6 +1085,13 @@ const savePlan = async () => {
       const geometry = feature.getGeometry()
       if (!geometry) {
         console.warn(`[MapView] savePlan: feature index=${index} has no geometry, skipping`, feature);
+        return null
+      }
+      
+      // Check if this is a Note type - don't save in elements
+      const props = feature.getProperties()
+      if (props.properties && props.properties.type === 'Note') {
+        console.log(`[MapView] savePlan: skipping Note element index=${index}`)
         return null
       }
       
@@ -1017,8 +1132,11 @@ const adjustView = () => {
   const allFeatures = drawSource.getFeatures()
   if (allFeatures.length > 0) {
     // Calculate the extent that encompasses all features
-    let globalExtent = allFeatures[0].getGeometry()?.getExtent()?.slice()
-    if (!globalExtent) return
+    const firstGeometry = allFeatures[0].getGeometry()
+    if (!firstGeometry) return
+    
+    // Initialize with the first feature's extent
+    let globalExtent = [...firstGeometry.getExtent()]
     
     allFeatures.forEach((feature) => {
       const geometry = feature.getGeometry()
@@ -1056,7 +1174,7 @@ const toggleEditMode = (enabled: boolean) => {
       selectedDrawingTool.value = 'none'
     } else {
       // Clear active drawing tool when edit mode is disabled
-      setDrawingTool('none', olMap)
+      setDrawingTool('none', olMap!)
       isDrawingToolsVisible.value = false
       selectedDrawingTool.value = 'none'
     }
@@ -1068,26 +1186,32 @@ const handleToolSelection = (toolType: string) => {
   console.log('[MapView] handleToolSelection:', toolType)
   selectedDrawingTool.value = toolType
   
-  if (olMap) {
-    setDrawingTool(toolType, olMap)
+  if (olMap !== null) {
+    setDrawingTool(toolType, olMap!)
   }
 }
 
 // Delete the currently selected feature
-const deleteSelectedFeature = () => {
+const deleteSelectedFeature = async () => {
   console.log('[MapView] deleteSelectedFeature invoked for feature', selectedFeature.value)
   if (selectedFeature.value && olMap) {
-    // TypeScript requires a type assertion here since Feature<Geometry> is expected
     const feature = selectedFeature.value as unknown as Feature<Geometry>
-    // Retrieve the feature ID before deletion
-    const featureId = feature.get('id')
-    console.log('[MapView] deleteSelectedFeature: deleting feature with id', featureId)
+    const props = feature.get('properties') as any
+    const id = feature.getId() as number
+    if (props.type === 'Note' && id) {
+      try {
+        await noteService.deleteNote(id)
+        notesStore.removeNote(id)
+        notificationStore.success('Note supprimée avec succès')
+      } catch (err) {
+        console.error('[MapView] Error deleting GeoNote:', err)
+        notificationStore.error('Erreur lors de la suppression de la note')
+      }
+    }
+    console.log('[MapView] deleteSelectedFeature: deleting feature with id', id)
     deleteFeature(feature)
-    console.log('[MapView] deleteSelectedFeature: feature removed from drawSource')
-
-    // Update shapes collection
-    shapes.value = shapes.value.filter(shape => shape.id !== featureId)
-    console.log('[MapView] deleteSelectedFeature: shapes collection updated', shapes.value)
+    shapes.value = shapes.value.filter(shape => shape.id !== id)
+    selectedFeature.value = null
   }
 }
 
@@ -1139,8 +1263,10 @@ const handleChangeBaseMap = (mapType: 'Hybride' | 'Cadastre' | 'IGN') => {
 
 // Plan creation handler
 function onPlanCreated(planId: number) {
+  console.log('[MapView] onPlanCreated: new plan created with ID:', planId)
   // Load the newly created plan
   loadPlanById(planId)
+  showNewPlanModal.value = false // Ensure the modal is closed
 }
 
 // Plan deletion handlers
