@@ -1,7 +1,7 @@
 <template>
   <div class="openlayers-map-view h-full flex flex-col">
       <!-- Vue d'accueil quand aucun plan n'est chargé -->
-      <div v-if="showWelcomeScreen" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[3000]">
+      <div v-if="showWelcomeScreen" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-[2400]">
         <div class="text-center max-w-lg mx-auto p-8">
           <div
             class="relative w-48 h-48 mx-auto mb-12 rounded-full bg-gradient-to-br from-primary-100 to-primary-50 p-8 shadow-lg ring-4 ring-white">
@@ -1978,6 +1978,11 @@ const onGeoNoteSaved = async (updatedNote: Note) => {
 
 .openlayers-map-view {
   position: relative;
+}
+
+/* Fix for hamburger menu visibility - reduce z-index of welcome screen */
+.openlayers-map-view > div.absolute.inset-0.flex.bg-gray-50 {
+  z-index: 2400 !important; /* Below the app header z-index of 2500 */
 }
 
 /* Primary color theme */

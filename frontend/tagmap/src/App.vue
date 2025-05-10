@@ -488,7 +488,7 @@ watchEffect(() => {
         <!-- Menu mobile -->
         <div
           v-if="showMobileMenu"
-          class="md:hidden fixed inset-0 bg-white shadow-lg z-[3000] border-t border-gray-200"
+          class="md:hidden fixed inset-0 bg-white shadow-lg z-[3500] border-t border-gray-200"
           style="top: var(--header-height);"
         >
           <div class="space-y-1 px-2 pb-3 pt-2">
