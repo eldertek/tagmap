@@ -61,6 +61,12 @@ Organizations need a centralized way to:
 - SIM card camera integration
 - Additional third-party services
 
+### Recherche d'adresse et centrage carte
+- Lorsqu'un utilisateur saisit une adresse dans la barre de recherche (SearchBar) en haut de l'interface, une liste de suggestions s'affiche.
+- En sélectionnant une adresse, la carte principale (OpenLayers) se centre automatiquement sur la position correspondante et applique un zoom adapté (par défaut 16).
+- Ce comportement est assuré via un événement global `map-set-location` : la SearchBar émet cet événement avec les coordonnées, et la carte écoute cet événement pour ajuster la vue.
+- Ce mécanisme fonctionne sur desktop et mobile, et garantit une expérience fluide pour la navigation cartographique.
+
 ## 3. Non-Functional Requirements
 
 ### Performance

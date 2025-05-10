@@ -29,6 +29,7 @@
 |             |            |        |   | - [ ] Vérifier que seule la balise `<meta name="mobile-web-app-capable" content="yes">` est présente dans le HTML principal, conformément à la documentation technique (docs/technical.md). L'ancienne balise `apple-mobile-web-app-capable` ne doit plus être utilisée. |
 | Paramètres Google Maps (admin) | Completed | Medium | - | Création d'une page Paramètres sécurisée accessible uniquement aux administrateurs pour renseigner la clé d'API Google Maps, stockée dans le backend via le modèle ApplicationSetting, et récupérée via une API dédiée - **aucun stockage côté client**. Service settings.ts créé pour encapsuler les accès à l'API de paramètres. |
 | Deployment | Not started | Low | - | Setup production deployment |
+| Recherche d'adresse (SearchBar) | Completed | High | - | Centrer et zoomer la carte sur l'adresse sélectionnée dans OpenLayers/MapView.vue via l'événement map-set-location |
 
 ## Task Breakdown
 

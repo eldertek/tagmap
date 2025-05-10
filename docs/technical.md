@@ -241,6 +241,32 @@ The RESTful API follows these principles:
 - Nested resources where appropriate
 - Consistent response formats
 
+### Recherche d'adresse : intégration SearchBar → MapView (OpenLayers)
+
+- La barre de recherche d'adresse (SearchBar.vue) utilise l'API Nominatim pour suggérer des adresses à l'utilisateur.
+- Lorsqu'une adresse est sélectionnée, SearchBar émet l'événement `select-location` avec `{ lat, lng }`.
+- Dans App.vue, ce handler déclenche :
+
+```js
+window.dispatchEvent(new CustomEvent('map-set-location', {
+  detail: { lat, lng, zoom: 16 }
+}))
+```
+
+- Dans `openlayers/MapView.vue`, un écouteur global est ajouté :
+
+```ts
+window.addEventListener('map-set-location', (event) => {
+  const { lat, lng, zoom } = event.detail;
+  const coords = fromLonLat([lng, lat]);
+  olMap.getView().setCenter(coords);
+  if (zoom) olMap.getView().setZoom(zoom);
+});
+```
+
+- Ce flux garantit que toute sélection d'adresse dans la SearchBar recentre et zoome la carte OpenLayers, sans couplage direct entre composants.
+- Le nettoyage de l'écouteur est assuré dans `onUnmounted` pour éviter les fuites mémoire.
+
 ## Database Schema
 
 The core database models include:

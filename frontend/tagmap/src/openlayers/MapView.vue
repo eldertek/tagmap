@@ -903,6 +903,21 @@ onMounted(async () => {
     }
   }
   document.addEventListener('click', onDocumentClick)
+
+  // Ajout écouteur map-set-location
+  let mapSetLocationHandler: ((event: Event) => void) | null = null;
+  mapSetLocationHandler = (event: Event) => {
+    const customEvent = event as CustomEvent<{ lat: number; lng: number; zoom?: number }>;
+    if (olMap && customEvent.detail) {
+      const { lat, lng, zoom } = customEvent.detail;
+      const coords = fromLonLat([lng, lat]);
+      olMap.getView().setCenter(coords);
+      if (zoom) {
+        olMap.getView().setZoom(zoom);
+      }
+    }
+  };
+  window.addEventListener('map-set-location', mapSetLocationHandler);
 });
 
 onUnmounted(() => {
@@ -913,6 +928,10 @@ onUnmounted(() => {
 
   // Remove click-outside handler
   document.removeEventListener('click', onDocumentClick)
+
+  if (mapSetLocationHandler) {
+    window.removeEventListener('map-set-location', mapSetLocationHandler);
+  }
 })
 
 // Toolbar action methods
