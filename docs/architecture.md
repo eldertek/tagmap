@@ -252,6 +252,7 @@ Pour garantir un scroll fiable dans tous les onglets de DrawingTools.vue (Outils
   - `flex: 1; min-height: 0; overflow-y: auto` (structure de base)
   - Des `max-height` en pourcentage et non en `vh` pour s'adapter à tous les contextes
   - Un padding-bottom plus important sur mobile pour éviter les problèmes avec la barre d'outils
+  - Un champ de saisie du nom ("Nom de la note") est affiché au-dessus de la sélection de catégorie pour les GeoNotes (type `Note`) dans le panneau DrawingTools.vue, de la même manière qu'il est proposé pour les lignes et les polygones.
 
 Cette architecture évite les problèmes de scroll couramment rencontrés avec les conteneurs flex imbriqués et fonctionne de manière cohérente sur tous les appareils. 
 

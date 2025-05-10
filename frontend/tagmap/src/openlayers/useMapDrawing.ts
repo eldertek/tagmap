@@ -170,10 +170,7 @@ export function useMapDrawing() {
       // Calculate marker size based on selected state
       const markerSize = selected ? radius * 1.5 : radius
       
-      // Get note name for label
-      const noteName = props.name || ''
-      
-      // Custom styling for GeoNote markers
+      // Custom styling for GeoNote markers without label
       return new Style({
         image: new CircleStyle({
           radius: markerSize,
@@ -184,20 +181,7 @@ export function useMapDrawing() {
             color: props.style?.color || '#2b6451',
             width: strokeWidth
           })
-        }),
-        // Add a label with the note name if available
-        text: noteName ? new Text({
-          text: noteName,
-          offsetY: -markerSize - 10,
-          font: '12px Arial',
-          fill: new Fill({
-            color: '#000'
-          }),
-          stroke: new Stroke({
-            color: '#fff',
-            width: 3
-          })
-        }) : undefined
+        })
       })
     }
     

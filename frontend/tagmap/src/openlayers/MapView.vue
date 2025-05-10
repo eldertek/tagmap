@@ -47,6 +47,11 @@
         <!-- Map container -->
         <div class="flex-1 relative">
           <div ref="mapContainer" class="map-container"></div>
+          <!-- Popup info overlay -->
+          <div ref="popupContainer" class="ol-popup" style="display:none;">
+            <a href="#" ref="popupCloser" class="ol-popup-closer">✖</a>
+            <div ref="popupContent"></div>
+          </div>
         </div>
 
         <!-- Drawing tools panel -->
@@ -556,10 +561,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, computed, watch, Teleport } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import 'ol/ol.css'
 import Map from 'ol/Map'
 import View from 'ol/View'
+import Overlay from 'ol/Overlay'
 import { useMapState } from './useMapState'
 import { useMapDrawing } from './useMapDrawing'
 import MapToolbar from './MapToolbar.vue'
@@ -592,6 +598,7 @@ import {
 } from 'ol/style'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
+import { NoteAccessLevel } from '@/utils/noteHelpers'
 
 // Store references
 const authStore = useAuthStore()
@@ -600,6 +607,7 @@ const drawingStore = useDrawingStore()
 const notificationStore = useNotificationStore()
 const notesStore = useNotesStore()
 const router = useRouter()
+const route = useRoute()
 
 // Computed property for current plan
 const currentPlan = computed(() => irrigationStore.currentPlan)
@@ -607,6 +615,11 @@ const currentPlan = computed(() => irrigationStore.currentPlan)
 // Map container reference
 const mapContainer = ref<HTMLElement | null>(null)
 let olMap: Map | null = null
+// Popup overlay refs
+const popupContainer = ref<HTMLElement|null>(null)
+const popupContent = ref<HTMLElement|null>(null)
+const popupCloser = ref<HTMLElement|null>(null)
+let popupOverlay: Overlay|null = null
 
 // Plan information
 const planName = ref<string>('')
@@ -729,111 +742,118 @@ onMounted(async () => {
       if (olMap) {
         initDrawing(olMap!);
         
-        // Set up drawSource listener for GeoNotes
-        drawSource.on('addfeature', async (e: any) => {
-          const feature = e.feature as Feature<Geometry>
-          const props = feature.get('properties') as any
-          if (props && props.type === 'Note') {
-            // Only process notes
-            try {
-              console.log('[MapView] Added feature is a GeoNote, processing...');
-              
-              const geometry = feature.getGeometry()
-              if (geometry && geometry instanceof Point) {
-                // Get coordinates and convert to longitude/latitude
-                const coords = geometry.getCoordinates()
-                console.log('[MapView] GeoNote raw coordinates (EPSG:3857):', coords);
-                
-                const [lng, lat] = toLonLat(coords)
-                console.log('[MapView] GeoNote converted coordinates (EPSG:4326):', [lng, lat]);
-                
-                // Create note data for API
-                const noteData: any = {
-                  title: props.name || 'Nouvelle note',
-                  description: props.description || '',
-                  location: { 
-                    type: 'Point', 
-                    coordinates: [lng, lat]  // GeoJSON uses [longitude, latitude] format
-                  },
-                  column: notesStore.getDefaultColumn.id,
-                  access_level: props.accessLevel || 'visitor',
-                  style: props.style || {
-                    color: '#3388ff',
-                    weight: 3,
-                    fillColor: 'rgba(51, 136, 255, 0.6)',
-                    radius: 8
-                  },
-                  category: props.category || 'forages',
-                  plan: irrigationStore.currentPlan?.id
-                }
-                
-                console.log('[MapView] Sending GeoNote data to API:', noteData);
-                
-                // Create note via API
-                const response = await noteService.createNote(noteData)
-                const created = response.data
-                console.log('[MapView] Created GeoNote API response:', created);
-                
-                // Remove the temporary feature from the draw source (important!)
-                // so it doesn't get saved twice (once as a shape, once as a note)
-                drawSource.removeFeature(feature)
-                
-                // Create a brand new feature with the correct ID from the server
-                const newFeature = new Feature({
-                  geometry: new Point(coords) // Use original OpenLayers coordinates (EPSG:3857)
-                });
-                
-                // Copy properties and set ID
-                newFeature.setId(created.id);
-                newFeature.set('properties', props);
-                
-                // Add the note to the map separately from drawSource
-                addNoteToMap(newFeature, created.id);
-                
-                // Add to notes store
-                notesStore.addNote({
-                  ...created,
-                  id: created.id,
-                  columnId: created.column
-                });
-                
-                // Select the new feature
-                selectedFeature.value = null; // Clear first to trigger reactivity
-                setTimeout(() => {
-                  selectedFeature.value = newFeature;
-                }, 100);
-                
-                // Notify creation success
-                notificationStore.success('Note créée avec succès')
-              } else {
-                console.warn('[MapView] Feature is not a Point geometry or is invalid:', geometry);
-              }
-            } catch (err) {
-              console.error('[MapView] Error creating GeoNote:', err)
-              notificationStore.error('Erreur lors de la création de la note')
-              drawSource.removeFeature(feature)
-            }
-          }
-        })
-        
         // Ensure default interactions are active on initial load
         setDrawingTool('none', olMap);
         
-        // Load last viewed plan from localStorage
-        try {
-          const lastPlanId = localStorage.getItem('lastPlanId')
-          if (lastPlanId) {
-            console.log('[MapView] Loading last opened plan:', lastPlanId)
-            await loadPlanById(parseInt(lastPlanId))
+        // Setup popup overlay for shape info
+        popupOverlay = new Overlay({
+          element: popupContainer.value as HTMLElement,
+          autoPan: true,
+          autoPanOptions: { duration: 250 },
+          offset: [0, -15]
+        })
+        olMap.addOverlay(popupOverlay)
+        // Close popup on closer click
+        popupCloser.value?.addEventListener('click', (evt: Event) => {
+          evt.preventDefault()
+          popupOverlay?.setPosition(undefined)
+          popupContainer.value?.style.setProperty('display', 'none')
+        })
+        // Display info popup on single click
+        olMap.on('singleclick', (evt: any) => {
+          const feature = olMap?.forEachFeatureAtPixel(evt.pixel, (feat) => feat)
+          if (feature) {
+            const props = feature.get('properties') || {}
+            const geom = feature.getGeometry()
+            const type = props.type || geom?.getType()
+            if (geom && (type === 'Polygon' || type === 'LineString' || props.type === 'Note')) {
+              let html = ''
+              if (props.name) html += `<strong>${props.name}</strong><br/>`
+              if (geom instanceof Polygon) {
+                const area = props.area ?? Math.round(getArea(geom) * 100) / 100
+                const perimeter = Math.round(getLength((geom as any).getLinearRing(0)) * 100) / 100
+                html += `Surface: ${area} m²<br/>Périmètre: ${perimeter} m<br/>`
+              } else if (geom instanceof LineString) {
+                const length = props.length ?? Math.round(getLength(geom) * 100) / 100
+                html += `Longueur: ${length} m<br/>`
+              }
+              if (props.description) html += `${props.description}<br/>`
+              popupContent.value!.innerHTML = html
+              popupContainer.value!.style.setProperty('display', 'block')
+              popupOverlay.setPosition(evt.coordinate)
+            } else {
+              popupOverlay.setPosition(undefined)
+              popupContainer.value?.style.setProperty('display', 'none')
+            }
           } else {
-            // Only adjust view if no plan is loaded
-            adjustView();
+            popupOverlay?.setPosition(undefined)
+            popupContainer.value?.style.setProperty('display', 'none')
+          }
+        })
+        
+        // Load plan from URL query or last viewed plan and focus GeoNote if provided
+        try {
+          const planIdParam = route.query.planId
+          const noteIdParam = route.query.noteId
+          const latParam = route.query.lat
+          const lngParam = route.query.lng
+          if (planIdParam) {
+            const planIdNum = parseInt(planIdParam as string)
+            console.log('[MapView] Loading plan from URL query:', planIdNum)
+            await loadPlanById(planIdNum)
+            // Focus on specific GeoNote if provided
+            if (noteIdParam) {
+              const noteIdNum = parseInt(noteIdParam as string)
+              const noteShape = shapes.value.find(shape => shape.type === 'Note' && shape.id === noteIdNum)
+              if (noteShape && noteShape.layer) {
+                const geometry = (noteShape.layer as Feature<Geometry>).getGeometry()
+                if (geometry instanceof Point) {
+                  const coords = geometry.getCoordinates()
+                  // Debug: focusing GeoNote
+                  console.log('[MapView] Debug: focusing GeoNote', noteIdNum, coords)
+                  // Center and zoom on the GeoNote
+                  const view = olMap?.getView()
+                  if (view) {
+                    view.setCenter(coords)
+                    view.setZoom(18)
+                  }
+                  // Show popup for the GeoNote
+                  const props = noteShape.properties || {}
+                  let html = ''
+                  if (props.name) html += `<strong>${props.name}</strong><br/>`
+                  if (props.description) html += `${props.description}<br/>`
+                  popupContent.value!.innerHTML = html
+                  popupContainer.value!.style.setProperty('display', 'block')
+                  popupOverlay?.setPosition(coords)
+                }
+              }
+            } else if (latParam && lngParam) {
+              const latNum = parseFloat(latParam as string)
+              const lngNum = parseFloat(lngParam as string)
+              const coords = fromLonLat([lngNum, latNum])
+              // Debug: focusing coords from URL
+              console.log('[MapView] Debug: focusing coords', latNum, lngNum, coords)
+              // Center and zoom on provided coordinates
+              const view = olMap?.getView()
+              if (view) {
+                view.setCenter(coords)
+                view.setZoom(18)
+              }
+            }
+          } else {
+            // Default to last viewed plan or adjust view
+            const lastPlanId = localStorage.getItem('lastPlanId')
+            if (lastPlanId) {
+              console.log('[MapView] Loading last opened plan:', lastPlanId)
+              await loadPlanById(parseInt(lastPlanId))
+            } else {
+              adjustView()
+            }
           }
         } catch (error) {
-          console.error('[MapView] Error loading last plan:', error)
-          // If error loading last plan, reset localStorage and adjust view
+          console.error('[MapView] Error loading plan from URL or localStorage:', error)
           localStorage.removeItem('lastPlanId')
-          adjustView();
+          adjustView()
         }
       }
     });
@@ -1023,12 +1043,14 @@ function selectClient(client: any) {
 }
 
 function backToEntrepriseList() {
+  selectedEntreprise.value = null
   selectedSalarie.value = null
   selectedClient.value = null
   clientPlans.value = []
 }
 
 function backToSalarieList() {
+  selectedSalarie.value = null
   selectedClient.value = null
   clientPlans.value = []
 }
@@ -1129,6 +1151,9 @@ async function loadPlanById(planId: number) {
     
     // Load GeoNotes separately
     await loadPlanGeoNotes(planId);
+
+    // Adjust view after loading GeoNotes
+    adjustView();
 
     return plan;
   } catch (error) {
@@ -1263,14 +1288,7 @@ function addNoteToMap(feature: Feature<Geometry>, id: number) {
         anchorXUnits: 'fraction',
         anchorYUnits: 'fraction',
         scale: 1.5 // Fixed larger icon scale for optimal visibility
-      }),
-      text: props.name ? new Text({
-        text: String(props.name),
-        offsetY: -35,
-        font: '12px Calibri,sans-serif',
-        fill: new Fill({ color: '#000' }),
-        stroke: new Stroke({ color: '#fff', width: 2 })
-      }) : undefined
+      })
     })
   });
   
@@ -1503,14 +1521,83 @@ const handleStyleUpdate = (style: any) => {
   }
 }
 
-// Handle filter changes from drawing tools
+// Filter state
+const mapFilters = ref<{
+  accessLevels: Record<string, boolean>;
+  categories: Record<string, boolean>;
+  shapeTypes: Record<string, boolean>;
+}>({
+  accessLevels: {
+    [NoteAccessLevel.PRIVATE]: true,
+    [NoteAccessLevel.COMPANY]: true,
+    [NoteAccessLevel.EMPLOYEE]: true,
+    [NoteAccessLevel.VISITOR]: true,
+  },
+  categories: {
+    forages: true,
+    clients: true,
+    entrepots: true,
+    livraisons: true,
+    cultures: true,
+    parcelles: true,
+  },
+  shapeTypes: {
+    Polygon: true,
+    LineString: true,
+    Note: true,
+  }
+});
+
+// Function to apply filters to features and note layers
+const applyFilters = () => {
+  console.log('[applyFilters] Starting with mapFilters:', mapFilters.value);
+  if (!olMap) return;
+  const f = mapFilters.value;
+  // Apply to draw source features (shapes)
+  const drawFeatures = drawSource.getFeatures();
+  console.log(`[applyFilters] Processing ${drawFeatures.length} drawn features`);
+  drawFeatures.forEach((feature: Feature<Geometry>) => {
+    const props = feature.get('properties') || {};
+    const type = props.type || feature.getGeometry()?.getType() || '';
+    const category = props.category || '';
+    const access = props.accessLevel || '';
+    const visible = !!(f.shapeTypes[type] && f.categories[category] && f.accessLevels[access]);
+    console.log(`[applyFilters] Shape id=${feature.getId()} type=${type} category=${category} access=${access} -> visible=${visible}`);
+    if (visible) {
+      // Reset to layer style
+      feature.setStyle(null);
+    } else {
+      // Hide by applying empty style
+      feature.setStyle(new Style());
+    }
+  });
+  // Apply to GeoNote layers
+  console.log(`[applyFilters] Processing ${shapes.value.length} total shapes for notes`);
+  shapes.value.forEach(shape => {
+    if (shape.type === 'Note' && shape.mapLayer) {
+      const props = shape.properties || {};
+      const category = props.category || '';
+      const access = props.accessLevel || '';
+      const visible = !!(f.shapeTypes.Note && f.categories[category] && f.accessLevels[access]);
+      console.log(`[applyFilters] GeoNote id=${shape.id} category=${category} access=${access} -> visible=${visible}`);
+      shape.mapLayer.setVisible(visible);
+    }
+  });
+  // Optionally log map layer visibility state
+  const layerArr = olMap.getLayers().getArray();
+  console.log('[applyFilters] Map layers after filter:');
+  layerArr.forEach((layer, idx) => console.log(`  layer[${idx}]: type=${layer.getClassName()} visible=${layer.getVisible()}`));
+  // Refresh map view to reflect visibility changes
+  olMap.render();
+  console.log('[applyFilters] Completed');
+};
+
+// Handle filter changes from DrawingTools component
 const handleFilterChange = (filters: any) => {
-  // Apply filters to features visibility
-  console.log('Applying filters:', filters)
-  
-  // This would filter features by category, access level, etc.
-  // For now, we'll just log the filters
-}
+  console.log('[MapView] Applying filters:', filters);
+  mapFilters.value = filters;
+  applyFilters();
+};
 
 // Change the base map
 const handleChangeBaseMap = (mapType: 'Hybride' | 'Cadastre' | 'IGN') => {
@@ -1734,6 +1821,42 @@ const onGeoNoteSaved = async (updatedNote: Note) => {
         description: updatedNote.description,
         accessLevel: updatedNote.accessLevel
       });
+      // FIRST_EDIT: update icon style to match the selected note color
+      const feature = selectedFeature.value as Feature<Geometry>;
+      const noteId = feature.getId() as number;
+      const noteShape = shapes.value.find(shape => shape.id === noteId && shape.type === 'Note');
+      if (noteShape && noteShape.mapLayer) {
+        // Update stored style properties
+        const newColor = updatedNote.style?.color || updatedNote.color;
+        const newFill = updatedNote.style?.fillColor || newColor;
+        noteShape.properties.style = {
+          ...noteShape.properties.style,
+          color: newColor,
+          fillColor: newFill
+        };
+        // Regenerate SVG icon with new colors
+        const sp = noteShape.properties.style;
+        const drawPointSVG =
+          `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="8.5" r="2.5" stroke="${sp.color}" stroke-width="2" fill="white"/>
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="${sp.color}" stroke-width="2" fill="${sp.fillColor}"/>
+          </svg>`;
+        const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(drawPointSVG)}`;
+        // Preserve existing text style if any
+        const existingStyle = noteShape.mapLayer.getStyle() as Style;
+        const textStyle = existingStyle.getText();
+        // Apply new style
+        noteShape.mapLayer.setStyle(new Style({
+          image: new Icon({
+            src: svgUrl,
+            anchor: [0.5, 1],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'fraction',
+            scale: 1.5
+          }),
+          text: textStyle
+        }));
+      }
     }
     notificationStore.success('Note mise à jour avec succès');
   } catch (err) {
@@ -1778,5 +1901,25 @@ button {
   .md\:hidden {
     display: none;
   }
+}
+
+/* Popup overlay styles */
+.ol-popup {
+  position: absolute;
+  background-color: white;
+  padding: 8px;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  min-width: 120px;
+  z-index: 1000;
+}
+
+.ol-popup-closer {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
 }
 </style>

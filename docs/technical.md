@@ -324,6 +324,13 @@ Pour garantir un scroll fiable dans tous les onglets (Outils, Style, Filtres) de
 
 Cette approche permet un scroll fiable sur tous les appareils, sans dépendre de la taille de l'écran ou de l'interface.
 
+## Affichage du champ Nom pour les GeoNotes dans DrawingTools.vue
+
+Pour les GeoNotes (type `Note`), un champ de saisie intitulé "Nom de la note" est désormais affiché au-dessus du sélecteur de catégorie dans le panneau DrawingTools.vue. Ce champ :
+- Est initialisé via `props.selectedFeature.get('name')` ou `properties.name`.
+- Réagit à la modification de l'utilisateur en émettant l'événement `properties-update` avec `{ name: ... }`.
+- Permet de nommer et renommer dynamiquement les notes géolocalisées.
+
 ## Gestion des dates de création et de modification des notes
 
 Les entités Note disposent de deux champs de date principaux :

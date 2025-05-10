@@ -179,3 +179,4 @@ Une analyse approfondie des options pour améliorer l'expérience tactile sur mo
 
 - Permettre de cliquer sur une GeoNote existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et accéder aux actions spécifiques (Éditer, Itinéraire, Supprimer) dans le panneau DrawingTools
 - Permettre de cliquer sur une forme existante lorsque aucun outil de dessin n'est sélectionné pour entrer en mode sélection et modifier via les points de contrôle
+- Afficher le champ de saisie du nom pour les GeoNotes (type `Note`) dans le panneau DrawingTools.vue, au-dessus de la catégorie, pour permettre la saisie et l'affichage du nom de la note

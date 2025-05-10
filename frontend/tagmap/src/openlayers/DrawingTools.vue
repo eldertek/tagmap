@@ -110,11 +110,18 @@
           <!-- Propriétés de la forme sélectionnée (intégrées directement sous les outils) -->
           <div v-if="props.selectedFeature" class="mt-4">
             <!-- Champ pour nommer la forme (masqué pour les Notes) -->
-            <div v-if="getFeatureType() !== 'Note'" class="mb-4">
-              <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">Nom de la forme</label>
-              <input type="text" id="shapeName" v-model="shapeName" @change="updateShapeName"
-                placeholder="Donnez un nom à cette forme"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500" />
+            <div class="mb-4">
+              <label for="shapeName" class="block text-sm font-medium text-gray-700 mb-1">
+                Nom <span v-if="getFeatureType()==='Note'">de la note</span><span v-else>de la forme</span>
+              </label>
+              <input
+                type="text"
+                id="shapeName"
+                v-model="shapeName"
+                @change="updateShapeName"
+                :placeholder="getFeatureType()==='Note' ? 'Donnez un nom à cette note' : 'Donnez un nom à cette forme'"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
             </div>
 
             <!-- Catégorie de la forme -->
