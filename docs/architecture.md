@@ -47,7 +47,7 @@ flowchart TD
    - Responsive design for both desktop and mobile
    - State management with Vuex/Pinia
    - [2024-06] Les chemins d'icônes dans le manifest doivent être relatifs à la racine publique (ex: `/img/icons/...`) pour compatibilité Vite/PWA. Voir docs/technical.md pour les détails.
-   - Les balises meta PWA doivent suivre les recommandations actuelles : utiliser `mobile-web-app-capable` au lieu de `apple-mobile-web-app-capable`. Les icônes référencées dans le manifest doivent exister et être valides (voir docs/technical.md).
+   - Les balises meta PWA doivent suivre les recommandations actuelles : utiliser uniquement `mobile-web-app-capable` (et non plus `apple-mobile-web-app-capable`). Voir docs/technical.md pour les détails et la justification.
 
 2. **Leaflet Map Component**
    - Map rendering with multiple layer support

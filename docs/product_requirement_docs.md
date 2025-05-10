@@ -85,6 +85,7 @@ Organizations need a centralized way to:
 
 ### UI/UX Enhancements
 + - Display enterprise name visibly on each note card for Administrators only
++ - Pour la compatibilité PWA/mobile, seule la balise `<meta name="mobile-web-app-capable" content="yes">` doit être utilisée dans le HTML principal (voir docs/technical.md pour justification et historique). L'ancienne balise `apple-mobile-web-app-capable` est dépréciée et ne doit plus être utilisée.
 
 ## 5. Future Considerations
 - Enhanced filtering capabilities

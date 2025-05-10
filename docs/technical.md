@@ -527,9 +527,10 @@ Le frontend utilise la fonction `mapService.getTransformRequest()` pour injecter
 - [2024-07-19] Vue warning: Property "deleteSelectedFeature" was accessed during render but is not defined; resolved by renaming the `@delete-shape` binding to `handleDrawDelete` in `MapLibreTest.vue`.
 - [2024-07-20] MapLibre-Geoman errors "Can't add controls: controls already added" and "An image named \"default-marker\" already exists"; resolved by using `.once` for the `load` and `gm:loaded` events and monkey-patching `addImage` to guard against duplicate images.
 
-## [2024-06] Mise à jour PWA/mobile
+## [2024-07-21] Mise à jour PWA/mobile
 
-- La balise `<meta name="apple-mobile-web-app-capable" content="yes">` est désormais dépréciée et doit être remplacée par `<meta name="mobile-web-app-capable" content="yes">` dans le fichier HTML principal.
+- La balise `<meta name="apple-mobile-web-app-capable" content="yes">` est désormais dépréciée et a été remplacée par `<meta name="mobile-web-app-capable" content="yes">` dans le fichier HTML principal (`templates/index.html`).
+- Seule la balise `mobile-web-app-capable` doit être utilisée pour garantir la compatibilité avec les navigateurs modernes.
 - Toutes les icônes référencées dans le manifest (ex: `/static/frontend/img/icons/msapplication-icon-144x144.png`) doivent exister et être des images PNG valides. Vérifier leur présence dans le dossier `frontend/tagmap/public/img/icons/`.
 - Voir aussi le manifest à l'emplacement `static/frontend/manifest.webmanifest` pour la liste complète des icônes attendues.
 - Les chemins d'icônes dans le manifest doivent être relatifs à la racine publique (ex: `/img/icons/msapplication-icon-144x144.png`) pour garantir la compatibilité avec le serveur de développement Vite et le mode PWA.

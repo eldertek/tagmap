@@ -163,6 +163,8 @@ L'admin doit toujours voir toutes les notes. Ce contexte doit être respecté da
 
 - [2024-07-18] Amélioration : La configuration des tuiles hybrides a été optimisée pour assurer la compatibilité entre Leaflet et MapLibre GL. La requête de session utilise désormais explicitement `mapType="satellite"` avec `layerTypes=["layerRoadmap"]` pour obtenir l'effet hybride (satellite + routes/labels). MapLibreTest.vue a été mis à jour pour utiliser ces tuiles avec un cache-buster et une attribution améliorée. Cela garantit une expérience cartographique cohérente quelle que soit la bibliothèque utilisée.
 
+- [2024-07-21] Mise à jour PWA/mobile : la balise `<meta name="apple-mobile-web-app-capable" content="yes">` est supprimée et remplacée par `<meta name="mobile-web-app-capable" content="yes">` dans le HTML principal. Voir docs/technical.md pour justification. Toute évolution future doit être synchronisée dans la documentation et les tests automatisés.
+
 # Contexte actif : Uniformisation des niveaux d'accès
 
 - Toute gestion, affichage ou filtrage de niveau d'accès doit utiliser le mapping ACCESS_LEVELS de src/utils/noteHelpers.ts.
