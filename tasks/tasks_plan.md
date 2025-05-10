@@ -93,6 +93,8 @@
    - [x] Fix enterprise_name preservation when editing notes
    - [ ] Écrire tests automatisés pour chaque niveau d'accès GeoNote
    - [ ] Write note feature tests
+   - [ ] Ensure that when loading a new plan, previous GeoNotes are cleared (via clearPlan) so that only the current plan's notes are displayed
+   - [ ] Ensure that when loading a new plan, overlays (popups) are hidden so no old overlays persist between plans
    - [ ] **Test automatisé : Vérifier que le champ `updatedAt` d'une note (GeoNote) n'est modifié que si un champ significatif change (title, description, access_level, style, column, location, order, category), et reste inchangé sinon.**
    - [ ] Vérifier la matrice d'accès des notes géolocalisées (GeoNote) :
        - [ ] L'admin voit toutes les notes (private, company, employee, visitor)

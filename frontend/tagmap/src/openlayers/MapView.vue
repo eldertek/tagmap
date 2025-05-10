@@ -57,14 +57,14 @@
         <!-- Drawing tools panel -->
         <Teleport v-if="isMobile" to="body">
         <DrawingTools v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
-          :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
+          :selected-feature="selectedFeature as unknown as Feature<Geometry>" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
           @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
           @style-update="handleStyleUpdate" @filter-change="handleFilterChange"
           @edit-geo-note="handleEditGeoNote" @route-geo-note="handleRouteGeoNote"
           class="md:w-80 md:flex-shrink-0" />
         </Teleport>
       <DrawingTools v-else v-model:show="showDrawingTools" :selected-tool="selectedDrawingTool"
-        :selected-feature="selectedFeature" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
+        :selected-feature="selectedFeature as unknown as Feature<Geometry>" :is-drawing="isDrawing" @tool-selected="handleToolSelection"
         @delete-feature="deleteSelectedFeature" @properties-update="handlePropertiesUpdate"
         @style-update="handleStyleUpdate" @filter-change="handleFilterChange"
         @edit-geo-note="handleEditGeoNote" @route-geo-note="handleRouteGeoNote"
@@ -620,6 +620,8 @@ const popupContainer = ref<HTMLElement|null>(null)
 const popupContent = ref<HTMLElement|null>(null)
 const popupCloser = ref<HTMLElement|null>(null)
 let popupOverlay: Overlay|null = null
+// Reference for click-outside handler to close overlay
+let onDocumentClick: (evt: MouseEvent) => void
 
 // Plan information
 const planName = ref<string>('')
@@ -721,6 +723,29 @@ watch(drawingInProgress, (newValue, oldValue) => {
   }
 })
 
+// Also watch for new features from the drawing source and handle GeoNotes specially
+watch(() => drawSource.getFeatures().length, async (newLength, oldLength) => {
+  if (newLength > oldLength) {
+    // A new feature was added to the drawSource
+    const features = drawSource.getFeatures();
+    const newFeature = features[features.length - 1];
+    
+    // Check if this is a GeoNote (Point with type='Note')
+    const props = newFeature.get('properties') || {};
+    const geometry = newFeature.getGeometry();
+    
+    if (props.type === 'Note' && geometry instanceof Point && newFeature.getId()) {
+      console.log('[MapView] Found a new GeoNote in drawSource:', newFeature.getId());
+      
+      // Add to the map as a proper GeoNote (this will handle SVG icon etc.)
+      addNoteToMap(newFeature, newFeature.getId() as number);
+      
+      // Then remove from drawSource to avoid duplicate rendering
+      drawSource.removeFeature(newFeature);
+    }
+  }
+}, { immediate: false })
+
 // Features collection
 const shapes = ref<any[]>([])
 
@@ -749,14 +774,15 @@ onMounted(async () => {
         popupOverlay = new Overlay({
           element: popupContainer.value as HTMLElement,
           autoPan: true,
-          autoPanOptions: { duration: 250 },
           offset: [0, -15]
         })
         olMap.addOverlay(popupOverlay)
         // Close popup on closer click
         popupCloser.value?.addEventListener('click', (evt: Event) => {
           evt.preventDefault()
-          popupOverlay?.setPosition(undefined)
+          if (popupOverlay) {
+            popupOverlay.setPosition(undefined)
+          }
           popupContainer.value?.style.setProperty('display', 'none')
         })
         // Display info popup on single click
@@ -780,13 +806,19 @@ onMounted(async () => {
               if (props.description) html += `${props.description}<br/>`
               popupContent.value!.innerHTML = html
               popupContainer.value!.style.setProperty('display', 'block')
-              popupOverlay.setPosition(evt.coordinate)
+              if (popupOverlay) {
+                popupOverlay.setPosition(evt.coordinate)
+              }
             } else {
-              popupOverlay.setPosition(undefined)
+              if (popupOverlay) {
+                popupOverlay.setPosition(undefined)
+              }
               popupContainer.value?.style.setProperty('display', 'none')
             }
           } else {
-            popupOverlay?.setPosition(undefined)
+            if (popupOverlay) {
+              popupOverlay.setPosition(undefined)
+            }
             popupContainer.value?.style.setProperty('display', 'none')
           }
         })
@@ -858,14 +890,29 @@ onMounted(async () => {
       }
     });
   }
+
+  // Setup click-outside handler to close the overlay
+  onDocumentClick = (evt: MouseEvent) => {
+    if (popupContainer.value && popupOverlay) {
+      // Skip clicks inside the map container or the overlay itself
+      if (mapContainer.value?.contains(evt.target as Node) || popupContainer.value.contains(evt.target as Node)) {
+        return
+      }
+      popupOverlay.setPosition(undefined)
+      popupContainer.value.style.setProperty('display', 'none')
+    }
+  }
+  document.addEventListener('click', onDocumentClick)
 });
 
-// Clean up when component is unmounted
 onUnmounted(() => {
   if (olMap) {
     olMap.setTarget(undefined)
     olMap = null
   }
+
+  // Remove click-outside handler
+  document.removeEventListener('click', onDocumentClick)
 })
 
 // Toolbar action methods
@@ -1069,14 +1116,9 @@ async function loadPlanById(planId: number) {
 
   console.log(`[MapView] loadPlanById: Loading plan ${planId}`);
   try {
-    // Clear current state without touching the computed currentPlan
-    drawSource.clear();
-    shapes.value = [];
-    selectedFeature.value = null;
-    planName.value = '';
-    planDescription.value = '';
-    lastSave.value = null;
-
+    // Clear current plan data and remove existing shapes and note layers
+    clearPlan();
+    
     // Get plan details
     const plan = await irrigationStore.fetchPlanById(planId);
     if (!plan) {
@@ -1326,6 +1368,12 @@ function clearPlan() {
   // Clear shapes collection
   shapes.value = [];
   
+  // Clear any open popups to avoid overlays persisting between plans
+  if (popupOverlay) {
+    popupOverlay.setPosition(undefined);
+    popupContainer.value?.style.setProperty('display', 'none');
+  }
+  
   // Clear selected feature
   selectedFeature.value = null;
   
@@ -1421,12 +1469,21 @@ const savePlan = async () => {
   // Ensure plan has a title
   if (!planName.value && !currentPlan.value.nom) {
     planName.value = 'Plan ' + new Date().toLocaleDateString()
-    // Update plan metadata
+    // Update plan metadata using the API directly since updatePlan isn't available in the store
     try {
-      await irrigationStore.updatePlan(currentPlan.value.id, {
+      const planData = {
         nom: planName.value,
         description: planDescription.value || 'Plan créé le ' + new Date().toLocaleDateString()
-      });
+      };
+      
+      // Update the plan via API
+      await api.patch(`/plans/${currentPlan.value.id}/`, planData);
+      
+      // Update the current plan in memory
+      if (currentPlan.value) {
+        currentPlan.value.nom = planName.value;
+        currentPlan.value.description = planData.description;
+      }
     } catch (error) {
       console.error('[MapView] Error updating plan metadata:', error);
     }
@@ -1492,7 +1549,7 @@ const handleToolSelection = (toolType: string) => {
 }
 
 // Handle properties update from DrawingTools component
-const handlePropertiesUpdate = (properties: any) => {
+const handlePropertiesUpdate = async (properties: any) => {
   if (selectedFeature.value) {
     // TypeScript requires a type assertion here since Feature<Geometry> is expected
     const feature = selectedFeature.value as unknown as Feature<Geometry>
@@ -1507,17 +1564,62 @@ const handlePropertiesUpdate = (properties: any) => {
         ...properties
       }
     }
+    // Auto-save: differentiate shapes and GeoNotes
+    const props = feature.get('properties') as any
+    if (props.type === 'Note' && feature.getId()) {
+      // Update GeoNote via API
+      const id = feature.getId() as number
+      const payload: any = {}
+      if (properties.name !== undefined) payload.title = properties.name
+      if (properties.description !== undefined) payload.description = properties.description
+      if (properties.accessLevel !== undefined) payload.access_level = properties.accessLevel
+      try {
+        await noteService.updateNote(id, payload)
+        // Update in store
+        notesStore.updateNote(id, {
+          title: properties.name,
+          description: properties.description,
+          access_level: properties.accessLevel
+        })
+        notificationStore.success('Note mise à jour avec succès')
+      } catch (err) {
+        console.error('[MapView] Error auto-saving GeoNote:', err)
+        notificationStore.error('Erreur lors de la mise à jour de la note')
+      }
+    } else {
+      // Auto-save plan shapes
+      await savePlan()
+    }
+  }
+  // Close overlay after property update
+  if (popupOverlay) {
+    popupOverlay.setPosition(undefined)
+  }
+  if (popupContainer.value) {
+    popupContainer.value.style.setProperty('display', 'none')
   }
 }
 
 // Handle style update from DrawingTools component
-const handleStyleUpdate = (style: any) => {
+const handleStyleUpdate = async (style: any) => {
   console.log('[MapView] handleStyleUpdate received style', style)
   if (selectedFeature.value) {
     // TypeScript requires a type assertion here since Feature<Geometry> is expected
     const feature = selectedFeature.value as unknown as Feature<Geometry>
     updateFeatureStyle(feature, style)
     console.log('[MapView] handleStyleUpdate: style applied to feature', feature)
+    // Auto-save if it's a shape (not a GeoNote)
+    const props = feature.get('properties') as any
+    if (props.type !== 'Note') {
+      await savePlan()
+    }
+  }
+  // Close overlay after style update
+  if (popupOverlay) {
+    popupOverlay.setPosition(undefined)
+  }
+  if (popupContainer.value) {
+    popupContainer.value.style.setProperty('display', 'none')
   }
 }
 
@@ -1565,7 +1667,7 @@ const applyFilters = () => {
     console.log(`[applyFilters] Shape id=${feature.getId()} type=${type} category=${category} access=${access} -> visible=${visible}`);
     if (visible) {
       // Reset to layer style
-      feature.setStyle(null);
+      feature.setStyle(undefined); // Use undefined instead of null
     } else {
       // Hide by applying empty style
       feature.setStyle(new Style());
@@ -1854,7 +1956,7 @@ const onGeoNoteSaved = async (updatedNote: Note) => {
             anchorYUnits: 'fraction',
             scale: 1.5
           }),
-          text: textStyle
+          text: textStyle || undefined
         }));
       }
     }

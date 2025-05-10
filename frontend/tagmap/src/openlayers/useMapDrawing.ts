@@ -16,6 +16,12 @@ import { getArea, getLength } from 'ol/sphere'
 import { Geometry, LineString, Point, Polygon } from 'ol/geom'
 import { unByKey } from 'ol/Observable'
 import type { FeatureLike } from 'ol/Feature'
+import { Icon } from 'ol/style'
+import { toLonLat } from 'ol/proj'
+import { noteService } from '@/services/api'
+import { useNotesStore } from '@/stores/notes'
+import { useNotificationStore } from '@/stores/notification'
+import { useIrrigationStore } from '@/stores/irrigation'
 
 export function useMapDrawing() {
   // Active drawing tool name
@@ -167,22 +173,25 @@ export function useMapDrawing() {
 
     // Special handling for Note type (GeoNote)
     if (props.type === 'Note' && type === 'Point') {
-      // Calculate marker size based on selected state
-      const markerSize = selected ? radius * 1.5 : radius
+      // SVG de l'outil dessin (draw_point) - exactement comme dans MapView.vue
+      const drawPointSVG =
+        `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="8.5" r="2.5" stroke="${props.style?.color || '#2b6451'}" stroke-width="2" fill="white"/>
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="${props.style?.color || '#2b6451'}" stroke-width="2" fill="${props.style?.fillColor || '#e6f0ee'}"/>
+        </svg>`;
+      // Encodage en data URI
+      const svgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(drawPointSVG)}`;
       
-      // Custom styling for GeoNote markers without label
+      // Custom styling for GeoNote markers with SVG icon
       return new Style({
-        image: new CircleStyle({
-          radius: markerSize,
-          fill: new Fill({
-            color: props.style?.fillColor || '#2b6451'
-          }),
-          stroke: new Stroke({
-            color: props.style?.color || '#2b6451',
-            width: strokeWidth
-          })
+        image: new Icon({
+          src: svgUrl,
+          anchor: [0.5, 1],
+          anchorXUnits: 'fraction',
+          anchorYUnits: 'fraction',
+          scale: 1.5 // Identical scale as in MapView.vue
         })
-      })
+      });
     }
     
     // Standard styling for polygons and lines
@@ -594,25 +603,112 @@ export function useMapDrawing() {
           isDrawing.value = true
         })
         
-        drawEndKey = drawInteraction.on('drawend', (event: DrawEvent) => {
+        drawEndKey = drawInteraction.on('drawend', async (event: DrawEvent) => {
           console.log('[useMapDrawing] drawend (Point) geometry type:', event.feature.getGeometry()?.getType())
           isDrawing.value = false
           
           // Set properties on the newly drawn feature
           const feature = event.feature as Feature<Geometry>
           
+          // Set initial properties
           feature.set('properties', {
             type: 'Note',
             category: 'forages',
             accessLevel: 'visitor',
             style: {
               color: '#3388ff',
-              weight: 3
-            }
+              weight: 3,
+              fillColor: 'rgba(51, 136, 255, 0.6)',
+              radius: 8
+            },
+            name: 'Nouvelle note',
+            description: ''
           })
+          
+          // Get current plan ID from store
+          const irrigationStore = useIrrigationStore()
+          const planId = irrigationStore.currentPlan?.id
+          
+          if (!planId) {
+            console.error('[useMapDrawing] Cannot create GeoNote: No active plan')
+            const notificationStore = useNotificationStore()
+            notificationStore.error('Erreur: Aucun plan actif. Impossible de créer une note.')
+            return
+          }
           
           // Make this the selected feature
           selectedFeature.value = feature
+          
+          try {
+            // Convert the feature's geometry to GeoJSON format
+            const geometry = feature.getGeometry()
+            
+            if (geometry instanceof Point) {
+              // Convert OpenLayers coordinates to lon/lat
+              const coords = geometry.getCoordinates()
+              const [longitude, latitude] = toLonLat(coords)
+              
+              console.log(`[useMapDrawing] Creating GeoNote at coordinates:`, { 
+                mapCoords: coords, 
+                geoCoords: [longitude, latitude] 
+              })
+              
+              // Get reference to stores
+              const notesStore = useNotesStore()
+              const defaultColumn = notesStore.getDefaultColumn
+              
+              // Inside drawend handler, before preparing geoNoteData
+              const plan = irrigationStore.currentPlan;
+              const enterpriseId = plan?.entreprise_id != null ? plan.entreprise_id : plan?.entreprise?.id;
+              
+              const geoNoteData = {
+                title: 'Nouvelle note',
+                description: '',
+                location: {
+                  type: 'Point',
+                  coordinates: [longitude, latitude]
+                },
+                plan: planId,
+                enterprise_id: enterpriseId,
+                column: defaultColumn ? defaultColumn.id : '2', // Default to "À faire" column
+                category: 'forages',
+                access_level: 'visitor',
+                style: {
+                  color: '#3388ff',
+                  weight: 3,
+                  fillColor: 'rgba(51, 136, 255, 0.6)',
+                  radius: 8
+                }
+              }
+              
+              // Create the note in the backend
+              const response = await noteService.createNote(geoNoteData)
+              const createdNote = response.data
+              
+              console.log('[useMapDrawing] GeoNote created successfully:', createdNote)
+              
+              // Set the feature ID to match the backend ID
+              feature.setId(createdNote.id)
+              
+              // Add to the notes store
+              notesStore.addNote({
+                ...createdNote,
+                id: createdNote.id,
+                columnId: createdNote.column
+              })
+              
+              // Add notification if needed
+              const notificationStore = useNotificationStore()
+              notificationStore.success('Note créée avec succès')
+            }
+          } catch (error) {
+            console.error('[useMapDrawing] Error creating GeoNote:', error)
+            const notificationStore = useNotificationStore()
+            notificationStore.error('Erreur lors de la création de la note')
+            
+            // Remove the feature from the source since it wasn't successfully created in backend
+            drawSource.removeFeature(feature)
+          }
         })
         
         map.addInteraction(drawInteraction)
@@ -626,7 +722,7 @@ export function useMapDrawing() {
         // Just use selection for navigation (added above)
         break
     }
-      }
+  }
 
   // Clear drawing interactions
   function clearDrawingInteractions(map: Map) {

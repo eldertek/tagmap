@@ -562,16 +562,20 @@ Depuis [date de modification], l'icône affichée pour les GeoNotes (notes géol
 - **Technique** :
   - Utilisation d'un style OpenLayers `Icon` avec une source SVG inline (data URI).
   - Le SVG est celui défini dans `DrawingTools.vue` pour l'outil `draw_point`.
-  - Les couleurs de contour et de remplissage sont dynamiques et dépendent des propriétés de style de la note (`style.color`, `style.fillColor`).
+  - Les couleurs de contour et de remplissage sont dynamiques et dépendent des propriétés de style de chaque note (`style.color`, `style.fillColor`).
   - L'ancre de l'icône est positionnée pour que la pointe du marqueur corresponde exactement à la position géographique.
   - L'icône GeoNote utilise désormais une échelle fixe (scale=1.5) pour garantir une visibilité optimale, même à faible niveau de zoom.
 
+- **Charge et affichage des GeoNotes uniquement pour le plan actif** :
+  Avant de charger les GeoNotes d'un nouveau plan, la fonction `clearPlan()` (dans `MapView.vue`) supprime toutes les couches de notes précédemment affichées. Ceci garantit que seules les GeoNotes associées au plan actuellement chargé sont affichées sur la carte.
+
+- **Effacement des superpositions et popups** :
+  La fonction `clearPlan()` cache également toute pop-up active (via `popupOverlay.setPosition(undefined)` et `popupContainer.style.display='none'`), évitant ainsi l'affichage d'anciennes popups lors du chargement d'un nouveau plan.
+
 - **Impact** :
   - Toutes les GeoNotes existantes et futures s'affichent avec ce nouveau marqueur.
-  - La personnalisation de la couleur reste possible via les propriétés de style de chaque note.
-
 - **Fichier concerné** :
-  - `frontend/tagmap/src/openlayers/MapView.vue` (fonction `addNoteToMap`).
+  - `frontend/tagmap/src/openlayers/MapView.vue` (fonction `addNoteToMap` et `loadPlanById`).
 
 ## [2024-07-20] Suppression de l'affichage de la date/heure sur la carte de note (NotesView.vue)
 
