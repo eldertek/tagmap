@@ -262,3 +262,5 @@ Actuellement, TagMap rencontre des limitations pour la gestion tactile sur mobil
 - [ ] L'icône des GeoNotes sur la carte doit toujours être identique à celle de l'outil dessin "point" (SVG DrawingTools.vue).
     - Toute modification de l'icône dans l'UI doit être répercutée sur la carte.
     - La couleur du marqueur reste personnalisable selon les propriétés de la note.
+
+- [ ] Vérifier que `public/img/icons/favicon.svg` contient un cercle blanc en fond (`<circle ... fill="white"/>`) pour éviter les artefacts de fond noir lors de la génération des icônes PNG (voir docs/technical.md).

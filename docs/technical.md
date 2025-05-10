@@ -583,4 +583,23 @@ Depuis [date de modification], l'icône affichée pour les GeoNotes (notes géol
 - Cette décision vise à alléger l'interface et à se concentrer sur les informations essentielles pour l'utilisateur.
 - Les champs de date restent présents dans le modèle et l'API, mais ne sont plus affichés dans la liste des notes.
 
+## Génération des icônes (favicon, PWA, etc.)
+
+La génération des icônes de l'application (Android, iOS, favicon, etc.) se fait à partir du fichier `public/img/icons/favicon.svg` via le script `generate-icons.sh`.
+
+**Important :** Le SVG source doit contenir un cercle blanc en fond pour garantir que toutes les icônes générées auront un fond blanc rond, quel que soit le mode d'affichage (clair/sombre). Sans ce fond, certaines plateformes affichent un fond noir.
+
+Exemple minimal :
+```xml
+<svg ...>
+  <circle cx="50%" cy="50%" r="50%" fill="white"/>
+  <!-- ...le reste du logo... -->
+</svg>
+```
+
+Après modification du SVG, relancer :
+```bash
+./frontend/tagmap/generate-icons.sh
+```
+
 ***

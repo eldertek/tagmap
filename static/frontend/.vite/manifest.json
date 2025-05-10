@@ -8,10 +8,10 @@
       "node_modules/html2canvas/dist/html2canvas.esm.js",
       "node_modules/dompurify/dist/purify.es.js",
       "node_modules/canvg/lib/index.es.js",
+      "src/openlayers/MapView.vue",
       "src/views/ProfileView.vue",
       "src/views/ForgotPasswordView.vue",
       "src/views/ResetPasswordView.vue",
-      "src/openlayers/MapView.vue",
       "src/views/NotFoundView.vue",
       "node_modules/workbox-window/build/workbox-window.prod.es5.mjs"
     ],

@@ -403,13 +403,13 @@ const drawingTools = [
 ]
 
 // Filters
-const selectedAccessLevel = ref<NoteAccessLevel>(NoteAccessLevel.COMPANY)
+const selectedAccessLevel = ref<NoteAccessLevel>(NoteAccessLevel.VISITOR)
 const filters = ref({
   accessLevels: {
-    [NoteAccessLevel.PRIVATE]: false,
+    [NoteAccessLevel.PRIVATE]: true,
     [NoteAccessLevel.COMPANY]: true,
-    [NoteAccessLevel.EMPLOYEE]: false,
-    [NoteAccessLevel.VISITOR]: false
+    [NoteAccessLevel.EMPLOYEE]: true,
+    [NoteAccessLevel.VISITOR]: true
   },
   categories: {
     forages: true,
@@ -570,40 +570,34 @@ const selectPresetColor = (color: string) => {
 
 // Update access level filter
 const updateAccessLevelFilter = (level: NoteAccessLevel) => {
-  // Reset all access level filters
+  // Hierarchical mapping: PRIVATE=0, COMPANY=1, EMPLOYEE=2, VISITOR=3
+  const hierarchy: NoteAccessLevel[] = [
+    NoteAccessLevel.PRIVATE,
+    NoteAccessLevel.COMPANY,
+    NoteAccessLevel.EMPLOYEE,
+    NoteAccessLevel.VISITOR
+  ];
+  const selectedIndex = hierarchy.indexOf(level);
+  // Allow levels up to and including the selected level
   Object.keys(filters.value.accessLevels).forEach(key => {
-    filters.value.accessLevels[key as keyof typeof filters.value.accessLevels] = false
-  })
-  
-  // Set the selected level to true
-  if (level in filters.value.accessLevels) {
-    filters.value.accessLevels[level as keyof typeof filters.value.accessLevels] = true
-  }
-  
-  emitFilterChange()
+    const keyLevel = key as NoteAccessLevel;
+    filters.value.accessLevels[keyLevel] = hierarchy.indexOf(keyLevel) <= selectedIndex;
+  });
+  emitFilterChange();
 }
 
 // Reset filters
 const resetFilters = () => {
-  // Reset all filters to true
+  // Reset categories and shapeTypes to true
   Object.keys(filters.value.categories).forEach(key => {
     filters.value.categories[key as keyof typeof filters.value.categories] = true
   })
-  
   Object.keys(filters.value.shapeTypes).forEach(key => {
     filters.value.shapeTypes[key as keyof typeof filters.value.shapeTypes] = true
   })
-  
-  // Reset access level to company (all)
-  selectedAccessLevel.value = NoteAccessLevel.COMPANY
-  filters.value.accessLevels = {
-    [NoteAccessLevel.PRIVATE]: false,
-    [NoteAccessLevel.COMPANY]: true,
-    [NoteAccessLevel.EMPLOYEE]: false,
-    [NoteAccessLevel.VISITOR]: false
-  }
-  
-  emitFilterChange()
+  // Reset access level selection to visitor and apply hierarchical filter
+  selectedAccessLevel.value = NoteAccessLevel.VISITOR
+  updateAccessLevelFilter(selectedAccessLevel.value)
 }
 
 // Emit filter change
