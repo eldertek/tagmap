@@ -182,13 +182,6 @@
                 </svg>
                 Charger
               </button>
-              <button @click="toggleEditMode" class="px-3 py-2 text-sm rounded-md border shadow-sm flex items-center justify-center"
-                :class="{ 'bg-blue-50 border-blue-300 text-blue-700': isEditModeEnabled, 'bg-white': !isEditModeEnabled }">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" :class="{ 'text-blue-600': isEditModeEnabled }" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                </svg>
-                Mode édition
-              </button>
             </div>
           </div>
           <!-- Information de sauvegarde -->
@@ -248,7 +241,6 @@ const emit = defineEmits<{
   (e: 'load-plan'): void;
   (e: 'save-plan'): void;
   (e: 'adjust-view'): void;
-  (e: 'toggle-edit-mode', enabled: boolean): void;
 }>();
 
 // Destructure props into refs
@@ -256,7 +248,6 @@ const { lastSave, planName, planDescription, saveStatus } = toRefs(props);
 
 // State
 const showMobileMenu = ref(false);
-const isEditModeEnabled = ref(false);
 
 // Get map state
 const { currentBaseMap, changeBaseMap } = useMapState();
@@ -308,11 +299,6 @@ const createNewPlan = () => { emit('create-new-plan'); showMobileMenu.value = fa
 const loadPlan = () => { emit('load-plan'); showMobileMenu.value = false; };
 const savePlan = () => { emit('save-plan'); showMobileMenu.value = false; };
 const adjustView = () => { emit('adjust-view'); showMobileMenu.value = false; };
-const toggleEditMode = () => {
-  isEditModeEnabled.value = !isEditModeEnabled.value;
-  emit('toggle-edit-mode', isEditModeEnabled.value);
-  showMobileMenu.value = false;
-};
 
 // Auto-save interval
 onMounted(() => {
